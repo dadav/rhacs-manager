@@ -78,6 +78,56 @@ export function Dashboard() {
           </GridItem>
 
           {/* EPSS Highlight Zone */}
+          {data.priority_cves.length > 0 && (
+            <GridItem span={12}>
+              <Alert
+                variant="warning"
+                isInline
+                title={t('dashboard.priorityCves')}
+              >
+                <p style={{ marginBottom: 8, fontSize: 13 }}>{t('dashboard.priorityCvesDescription')}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {data.priority_cves.map(cve => (
+                    <Link
+                      key={cve.cve_id}
+                      to={`/schwachstellen/${cve.cve_id}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 10px',
+                        background: 'var(--pf-v6-global--BackgroundColor--100)',
+                        border: '1px solid #ec7a08',
+                        borderRadius: 4,
+                        textDecoration: 'none',
+                        color: 'var(--pf-v6-global--Color--100)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700 }}>{cve.cve_id}</span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: 0.3,
+                          background: 'rgba(236, 122, 8, 0.18)',
+                          color: '#ec7a08',
+                          border: '1px solid rgba(236, 122, 8, 0.45)',
+                          padding: '1px 5px',
+                          borderRadius: 3,
+                        }}
+                      >
+                        PRIO
+                      </span>
+                      <SeverityBadge severity={cve.severity} />
+                      <EpssBadge value={cve.epss_probability} />
+                    </Link>
+                  ))}
+                </div>
+              </Alert>
+            </GridItem>
+          )}
+
           {data.high_epss_cves.length > 0 && (
             <GridItem span={12}>
               <Alert

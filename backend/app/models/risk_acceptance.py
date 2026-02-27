@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,6 +19,16 @@ class RiskStatus(str, enum.Enum):
 
 class RiskAcceptance(Base):
     __tablename__ = "risk_acceptances"
+    __table_args__ = (
+        Index(
+            "uq_risk_acceptances_active_scope",
+            "team_id",
+            "cve_id",
+            "scope_key",
+            unique=True,
+            postgresql_where=text("status IN ('requested', 'approved')"),
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     cve_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
@@ -30,6 +40,7 @@ class RiskAcceptance(Base):
     )
     justification: Mapped[str] = mapped_column(Text, nullable=False)
     scope: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    scope_key: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     created_by: Mapped[str] = mapped_column(

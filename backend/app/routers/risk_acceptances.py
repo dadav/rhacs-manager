@@ -1,28 +1,113 @@
+import hashlib
+import json
 from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
-from ..deps import get_app_db
+from ..deps import get_app_db, get_stackrox_db
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
-from ..models.team import Team
+from ..models.team import Team, TeamNamespace
 from ..models.user import User
-from ..notifications import service as notif_svc
 from ..mail import service as mail_svc
+from ..notifications import service as notif_svc
 from ..schemas.risk_acceptance import (
     CommentCreate,
     CommentResponse,
     RiskAcceptanceCreate,
     RiskAcceptanceResponse,
     RiskAcceptanceReview,
+    RiskScope,
+    RiskScopeTarget,
 )
 from ..services.audit_service import log_action
+from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/risk-acceptances", tags=["risk-acceptances"])
+
+
+async def _get_team_namespaces(db: AsyncSession, team_id: UUID) -> list[tuple[str, str]]:
+    result = await db.execute(select(TeamNamespace).where(TeamNamespace.team_id == team_id))
+    return [(n.namespace, n.cluster_name) for n in result.scalars().all()]
+
+
+def _normalize_scope(scope: dict) -> RiskScope:
+    if isinstance(scope, dict) and "mode" in scope and "targets" in scope:
+        return RiskScope.model_validate(scope)
+    # Legacy records used {} or {images, namespaces}. Treat missing mode as global.
+    return RiskScope(mode="all", targets=[])
+
+
+def _scope_key(scope: RiskScope) -> str:
+    canonical = json.dumps(scope.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return hashlib.md5(canonical.encode("utf-8")).hexdigest()
+
+
+def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -> RiskScope:
+    by_deployment = {str(d["deployment_id"]): d for d in deployments}
+    available_namespaces = {(d["cluster_name"], d["namespace"]) for d in deployments}
+    available_images = {(d["cluster_name"], d["namespace"], d.get("image_name", "")) for d in deployments}
+
+    if body_scope.mode == "all":
+        return RiskScope(mode="all", targets=[])
+
+    if body_scope.mode == "namespace":
+        normalized: set[tuple[str, str]] = set()
+        for target in body_scope.targets:
+            key = (target.cluster_name, target.namespace)
+            if key not in available_namespaces:
+                raise HTTPException(400, "Scope enthält Namespaces ohne diese CVE im Team-Kontext")
+            normalized.add(key)
+        targets = [
+            RiskScopeTarget(cluster_name=cluster, namespace=namespace)
+            for cluster, namespace in sorted(normalized)
+        ]
+        return RiskScope(mode="namespace", targets=targets)
+
+    if body_scope.mode == "image":
+        normalized: set[tuple[str, str, str]] = set()
+        for target in body_scope.targets:
+            if not target.image_name:
+                raise HTTPException(400, "Image-Scope erfordert image_name für jedes Target")
+            key = (target.cluster_name, target.namespace, target.image_name)
+            if key not in available_images:
+                raise HTTPException(400, "Scope enthält Images ohne diese CVE im Team-Kontext")
+            normalized.add(key)
+        targets = [
+            RiskScopeTarget(cluster_name=cluster, namespace=namespace, image_name=image_name)
+            for cluster, namespace, image_name in sorted(normalized)
+        ]
+        return RiskScope(mode="image", targets=targets)
+
+    # mode == deployment
+    normalized_targets: list[RiskScopeTarget] = []
+    seen_ids: set[str] = set()
+    for target in body_scope.targets:
+        if not target.deployment_id:
+            raise HTTPException(400, "Deployment-Scope erfordert deployment_id für jedes Target")
+        if target.deployment_id in seen_ids:
+            continue
+        deployment = by_deployment.get(target.deployment_id)
+        if not deployment:
+            raise HTTPException(400, "Scope enthält Deployments ohne diese CVE im Team-Kontext")
+        seen_ids.add(target.deployment_id)
+        normalized_targets.append(
+            RiskScopeTarget(
+                cluster_name=deployment["cluster_name"],
+                namespace=deployment["namespace"],
+                image_name=deployment.get("image_name", ""),
+                deployment_id=str(deployment["deployment_id"]),
+            )
+        )
+
+    if not normalized_targets:
+        raise HTTPException(400, "Für Deployment-Scope sind mindestens ein Target erforderlich")
+
+    normalized_targets.sort(key=lambda t: (t.cluster_name, t.namespace, t.deployment_id or ""))
+    return RiskScope(mode="deployment", targets=normalized_targets)
 
 
 async def _build_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanceResponse:
@@ -51,7 +136,7 @@ async def _build_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanc
         team_name=team.name if team else "",
         status=ra.status.value,
         justification=ra.justification,
-        scope=ra.scope,
+        scope=_normalize_scope(ra.scope),
         expires_at=ra.expires_at,
         created_at=ra.created_at,
         created_by=ra.created_by,
@@ -68,6 +153,7 @@ async def create_risk_acceptance(
     body: RiskAcceptanceCreate,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RiskAcceptanceResponse:
     if not current_user.team_id and not current_user.is_sec_team:
         raise HTTPException(400, "Kein Team zugeordnet")
@@ -75,24 +161,39 @@ async def create_risk_acceptance(
     team_id = current_user.team_id
     if current_user.is_sec_team:
         raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen beantragen")
+    if team_id is None:
+        raise HTTPException(400, "Kein Team zugeordnet")
+
+    team_namespaces = await _get_team_namespaces(db, team_id)
+    if not team_namespaces:
+        raise HTTPException(400, "Team hat keine konfigurierten Namespaces")
+
+    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, team_namespaces)
+    if not deployments:
+        raise HTTPException(404, "CVE im Team-Kontext nicht gefunden")
+
+    normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
+    scope_key = _scope_key(normalized_scope)
 
     # Check for existing active acceptance
     existing = await db.execute(
         select(RiskAcceptance).where(
             RiskAcceptance.cve_id == body.cve_id,
             RiskAcceptance.team_id == team_id,
+            RiskAcceptance.scope_key == scope_key,
             RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "Für diese CVE existiert bereits eine aktive Risikoakzeptanz")
+        raise HTTPException(409, "Für diese CVE und diesen Scope existiert bereits eine aktive Risikoakzeptanz")
 
     ra = RiskAcceptance(
         cve_id=body.cve_id,
         team_id=team_id,
         status=RiskStatus.requested,
         justification=body.justification,
-        scope=body.scope.model_dump(),
+        scope=normalized_scope.model_dump(mode="json"),
+        scope_key=scope_key,
         expires_at=body.expires_at,
         created_by=current_user.id,
     )

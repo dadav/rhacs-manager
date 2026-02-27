@@ -69,6 +69,12 @@ export function CveList() {
     color: sortBy === col ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
   })
 
+  const getRowStyle = (hasPriority: boolean): React.CSSProperties => ({
+    borderBottom: '1px solid #f0f0f0',
+    background: hasPriority ? 'rgba(236, 122, 8, 0.08)' : 'transparent',
+    boxShadow: hasPriority ? 'inset 4px 0 0 #ec7a08' : 'none',
+  })
+
   return (
     <>
       <PageSection variant="default">
@@ -144,18 +150,27 @@ export function CveList() {
                   {data.items.map(cve => (
                     <tr
                       key={cve.cve_id}
-                      style={{
-                        borderBottom: '1px solid #f0f0f0',
-                        background: cve.has_priority ? '#fff9e6' : 'transparent',
-                      }}
+                      style={getRowStyle(cve.has_priority)}
                     >
                       <td style={{ padding: '8px 12px' }}>
                         <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
                           {cve.cve_id}
                         </Link>
                         {cve.has_priority && (
-                          <span style={{ marginLeft: 6, fontSize: 10, background: '#ec7a08', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
-                            PRIORISIERT
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              letterSpacing: 0.3,
+                              background: 'rgba(236, 122, 8, 0.18)',
+                              color: '#ec7a08',
+                              border: '1px solid rgba(236, 122, 8, 0.45)',
+                              padding: '1px 5px',
+                              borderRadius: 3,
+                            }}
+                          >
+                            PRIO
                           </span>
                         )}
                       </td>
@@ -178,15 +193,13 @@ export function CveList() {
                         {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'center', width: 40 }}>
-                        {!cve.has_risk_acceptance && (
-                          <Tooltip content={t('cves.requestRiskAcceptance')}>
-                            <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
-                              <Button variant="plain" aria-label={t('cves.requestRiskAcceptance')} style={{ color: '#6a6e73', padding: '2px 6px' }}>
-                                <ShieldAltIcon />
-                              </Button>
-                            </Link>
-                          </Tooltip>
-                        )}
+                        <Tooltip content={t('cves.requestRiskAcceptance')}>
+                          <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
+                            <Button variant="plain" aria-label={t('cves.requestRiskAcceptance')} style={{ color: '#6a6e73', padding: '2px 6px' }}>
+                              <ShieldAltIcon />
+                            </Button>
+                          </Link>
+                        </Tooltip>
                       </td>
                     </tr>
                   ))}

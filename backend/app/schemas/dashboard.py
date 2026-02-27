@@ -27,6 +27,7 @@ class TeamDashboardData(BaseModel):
     stat_avg_epss: float
     severity_distribution: list[SeverityCount]
     cves_per_namespace: list[NamespaceCveCount]
+    priority_cves: list[CveListItem]
     high_epss_cves: list[CveListItem]  # top 5 by EPSS
     cve_trend: list[CveTrendPoint]
 

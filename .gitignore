@@ -1,2 +1,26 @@
+# Python
 *.py[co]
-__pycache__
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# Backend runtime/config
+backend/.env
+backend/.env.*
+
+# Frontend / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

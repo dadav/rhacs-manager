@@ -1,2 +1,0 @@
-- [ ] The scope of the risk acceptance should be configurable. A cve can be unproblematic in one image, environment, namespace...but highly risky in another context.
-- [ ] It doesnt make sense to have the "Neue Risikoakzeptanz" button on the page /risikoakzeptanzen, because there is no CVE to accept the risk.

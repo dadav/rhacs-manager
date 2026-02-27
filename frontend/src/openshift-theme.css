@@ -53,9 +53,13 @@
   border: none;
 }
 
-/* ── Table header rows: match OCP's gray header style ────────────────── */
+/* ── Table header rows: light mode gray, dark mode transparent ────────── */
 :root:not(.pf-v6-theme-dark) thead tr {
   background-color: #f0f0f0 !important;
+}
+
+:root.pf-v6-theme-dark thead tr {
+  background-color: transparent !important;
 }
 
 /* ── Nav section title on dark sidebar ───────────────────────────────── */

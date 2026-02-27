@@ -28,11 +28,11 @@ async def get_cves_for_namespaces(
     sql = text(f"""
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
-            ic.severity                     AS severity,
-            COALESCE(ic.cvss, 0)            AS cvss,
-            COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
-            COALESCE(ic.impactscore, 0)     AS impact_score,
-            COALESCE(comp.operatingsystem, '') AS operating_system,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
@@ -43,14 +43,13 @@ async def get_cves_for_namespaces(
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_components comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
-        GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
+        GROUP BY ic.cvebaseinfo_cve
         HAVING (
-            COALESCE(ic.cvss, 0) >= :min_cvss
-            OR COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) >= :min_epss
+            MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+            OR MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
             OR ic.cvebaseinfo_cve = ANY(:always_show)
         )
-        ORDER BY ic.severity DESC, COALESCE(ic.cvss, 0) DESC
+        ORDER BY severity DESC, cvss DESC
     """)
 
     result = await session.execute(
@@ -74,11 +73,11 @@ async def get_cve_detail(
     sql = text(f"""
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
-            ic.severity,
-            COALESCE(ic.cvss, 0)            AS cvss,
-            COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
-            COALESCE(ic.impactscore, 0)     AS impact_score,
-            COALESCE(comp.operatingsystem, '') AS operatingsystem,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
@@ -90,8 +89,7 @@ async def get_cve_detail(
         LEFT JOIN image_components comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
-        GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
+        GROUP BY ic.cvebaseinfo_cve
     """)
 
     result = await session.execute(sql, {"cve_id": cve_id})
@@ -170,11 +168,11 @@ async def get_all_cves(
     sql = text("""
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
-            ic.severity,
-            COALESCE(ic.cvss, 0)            AS cvss,
-            COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
-            COALESCE(ic.impactscore, 0)     AS impact_score,
-            COALESCE(comp.operatingsystem, '') AS operatingsystem,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
@@ -184,14 +182,13 @@ async def get_all_cves(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_components comp ON comp.id = ic.componentid
-        GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
+        GROUP BY ic.cvebaseinfo_cve
         HAVING (
-            COALESCE(ic.cvss, 0) >= :min_cvss
-            OR COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) >= :min_epss
+            MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+            OR MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
             OR ic.cvebaseinfo_cve = ANY(:always_show)
         )
-        ORDER BY ic.severity DESC, COALESCE(ic.cvss, 0) DESC
+        ORDER BY severity DESC, cvss DESC
     """)
     result = await session.execute(
         sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show}
@@ -217,8 +214,7 @@ async def get_severity_distribution(
         SELECT ic.severity, COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.severity
         ORDER BY ic.severity

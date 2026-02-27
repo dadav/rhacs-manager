@@ -10,9 +10,8 @@ import {
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useRiskAcceptances } from '../api/riskAcceptances'
-import { RiskStatus } from '../types'
 
 const STATUS_LABELS: Record<string, string> = {
   '': 'Alle',
@@ -30,8 +29,6 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function RiskAcceptances() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState('')
 
   const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined)
@@ -39,12 +36,7 @@ export function RiskAcceptances() {
   return (
     <>
       <PageSection variant="default">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title headingLevel="h1" size="xl">Risikoakzeptanzen</Title>
-          <Button variant="primary" onClick={() => navigate('/risikoakzeptanzen/neu')}>
-            Neue Risikoakzeptanz
-          </Button>
-        </div>
+        <Title headingLevel="h1" size="xl">Risikoakzeptanzen</Title>
       </PageSection>
 
       <PageSection variant="default" padding={{ default: 'noPadding' }}>

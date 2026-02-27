@@ -58,6 +58,12 @@ LEFT JOIN image_components comp ON comp.id = ic.componentid
 
 The old join chain (`image_cve_edges → image_cves → image_component_edges → image_component_cve_edges`) is incorrect for this schema.
 
+For dashboard severity aggregation, querying `image_cves` via `image_cve_edges` can return empty/missing data in this project. Use `image_cves_v2` for `get_severity_distribution` as well, consistent with the other dashboard queries.
+
+When building CVE list/detail aggregations, group by `ic.cvebaseinfo_cve` (CVE ID), not by `ic.id`. Grouping by `ic.id` creates duplicate rows for the same CVE and can make one prioritized CVE appear across many table rows.
+
+Remaining legacy-table usage to review in `backend/app/stackrox/queries.py`: `get_epss_risk_matrix`, `get_cluster_heatmap`, `get_fixability_stats`, `get_cve_aging`, `get_threshold_preview`, `get_cves_by_ids`, and `get_namespaces_with_cve`.
+
 ## Frontend Error Handling
 
 **Always use `getErrorMessage(error)` from `frontend/src/utils/errors.ts`** for all user-visible error text. Never use `(error as Error).message`.
@@ -78,6 +84,8 @@ import { getErrorMessage } from '../utils/errors'
 - `PageSectionVariants` only has `default` and `secondary` — no `light`
 - `Label` colors: `'blue' | 'teal' | 'green' | 'orange' | 'purple' | 'red' | 'orangered' | 'grey' | 'yellow'` — no `gold`
 - CSS import: `@patternfly/react-core/dist/styles/base.css` (declare `*.css` in `vite-env.d.ts`)
+- CVE table priority indicator should use badge text `PRIO` and a theme-tolerant style (accent stripe + subtle tint) so it remains readable in dark mode and visible in light mode.
+- Notification dropdown panels rendered from masthead actions must set an explicit text color when using a light background, otherwise masthead foreground inheritance can cause white-on-white content.
 
 ## Dev Workflow
 
@@ -106,6 +114,14 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 - Teams own namespaces (`team_namespaces`). CVE visibility is scoped to team namespaces.
 - CVSS/EPSS thresholds in `global_settings` filter CVEs from team views (sec team sees all).
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
+- In `/cves`, prioritized CVEs must always be listed first regardless of selected sort column/direction.
+- Risk acceptance creation is CVE-contextual only: users should start requests from CVE list/detail views; `/risikoakzeptanzen` is a list/review view and does not provide a standalone "new" action.
+- Risk acceptances are scope-aware. `risk_acceptances.scope` uses:
+  - `mode`: `all | namespace | image | deployment`
+  - `targets`: `{ cluster_name, namespace, image_name?, deployment_id? }[]`
+- Scope selections must be validated against real affected deployments for the CVE in the requesting team's namespaces.
+- Active acceptances are unique by `(team_id, cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
+- Team dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
 - `users.role`: `team_member | sec_team`
 

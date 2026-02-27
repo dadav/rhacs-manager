@@ -14,11 +14,12 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAddComment, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments } from '../api/riskAcceptances'
 import { useCurrentUser } from '../api/auth'
-import { RiskStatus } from '../types'
+import { useCveDetail } from '../api/cves'
+import { RiskScope, RiskScopeMode, RiskStatus } from '../types'
 
 const STATUS_COLORS: Record<RiskStatus, string> = {
   [RiskStatus.requested]: '#0066cc',
@@ -34,21 +35,92 @@ const STATUS_LABELS: Record<RiskStatus, string> = {
   [RiskStatus.expired]: 'Abgelaufen',
 }
 
+const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
+  all: 'Alle betroffenen Vorkommen',
+  namespace: 'Nur ausgewählte Namespaces',
+  image: 'Nur ausgewählte Images',
+  deployment: 'Nur ausgewählte Deployments',
+}
+
 function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
   const navigate = useNavigate()
   const createRA = useCreateRiskAcceptance()
+  const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(cveId)
   const [justification, setJustification] = useState('')
   const [expiresAt, setExpiresAt] = useState('')
+  const [scopeMode, setScopeMode] = useState<RiskScopeMode>('all')
+  const [selectedTargets, setSelectedTargets] = useState<string[]>([])
   const [error, setError] = useState('')
+
+  const deployments = cve?.affected_deployments_list ?? []
+  const namespaces = useMemo(
+    () => Object.values(Object.fromEntries(
+      deployments.map((d) => [
+        `${d.cluster_name}::${d.namespace}`,
+        { cluster_name: d.cluster_name, namespace: d.namespace },
+      ]),
+    )).sort((a, b) => `${a.cluster_name}/${a.namespace}`.localeCompare(`${b.cluster_name}/${b.namespace}`)),
+    [deployments],
+  )
+  const images = useMemo(
+    () => Object.values(Object.fromEntries(
+      deployments.map((d) => [
+        `${d.cluster_name}::${d.namespace}::${d.image_name}`,
+        { cluster_name: d.cluster_name, namespace: d.namespace, image_name: d.image_name },
+      ]),
+    )).sort((a, b) => `${a.cluster_name}/${a.namespace}/${a.image_name}`.localeCompare(`${b.cluster_name}/${b.namespace}/${b.image_name}`)),
+    [deployments],
+  )
+
+  function toggleTarget(key: string) {
+    setSelectedTargets((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    )
+  }
+
+  function buildScope(): RiskScope {
+    if (scopeMode === 'all') {
+      return { mode: 'all', targets: [] }
+    }
+
+    if (scopeMode === 'namespace') {
+      const targets = namespaces
+        .filter((ns) => selectedTargets.includes(`${ns.cluster_name}::${ns.namespace}`))
+        .map((ns) => ({ cluster_name: ns.cluster_name, namespace: ns.namespace }))
+      return { mode: 'namespace', targets }
+    }
+
+    if (scopeMode === 'image') {
+      const targets = images
+        .filter((img) => selectedTargets.includes(`${img.cluster_name}::${img.namespace}::${img.image_name}`))
+        .map((img) => ({ cluster_name: img.cluster_name, namespace: img.namespace, image_name: img.image_name }))
+      return { mode: 'image', targets }
+    }
+
+    const targets = deployments
+      .filter((dep) => selectedTargets.includes(dep.deployment_id))
+      .map((dep) => ({
+        cluster_name: dep.cluster_name,
+        namespace: dep.namespace,
+        image_name: dep.image_name,
+        deployment_id: dep.deployment_id,
+      }))
+    return { mode: 'deployment', targets }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!justification.trim()) { setError('Begründung erforderlich.'); return }
+    if (!cveId) { setError('CVE-ID fehlt.'); return }
+    if (scopeMode !== 'all' && selectedTargets.length === 0) {
+      setError('Bitte mindestens ein Scope-Target auswählen.')
+      return
+    }
     try {
       const ra = await createRA.mutateAsync({
         cve_id: cveId,
         justification,
-        scope: {},
+        scope: buildScope(),
         expires_at: expiresAt || null,
       })
       navigate(`/risikoakzeptanzen/${ra.id}`)
@@ -71,6 +143,8 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
       <PageSection>
         <Card style={{ maxWidth: 640 }}>
           <CardBody>
+            {isCveLoading && <Spinner aria-label="CVE laden" />}
+            {cveError && <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>CVE-ID</label>
@@ -86,6 +160,60 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                   placeholder="Warum ist dieses Risiko akzeptabel?"
                 />
               </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>Scope *</label>
+                <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+                  {(Object.keys(SCOPE_MODE_LABELS) as RiskScopeMode[]).map((mode) => (
+                    <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="radio"
+                        name="scope-mode"
+                        checked={scopeMode === mode}
+                        onChange={() => {
+                          setScopeMode(mode)
+                          setSelectedTargets([])
+                        }}
+                      />
+                      <span style={{ fontSize: 13 }}>{SCOPE_MODE_LABELS[mode]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {scopeMode !== 'all' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>Scope-Targets *</label>
+                  <div style={{ marginTop: 8, maxHeight: 220, overflow: 'auto', border: '1px solid #d2d2d2', borderRadius: 4, padding: 10 }}>
+                    {scopeMode === 'namespace' && namespaces.map((ns) => {
+                      const key = `${ns.cluster_name}::${ns.namespace}`
+                      return (
+                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
+                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
+                          <span style={{ marginLeft: 8, fontSize: 12 }}>{ns.cluster_name}/{ns.namespace}</span>
+                        </label>
+                      )
+                    })}
+                    {scopeMode === 'image' && images.map((img) => {
+                      const key = `${img.cluster_name}::${img.namespace}::${img.image_name}`
+                      return (
+                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
+                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
+                          <span style={{ marginLeft: 8, fontSize: 12 }}>{img.cluster_name}/{img.namespace} - {img.image_name}</span>
+                        </label>
+                      )
+                    })}
+                    {scopeMode === 'deployment' && deployments.map((dep) => (
+                      <label key={dep.deployment_id} style={{ display: 'block', marginBottom: 6 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedTargets.includes(dep.deployment_id)}
+                          onChange={() => toggleTarget(dep.deployment_id)}
+                        />
+                        <span style={{ marginLeft: 8, fontSize: 12 }}>{dep.cluster_name}/{dep.namespace} - {dep.deployment_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>Ablaufdatum (optional)</label>
                 <input
@@ -193,6 +321,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     {([
                       ['CVE-ID', <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
                       ['Team', ra.team_name],
+                      ['Scope', `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
                       ['Beantragt von', ra.created_by_name],
                       ['Beantragt am', new Date(ra.created_at).toLocaleDateString('de-DE')],
                       ['Läuft ab', ra.expires_at ? new Date(ra.expires_at).toLocaleDateString('de-DE') : '–'],

@@ -1,12 +1,28 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class RiskScopeTarget(BaseModel):
+    cluster_name: str = Field(min_length=1, max_length=255)
+    namespace: str = Field(min_length=1, max_length=255)
+    image_name: str | None = Field(default=None, min_length=1, max_length=1024)
+    deployment_id: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class RiskScope(BaseModel):
-    images: list[str] = []
-    namespaces: list[str] = []
+    mode: Literal["all", "namespace", "image", "deployment"] = "all"
+    targets: list[RiskScopeTarget] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_mode_targets(self) -> "RiskScope":
+        if self.mode == "all" and self.targets:
+            raise ValueError("Für Scope-Modus 'all' dürfen keine Targets angegeben werden")
+        if self.mode != "all" and not self.targets:
+            raise ValueError("Für den gewählten Scope-Modus sind Targets erforderlich")
+        return self
 
 
 class RiskAcceptanceCreate(BaseModel):
@@ -46,7 +62,7 @@ class RiskAcceptanceResponse(BaseModel):
     team_name: str
     status: str
     justification: str
-    scope: dict
+    scope: RiskScope
     expires_at: datetime | None
     created_at: datetime
     created_by: str

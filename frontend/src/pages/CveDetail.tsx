@@ -133,17 +133,16 @@ export function CveDetail() {
               <CardTitle>Aktionen</CardTitle>
               <CardBody>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {!cve.has_risk_acceptance ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => navigate(`/risikoakzeptanzen/neu?cve=${cve.cve_id}`)}
-                    >
-                      Risikoakzeptanz beantragen
-                    </Button>
-                  ) : (
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate(`/risikoakzeptanzen/neu?cve=${cve.cve_id}`)}
+                  >
+                    Risikoakzeptanz beantragen
+                  </Button>
+                  {cve.has_risk_acceptance && (
                     <div>
                       <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 8 }}>
-                        Risikoakzeptanz vorhanden (Status: {cve.risk_acceptance_status && STATUS_LABELS[cve.risk_acceptance_status]})
+                        Bereits eine Risikoakzeptanz vorhanden (Status: {cve.risk_acceptance_status && STATUS_LABELS[cve.risk_acceptance_status]})
                       </p>
                       {cve.risk_acceptance_id && (
                         <Button

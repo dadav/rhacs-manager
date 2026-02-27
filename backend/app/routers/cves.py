@@ -118,6 +118,9 @@ async def list_cves(
     }
     key_fn = sort_key_map.get(sort_by, lambda x: x.severity.value)
     items.sort(key=key_fn, reverse=sort_desc)
+    # Always keep prioritized CVEs at the top, preserving the selected sort order
+    # within prioritized/non-prioritized groups.
+    items.sort(key=lambda x: 0 if x.has_priority else 1)
 
     total = len(items)
     start = (page - 1) * page_size

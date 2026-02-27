@@ -6,6 +6,11 @@ import { useUnreadCount, useNotifications, useMarkRead, useMarkAllRead } from '.
 import { useTranslation } from 'react-i18next'
 import type { AppNotification } from '../../types'
 
+const PANEL_BACKGROUND = 'var(--pf-v6-global--BackgroundColor--100, #ffffff)'
+const PANEL_TEXT_COLOR = 'var(--pf-v6-global--Color--100, #151515)'
+const PANEL_MUTED_COLOR = 'var(--pf-v6-global--Color--200, #6a6e73)'
+const PANEL_BORDER_COLOR = 'var(--pf-v6-global--BorderColor--100, #d2d2d2)'
+
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (diff < 60) return 'Gerade eben'
@@ -78,8 +83,9 @@ export function NotificationBell() {
               width: 380,
               maxHeight: 480,
               overflowY: 'auto',
-              background: '#fff',
-              border: '1px solid #d2d2d2',
+              background: PANEL_BACKGROUND,
+              color: PANEL_TEXT_COLOR,
+              border: `1px solid ${PANEL_BORDER_COLOR}`,
               borderRadius: 4,
               boxShadow: '0 4px 12px rgba(0,0,0,.15)',
               zIndex: 1000,
@@ -91,10 +97,10 @@ export function NotificationBell() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                borderBottom: '1px solid #d2d2d2',
+                borderBottom: `1px solid ${PANEL_BORDER_COLOR}`,
                 position: 'sticky',
                 top: 0,
-                background: '#fff',
+                background: PANEL_BACKGROUND,
               }}
             >
               <strong>{t('notifications.title')}</strong>
@@ -106,7 +112,7 @@ export function NotificationBell() {
             </div>
 
             {!notifications?.length ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#6a6e73' }}>
+              <div style={{ padding: '24px', textAlign: 'center', color: PANEL_MUTED_COLOR }}>
                 {t('notifications.noNotifications')}
               </div>
             ) : (
@@ -116,25 +122,42 @@ export function NotificationBell() {
                   onClick={() => handleClick(n)}
                   style={{
                     padding: '12px 16px',
-                    borderBottom: '1px solid var(--pf-v6-global--BorderColor--100)',
+                    borderBottom: `1px solid ${PANEL_BORDER_COLOR}`,
                     cursor: n.link ? 'pointer' : 'default',
-                    background: n.read ? 'var(--pf-v6-global--BackgroundColor--100)' : 'var(--pf-v6-global--BackgroundColor--200)',
+                    background: n.read
+                      ? 'var(--pf-v6-global--BackgroundColor--100, #ffffff)'
+                      : 'var(--pf-v6-global--BackgroundColor--200, #f5f5f5)',
                     transition: 'background 0.1s',
                   }}
                   onMouseEnter={e => {
-                    if (n.link) (e.currentTarget as HTMLDivElement).style.background = 'var(--pf-v6-global--BackgroundColor--200)'
+                    if (n.link) {
+                      ;(e.currentTarget as HTMLDivElement).style.background = 'var(--pf-v6-global--BackgroundColor--200, #f5f5f5)'
+                    }
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLDivElement).style.background = n.read ? 'var(--pf-v6-global--BackgroundColor--100)' : 'var(--pf-v6-global--BackgroundColor--200)'
+                    ;(e.currentTarget as HTMLDivElement).style.background = n.read
+                      ? 'var(--pf-v6-global--BackgroundColor--100, #ffffff)'
+                      : 'var(--pf-v6-global--BackgroundColor--200, #f5f5f5)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <strong style={{ fontSize: 14, color: n.read ? 'var(--pf-v6-global--Color--200)' : 'var(--pf-v6-global--Color--100)' }}>
+                    <strong
+                      style={{
+                        fontSize: 14,
+                        color: n.read
+                          ? 'var(--pf-v6-global--Color--200, #6a6e73)'
+                          : 'var(--pf-v6-global--Color--100, #151515)',
+                      }}
+                    >
                       {n.title}
                     </strong>
-                    <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>{timeAgo(n.created_at)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200, #6a6e73)' }}>
+                      {timeAgo(n.created_at)}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--pf-v6-global--Color--200)' }}>{n.message}</div>
+                  <div style={{ fontSize: 13, color: 'var(--pf-v6-global--Color--200, #6a6e73)' }}>
+                    {n.message}
+                  </div>
                 </div>
               ))
             )}

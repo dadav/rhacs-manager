@@ -80,6 +80,8 @@
     "severityDistribution": "CVEs nach Schweregrad",
     "cvesPerNamespace": "CVEs pro Namespace",
     "trend": "CVE-Verlauf (30 Tage)",
+    "priorityCves": "Priorisierte CVEs",
+    "priorityCvesDescription": "Diese CVEs wurden vom Security-Team priorisiert und sollten zuerst bearbeitet werden.",
     "highEpss": "Hohes Ausnutzungsrisiko (EPSS)",
     "highEpssDescription": "Diese CVEs haben die höchste Wahrscheinlichkeit, in den nächsten 30 Tagen ausgenutzt zu werden.",
     "noHighEpss": "Keine CVEs mit hohem EPSS-Wert"

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { RiskAcceptance, RiskComment } from '../types'
+import type { RiskAcceptance, RiskComment, RiskScope } from '../types'
 
 export const raKeys = {
   list: (status?: string) => ['risk-acceptances', 'list', status] as const,
@@ -38,7 +38,7 @@ export function useCreateRiskAcceptance() {
     mutationFn: (data: {
       cve_id: string
       justification: string
-      scope: { images?: string[]; namespaces?: string[] }
+      scope: RiskScope
       expires_at?: string | null
     }) => api.post<RiskAcceptance>('/risk-acceptances', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['risk-acceptances'] }),

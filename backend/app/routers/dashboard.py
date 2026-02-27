@@ -88,7 +88,8 @@ async def team_dashboard(
             return TeamDashboardData(
                 stat_total_cves=0, stat_critical_cves=0, stat_fixable_cves=0,
                 stat_open_risk_acceptances=0, stat_overdue_deadlines=0, stat_avg_epss=0.0,
-                severity_distribution=[], cves_per_namespace=[], high_epss_cves=[], cve_trend=[],
+                severity_distribution=[], cves_per_namespace=[], priority_cves=[],
+                high_epss_cves=[], cve_trend=[],
             )
         namespaces = await _get_team_namespaces(app_db, current_user.team_id)
 
@@ -147,7 +148,17 @@ async def team_dashboard(
     for item in enriched:
         if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
             seen_cve_ids[item.cve_id] = item
-    top_epss = sorted(seen_cve_ids.values(), key=lambda x: x.epss_probability, reverse=True)[:5]
+    unique_items = list(seen_cve_ids.values())
+    top_epss = sorted(unique_items, key=lambda x: x.epss_probability, reverse=True)[:5]
+    top_priorities = sorted(
+        (item for item in unique_items if item.has_priority),
+        key=lambda x: (
+            x.priority_deadline is None,
+            x.priority_deadline or x.first_seen or datetime.max,
+            -x.severity.value,
+            -x.epss_probability,
+        ),
+    )[:8]
 
     return TeamDashboardData(
         stat_total_cves=total,
@@ -164,6 +175,7 @@ async def team_dashboard(
             NamespaceCveCount(namespace=r["namespace"], count=r["count"])
             for r in ns_counts
         ],
+        priority_cves=top_priorities,
         high_epss_cves=top_epss,
         cve_trend=[CveTrendPoint(date=r["date"], count=r["count"]) for r in trend],
     )

@@ -92,7 +92,7 @@ export interface RiskAcceptance {
   team_name: string
   status: RiskStatus
   justification: string
-  scope: { images?: string[]; namespaces?: string[] }
+  scope: RiskScope
   expires_at: string | null
   created_at: string
   created_by: string
@@ -101,6 +101,20 @@ export interface RiskAcceptance {
   reviewed_by_name: string | null
   reviewed_at: string | null
   comment_count: number
+}
+
+export type RiskScopeMode = 'all' | 'namespace' | 'image' | 'deployment'
+
+export interface RiskScopeTarget {
+  cluster_name: string
+  namespace: string
+  image_name?: string | null
+  deployment_id?: string | null
+}
+
+export interface RiskScope {
+  mode: RiskScopeMode
+  targets: RiskScopeTarget[]
 }
 
 export interface RiskComment {
@@ -213,6 +227,7 @@ export interface TeamDashboardData {
   stat_avg_epss: number
   severity_distribution: SeverityCount[]
   cves_per_namespace: NamespaceCveCount[]
+  priority_cves: CveListItem[]
   high_epss_cves: CveListItem[]
   cve_trend: CveTrendPoint[]
 }
