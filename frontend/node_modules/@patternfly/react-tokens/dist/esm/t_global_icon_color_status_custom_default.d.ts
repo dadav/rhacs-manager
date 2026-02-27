@@ -1,0 +1,6 @@
+export const t_global_icon_color_status_custom_default: {
+  "name": "--pf-t--global--icon--color--status--custom--default",
+  "value": "#147878",
+  "var": "var(--pf-t--global--icon--color--status--custom--default)"
+};
+export default t_global_icon_color_status_custom_default;

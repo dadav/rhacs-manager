@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_unordered_colorscale_1200: {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1200",
+  "value": "#f8ae54",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1200, #f8ae54)"
+};
+export default t_chart_theme_colorscales_multi_colored_unordered_colorscale_1200;

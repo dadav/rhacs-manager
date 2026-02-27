@@ -1,0 +1,6 @@
+export const t_global_duration_100 = {
+  "name": "--pf-t--global--duration--100",
+  "value": "100ms",
+  "var": "var(--pf-t--global--duration--100)"
+};
+export default t_global_duration_100;

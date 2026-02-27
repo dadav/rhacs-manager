@@ -1,0 +1,55 @@
+export const c_number_input = {
+  ".pf-v6-c-number-input": {
+    "c_number_input__unit_c_input_group_MarginInlineStart": {
+      "name": "--pf-v6-c-number-input__unit--c-input-group--MarginInlineStart",
+      "value": "0.5rem",
+      "values": [
+        "--pf-t--global--spacer--sm",
+        "--pf-t--global--spacer--200",
+        "0.5rem"
+      ]
+    },
+    "c_number_input__icon_FontSize": {
+      "name": "--pf-v6-c-number-input__icon--FontSize",
+      "value": "0.75rem",
+      "values": [
+        "--pf-t--global--font--size--xs",
+        "--pf-t--global--font--size--100",
+        "0.75rem"
+      ]
+    },
+    "c_number_input_c_form_control_width_base": {
+      "name": "--pf-v6-c-number-input--c-form-control--width-base",
+      "value": "calc(1rem * 2 + 1px * 2)",
+      "values": [
+        "calc(--pf-t--global--spacer--md * 2 + --pf-t--global--border--width--box--default * 2)",
+        "calc(--pf-t--global--spacer--300 * 2 + --pf-t--global--border--width--100 * 2)",
+        "calc(1rem * 2 + 1px * 2)"
+      ]
+    },
+    "c_number_input_c_form_control_width_icon": {
+      "name": "--pf-v6-c-number-input--c-form-control--width-icon",
+      "value": "2rem",
+      "values": [
+        "--pf-t--global--spacer--xl",
+        "--pf-t--global--spacer--500",
+        "2rem"
+      ]
+    },
+    "c_number_input_c_form_control_width_chars": {
+      "name": "--pf-v6-c-number-input--c-form-control--width-chars",
+      "value": "4"
+    },
+    "c_number_input_c_form_control_Width": {
+      "name": "--pf-v6-c-number-input--c-form-control--Width",
+      "value": "calc(\n      calc(\n        calc(1rem * 2 + 1px * 2) + 4 * 1ch\n      ) + 2rem\n    )",
+      "values": [
+        "calc(\n      calc(\n        --pf-v6-c-number-input--c-form-control--width-base + --pf-v6-c-number-input--c-form-control--width-chars * 1ch\n      ) + --pf-v6-c-number-input--c-form-control--width-icon\n    )",
+        "calc(\n      calc(\n        calc(--pf-t--global--spacer--md * 2 + --pf-t--global--border--width--box--default * 2) + 4 * 1ch\n      ) + --pf-t--global--spacer--xl\n    )",
+        "calc(\n      calc(\n        calc(--pf-t--global--spacer--300 * 2 + --pf-t--global--border--width--100 * 2) + 4 * 1ch\n      ) + --pf-t--global--spacer--500\n    )",
+        "calc(\n      calc(\n        calc(1rem * 2 + 1px * 2) + 4 * 1ch\n      ) + 2rem\n    )"
+      ]
+    }
+  }
+};
+export default c_number_input;

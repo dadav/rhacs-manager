@@ -1,0 +1,6 @@
+export const t_color_red_70: {
+  "name": "--pf-t--color--red--70",
+  "value": "#5f0000",
+  "var": "var(--pf-t--color--red--70)"
+};
+export default t_color_red_70;

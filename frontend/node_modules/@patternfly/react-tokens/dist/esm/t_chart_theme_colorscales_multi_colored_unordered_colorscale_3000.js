@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_unordered_colorscale_3000 = {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--3000",
+  "value": "#ffcc17",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--3000, #ffcc17)"
+};
+export default t_chart_theme_colorscales_multi_colored_unordered_colorscale_3000;

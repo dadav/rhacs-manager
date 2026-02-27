@@ -1,0 +1,20 @@
+import { __rest } from "tslib";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import styles from '@patternfly/react-styles/css/components/FileUpload/file-upload.mjs';
+import { css } from '@patternfly/react-styles';
+import { InputGroup, InputGroupItem } from '../InputGroup';
+import { TextInput } from '../TextInput';
+import { Button, ButtonVariant } from '../Button';
+import { TextArea, TextAreResizeOrientation } from '../TextArea';
+import { Spinner, spinnerSize } from '../Spinner';
+import { fileReaderType } from '../../helpers/fileUtils';
+export const FileUploadField = (_a) => {
+    var { id, name, type, value = '', filename = '', onBrowseButtonClick = () => { }, onClearButtonClick = () => { }, onTextAreaClick, onTextChange, onTextAreaBlur, textAreaPlaceholder = '', className = '', isDisabled = false, isReadOnly = false, isLoading = false, spinnerAriaValueText, isRequired = false, isDragActive = false, validated = 'default', 'aria-label': ariaLabel = 'File upload', filenamePlaceholder = 'Drag a file here or browse to upload', filenameAriaLabel = filename ? 'Read only filename' : filenamePlaceholder, browseButtonText = 'Browse...', browseButtonAriaDescribedby, clearButtonText = 'Clear', isBrowseButtonDisabled = false, isClearButtonDisabled = !filename && !value, containerRef = null, allowEditingUploadedText = false, hideDefaultPreview = false, children = null } = _a, props = __rest(_a, ["id", "name", "type", "value", "filename", "onBrowseButtonClick", "onClearButtonClick", "onTextAreaClick", "onTextChange", "onTextAreaBlur", "textAreaPlaceholder", "className", "isDisabled", "isReadOnly", "isLoading", "spinnerAriaValueText", "isRequired", "isDragActive", "validated", 'aria-label', "filenamePlaceholder", "filenameAriaLabel", "browseButtonText", "browseButtonAriaDescribedby", "clearButtonText", "isBrowseButtonDisabled", "isClearButtonDisabled", "containerRef", "allowEditingUploadedText", "hideDefaultPreview", "children"]);
+    const onTextAreaChange = (event, newValue) => {
+        onTextChange === null || onTextChange === void 0 ? void 0 : onTextChange(event, newValue);
+    };
+    return (_jsxs("div", Object.assign({ className: css(styles.fileUpload, isDragActive && styles.modifiers.dragHover, isLoading && styles.modifiers.loading, className), ref: containerRef }, props, { children: [_jsx("div", { className: styles.fileUploadFileSelect, children: _jsxs(InputGroup, { children: [_jsx(InputGroupItem, { isFill: true, children: _jsx(TextInput, { readOnlyVariant: "default" // Always read-only regardless of isReadOnly prop (which is just for the TextArea)
+                                , isDisabled: isDisabled, id: `${id}-filename`, name: name || `${id}-filename`, "aria-label": filenameAriaLabel, placeholder: filenamePlaceholder, value: filename }) }), _jsx(InputGroupItem, { children: _jsx(Button, { variant: ButtonVariant.control, onClick: onBrowseButtonClick, isDisabled: isDisabled || isBrowseButtonDisabled, "aria-describedby": browseButtonAriaDescribedby, children: browseButtonText }) }), _jsx(InputGroupItem, { children: _jsx(Button, { variant: ButtonVariant.control, isDisabled: isDisabled || isClearButtonDisabled, onClick: onClearButtonClick, children: clearButtonText }) })] }) }), _jsxs("div", { className: styles.fileUploadFileDetails, children: [!hideDefaultPreview && type === fileReaderType.text && (_jsx(TextArea, { readOnly: isReadOnly || (!!filename && !allowEditingUploadedText), disabled: isDisabled, isRequired: isRequired, resizeOrientation: TextAreResizeOrientation.vertical, validated: validated, id: id, "aria-label": ariaLabel, value: value, onChange: onTextAreaChange, onClick: onTextAreaClick, onBlur: onTextAreaBlur, placeholder: textAreaPlaceholder })), isLoading && (_jsx("div", { className: styles.fileUploadFileDetailsSpinner, children: _jsx(Spinner, { size: spinnerSize.lg, "aria-valuetext": spinnerAriaValueText }) }))] }), children] })));
+};
+FileUploadField.displayName = 'FileUploadField';
+//# sourceMappingURL=FileUploadField.js.map

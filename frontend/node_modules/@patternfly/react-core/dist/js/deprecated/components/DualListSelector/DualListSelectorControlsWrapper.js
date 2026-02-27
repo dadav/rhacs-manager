@@ -1,0 +1,39 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.DualListSelectorControlsWrapper = exports.DualListSelectorControlsWrapperBase = void 0;
+const tslib_1 = require("tslib");
+const jsx_runtime_1 = require("react/jsx-runtime");
+const react_1 = require("react");
+const dual_list_selector_1 = tslib_1.__importDefault(require("@patternfly/react-styles/css/components/DualListSelector/dual-list-selector"));
+const react_styles_1 = require("@patternfly/react-styles");
+const helpers_1 = require("../../../helpers");
+const DualListSelectorControlsWrapperBase = (_a) => {
+    var { innerRef, children = null, className, 'aria-label': ariaLabel = 'Controls for moving options between lists' } = _a, props = tslib_1.__rest(_a, ["innerRef", "children", "className", 'aria-label']);
+    const ref = (0, react_1.useRef)(null);
+    const wrapperRef = innerRef || ref;
+    // Adds keyboard navigation to the dynamically built dual list selector controls. Works when controls are dynamically built
+    // as well as when they are passed in via children.
+    const handleKeys = (event) => {
+        if (!wrapperRef.current ||
+            (wrapperRef.current !== event.target.closest(`.${dual_list_selector_1.default.dualListSelectorControls}`) &&
+                !Array.from(wrapperRef.current.getElementsByClassName(dual_list_selector_1.default.dualListSelectorControls)).includes(event.target.closest(`.${dual_list_selector_1.default.dualListSelectorControls}`)))) {
+            return;
+        }
+        event.stopImmediatePropagation();
+        const controls = Array.from(wrapperRef.current.getElementsByTagName('BUTTON')).filter((el) => !el.classList.contains('pf-m-disabled'));
+        const activeElement = document.activeElement;
+        (0, helpers_1.handleArrows)(event, controls, (element) => activeElement.contains(element), (element) => element, undefined, undefined, true, false);
+    };
+    (0, react_1.useEffect)(() => {
+        window.addEventListener('keydown', handleKeys);
+        return () => {
+            window.removeEventListener('keydown', handleKeys);
+        };
+    }, [wrapperRef.current]);
+    return ((0, jsx_runtime_1.jsx)("div", Object.assign({ className: (0, react_styles_1.css)(dual_list_selector_1.default.dualListSelectorControls, className), tabIndex: 0, ref: wrapperRef, "aria-label": ariaLabel }, props, { children: children })));
+};
+exports.DualListSelectorControlsWrapperBase = DualListSelectorControlsWrapperBase;
+exports.DualListSelectorControlsWrapperBase.displayName = 'DualListSelectorControlsWrapperBase';
+exports.DualListSelectorControlsWrapper = (0, react_1.forwardRef)((props, ref) => ((0, jsx_runtime_1.jsx)(exports.DualListSelectorControlsWrapperBase, Object.assign({ innerRef: ref, role: "group" }, props))));
+exports.DualListSelectorControlsWrapper.displayName = 'DualListSelectorControlsWrapper';
+//# sourceMappingURL=DualListSelectorControlsWrapper.js.map

@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_ordered_colorscale_1600: {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-ordered--colorscale--1600",
+  "value": "#4394e5",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-ordered--colorscale--1600, #4394e5)"
+};
+export default t_chart_theme_colorscales_multi_colored_ordered_colorscale_1600;

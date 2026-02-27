@@ -1,0 +1,8 @@
+"use strict";
+exports.__esModule = true;
+exports.c_menu__search_PaddingBlockStart = {
+  "name": "--pf-v6-c-menu__search--PaddingBlockStart",
+  "value": "0.5rem",
+  "var": "var(--pf-v6-c-menu__search--PaddingBlockStart)"
+};
+exports["default"] = exports.c_menu__search_PaddingBlockStart;

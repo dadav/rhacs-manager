@@ -1,0 +1,6 @@
+export const c_tree_view_m_compact_m_no_background__node_PaddingInlineStart = {
+  "name": "--pf-v6-c-tree-view--m-compact--m-no-background__node--PaddingInlineStart",
+  "value": "calc(3rem * 9 + calc(1rem * 2 + 0.875rem))",
+  "var": "var(--pf-v6-c-tree-view--m-compact--m-no-background__node--PaddingInlineStart)"
+};
+export default c_tree_view_m_compact_m_no_background__node_PaddingInlineStart;

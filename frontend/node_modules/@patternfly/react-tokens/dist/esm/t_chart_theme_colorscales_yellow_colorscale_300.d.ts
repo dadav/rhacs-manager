@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_yellow_colorscale_300: {
+  "name": "--pf-t--chart--theme--colorscales--yellow--colorscale--300",
+  "value": "#96640f",
+  "var": "var(--pf-t--chart--theme--colorscales--yellow--colorscale--300, #96640f)"
+};
+export default t_chart_theme_colorscales_yellow_colorscale_300;

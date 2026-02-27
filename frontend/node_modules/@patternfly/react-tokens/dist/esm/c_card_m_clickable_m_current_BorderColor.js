@@ -1,0 +1,6 @@
+export const c_card_m_clickable_m_current_BorderColor = {
+  "name": "--pf-v6-c-card--m-clickable--m-current--BorderColor",
+  "value": "#0066cc",
+  "var": "var(--pf-v6-c-card--m-clickable--m-current--BorderColor)"
+};
+export default c_card_m_clickable_m_current_BorderColor;

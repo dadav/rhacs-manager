@@ -1,0 +1,8 @@
+"use strict";
+exports.__esModule = true;
+exports.c_page__main_wizard_BackgroundColor = {
+  "name": "--pf-v6-c-page__main-wizard--BackgroundColor",
+  "value": "#ffffff",
+  "var": "var(--pf-v6-c-page__main-wizard--BackgroundColor)"
+};
+exports["default"] = exports.c_page__main_wizard_BackgroundColor;

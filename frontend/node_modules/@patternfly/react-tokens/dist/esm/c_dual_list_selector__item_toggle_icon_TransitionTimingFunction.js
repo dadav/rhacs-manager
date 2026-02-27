@@ -1,0 +1,6 @@
+export const c_dual_list_selector__item_toggle_icon_TransitionTimingFunction = {
+  "name": "--pf-v6-c-dual-list-selector__item-toggle-icon--TransitionTimingFunction",
+  "value": "cubic-bezier(.4, 0, .2, 1)",
+  "var": "var(--pf-v6-c-dual-list-selector__item-toggle-icon--TransitionTimingFunction)"
+};
+export default c_dual_list_selector__item_toggle_icon_TransitionTimingFunction;

@@ -1,0 +1,32 @@
+import { __rest } from "tslib";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { useContext } from 'react';
+import { css } from '@patternfly/react-styles';
+import styles from '@patternfly/react-styles/css/components/DualListSelector/dual-list-selector.mjs';
+import { DualListSelectorListItem } from './DualListSelectorListItem';
+import { DualListSelectorListContext } from './DualListSelectorContext';
+export const DualListSelectorList = (_a) => {
+    var { children } = _a, props = __rest(_a, ["children"]);
+    const { setFocusedOption, isTree, ariaLabelledBy, focusedOption, displayOption, selectedOptions, id, onOptionSelect, options, isDisabled } = useContext(DualListSelectorListContext);
+    // only called when options are passed via options prop
+    const onOptionClick = (e, index, id) => {
+        setFocusedOption(id);
+        onOptionSelect(e, index, id);
+    };
+    const hasOptions = () => options.length !== 0 || (children !== undefined && children.length !== 0);
+    return (_jsx("ul", Object.assign({ className: css(styles.dualListSelectorList) }, (hasOptions() && {
+        role: isTree ? 'tree' : 'listbox',
+        'aria-multiselectable': true,
+        'aria-labelledby': ariaLabelledBy,
+        'aria-activedescendant': focusedOption
+    }), { "aria-disabled": isDisabled ? 'true' : undefined }, props, { children: options.length === 0
+            ? children
+            : options.map((option, index) => {
+                if (displayOption(option)) {
+                    return (_jsx(DualListSelectorListItem, { isSelected: selectedOptions.indexOf(index) !== -1, id: `${id}-option-${index}`, onOptionSelect: (e, id) => onOptionClick(e, index, id), orderIndex: index, isDisabled: isDisabled, children: option }, index));
+                }
+                return;
+            }) })));
+};
+DualListSelectorList.displayName = 'DualListSelectorList';
+//# sourceMappingURL=DualListSelectorList.js.map

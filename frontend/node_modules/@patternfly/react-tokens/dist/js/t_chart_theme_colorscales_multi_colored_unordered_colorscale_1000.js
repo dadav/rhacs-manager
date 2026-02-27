@@ -1,0 +1,8 @@
+"use strict";
+exports.__esModule = true;
+exports.t_chart_theme_colorscales_multi_colored_unordered_colorscale_1000 = {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1000",
+  "value": "#afdc8f",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1000, #afdc8f)"
+};
+exports["default"] = exports.t_chart_theme_colorscales_multi_colored_unordered_colorscale_1000;

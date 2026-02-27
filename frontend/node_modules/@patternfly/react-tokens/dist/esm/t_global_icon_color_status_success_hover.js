@@ -1,0 +1,6 @@
+export const t_global_icon_color_status_success_hover = {
+  "name": "--pf-t--global--icon--color--status--success--hover",
+  "value": "#204d00",
+  "var": "var(--pf-t--global--icon--color--status--success--hover)"
+};
+export default t_global_icon_color_status_success_hover;

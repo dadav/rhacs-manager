@@ -1,0 +1,6 @@
+export const c_alert_m_expanded__description_action_group_PaddingBlockStart = {
+  "name": "--pf-v6-c-alert--m-expanded__description--action-group--PaddingBlockStart",
+  "value": "0.5rem",
+  "var": "var(--pf-v6-c-alert--m-expanded__description--action-group--PaddingBlockStart)"
+};
+export default c_alert_m_expanded__description_action_group_PaddingBlockStart;

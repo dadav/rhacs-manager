@@ -1,0 +1,28 @@
+{
+  "name": "@patternfly/react-styles",
+  "version": "6.4.0",
+  "main": "dist/js/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "sideEffects": [
+    "*.css",
+    "*.scss"
+  ],
+  "description": "CSS-in-JS class maps and utilities for PatternFly.",
+  "author": "Red Hat",
+  "publishConfig": {
+    "access": "public",
+    "tag": "prerelease"
+  },
+  "scripts": {
+    "generate": "rimraf css && node scripts/writeClassMaps.mjs && node scripts/copyStyles.mjs",
+    "clean": "rimraf dist css"
+  },
+  "devDependencies": {
+    "@patternfly/patternfly": "6.4.0",
+    "change-case": "^5.4.4",
+    "fs-extra": "^11.3.0"
+  },
+  "license": "MIT",
+  "gitHead": "b6d601ecff82f0b4eaf0d9604abaedeb5e3aa12c"
+}

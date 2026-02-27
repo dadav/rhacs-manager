@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_orange_colorscale_500: {
+  "name": "--pf-t--chart--theme--colorscales--orange--colorscale--500",
+  "value": "#9e4a06",
+  "var": "var(--pf-t--chart--theme--colorscales--orange--colorscale--500, #9e4a06)"
+};
+export default t_chart_theme_colorscales_orange_colorscale_500;

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rhacs-manager-frontend
+  namespace: rhacs-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rhacs-manager-frontend
+  template:
+    metadata:
+      labels:
+        app: rhacs-manager-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: rhacs-manager-frontend:latest
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

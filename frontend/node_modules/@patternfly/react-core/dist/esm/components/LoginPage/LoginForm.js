@@ -1,0 +1,20 @@
+import { __rest } from "tslib";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState } from 'react';
+import { Form, FormGroup, ActionGroup, FormHelperText } from '../Form';
+import { TextInput } from '../TextInput';
+import { Button } from '../Button';
+import { Checkbox } from '../Checkbox';
+import { ValidatedOptions } from '../../helpers/constants';
+import { InputGroup, InputGroupItem } from '../InputGroup';
+import EyeSlashIcon from '@patternfly/react-icons/dist/esm/icons/eye-slash-icon';
+import EyeIcon from '@patternfly/react-icons/dist/esm/icons/eye-icon';
+import { HelperText, HelperTextItem } from '../HelperText';
+export const LoginForm = (_a) => {
+    var { noAutoFocus = false, className = '', showHelperText = false, helperText = null, helperTextIcon = null, usernameLabel = 'Username', usernameValue = '', onChangeUsername = () => undefined, isValidUsername = true, isPasswordRequired = true, passwordLabel = 'Password', passwordValue = '', onChangePassword = () => undefined, isShowPasswordEnabled = false, hidePasswordAriaLabel = 'Hide password', showPasswordAriaLabel = 'Show password', isValidPassword = true, loginButtonLabel = 'Log In', isLoginButtonDisabled = false, onLoginButtonClick = () => undefined, rememberMeLabel = '', isRememberMeChecked = false, onChangeRememberMe = () => undefined } = _a, props = __rest(_a, ["noAutoFocus", "className", "showHelperText", "helperText", "helperTextIcon", "usernameLabel", "usernameValue", "onChangeUsername", "isValidUsername", "isPasswordRequired", "passwordLabel", "passwordValue", "onChangePassword", "isShowPasswordEnabled", "hidePasswordAriaLabel", "showPasswordAriaLabel", "isValidPassword", "loginButtonLabel", "isLoginButtonDisabled", "onLoginButtonClick", "rememberMeLabel", "isRememberMeChecked", "onChangeRememberMe"]);
+    const [passwordHidden, setPasswordHidden] = useState(true);
+    const passwordInput = (_jsx(TextInput, { isRequired: isPasswordRequired, type: passwordHidden ? 'password' : 'text', id: "pf-login-password-id", name: "pf-login-password-id", validated: isValidPassword ? ValidatedOptions.default : ValidatedOptions.error, value: passwordValue, onChange: onChangePassword }));
+    return (_jsxs(Form, Object.assign({ className: className }, props, { children: [showHelperText && (_jsx(FormHelperText, { children: _jsx(HelperText, { children: _jsx(HelperTextItem, { variant: !isValidUsername || !isValidPassword ? 'error' : 'default', icon: helperTextIcon, children: helperText }) }) })), _jsx(FormGroup, { label: usernameLabel, isRequired: true, fieldId: "pf-login-username-id", children: _jsx(TextInput, { autoFocus: !noAutoFocus, id: "pf-login-username-id", isRequired: true, validated: isValidUsername ? ValidatedOptions.default : ValidatedOptions.error, type: "text", name: "pf-login-username-id", value: usernameValue, onChange: onChangeUsername }) }), _jsxs(FormGroup, { label: passwordLabel, isRequired: isPasswordRequired, fieldId: "pf-login-password-id", children: [isShowPasswordEnabled && (_jsxs(InputGroup, { children: [_jsx(InputGroupItem, { isFill: true, children: passwordInput }), _jsx(InputGroupItem, { children: _jsx(Button, { variant: "control", onClick: () => setPasswordHidden(!passwordHidden), "aria-label": passwordHidden ? showPasswordAriaLabel : hidePasswordAriaLabel, icon: passwordHidden ? _jsx(EyeIcon, {}) : _jsx(EyeSlashIcon, {}) }) })] })), !isShowPasswordEnabled && passwordInput] }), rememberMeLabel.length > 0 && (_jsx(FormGroup, { fieldId: "pf-login-remember-me-id", children: _jsx(Checkbox, { id: "pf-login-remember-me-id", label: rememberMeLabel, isChecked: isRememberMeChecked, onChange: onChangeRememberMe }) })), _jsx(ActionGroup, { children: _jsx(Button, { variant: "primary", type: "submit", onClick: onLoginButtonClick, isBlock: true, isDisabled: isLoginButtonDisabled, children: loginButtonLabel }) })] })));
+};
+LoginForm.displayName = 'LoginForm';
+//# sourceMappingURL=LoginForm.js.map

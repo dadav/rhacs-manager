@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Shared tests between ol and ul lists Matches snapshot for ol list 1`] = `
+<DocumentFragment>
+  <ol
+    class="pf-v6-c-list"
+    type="1"
+  />
+</DocumentFragment>
+`;
+
+exports[`Shared tests between ol and ul lists Matches snapshot for ul list 1`] = `
+<DocumentFragment>
+  <ul
+    class="pf-v6-c-list"
+  />
+</DocumentFragment>
+`;

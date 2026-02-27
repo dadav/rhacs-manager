@@ -1,0 +1,8 @@
+"use strict";
+exports.__esModule = true;
+exports.c_alert_group__overflow_button_BoxShadow = {
+  "name": "--pf-v6-c-alert-group__overflow-button--BoxShadow",
+  "value": "0px\n    10px\n    20px\n    0px\n    rgba(41, 41, 41, 0.1500)",
+  "var": "var(--pf-v6-c-alert-group__overflow-button--BoxShadow)"
+};
+exports["default"] = exports.c_alert_group__overflow_button_BoxShadow;

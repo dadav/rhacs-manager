@@ -1,0 +1,34 @@
+import { __rest } from "tslib";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { forwardRef } from 'react';
+import styles from '@patternfly/react-styles/css/components/TabContent/tab-content.mjs';
+import { css } from '@patternfly/react-styles';
+import { getOUIAProps } from '../../helpers';
+import { TabsContextConsumer } from './TabsContext';
+const variantStyle = {
+    default: '',
+    secondary: styles.modifiers.secondary
+};
+const TabContentBase = (_a) => {
+    var { id, activeKey, 'aria-label': ariaLabel, child, children, className, 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    eventKey, innerRef, ouiaId, ouiaSafe } = _a, props = __rest(_a, ["id", "activeKey", 'aria-label', "child", "children", "className", "eventKey", "innerRef", "ouiaId", "ouiaSafe"]);
+    if (children || child) {
+        let labelledBy;
+        if (ariaLabel) {
+            labelledBy = null;
+        }
+        else {
+            labelledBy = children ? `${id}` : `pf-tab-${child.props.eventKey}-${id}`;
+        }
+        return (_jsx(TabsContextConsumer, { children: ({ variant }) => {
+                const variantClass = variantStyle[variant];
+                return (_jsx("section", Object.assign({ ref: innerRef, hidden: children ? null : child.props.eventKey !== activeKey, className: children
+                        ? css(styles.tabContent, className, variantClass)
+                        : css(styles.tabContent, child.props.className, variantClass), id: children ? id : `pf-tab-section-${child.props.eventKey}-${id}`, "aria-label": ariaLabel, "aria-labelledby": labelledBy, role: "tabpanel", tabIndex: 0 }, getOUIAProps('TabContent', ouiaId, ouiaSafe), props, { children: children || child.props.children })));
+            } }));
+    }
+    return null;
+};
+export const TabContent = forwardRef((props, ref) => (_jsx(TabContentBase, Object.assign({}, props, { innerRef: ref }))));
+//# sourceMappingURL=TabContent.js.map

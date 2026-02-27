@@ -1,0 +1,6 @@
+export const t_global_box_shadow_Y_sm_left = {
+  "name": "--pf-t--global--box-shadow--Y--sm--left",
+  "value": "0px",
+  "var": "var(--pf-t--global--box-shadow--Y--sm--left)"
+};
+export default t_global_box_shadow_Y_sm_left;

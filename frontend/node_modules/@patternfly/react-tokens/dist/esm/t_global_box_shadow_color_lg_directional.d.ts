@@ -1,0 +1,6 @@
+export const t_global_box_shadow_color_lg_directional: {
+  "name": "--pf-t--global--box-shadow--color--lg--directional",
+  "value": "rgba(41, 41, 41, 0.2000)",
+  "var": "var(--pf-t--global--box-shadow--color--lg--directional)"
+};
+export default t_global_box_shadow_color_lg_directional;

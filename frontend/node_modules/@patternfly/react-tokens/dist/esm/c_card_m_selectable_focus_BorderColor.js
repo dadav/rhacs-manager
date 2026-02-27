@@ -1,0 +1,6 @@
+export const c_card_m_selectable_focus_BorderColor = {
+  "name": "--pf-v6-c-card--m-selectable--focus--BorderColor",
+  "value": "#0066cc",
+  "var": "var(--pf-v6-c-card--m-selectable--focus--BorderColor)"
+};
+export default c_card_m_selectable_focus_BorderColor;

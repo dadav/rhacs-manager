@@ -1,0 +1,6 @@
+export const c_data_list_m_compact__item_action_PaddingBlockStart_offset: {
+  "name": "--pf-v6-c-data-list--m-compact__item-action--PaddingBlockStart--offset",
+  "value": "0.25rem",
+  "var": "var(--pf-v6-c-data-list--m-compact__item-action--PaddingBlockStart--offset)"
+};
+export default c_data_list_m_compact__item_action_PaddingBlockStart_offset;

@@ -1,0 +1,6 @@
+export const t_global_border_width_strong = {
+  "name": "--pf-t--global--border--width--strong",
+  "value": "2px",
+  "var": "var(--pf-t--global--border--width--strong)"
+};
+export default t_global_border_width_strong;

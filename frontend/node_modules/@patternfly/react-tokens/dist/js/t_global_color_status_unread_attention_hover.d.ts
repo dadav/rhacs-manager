@@ -1,0 +1,6 @@
+export const t_global_color_status_unread_attention_hover: {
+  "name": "--pf-t--global--color--status--unread--attention--hover",
+  "value": "#731f00",
+  "var": "var(--pf-t--global--color--status--unread--attention--hover)"
+};
+export default t_global_color_status_unread_attention_hover;

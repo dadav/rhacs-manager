@@ -1,0 +1,6 @@
+export const t_color_orange_10 = {
+  "name": "--pf-t--color--orange--10",
+  "value": "#ffe8cc",
+  "var": "var(--pf-t--color--orange--10)"
+};
+export default t_color_orange_10;

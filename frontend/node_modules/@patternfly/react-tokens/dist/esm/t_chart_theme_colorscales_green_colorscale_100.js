@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_green_colorscale_100 = {
+  "name": "--pf-t--chart--theme--colorscales--green--colorscale--100",
+  "value": "#63993d",
+  "var": "var(--pf-t--chart--theme--colorscales--green--colorscale--100, #63993d)"
+};
+export default t_chart_theme_colorscales_green_colorscale_100;

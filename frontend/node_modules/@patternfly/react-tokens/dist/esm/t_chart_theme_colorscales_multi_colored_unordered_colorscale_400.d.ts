@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_unordered_colorscale_400: {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--400",
+  "value": "#5e40be",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--400, #5e40be)"
+};
+export default t_chart_theme_colorscales_multi_colored_unordered_colorscale_400;

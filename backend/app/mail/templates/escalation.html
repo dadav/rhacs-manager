@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><title>Eskalation Stufe {{ level }}</title></head>
+<body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px">
+<div style="max-width:600px;margin:auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+  <div style="background:#151515;padding:20px 30px">
+    <h1 style="color:#fff;margin:0;font-size:18px">RHACS CVE Manager</h1>
+  </div>
+  <div style="padding:30px">
+    {% set colors = {1: "#f0ab00", 2: "#ec7a08", 3: "#c9190b"} %}
+    <div style="background:{{ colors[level] }};color:#fff;padding:8px 14px;border-radius:4px;display:inline-block;font-weight:bold;margin-bottom:16px">
+      ⚠ Eskalationsstufe {{ level }}
+    </div>
+    <h2 style="color:#151515;margin-top:0">Ungelöste Schwachstelle: {{ cve_id }}</h2>
+    <p>Die Schwachstelle <strong>{{ cve_id }}</strong> ist für Team <strong>{{ team_name }}</strong> nicht behoben und hat Eskalationsstufe {{ level }} erreicht.</p>
+    <p>Bitte reagieren Sie umgehend.</p>
+    <a href="{{ link }}" style="display:inline-block;background:#0066cc;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;margin-top:10px">Eskalationen ansehen</a>
+  </div>
+  <div style="background:#f0f0f0;padding:16px 30px;font-size:12px;color:#666">
+    Dies ist eine automatische Benachrichtigung vom RHACS CVE Manager.
+  </div>
+</div>
+</body>
+</html>

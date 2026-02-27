@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_unordered_colorscale_1900: {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1900",
+  "value": "#732e00",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--1900, #732e00)"
+};
+export default t_chart_theme_colorscales_multi_colored_unordered_colorscale_1900;

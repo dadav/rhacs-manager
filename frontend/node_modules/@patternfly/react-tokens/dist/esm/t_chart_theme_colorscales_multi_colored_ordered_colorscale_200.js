@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_ordered_colorscale_200 = {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-ordered--colorscale--200",
+  "value": "#63993d",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-ordered--colorscale--200, #63993d)"
+};
+export default t_chart_theme_colorscales_multi_colored_ordered_colorscale_200;

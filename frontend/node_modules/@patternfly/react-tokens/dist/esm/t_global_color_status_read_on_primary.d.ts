@@ -1,0 +1,6 @@
+export const t_global_color_status_read_on_primary: {
+  "name": "--pf-t--global--color--status--read--on-primary",
+  "value": "#f2f2f2",
+  "var": "var(--pf-t--global--color--status--read--on-primary)"
+};
+export default t_global_color_status_read_on_primary;

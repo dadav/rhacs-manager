@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_multi_colored_unordered_colorscale_2100: {
+  "name": "--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--2100",
+  "value": "#707070",
+  "var": "var(--pf-t--chart--theme--colorscales--multi-colored-unordered--colorscale--2100, #707070)"
+};
+export default t_chart_theme_colorscales_multi_colored_unordered_colorscale_2100;

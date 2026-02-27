@@ -1,0 +1,106 @@
+/// <reference types="react" />
+import { OUIAProps } from '../../helpers/OUIA/ouia';
+export declare enum ButtonVariant {
+    primary = "primary",
+    secondary = "secondary",
+    tertiary = "tertiary",
+    danger = "danger",
+    warning = "warning",
+    link = "link",
+    plain = "plain",
+    control = "control",
+    stateful = "stateful"
+}
+export declare enum ButtonType {
+    button = "button",
+    submit = "submit",
+    reset = "reset"
+}
+export declare enum ButtonSize {
+    default = "default",
+    sm = "sm",
+    lg = "lg"
+}
+export declare enum ButtonState {
+    read = "read",
+    unread = "unread",
+    attention = "attention"
+}
+export interface BadgeCountObject {
+    /**  Adds styling to the badge to indicate it has been read */
+    isRead?: boolean;
+    /** Adds count number right of button */
+    count?: number;
+    /** Additional classes added to the badge count */
+    className?: string;
+}
+export interface ButtonProps extends Omit<React.HTMLProps<HTMLButtonElement>, 'ref' | 'size'>, OUIAProps {
+    /** Content rendered inside the button */
+    children?: React.ReactNode;
+    /** Additional classes added to the button */
+    className?: string;
+    /** Sets the base component to render. defaults to button */
+    component?: React.ElementType<any> | React.ComponentType<any>;
+    /** Adds clicked styling to button. */
+    isClicked?: boolean;
+    /** Adds block styling to button */
+    isBlock?: boolean;
+    /** Adds disabled styling and disables the button using the disabled html attribute */
+    isDisabled?: boolean;
+    /** Adds disabled styling and communicates that the button is disabled using the aria-disabled html attribute */
+    isAriaDisabled?: boolean;
+    /** Adds progress styling to button */
+    isLoading?: boolean;
+    /** Text describing that current loading status or progress */
+    spinnerAriaValueText?: string;
+    /** Accessible label for the spinner to describe what is loading */
+    spinnerAriaLabel?: string;
+    /** Id of element which describes what is being loaded */
+    spinnerAriaLabelledBy?: string;
+    /** Events to prevent when the button is in an aria-disabled state */
+    inoperableEvents?: string[];
+    /** Adds inline styling to a link button */
+    isInline?: boolean;
+    /** Adds favorite styling to a button */
+    isFavorite?: boolean;
+    /** Flag indicating whether the button is favorited or not, only when isFavorite is true. */
+    isFavorited?: boolean;
+    /** Adds styling which affects the size of the button */
+    size?: 'default' | 'sm' | 'lg';
+    /** Sets button type */
+    type?: 'button' | 'submit' | 'reset';
+    /** Adds button variant styles */
+    variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'warning' | 'link' | 'plain' | 'control' | 'stateful';
+    /** Sets state of the stateful button variant. Default is "unread" */
+    state?: 'read' | 'unread' | 'attention';
+    /** Applies no padding on a plain button variant. Use when plain button is placed inline with text */
+    hasNoPadding?: boolean;
+    /** Sets position of the icon. Note: "left" and "right" are deprecated. Use "start" and "end" instead */
+    iconPosition?: 'start' | 'end' | 'left' | 'right';
+    /** Adds accessible text to the button. */
+    'aria-label'?: string;
+    /** Icon for the button. */
+    icon?: React.ReactNode | null;
+    /** Sets the button tabindex. */
+    tabIndex?: number;
+    /** Adds danger styling to secondary or link button variants */
+    isDanger?: boolean;
+    /** Flag indicating whether content the button controls is expanded or not. Required when isHamburger is true. */
+    isExpanded?: boolean;
+    /** Flag indicating the button is a settings button. This will override the icon property. */
+    isSettings?: boolean;
+    /** Flag indicating the button is a hamburger button. This will override the icon property. */
+    isHamburger?: boolean;
+    /** Adjusts and animates the hamburger icon to indicate what will happen upon clicking the button. */
+    hamburgerVariant?: 'expand' | 'collapse';
+    /** @hide Forwarded ref */
+    innerRef?: React.Ref<any>;
+    /** Adds count number to button */
+    countOptions?: BadgeCountObject;
+    /** Value to overwrite the randomly generated data-ouia-component-id.*/
+    ouiaId?: number | string;
+    /** Set the value of data-ouia-safe. Only set to true when the component is in a static state, i.e. no animations are occurring. At all other times, this value must be false. */
+    ouiaSafe?: boolean;
+}
+export declare const Button: import("react").ForwardRefExoticComponent<ButtonProps & import("react").RefAttributes<any>>;
+//# sourceMappingURL=Button.d.ts.map

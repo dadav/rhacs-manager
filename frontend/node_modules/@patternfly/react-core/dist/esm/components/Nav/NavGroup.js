@@ -1,0 +1,16 @@
+import { __rest } from "tslib";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import styles from '@patternfly/react-styles/css/components/Nav/nav.mjs';
+import { css } from '@patternfly/react-styles';
+import { getUniqueId } from '../../helpers/util';
+export const NavGroup = (_a) => {
+    var { title, children = null, className = '', id = getUniqueId() } = _a, props = __rest(_a, ["title", "children", "className", "id"]);
+    if (!title && !props['aria-label']) {
+        // eslint-disable-next-line no-console
+        console.warn("For accessibility reasons an aria-label should be specified on nav groups if a title isn't");
+    }
+    const labelledBy = title ? id : undefined;
+    return (_jsxs("section", Object.assign({ className: css(styles.navSection, className), "aria-labelledby": labelledBy }, props, { children: [title && (_jsx("h2", { className: css(styles.navSectionTitle), id: id, children: title })), _jsx("ul", { className: css(styles.navList, className), role: "list", children: children })] })));
+};
+NavGroup.displayName = 'NavGroup';
+//# sourceMappingURL=NavGroup.js.map

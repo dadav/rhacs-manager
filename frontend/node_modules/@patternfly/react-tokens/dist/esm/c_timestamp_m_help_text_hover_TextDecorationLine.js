@@ -1,0 +1,6 @@
+export const c_timestamp_m_help_text_hover_TextDecorationLine = {
+  "name": "--pf-v6-c-timestamp--m-help-text--hover--TextDecorationLine",
+  "value": "underline",
+  "var": "var(--pf-v6-c-timestamp--m-help-text--hover--TextDecorationLine)"
+};
+export default c_timestamp_m_help_text_hover_TextDecorationLine;

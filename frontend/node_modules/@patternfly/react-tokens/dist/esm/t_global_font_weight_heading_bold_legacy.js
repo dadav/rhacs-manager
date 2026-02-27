@@ -1,0 +1,6 @@
+export const t_global_font_weight_heading_bold_legacy = {
+  "name": "--pf-t--global--font--weight--heading--bold--legacy",
+  "value": "700",
+  "var": "var(--pf-t--global--font--weight--heading--bold--legacy)"
+};
+export default t_global_font_weight_heading_bold_legacy;

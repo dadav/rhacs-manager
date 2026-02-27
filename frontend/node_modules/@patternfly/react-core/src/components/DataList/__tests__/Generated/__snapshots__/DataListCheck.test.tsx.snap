@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DataListCheck should match snapshot (auto-generated) 1`] = `
+<DocumentFragment>
+  <div
+    class="pf-v6-c-data-list__item-control ''"
+  >
+    <div
+      class="pf-v6-c-data-list__check"
+    >
+      <label
+        class="pf-v6-c-check pf-m-standalone"
+        for="test"
+      >
+        <input
+          aria-invalid="false"
+          aria-labelledby="string"
+          class="pf-v6-c-check__input"
+          data-ouia-component-id="OUIA-Generated-Checkbox-1"
+          data-ouia-component-type="PF6/Checkbox"
+          data-ouia-safe="true"
+          id="test"
+          type="checkbox"
+        />
+      </label>
+    </div>
+  </div>
+</DocumentFragment>
+`;

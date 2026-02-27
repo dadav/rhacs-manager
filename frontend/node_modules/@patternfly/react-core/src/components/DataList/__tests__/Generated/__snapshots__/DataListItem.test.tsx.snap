@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DataListItem should match snapshot (auto-generated) 1`] = `
+<DocumentFragment>
+  <li
+    class="pf-v6-c-data-list__item ''"
+    id="''"
+  >
+    <div
+      rowid="string"
+    >
+      ReactNode
+    </div>
+  </li>
+</DocumentFragment>
+`;

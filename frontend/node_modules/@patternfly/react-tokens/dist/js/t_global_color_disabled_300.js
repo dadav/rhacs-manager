@@ -1,0 +1,8 @@
+"use strict";
+exports.__esModule = true;
+exports.t_global_color_disabled_300 = {
+  "name": "--pf-t--global--color--disabled--300",
+  "value": "#4d4d4d",
+  "var": "var(--pf-t--global--color--disabled--300)"
+};
+exports["default"] = exports.t_global_color_disabled_300;

@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_gray_colorscale_300 = {
+  "name": "--pf-t--chart--theme--colorscales--gray--colorscale--300",
+  "value": "#707070",
+  "var": "var(--pf-t--chart--theme--colorscales--gray--colorscale--300, #707070)"
+};
+export default t_chart_theme_colorscales_gray_colorscale_300;

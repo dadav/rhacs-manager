@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PageContextConsumer = exports.PageContextProvider = exports.PageContext = exports.pageContextDefaults = void 0;
+const react_1 = require("react");
+const util_1 = require("../../helpers/util");
+exports.pageContextDefaults = {
+    isManagedSidebar: false,
+    isSidebarOpen: false,
+    onSidebarToggle: () => null,
+    width: null,
+    height: null,
+    getBreakpoint: util_1.getBreakpoint,
+    getVerticalBreakpoint: util_1.getVerticalBreakpoint
+};
+exports.PageContext = (0, react_1.createContext)(exports.pageContextDefaults);
+exports.PageContextProvider = exports.PageContext.Provider;
+exports.PageContextConsumer = exports.PageContext.Consumer;
+//# sourceMappingURL=PageContext.js.map

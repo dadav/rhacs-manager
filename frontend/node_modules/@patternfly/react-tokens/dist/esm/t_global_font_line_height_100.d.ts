@@ -1,0 +1,6 @@
+export const t_global_font_line_height_100: {
+  "name": "--pf-t--global--font--line-height--100",
+  "value": "1.3",
+  "var": "var(--pf-t--global--font--line-height--100)"
+};
+export default t_global_font_line_height_100;

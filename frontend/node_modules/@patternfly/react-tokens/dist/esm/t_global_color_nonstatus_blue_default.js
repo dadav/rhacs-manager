@@ -1,0 +1,6 @@
+export const t_global_color_nonstatus_blue_default = {
+  "name": "--pf-t--global--color--nonstatus--blue--default",
+  "value": "#b9dafc",
+  "var": "var(--pf-t--global--color--nonstatus--blue--default)"
+};
+export default t_global_color_nonstatus_blue_default;

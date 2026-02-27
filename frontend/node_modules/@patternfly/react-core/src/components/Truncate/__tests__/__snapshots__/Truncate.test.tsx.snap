@@ -1,0 +1,93 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Truncation with maxCharsDisplayed Matches snapshot with default position 1`] = `
+<DocumentFragment>
+  <div
+    data-testid="Tooltip-mock"
+  >
+    <div
+      data-testid="Tooltip-mock-content-container"
+    >
+      Test Test truncation content
+    </div>
+    <p>
+      position: top
+    </p>
+  </div>
+  <span
+    class="pf-v6-c-truncate pf-m-fixed"
+    tabindex="0"
+  >
+    <span
+      class="pf-v6-c-truncate__text"
+    >
+      Tes
+    </span>
+    <span
+      aria-hidden="true"
+      class="pf-v6-c-truncate__omission"
+    >
+      …
+    </span>
+    <span
+      class="pf-v6-screen-reader"
+    >
+      t truncation content
+    </span>
+  </span>
+</DocumentFragment>
+`;
+
+exports[`renders default truncation 1`] = `
+<DocumentFragment>
+  <div
+    data-testid="Tooltip-mock"
+  >
+    <div
+      data-testid="Tooltip-mock-content-container"
+    >
+      Test Vestibulum interdum risus et enim faucibus, sit amet molestie est accumsan.
+    </div>
+    <p>
+      position: top
+    </p>
+  </div>
+  <span
+    class="pf-v6-c-truncate"
+    tabindex="0"
+  >
+    <span
+      class="pf-v6-c-truncate__start"
+    >
+      Vestibulum interdum risus et enim faucibus, sit amet molestie est accumsan.
+    </span>
+  </span>
+</DocumentFragment>
+`;
+
+exports[`renders start truncation with &lrm; at start and end 1`] = `
+<DocumentFragment>
+  <div
+    data-testid="Tooltip-mock"
+  >
+    <div
+      data-testid="Tooltip-mock-content-container"
+    >
+      Test Vestibulum interdum risus et enim faucibus, sit amet molestie est accumsan.
+    </div>
+    <p>
+      position: top
+    </p>
+  </div>
+  <span
+    class="pf-v6-c-truncate"
+    tabindex="0"
+  >
+    <span
+      class="pf-v6-c-truncate__end"
+    >
+      ‎Vestibulum interdum risus et enim faucibus, sit amet molestie est accumsan.‎
+    </span>
+  </span>
+</DocumentFragment>
+`;

@@ -1,0 +1,6 @@
+export const t_global_color_status_unread_attention_clicked: {
+  "name": "--pf-t--global--color--status--unread--attention--clicked",
+  "value": "#731f00",
+  "var": "var(--pf-t--global--color--status--unread--attention--clicked)"
+};
+export default t_global_color_status_unread_attention_clicked;

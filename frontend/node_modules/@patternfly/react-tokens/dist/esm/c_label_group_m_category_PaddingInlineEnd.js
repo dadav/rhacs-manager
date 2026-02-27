@@ -1,0 +1,6 @@
+export const c_label_group_m_category_PaddingInlineEnd = {
+  "name": "--pf-v6-c-label-group--m-category--PaddingInlineEnd",
+  "value": "0.5rem",
+  "var": "var(--pf-v6-c-label-group--m-category--PaddingInlineEnd)"
+};
+export default c_label_group_m_category_PaddingInlineEnd;

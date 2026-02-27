@@ -1,0 +1,6 @@
+export const c_breadcrumb__item_divider_MarginInlineEnd: {
+  "name": "--pf-v6-c-breadcrumb__item-divider--MarginInlineEnd",
+  "value": "0.5rem",
+  "var": "var(--pf-v6-c-breadcrumb__item-divider--MarginInlineEnd)"
+};
+export default c_breadcrumb__item_divider_MarginInlineEnd;

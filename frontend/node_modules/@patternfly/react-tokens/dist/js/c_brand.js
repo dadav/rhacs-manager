@@ -1,0 +1,31 @@
+"use strict";
+exports.__esModule = true;
+exports.c_brand = {
+  ".pf-v6-c-brand": {
+    "c_brand_Width": {
+      "name": "--pf-v6-c-brand--Width",
+      "value": "auto"
+    },
+    "c_brand_Height": {
+      "name": "--pf-v6-c-brand--Height",
+      "value": "auto"
+    },
+    "c_brand_Width_base": {
+      "name": "--pf-v6-c-brand--Width--base",
+      "value": "auto",
+      "values": [
+        "--pf-v6-c-brand--Width",
+        "auto"
+      ]
+    },
+    "c_brand_Height_base": {
+      "name": "--pf-v6-c-brand--Height--base",
+      "value": "auto",
+      "values": [
+        "--pf-v6-c-brand--Height",
+        "auto"
+      ]
+    }
+  }
+};
+exports["default"] = exports.c_brand;

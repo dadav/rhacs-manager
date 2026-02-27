@@ -1,0 +1,6 @@
+export const t_global_color_status_info_100 = {
+  "name": "--pf-t--global--color--status--info--100",
+  "value": "#5e40be",
+  "var": "var(--pf-t--global--color--status--info--100)"
+};
+export default t_global_color_status_info_100;

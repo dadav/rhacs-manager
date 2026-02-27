@@ -1,0 +1,6 @@
+export const t_chart_theme_colorscales_purple_colorscale_300 = {
+  "name": "--pf-t--chart--theme--colorscales--purple--colorscale--300",
+  "value": "#21134d",
+  "var": "var(--pf-t--chart--theme--colorscales--purple--colorscale--300, #21134d)"
+};
+export default t_chart_theme_colorscales_purple_colorscale_300;

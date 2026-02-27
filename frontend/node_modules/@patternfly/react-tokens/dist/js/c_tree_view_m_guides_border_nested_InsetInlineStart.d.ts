@@ -1,0 +1,6 @@
+export const c_tree_view_m_guides_border_nested_InsetInlineStart: {
+  "name": "--pf-v6-c-tree-view--m-guides--border--nested--InsetInlineStart",
+  "value": "calc(calc(1rem * 2 + 0.875rem) - calc(calc(1rem * 2 + 0.875rem) + 0.875rem / 2))",
+  "var": "var(--pf-v6-c-tree-view--m-guides--border--nested--InsetInlineStart)"
+};
+export default c_tree_view_m_guides_border_nested_InsetInlineStart;

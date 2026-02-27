@@ -1,0 +1,6 @@
+export const t_global_font_family_mono_legacy = {
+  "name": "--pf-t--global--font--family--mono--legacy",
+  "value": "redhatmono, liberationmono, consolas, sfmono-regular, menlo, monaco, courier new, monospace",
+  "var": "var(--pf-t--global--font--family--mono--legacy)"
+};
+export default t_global_font_family_mono_legacy;

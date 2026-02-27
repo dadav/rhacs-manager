@@ -1,0 +1,6 @@
+export const t_color_purple_60: {
+  "name": "--pf-t--color--purple--60",
+  "value": "#3d2785",
+  "var": "var(--pf-t--color--purple--60)"
+};
+export default t_color_purple_60;

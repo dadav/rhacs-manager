@@ -1,0 +1,6 @@
+export const t_global_color_nonstatus_orange_100 = {
+  "name": "--pf-t--global--color--nonstatus--orange--100",
+  "value": "#fccb8f",
+  "var": "var(--pf-t--global--color--nonstatus--orange--100)"
+};
+export default t_global_color_nonstatus_orange_100;

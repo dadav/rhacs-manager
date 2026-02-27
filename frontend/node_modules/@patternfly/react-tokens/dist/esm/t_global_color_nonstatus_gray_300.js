@@ -1,0 +1,6 @@
+export const t_global_color_nonstatus_gray_300 = {
+  "name": "--pf-t--global--color--nonstatus--gray--300",
+  "value": "#a3a3a3",
+  "var": "var(--pf-t--global--color--nonstatus--gray--300)"
+};
+export default t_global_color_nonstatus_gray_300;

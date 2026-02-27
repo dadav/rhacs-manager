@@ -1,0 +1,33 @@
+# OpenShift Route for the frontend
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhacs-manager
+  namespace: rhacs-manager
+spec:
+  host: rhacs-manager.apps.example.com
+  to:
+    kind: Service
+    name: rhacs-manager-frontend
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+# Internal route for backend API (used by frontend via Nginx proxy or direct)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rhacs-manager-api
+  namespace: rhacs-manager
+spec:
+  host: rhacs-manager-api.apps.example.com
+  to:
+    kind: Service
+    name: rhacs-manager-backend
+  port:
+    targetPort: 8000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
