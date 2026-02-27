@@ -11,6 +11,7 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
 import { useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
 import type { EscalationRule } from '../types'
@@ -119,7 +120,7 @@ export function Settings() {
   }
 
   if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${(error as Error).message}`} /></PageSection>
+  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
 
   const DAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
 
@@ -183,7 +184,7 @@ export function Settings() {
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
-                      <tr style={{ background: '#f0f0f0' }}>
+                      <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. Schweregrad (0-4)</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. EPSS</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L1</th>
@@ -244,7 +245,7 @@ export function Settings() {
           <GridItem span={12}>
             {saved && <Alert variant="success" isInline title="Einstellungen gespeichert." style={{ marginBottom: 12 }} />}
             {updateSettings.isError && (
-              <Alert variant="danger" isInline title={`Fehler: ${(updateSettings.error as Error).message}`} style={{ marginBottom: 12 }} />
+              <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(updateSettings.error)}`} style={{ marginBottom: 12 }} />
             )}
             <Button variant="primary" onClick={handleSave} isLoading={updateSettings.isPending}>
               Einstellungen speichern

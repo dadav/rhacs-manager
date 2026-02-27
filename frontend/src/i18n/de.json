@@ -94,14 +94,11 @@
     "aging": "CVE-Alterungsverteilung",
     "pipeline": "Risikoakzeptanz-Pipeline",
     "thresholdConfig": "Schwellenwert-Konfiguration",
-    "thresholdDescription": "CVEs unterhalb beider Schwellenwerte werden für Teams ausgeblendet.",
-    "minCvss": "Mindest-CVSS",
-    "minEpss": "Mindest-EPSS",
-    "preview": "Vorschau: {{visible}} von {{total}} CVEs sichtbar",
-    "totalTeams": "Teams",
+    "thresholdDescription": "CVEs unterhalb beider Schwellenwerte werden für Teams ausgeblendet. Die Schwellenwerte werden in den Einstellungen konfiguriert.",
     "totalCves": "Gesamt-CVEs",
     "criticalCves": "Kritische CVEs",
-    "avgEpss": "Ø EPSS"
+    "avgEpss": "Ø EPSS",
+    "cvesLast7Days": "Neue CVEs (7 Tage)"
   },
   "cves": {
     "title": "Schwachstellen",
@@ -219,7 +216,15 @@
     "daysToLevel2": "Tage bis Stufe 2",
     "daysToLevel3": "Tage bis Stufe 3",
     "digestDay": "Digest-Wochentag",
-    "digestDays": ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"],
+    "digestDays": [
+      "Montag",
+      "Dienstag",
+      "Mittwoch",
+      "Donnerstag",
+      "Freitag",
+      "Samstag",
+      "Sonntag"
+    ],
     "managementEmail": "Management-E-Mail",
     "saved": "Einstellungen gespeichert"
   },

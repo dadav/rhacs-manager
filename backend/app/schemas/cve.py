@@ -1,7 +1,8 @@
 import enum
 from datetime import datetime
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SeverityLevel(int, enum.Enum):
@@ -61,3 +62,19 @@ class CveListParams(BaseModel):
     prioritized_only: bool = False
     sort_by: str = "severity"
     sort_desc: bool = True
+
+
+class CveCommentCreate(BaseModel):
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class CveCommentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    cve_id: str
+    user_id: str
+    username: str
+    message: str
+    created_at: datetime
+    is_sec_team: bool = False

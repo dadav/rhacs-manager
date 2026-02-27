@@ -13,6 +13,7 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useBadges, useCreateBadge, useDeleteBadge } from '../api/badges'
 
@@ -41,7 +42,7 @@ export function Badges() {
       setLabel('')
       setFormError('')
     } catch (err) {
-      setFormError((err as Error).message)
+      setFormError(getErrorMessage(err))
     }
   }
 
@@ -64,7 +65,7 @@ export function Badges() {
         <Alert variant="info" isInline title="Badges können ohne Authentifizierung in READMEs eingebettet werden." style={{ marginBottom: 16 }} />
 
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !badges?.length ? (
           <Alert variant="info" isInline title="Keine Badges vorhanden." />
         ) : (

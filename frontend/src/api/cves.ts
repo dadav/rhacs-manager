@@ -1,11 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { Paginated, CveListItem, CveDetail, AffectedDeployment } from '../types'
+import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment } from '../types'
 
 export const cveKeys = {
   list: (params: Record<string, unknown>) => ['cves', 'list', params] as const,
   detail: (id: string) => ['cves', 'detail', id] as const,
   deployments: (id: string) => ['cves', 'deployments', id] as const,
+  comments: (id: string) => ['cves', 'comments', id] as const,
 }
 
 interface CveListParams {
@@ -50,5 +51,23 @@ export function useCveDeployments(cveId: string) {
     queryKey: cveKeys.deployments(cveId),
     queryFn: () => api.get<AffectedDeployment[]>(`/cves/${encodeURIComponent(cveId)}/deployments`),
     enabled: !!cveId,
+  })
+}
+
+export function useCveComments(cveId: string) {
+  return useQuery({
+    queryKey: cveKeys.comments(cveId),
+    queryFn: () => api.get<CveComment[]>(`/cves/${encodeURIComponent(cveId)}/comments`),
+    enabled: !!cveId,
+    refetchInterval: 30000,
+  })
+}
+
+export function useAddCveComment(cveId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (message: string) =>
+      api.post<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments`, { message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
   })
 }

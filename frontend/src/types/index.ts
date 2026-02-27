@@ -75,6 +75,16 @@ export interface CveDetail extends CveListItem {
   components: AffectedComponent[]
 }
 
+export interface CveComment {
+  id: string
+  cve_id: string
+  user_id: string
+  username: string
+  message: string
+  created_at: string
+  is_sec_team: boolean
+}
+
 export interface RiskAcceptance {
   id: string
   cve_id: string
@@ -270,6 +280,7 @@ export interface SecDashboardData {
   total_critical: number
   avg_epss: number
   total_teams: number
+  cves_last_7_days: number
   threshold_preview: ThresholdPreview
 }
 

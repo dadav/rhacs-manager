@@ -11,10 +11,13 @@ import {
   Label,
   PageSection,
   Spinner,
+  TextArea,
   Title,
 } from '@patternfly/react-core'
+import { useState } from 'react'
+import { getErrorMessage } from '../utils/errors'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useCveDetail } from '../api/cves'
+import { useAddCveComment, useCveComments, useCveDetail } from '../api/cves'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { RiskStatus } from '../types'
@@ -46,9 +49,19 @@ export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>()
   const navigate = useNavigate()
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? '')
+  const { data: comments } = useCveComments(cveId ?? '')
+  const addComment = useAddCveComment(cveId ?? '')
+  const [newComment, setNewComment] = useState('')
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newComment.trim()) return
+    await addComment.mutateAsync(newComment)
+    setNewComment('')
+  }
 
   if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${(error as Error).message}`} /></PageSection>
+  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
   if (!cve) return null
 
   return (
@@ -158,7 +171,7 @@ export function CveDetail() {
                 <CardBody style={{ padding: 0 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
-                      <tr style={{ background: '#f0f0f0' }}>
+                      <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Komponente</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Version</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Behebbar</th>
@@ -167,7 +180,7 @@ export function CveDetail() {
                     </thead>
                     <tbody>
                       {cve.components.map((c, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <tr key={i} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                           <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{c.component_name}</td>
                           <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{c.component_version}</td>
                           <td style={{ padding: '8px 12px' }}>
@@ -193,7 +206,7 @@ export function CveDetail() {
                 <CardBody style={{ padding: 0 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
-                      <tr style={{ background: '#f0f0f0' }}>
+                      <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Deployment</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Namespace</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Cluster</th>
@@ -202,7 +215,7 @@ export function CveDetail() {
                     </thead>
                     <tbody>
                       {cve.affected_deployments_list.map(d => (
-                        <tr key={d.deployment_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <tr key={d.deployment_id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                           <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{d.deployment_name}</td>
                           <td style={{ padding: '8px 12px' }}>{d.namespace}</td>
                           <td style={{ padding: '8px 12px', fontSize: 11 }}>{d.cluster_name}</td>
@@ -215,6 +228,59 @@ export function CveDetail() {
               </Card>
             </GridItem>
           )}
+          {/* Comments */}
+          <GridItem span={12}>
+            <Card>
+              <CardTitle>Kommentare ({comments?.length ?? 0})</CardTitle>
+              <CardBody>
+                {comments && comments.length > 0 ? (
+                  <div style={{ marginBottom: 20 }}>
+                    {comments.map(c => (
+                      <div
+                        key={c.id}
+                        style={{
+                          padding: 12,
+                          marginBottom: 10,
+                          background: 'var(--pf-t--global--background--color--secondary--default)',
+                          borderLeft: `3px solid ${c.is_sec_team ? 'var(--pf-t--global--color--blue--default)' : 'var(--pf-t--global--border--color--default)'}`,
+                          borderRadius: '0 4px 4px 0',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: c.is_sec_team ? 'var(--pf-t--global--color--blue--default)' : 'var(--pf-t--global--text--color--regular)' }}>
+                            {c.username}
+                            {c.is_sec_team && (
+                              <span style={{ marginLeft: 6, fontSize: 10, background: '#0066cc', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
+                                SEC
+                              </span>
+                            )}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                            {new Date(c.created_at).toLocaleString('de-DE')}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{c.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 16 }}>Noch keine Kommentare.</p>
+                )}
+                <form onSubmit={handleAddComment}>
+                  <TextArea
+                    value={newComment}
+                    onChange={(_, v) => setNewComment(v)}
+                    rows={3}
+                    placeholder="Kommentar hinzufügen..."
+                    style={{ marginBottom: 8 }}
+                  />
+                  <Button type="submit" variant="secondary" isLoading={addComment.isPending} isDisabled={!newComment.trim()}>
+                    Kommentar senden
+                  </Button>
+                </form>
+              </CardBody>
+            </Card>
+          </GridItem>
         </Grid>
       </PageSection>
     </>

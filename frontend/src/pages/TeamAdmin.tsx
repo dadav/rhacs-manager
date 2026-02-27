@@ -13,6 +13,7 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useCreateTeam, useDeleteTeam, useTeams, useUpdateTeam } from '../api/teams'
 import type { Team } from '../types'
@@ -94,7 +95,7 @@ export function TeamAdmin() {
       setShowCreate(false)
       setFormError('')
     } catch (err) {
-      setFormError((err as Error).message)
+      setFormError(getErrorMessage(err))
     }
   }
 
@@ -106,7 +107,7 @@ export function TeamAdmin() {
       setEditTeam(null)
       setFormError('')
     } catch (err) {
-      setFormError((err as Error).message)
+      setFormError(getErrorMessage(err))
     }
   }
 
@@ -126,7 +127,7 @@ export function TeamAdmin() {
 
       <PageSection>
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !teams?.length ? (
           <Alert variant="info" isInline title="Keine Teams vorhanden." />
         ) : (
@@ -143,7 +144,7 @@ export function TeamAdmin() {
                   </div>
                 </CardTitle>
                 <CardBody>
-                  <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 8 }}>
+                  <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 8 }}>
                     E-Mail: {team.email || '–'} · Erstellt: {new Date(team.created_at).toLocaleDateString('de-DE')}
                   </p>
                   {team.namespaces.length > 0 ? (
@@ -151,14 +152,14 @@ export function TeamAdmin() {
                       {team.namespaces.map(ns => (
                         <span
                           key={ns.id}
-                          style={{ fontSize: 11, background: '#f0f0f0', padding: '2px 8px', borderRadius: 3, fontFamily: 'monospace' }}
+                          style={{ fontSize: 11, background: 'var(--pf-t--global--background--color--secondary--default)', padding: '2px 8px', borderRadius: 3, fontFamily: 'monospace' }}
                         >
                           {ns.cluster_name}/{ns.namespace}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: 12, color: '#8a8d90' }}>Keine Namespaces zugeordnet.</p>
+                    <p style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>Keine Namespaces zugeordnet.</p>
                   )}
                 </CardBody>
               </Card>

@@ -9,6 +9,7 @@ import {
   Spinner,
   Title,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { useTeamDashboard } from '../api/dashboard'
@@ -22,10 +23,10 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
   return (
     <Card isCompact>
       <CardBody>
-        <div style={{ fontSize: 28, fontWeight: 700, color: color ?? '#151515', lineHeight: 1.2 }}>
+        <div style={{ fontSize: 28, fontWeight: 700, color: color ?? 'var(--pf-v6-global--Color--100)', lineHeight: 1.2 }}>
           {value}
         </div>
-        <div style={{ fontSize: 13, color: '#6a6e73', marginTop: 4 }}>{label}</div>
+        <div style={{ fontSize: 13, color: 'var(--pf-v6-global--Color--200)', marginTop: 4 }}>{label}</div>
       </CardBody>
     </Card>
   )
@@ -39,7 +40,7 @@ export function Dashboard() {
     <PageSection><Spinner aria-label="Laden" /></PageSection>
   )
   if (error) return (
-    <PageSection><Alert variant="danger" title={`Fehler: ${(error as Error).message}`} /></PageSection>
+    <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
   )
   if (!data) return null
 
@@ -62,7 +63,11 @@ export function Dashboard() {
             <StatCard label={t('dashboard.fixableCves')} value={data.stat_fixable_cves} color="#1e8f19" />
           </GridItem>
           <GridItem span={3}>
-            <StatCard label={t('dashboard.openRiskAcceptances')} value={data.stat_open_risk_acceptances} />
+            <StatCard
+              label={t('dashboard.openRiskAcceptances')}
+              value={data.stat_open_risk_acceptances}
+              color={data.stat_open_risk_acceptances > 0 ? '#ec7a08' : undefined}
+            />
           </GridItem>
           <GridItem span={3}>
             <StatCard
@@ -91,11 +96,11 @@ export function Dashboard() {
                         alignItems: 'center',
                         gap: 6,
                         padding: '4px 10px',
-                        background: '#fff',
+                        background: 'var(--pf-v6-global--BackgroundColor--100)',
                         border: '1px solid #f0ab00',
                         borderRadius: 4,
                         textDecoration: 'none',
-                        color: '#151515',
+                        color: 'var(--pf-v6-global--Color--100)',
                         fontSize: 13,
                       }}
                     >

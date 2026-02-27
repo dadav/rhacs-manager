@@ -1,3 +1,5 @@
+import { getErrorMessage } from '../utils/errors'
+
 const BASE = '/api'
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -8,17 +10,24 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     },
     ...options,
   })
+
   if (!res.ok) {
     let detail = `HTTP ${res.status}`
+
     try {
-      const err = await res.json()
-      detail = err.detail || detail
+      const errBody = await res.json()
+      detail = getErrorMessage(errBody, detail)
     } catch {
       // ignore json parse errors
     }
+
     throw new Error(detail)
   }
-  if (res.status === 204) return undefined as T
+
+  if (res.status === 204) {
+    return undefined as T
+  }
+
   return res.json()
 }
 

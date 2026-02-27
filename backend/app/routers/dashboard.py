@@ -138,10 +138,16 @@ async def team_dashboard(
 
     # Charts
     sev_dist = await sx.get_severity_distribution(sx_db, ns_list_for_queries)
-    ns_counts = await sx.get_cves_per_namespace(sx_db, namespaces) if namespaces else []
+    ns_counts = await sx.get_cves_per_namespace(sx_db, ns_list_for_queries)
     trend = await sx.get_cve_trend(sx_db, ns_list_for_queries)
 
-    top_epss = sorted(enriched, key=lambda x: x.epss_probability, reverse=True)[:5]
+    # Deduplicate by cve_id (same CVE can appear across multiple images).
+    # Keep the entry with the highest epss_probability for each unique CVE.
+    seen_cve_ids: dict[str, CveListItem] = {}
+    for item in enriched:
+        if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
+            seen_cve_ids[item.cve_id] = item
+    top_epss = sorted(seen_cve_ids.values(), key=lambda x: x.epss_probability, reverse=True)[:5]
 
     return TeamDashboardData(
         stat_total_cves=total,
@@ -277,6 +283,9 @@ async def sec_dashboard(
     total_critical = sum(1 for c in all_cves if c.get("severity") == 4)
     org_avg_epss = sum(c.get("epss_probability", 0) for c in all_cves) / total_org if total_org else 0.0
 
+    # New CVEs in last 7 days
+    cves_last_7_days = await sx.get_cves_last_n_days(sx_db, days=7)
+
     # Threshold preview
     preview = await sx.get_threshold_preview(sx_db, min_cvss, min_epss)
     threshold_preview = ThresholdPreview(**preview)
@@ -292,5 +301,6 @@ async def sec_dashboard(
         total_critical=total_critical,
         avg_epss=round(org_avg_epss, 4),
         total_teams=len(teams),
+        cves_last_7_days=cves_last_7_days,
         threshold_preview=threshold_preview,
     )

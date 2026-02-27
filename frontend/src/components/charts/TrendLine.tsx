@@ -5,6 +5,14 @@ interface Props {
 }
 
 export function TrendLine({ data }: Props) {
+  if (!data.length) {
+    return (
+      <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6a6e73', fontSize: 13 }}>
+        Keine Daten verfügbar
+      </div>
+    )
+  }
+
   return (
     <ResponsiveContainer width="100%" height={160}>
       <AreaChart data={data} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>

@@ -32,23 +32,19 @@ async def get_cves_for_namespaces(
             COALESCE(ic.cvss, 0)            AS cvss,
             COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
             COALESCE(ic.impactscore, 0)     AS impact_score,
-            ic.operatingsystem              AS operating_system,
-            MIN(ice.firstimageoccurrence)   AS first_seen,
+            COALESCE(comp.operatingsystem, '') AS operating_system,
+            MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
-            BOOL_OR(COALESCE(icce.isfixable, false)) AS fixable,
-            MAX(icce.fixedby)               AS fixed_by
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
+            MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        LEFT JOIN image_component_edges ince ON ince.imageid = dc.image_id
-        LEFT JOIN image_component_cve_edges icce
-            ON icce.imagecomponentid = ince.imagecomponentid
-            AND icce.imagecveid = ic.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_components comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
         GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, ic.operatingsystem
+                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
         HAVING (
             COALESCE(ic.cvss, 0) >= :min_cvss
             OR COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) >= :min_epss
@@ -82,24 +78,20 @@ async def get_cve_detail(
             COALESCE(ic.cvss, 0)            AS cvss,
             COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
             COALESCE(ic.impactscore, 0)     AS impact_score,
-            ic.operatingsystem,
-            MIN(ice.firstimageoccurrence)   AS first_seen,
+            COALESCE(comp.operatingsystem, '') AS operatingsystem,
+            MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
-            BOOL_OR(COALESCE(icce.isfixable, false)) AS fixable,
-            MAX(icce.fixedby)               AS fixed_by
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
+            MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        LEFT JOIN image_component_edges ince ON ince.imageid = dc.image_id
-        LEFT JOIN image_component_cve_edges icce
-            ON icce.imagecomponentid = ince.imagecomponentid
-            AND icce.imagecveid = ic.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_components comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
         GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, ic.operatingsystem
+                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
     """)
 
     result = await session.execute(sql, {"cve_id": cve_id})
@@ -127,8 +119,7 @@ async def get_affected_deployments(
             dc.image_name_fullname AS image_name
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
         ORDER BY d.namespace, d.name
@@ -152,16 +143,15 @@ async def get_affected_components(
         SELECT DISTINCT
             comp.name       AS component_name,
             comp.version    AS component_version,
-            COALESCE(icce.isfixable, false) AS fixable,
-            icce.fixedby    AS fixed_by
+            COALESCE(ic.isfixable, false) AS fixable,
+            ic.fixedby      AS fixed_by
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_component_edges ince ON ince.imageid = dc.image_id
-        JOIN image_components comp ON comp.id = ince.imagecomponentid
-        JOIN image_component_cve_edges icce ON icce.imagecomponentid = comp.id
-        JOIN image_cves ic ON ic.id = icce.imagecveid
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN image_components comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
+          AND comp.name IS NOT NULL
         ORDER BY comp.name, comp.version
     """)
     result = await session.execute(sql, {"cve_id": cve_id})
@@ -184,22 +174,18 @@ async def get_all_cves(
             COALESCE(ic.cvss, 0)            AS cvss,
             COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
             COALESCE(ic.impactscore, 0)     AS impact_score,
-            ic.operatingsystem,
-            MIN(ice.firstimageoccurrence)   AS first_seen,
+            COALESCE(comp.operatingsystem, '') AS operatingsystem,
+            MIN(ic.firstimageoccurrence)    AS first_seen,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
-            BOOL_OR(COALESCE(icce.isfixable, false)) AS fixable,
-            MAX(icce.fixedby)               AS fixed_by
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
+            MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        LEFT JOIN image_component_edges ince ON ince.imageid = dc.image_id
-        LEFT JOIN image_component_cve_edges icce
-            ON icce.imagecomponentid = ince.imagecomponentid
-            AND icce.imagecveid = ic.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_components comp ON comp.id = ic.componentid
         GROUP BY ic.id, ic.cvebaseinfo_cve, ic.severity, ic.cvss,
-                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, ic.operatingsystem
+                 ic.cvebaseinfo_epss_epssprobability, ic.impactscore, comp.operatingsystem
         HAVING (
             COALESCE(ic.cvss, 0) >= :min_cvss
             OR COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) >= :min_epss
@@ -243,21 +229,24 @@ async def get_severity_distribution(
 
 async def get_cves_per_namespace(
     session: AsyncSession,
-    namespaces: list[tuple[str, str]],
+    namespaces: list[tuple[str, str]] | None = None,
 ) -> list[dict]:
-    if not namespaces:
+    if namespaces is not None and len(namespaces) == 0:
         return []
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
 
     sql = text(f"""
         SELECT d.namespace, COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        {where_clause}
         GROUP BY d.namespace
         ORDER BY count DESC
     """)
@@ -285,15 +274,14 @@ async def get_cve_trend(
 
     sql = text(f"""
         SELECT
-            DATE(ice.firstimageoccurrence) AS date,
+            DATE(ic.firstimageoccurrence) AS date,
             COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        WHERE ice.firstimageoccurrence >= :since
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE ic.firstimageoccurrence >= :since
         {where_clause}
-        GROUP BY DATE(ice.firstimageoccurrence)
+        GROUP BY DATE(ic.firstimageoccurrence)
         ORDER BY date
     """)
     result = await session.execute(sql, {"since": since})
@@ -421,6 +409,22 @@ async def get_cve_aging(
         count = sum(1 for d in rows if lo <= d <= hi)
         distribution.append({"bucket": label, "count": count})
     return distribution
+
+
+async def get_cves_last_n_days(
+    session: AsyncSession,
+    days: int = 7,
+) -> int:
+    """Count distinct CVEs first seen in the last N days (org-wide)."""
+    since = datetime.utcnow() - timedelta(days=days)
+    sql = text("""
+        SELECT COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
+        FROM image_cves_v2 ic
+        WHERE ic.firstimageoccurrence >= :since
+          AND ic.cvebaseinfo_cve IS NOT NULL
+    """)
+    result = await session.execute(sql, {"since": since})
+    return result.scalar() or 0
 
 
 async def get_threshold_preview(

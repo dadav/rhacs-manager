@@ -94,4 +94,5 @@ class SecDashboardData(BaseModel):
     total_critical: int
     avg_epss: float
     total_teams: int
+    cves_last_7_days: int
     threshold_preview: ThresholdPreview

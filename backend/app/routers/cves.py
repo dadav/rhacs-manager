@@ -4,11 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.team import TeamNamespace
-from ..schemas.cve import AffectedComponent, AffectedDeployment, CveDetail, CveListItem, SeverityLevel
+from ..models.user import User
+from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, SeverityLevel
 from ..schemas.common import PaginatedResponse
 from ..stackrox import queries as sx
 
@@ -206,6 +208,64 @@ async def get_cve(
             )
             for c in components
         ],
+    )
+
+
+@router.get("/{cve_id}/comments", response_model=list[CveCommentResponse])
+async def list_cve_comments(
+    cve_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+) -> list[CveCommentResponse]:
+    result = await app_db.execute(
+        select(CveComment).where(CveComment.cve_id == cve_id).order_by(CveComment.created_at)
+    )
+    comments = result.scalars().all()
+
+    out = []
+    for c in comments:
+        user_result = await app_db.execute(select(User).where(User.id == c.user_id))
+        user = user_result.scalar_one_or_none()
+        out.append(CveCommentResponse(
+            id=c.id,
+            cve_id=c.cve_id,
+            user_id=c.user_id,
+            username=user.username if user else c.user_id,
+            message=c.message,
+            created_at=c.created_at,
+            is_sec_team=user.role.value == "sec_team" if user else False,
+        ))
+    return out
+
+
+@router.post("/{cve_id}/comments", response_model=CveCommentResponse, status_code=201)
+async def add_cve_comment(
+    cve_id: str,
+    body: CveCommentCreate,
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+) -> CveCommentResponse:
+    comment = CveComment(
+        cve_id=cve_id,
+        user_id=current_user.id,
+        message=body.message,
+    )
+    app_db.add(comment)
+    await app_db.flush()
+
+    user_result = await app_db.execute(select(User).where(User.id == current_user.id))
+    user = user_result.scalar_one_or_none()
+
+    await app_db.commit()
+    await app_db.refresh(comment)
+    return CveCommentResponse(
+        id=comment.id,
+        cve_id=comment.cve_id,
+        user_id=comment.user_id,
+        username=user.username if user else current_user.id,
+        message=comment.message,
+        created_at=comment.created_at,
+        is_sec_team=current_user.is_sec_team,
     )
 
 

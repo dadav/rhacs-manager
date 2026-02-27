@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  Checkbox,
   PageSection,
   Pagination,
   Spinner,
@@ -10,7 +11,10 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
+  Tooltip,
 } from '@patternfly/react-core'
+import { ShieldAltIcon } from '@patternfly/react-icons'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
@@ -62,7 +66,7 @@ export function CveList() {
     userSelect: 'none',
     whiteSpace: 'nowrap',
     borderBottom: '2px solid #d2d2d2',
-    color: sortBy === col ? '#0066cc' : '#151515',
+    color: sortBy === col ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
   })
 
   return (
@@ -94,16 +98,20 @@ export function CveList() {
               </select>
             </ToolbarItem>
             <ToolbarItem>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={fixable === true} onChange={e => setFixable(e.target.checked ? true : undefined)} />
-                {t('cves.filterFixable')}
-              </label>
+              <Checkbox
+                id="filter-fixable"
+                label={t('cves.filterFixable')}
+                isChecked={fixable === true}
+                onChange={(_event, checked) => { setFixable(checked ? true : undefined); setPage(1) }}
+              />
             </ToolbarItem>
             <ToolbarItem>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                <input type="checkbox" checked={prioritizedOnly} onChange={e => setPrioritizedOnly(e.target.checked)} />
-                {t('cves.filterPrioritized')}
-              </label>
+              <Checkbox
+                id="filter-prioritized"
+                label={t('cves.filterPrioritized')}
+                isChecked={prioritizedOnly}
+                onChange={(_event, checked) => { setPrioritizedOnly(checked); setPage(1) }}
+              />
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
@@ -111,19 +119,19 @@ export function CveList() {
 
       <PageSection>
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !data?.items.length ? (
           <Alert variant="info" isInline title={t('cves.noResults')} />
         ) : (
           <>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
                     <th style={thStyle('cve_id')} onClick={() => handleSort('cve_id')}>{t('cves.cveId')}</th>
                     <th style={thStyle('severity')} onClick={() => handleSort('severity')}>{t('cves.severity')}</th>
                     <th style={thStyle('cvss')} onClick={() => handleSort('cvss')}>{t('cves.cvss')}</th>
-                    <th style={{ ...thStyle('epss_probability'), background: '#fff9e6' }} onClick={() => handleSort('epss_probability')}>{t('cves.epss')}</th>
+                    <th style={thStyle('epss_probability')} onClick={() => handleSort('epss_probability')}>{t('cves.epss')}</th>
                     <th style={thStyle('affected_images')} onClick={() => handleSort('affected_images')}>{t('cves.affectedImages')}</th>
                     <th style={thStyle('affected_deployments')} onClick={() => handleSort('affected_deployments')}>{t('cves.affectedDeployments')}</th>
                     <th style={thStyle('fixable')}>{t('cves.fixable')}</th>
@@ -155,7 +163,7 @@ export function CveList() {
                       <td style={{ padding: '8px 12px', fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? '#c9190b' : 'inherit' }}>
                         {cve.cvss.toFixed(1)}
                       </td>
-                      <td style={{ padding: '8px 12px', background: '#fff9e6' }}>
+                      <td style={{ padding: '8px 12px' }}>
                         <EpssBadge value={cve.epss_probability} />
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_images}</td>
@@ -169,11 +177,15 @@ export function CveList() {
                       <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
                         {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
                       </td>
-                      <td style={{ padding: '8px 12px' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', width: 40 }}>
                         {!cve.has_risk_acceptance && (
-                          <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
-                            <Button variant="secondary" size="sm">{t('cves.requestRiskAcceptance')}</Button>
-                          </Link>
+                          <Tooltip content={t('cves.requestRiskAcceptance')}>
+                            <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
+                              <Button variant="plain" aria-label={t('cves.requestRiskAcceptance')} style={{ color: '#6a6e73', padding: '2px 6px' }}>
+                                <ShieldAltIcon />
+                              </Button>
+                            </Link>
+                          </Tooltip>
                         )}
                       </td>
                     </tr>

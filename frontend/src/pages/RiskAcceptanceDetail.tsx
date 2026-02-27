@@ -13,6 +13,7 @@ import {
   TextArea,
   Title,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAddComment, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments } from '../api/riskAcceptances'
@@ -52,7 +53,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
       })
       navigate(`/risikoakzeptanzen/${ra.id}`)
     } catch (err) {
-      setError((err as Error).message)
+      setError(getErrorMessage(err))
     }
   }
 
@@ -136,7 +137,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const [reviewError, setReviewError] = useState('')
 
   if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${(error as Error).message}`} /></PageSection>
+  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
   if (!ra) return null
 
   async function handleAddComment(e: React.FormEvent) {
@@ -151,7 +152,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
       await review.mutateAsync({ approved })
       setReviewError('')
     } catch (err) {
-      setReviewError((err as Error).message)
+      setReviewError(getErrorMessage(err))
     }
   }
 
@@ -198,8 +199,8 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       ra.reviewed_by_name ? ['Bearbeitet von', ra.reviewed_by_name] : null,
                       ra.reviewed_at ? ['Bearbeitet am', new Date(ra.reviewed_at).toLocaleDateString('de-DE')] : null,
                     ] as ([string, React.ReactNode] | null)[]).filter((row): row is [string, React.ReactNode] => row !== null).map(([label, value], i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, color: '#6a6e73', width: 160 }}>{label}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', width: 160 }}>{label}</td>
                         <td style={{ padding: '8px 12px', fontSize: 13 }}>{value}</td>
                       </tr>
                     ))}
@@ -258,13 +259,13 @@ function RiskAcceptanceView({ id }: { id: string }) {
                         style={{
                           padding: 12,
                           marginBottom: 10,
-                          background: c.is_sec_team ? '#f0f8ff' : '#f9f9f9',
-                          borderLeft: `3px solid ${c.is_sec_team ? '#0066cc' : '#d2d2d2'}`,
+                          background: 'var(--pf-t--global--background--color--secondary--default)',
+                          borderLeft: `3px solid ${c.is_sec_team ? 'var(--pf-t--global--color--blue--default)' : 'var(--pf-t--global--border--color--default)'}`,
                           borderRadius: '0 4px 4px 0',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: c.is_sec_team ? '#0066cc' : '#151515' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: c.is_sec_team ? 'var(--pf-t--global--color--blue--default)' : 'var(--pf-t--global--text--color--regular)' }}>
                             {c.username}
                             {c.is_sec_team && (
                               <span style={{ marginLeft: 6, fontSize: 10, background: '#0066cc', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
@@ -272,7 +273,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                               </span>
                             )}
                           </span>
-                          <span style={{ fontSize: 11, color: '#8a8d90' }}>
+                          <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
                             {new Date(c.created_at).toLocaleString('de-DE')}
                           </span>
                         </div>
@@ -281,7 +282,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     ))}
                   </div>
                 ) : (
-                  <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 16 }}>Noch keine Kommentare.</p>
+                  <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 16 }}>Noch keine Kommentare.</p>
                 )}
 
                 {/* Add comment form */}

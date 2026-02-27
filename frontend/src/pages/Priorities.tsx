@@ -14,6 +14,8 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { ListIcon } from '@patternfly/react-icons'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useCreatePriority, useDeletePriority, usePriorities, useUpdatePriority } from '../api/priorities'
 import { useCurrentUser } from '../api/auth'
@@ -81,7 +83,7 @@ export function Priorities() {
       setDeadline('')
       setFormError('')
     } catch (err) {
-      setFormError((err as Error).message)
+      setFormError(getErrorMessage(err))
     }
   }
 
@@ -100,13 +102,16 @@ export function Priorities() {
 
       <PageSection>
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
-          <Alert variant="info" isInline title="Keine Prioritäten gesetzt." />
+          <div style={{ textAlign: 'center', padding: '64px 0', color: '#8a8d90' }}>
+            <ListIcon style={{ fontSize: 32, marginBottom: 12, display: 'block', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: 14, margin: 0 }}>Keine Prioritäten gesetzt.</p>
+          </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f0f0f0' }}>
+              <tr style={{ background: 'var(--pf-v6-global--BackgroundColor--200)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>CVE</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Priorität</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Begründung</th>
@@ -118,7 +123,7 @@ export function Priorities() {
             </thead>
             <tbody>
               {data.map(p => (
-                <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <tr key={p.id} style={{ borderBottom: '1px solid var(--pf-v6-global--BorderColor--100)' }}>
                   <td style={{ padding: '8px 12px' }}>
                     <Link to={`/schwachstellen/${p.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc', fontSize: 12 }}>
                       {p.cve_id}
@@ -129,10 +134,10 @@ export function Priorities() {
                   </td>
                   <td style={{ padding: '8px 12px', maxWidth: 400 }}>{p.reason}</td>
                   <td style={{ padding: '8px 12px', fontSize: 12 }}>{p.set_by_name}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : '#6a6e73' }}>
+                  <td style={{ padding: '8px 12px', fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-v6-global--Color--200)' }}>
                     {p.deadline ? new Date(p.deadline).toLocaleDateString('de-DE') : '–'}
                   </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: '#6a6e73' }}>
+                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-v6-global--Color--200)' }}>
                     {new Date(p.created_at).toLocaleDateString('de-DE')}
                   </td>
                   {me?.is_sec_team && (

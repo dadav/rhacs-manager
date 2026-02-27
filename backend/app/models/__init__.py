@@ -1,5 +1,6 @@
 from .audit_log import AuditLog
 from .badge import BadgeToken
+from .cve_comment import CveComment
 from .cve_priority import CvePriority, PriorityLevel
 from .escalation import Escalation
 from .global_settings import GlobalSettings
@@ -16,6 +17,7 @@ __all__ = [
     "RiskAcceptance",
     "RiskAcceptanceComment",
     "RiskStatus",
+    "CveComment",
     "CvePriority",
     "PriorityLevel",
     "GlobalSettings",

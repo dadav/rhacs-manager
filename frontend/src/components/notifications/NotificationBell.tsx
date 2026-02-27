@@ -116,25 +116,25 @@ export function NotificationBell() {
                   onClick={() => handleClick(n)}
                   style={{
                     padding: '12px 16px',
-                    borderBottom: '1px solid #f0f0f0',
+                    borderBottom: '1px solid var(--pf-v6-global--BorderColor--100)',
                     cursor: n.link ? 'pointer' : 'default',
-                    background: n.read ? '#fff' : '#f0f7ff',
+                    background: n.read ? 'var(--pf-v6-global--BackgroundColor--100)' : 'var(--pf-v6-global--BackgroundColor--200)',
                     transition: 'background 0.1s',
                   }}
                   onMouseEnter={e => {
-                    if (n.link) (e.currentTarget as HTMLDivElement).style.background = '#e8f1ff'
+                    if (n.link) (e.currentTarget as HTMLDivElement).style.background = 'var(--pf-v6-global--BackgroundColor--200)'
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLDivElement).style.background = n.read ? '#fff' : '#f0f7ff'
+                    (e.currentTarget as HTMLDivElement).style.background = n.read ? 'var(--pf-v6-global--BackgroundColor--100)' : 'var(--pf-v6-global--BackgroundColor--200)'
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <strong style={{ fontSize: 14, color: n.read ? '#6a6e73' : '#151515' }}>
+                    <strong style={{ fontSize: 14, color: n.read ? 'var(--pf-v6-global--Color--200)' : 'var(--pf-v6-global--Color--100)' }}>
                       {n.title}
                     </strong>
-                    <span style={{ fontSize: 11, color: '#8a8d90' }}>{timeAgo(n.created_at)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>{timeAgo(n.created_at)}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: '#6a6e73' }}>{n.message}</div>
+                  <div style={{ fontSize: 13, color: 'var(--pf-v6-global--Color--200)' }}>{n.message}</div>
                 </div>
               ))
             )}

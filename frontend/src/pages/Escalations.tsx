@@ -4,6 +4,8 @@ import {
   Spinner,
   Title,
 } from '@patternfly/react-core'
+import { CheckCircleIcon } from '@patternfly/react-icons'
+import { getErrorMessage } from '../utils/errors'
 import { Link } from 'react-router-dom'
 import { useEscalations } from '../api/escalations'
 
@@ -30,9 +32,12 @@ export function Escalations() {
 
       <PageSection>
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
-          <Alert variant="success" isInline title="Keine aktiven Eskalationen. Gut gemacht!" />
+          <div style={{ textAlign: 'center', padding: '64px 0', color: '#8a8d90' }}>
+            <CheckCircleIcon style={{ fontSize: 32, color: '#1e8f19', display: 'block', margin: '0 auto 12px' }} />
+            <p style={{ fontSize: 14, margin: 0 }}>Keine aktiven Eskalationen. Gut gemacht!</p>
+          </div>
         ) : (
           <>
             <Alert

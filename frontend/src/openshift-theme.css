@@ -1,0 +1,87 @@
+/*
+ * OpenShift Console-inspired theme overrides for PatternFly 6.
+ * Applied on top of the PF6 base CSS to match the OCP visual style.
+ */
+
+/* ── Masthead: deep dark header, like OpenShift Console ──────────────── */
+.pf-v6-c-masthead {
+  --pf-v6-c-masthead--BackgroundColor: #1b1d21;
+  background-color: #1b1d21 !important;
+  color: #ffffff;
+  border-bottom: 1px solid #3c3f42;
+}
+
+/* ── Page sidebar: dark nav panel, like OpenShift Console ────────────── */
+.pf-v6-c-page__sidebar {
+  background-color: #1b1d21;
+  border-right: 1px solid #3c3f42;
+}
+
+/* ── Nav links on dark background ────────────────────────────────────── */
+.pf-v6-c-page__sidebar .pf-v6-c-nav__link {
+  color: #c7c7c7;
+}
+
+.pf-v6-c-page__sidebar .pf-v6-c-nav__link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+/* ── Active/current nav item: left blue accent + bold, like OCP ──────── */
+.pf-v6-c-page__sidebar .pf-v6-c-nav__item.pf-m-current > .pf-v6-c-nav__link,
+.pf-v6-c-page__sidebar .pf-v6-c-nav__link.pf-m-current {
+  color: #ffffff;
+  background-color: rgba(0, 102, 204, 0.22);
+  border-left: 3px solid #2b9af3;
+  padding-left: calc(var(--pf-v6-c-nav__link--PaddingLeft, 1rem) - 3px);
+  font-weight: 600;
+}
+
+/* ── Page background: light gray, like OCP content area ──────────────── */
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__main {
+  background-color: #f0f0f0;
+}
+
+/* ── PageSection default: white cards stand out on gray background ───── */
+.pf-v6-c-page__main-section {
+  background-color: transparent;
+}
+
+/* ── Card styling: white cards with subtle shadow, no border ─────────── */
+.pf-v6-c-card {
+  --pf-v6-c-card--BoxShadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+  border: none;
+}
+
+/* ── Table header rows: match OCP's gray header style ────────────────── */
+:root:not(.pf-v6-theme-dark) thead tr {
+  background-color: #f0f0f0 !important;
+}
+
+/* ── Nav section title on dark sidebar ───────────────────────────────── */
+.pf-v6-c-page__sidebar .pf-v6-c-nav__section-title {
+  color: #8a8d90;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* ── Sidebar toggle button: visible on dark background ───────────────── */
+.pf-v6-c-masthead .pf-v6-c-button {
+  color: #e0e0e0;
+}
+
+.pf-v6-c-masthead .pf-v6-c-button:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Wide-screen content centering: prevent dead whitespace at 1600px+ ── */
+@media (min-width: 1600px) {
+  .pf-v6-c-page__main-section {
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+}

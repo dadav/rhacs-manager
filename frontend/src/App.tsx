@@ -1,5 +1,6 @@
 import {
   Nav,
+  NavGroup,
   NavItem,
   NavList,
   Page,
@@ -14,11 +15,12 @@ import {
   Spinner,
   Alert,
   PageSection,
+  Tooltip,
+  Button,
 } from '@patternfly/react-core'
-import { BarsIcon } from '@patternfly/react-icons'
-import { useState } from 'react'
+import { BarsIcon, MoonIcon, SunIcon } from '@patternfly/react-icons'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { useAuth } from './hooks/useAuth'
 import { NotificationBell } from './components/notifications/NotificationBell'
 import { Dashboard } from './pages/Dashboard'
@@ -37,27 +39,34 @@ import { Badges } from './pages/Badges'
 interface NavEntry {
   to: string
   label: string
-  secOnly?: boolean
 }
 
-const NAV_ITEMS: NavEntry[] = [
+const TEAM_NAV_ITEMS: NavEntry[] = [
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/sec-dashboard', label: 'Sicherheits-Dashboard', secOnly: true },
   { to: '/schwachstellen', label: 'Schwachstellen' },
   { to: '/risikoakzeptanzen', label: 'Risikoakzeptanzen' },
   { to: '/prioritaeten', label: 'Prioritäten' },
-  { to: '/eskalationen', label: 'Eskalationen', secOnly: true },
-  { to: '/einstellungen', label: 'Einstellungen', secOnly: true },
-  { to: '/teams', label: 'Teams', secOnly: true },
-  { to: '/audit-log', label: 'Audit-Log', secOnly: true },
   { to: '/badges', label: 'SVG-Badges' },
 ]
 
+const SEC_NAV_ITEMS: NavEntry[] = [
+  { to: '/sec-dashboard', label: 'Sicherheits-Dashboard' },
+  { to: '/eskalationen', label: 'Eskalationen' },
+  { to: '/einstellungen', label: 'Einstellungen' },
+  { to: '/teams', label: 'Teams' },
+  { to: '/audit-log', label: 'Audit-Log' },
+]
+
 export function App() {
-  const { t } = useTranslation()
   const location = useLocation()
   const { user, isLoading, isSecTeam } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('pf-theme') === 'dark')
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('pf-v6-theme-dark', isDark)
+    localStorage.setItem('pf-theme', isDark ? 'dark' : 'light')
+  }, [isDark])
 
   if (isLoading) {
     return (
@@ -75,8 +84,6 @@ export function App() {
     )
   }
 
-  const visibleNav = NAV_ITEMS.filter(item => !item.secOnly || isSecTeam)
-
   const masthead = (
     <Masthead>
       <MastheadMain>
@@ -91,8 +98,18 @@ export function App() {
           </PageToggleButton>
         </MastheadToggle>
         <MastheadBrand>
-          <Link to="/dashboard" style={{ textDecoration: 'none', color: '#fff', fontWeight: 700, fontSize: 16 }}>
-            RHACS CVE Manager
+          <Link
+            to="/dashboard"
+            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}
+          >
+            {/* OCP-style product icon: red shield shape */}
+            <svg width="24" height="28" viewBox="0 0 24 28" fill="none" aria-hidden="true">
+              <path d="M12 0L0 5v10c0 7.5 5.1 14.5 12 16.5C18.9 29.5 24 22.5 24 15V5L12 0z" fill="#ee0000" />
+              <path d="M7 14l3 3 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span style={{ color: '#ffffff', fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em' }}>
+              RHACS CVE Manager
+            </span>
           </Link>
         </MastheadBrand>
       </MastheadMain>
@@ -101,11 +118,21 @@ export function App() {
           <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
             {user.username}
             {isSecTeam && (
-              <span style={{ marginLeft: 6, fontSize: 10, background: '#ec7a08', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
-                SEC
-              </span>
+              <Tooltip content="Sicherheitsteam-Rolle" position="bottom">
+                <span style={{ marginLeft: 6, fontSize: 10, background: '#ee0000', color: '#fff', padding: '1px 6px', borderRadius: 3, fontWeight: 600, letterSpacing: '0.05em', cursor: 'default' }}>
+                  SEC
+                </span>
+              </Tooltip>
             )}
           </span>
+          <Button
+            variant="plain"
+            aria-label={isDark ? 'Helles Design' : 'Dunkles Design'}
+            onClick={() => setIsDark(d => !d)}
+            style={{ color: '#e0e0e0' }}
+          >
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </Button>
           <NotificationBell />
         </div>
       </MastheadContent>
@@ -117,13 +144,26 @@ export function App() {
       <PageSidebarBody>
         <Nav aria-label="Navigation">
           <NavList>
-            {visibleNav.map(item => (
-              <NavItem key={item.to} isActive={location.pathname.startsWith(item.to)}>
-                <Link to={item.to} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  {item.label}
-                </Link>
-              </NavItem>
-            ))}
+            <NavGroup title="Team">
+              {TEAM_NAV_ITEMS.map(item => (
+                <NavItem key={item.to} isActive={location.pathname.startsWith(item.to)}>
+                  <Link to={item.to} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {item.label}
+                  </Link>
+                </NavItem>
+              ))}
+            </NavGroup>
+            {isSecTeam && (
+              <NavGroup title="Sicherheit">
+                {SEC_NAV_ITEMS.map(item => (
+                  <NavItem key={item.to} isActive={location.pathname.startsWith(item.to)}>
+                    <Link to={item.to} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      {item.label}
+                    </Link>
+                  </NavItem>
+                ))}
+              </NavGroup>
+            )}
           </NavList>
         </Nav>
       </PageSidebarBody>

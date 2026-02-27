@@ -8,6 +8,7 @@ import {
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRiskAcceptances } from '../api/riskAcceptances'
@@ -60,8 +61,8 @@ export function RiskAcceptances() {
                       border: '1px solid #d2d2d2',
                       borderRadius: 3,
                       cursor: 'pointer',
-                      background: statusFilter === value ? '#0066cc' : '#fff',
-                      color: statusFilter === value ? '#fff' : '#151515',
+                      background: statusFilter === value ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                      color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
                       fontSize: 13,
                     }}
                   >
@@ -76,13 +77,13 @@ export function RiskAcceptances() {
 
       <PageSection>
         {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${(error as Error).message}`} />
+          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
           <Alert variant="info" isInline title="Keine Risikoakzeptanzen gefunden." />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f0f0f0' }}>
+              <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>CVE</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Team</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Status</th>
@@ -90,13 +91,13 @@ export function RiskAcceptances() {
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Beantragt von</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Beantragt am</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Läuft ab</th>
-                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Komm.</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Kommentare</th>
                 <th style={{ padding: '8px 12px' }}></th>
               </tr>
             </thead>
             <tbody>
               {data.map(ra => (
-                <tr key={ra.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <tr key={ra.id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                   <td style={{ padding: '8px 12px' }}>
                     <Link to={`/schwachstellen/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc', fontSize: 12 }}>
                       {ra.cve_id}
@@ -122,15 +123,15 @@ export function RiskAcceptances() {
                     </span>
                   </td>
                   <td style={{ padding: '8px 12px', fontSize: 12 }}>{ra.created_by_name}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: '#6a6e73' }}>
+                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                     {new Date(ra.created_at).toLocaleDateString('de-DE')}
                   </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: '#6a6e73' }}>
+                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                     {ra.expires_at ? new Date(ra.expires_at).toLocaleDateString('de-DE') : '–'}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                     {ra.comment_count > 0 && (
-                      <span style={{ background: '#e8f1f8', color: '#0066cc', padding: '2px 6px', borderRadius: 10, fontSize: 11 }}>
+                      <span style={{ background: 'var(--pf-t--global--background--color--secondary--default)', color: 'var(--pf-t--global--color--blue--default)', padding: '2px 6px', borderRadius: 10, fontSize: 11 }}>
                         {ra.comment_count}
                       </span>
                     )}

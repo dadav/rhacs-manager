@@ -1,5 +1,7 @@
 // PatternFly base styles
 import '@patternfly/react-core/dist/styles/base.css'
+// OpenShift Console-inspired theme overrides
+import './openshift-theme.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

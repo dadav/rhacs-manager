@@ -46,10 +46,10 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
 async def get_current_user(request: Request) -> CurrentUser:
     async with AppSessionLocal() as session:
         if settings.dev_mode:
-            team_id = None
+            team_id_override: UUID | None = None
             if settings.dev_user_team_id:
                 try:
-                    team_id = UUID(settings.dev_user_team_id)
+                    team_id_override = UUID(settings.dev_user_team_id)
                 except ValueError:
                     pass
 
@@ -58,15 +58,37 @@ async def get_current_user(request: Request) -> CurrentUser:
                 "username": settings.dev_user_name,
                 "email": settings.dev_user_email,
                 "role": settings.dev_user_role,
-                "team_id": team_id,
+                "team_id": team_id_override,
             }
-            await _get_or_create_user(session, user_data)
+            user = await _get_or_create_user(session, user_data)
+
+            # Keep dev identity fields aligned with current DEV_USER_* settings.
+            # Team assignment is taken from DB unless an explicit override is provided.
+            updated = False
+            desired_role = UserRole(settings.dev_user_role)
+            if user.username != settings.dev_user_name:
+                user.username = settings.dev_user_name
+                updated = True
+            if user.email != settings.dev_user_email:
+                user.email = settings.dev_user_email
+                updated = True
+            if user.role != desired_role:
+                user.role = desired_role
+                updated = True
+            if team_id_override is not None and user.team_id != team_id_override:
+                user.team_id = team_id_override
+                updated = True
+
+            if updated:
+                await session.commit()
+                await session.refresh(user)
+
             return CurrentUser(
-                id=settings.dev_user_id,
-                username=settings.dev_user_name,
-                email=settings.dev_user_email,
-                role=UserRole(settings.dev_user_role),
-                team_id=team_id,
+                id=user.id,
+                username=user.username,
+                email=user.email,
+                role=user.role,
+                team_id=user.team_id,
             )
 
         # Production: validate JWT from Authorization header
