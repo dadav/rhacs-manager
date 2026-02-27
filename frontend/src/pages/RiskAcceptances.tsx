@@ -9,8 +9,8 @@ import {
   ToolbarItem,
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useRiskAcceptances } from '../api/riskAcceptances'
 
 const STATUS_LABELS: Record<string, string> = {
@@ -28,8 +28,36 @@ const STATUS_COLORS: Record<string, string> = {
   expired: '#8a8d90',
 }
 
+const STATUS_FILTERS = new Set(Object.keys(STATUS_LABELS))
+
+function normalizeStatusFilter(raw: string | null): string {
+  if (!raw) return ''
+  return STATUS_FILTERS.has(raw) ? raw : ''
+}
+
 export function RiskAcceptances() {
-  const [statusFilter, setStatusFilter] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [statusFilter, setStatusFilter] = useState(() =>
+    normalizeStatusFilter(searchParams.get('status')),
+  )
+
+  useEffect(() => {
+    const urlStatus = normalizeStatusFilter(searchParams.get('status'))
+    setStatusFilter((current) => (current === urlStatus ? current : urlStatus))
+  }, [searchParams])
+
+  function handleStatusFilterChange(value: string) {
+    setStatusFilter(value)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) {
+        next.set('status', value)
+      } else {
+        next.delete('status')
+      }
+      return next
+    })
+  }
 
   const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined)
 
@@ -47,7 +75,7 @@ export function RiskAcceptances() {
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <button
                     key={value}
-                    onClick={() => setStatusFilter(value)}
+                    onClick={() => handleStatusFilterChange(value)}
                     style={{
                       padding: '4px 12px',
                       border: '1px solid #d2d2d2',

@@ -122,6 +122,8 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 - Scope selections must be validated against real affected deployments for the CVE in the requesting team's namespaces.
 - Active acceptances are unique by `(team_id, cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
 - Team dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
+- Sec dashboard (`/sec-dashboard`) risk-acceptance pipeline rows are clickable deep links to `/risikoakzeptanzen?status=<requested|approved|rejected|expired>`.
+- Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
 - `users.role`: `team_member | sec_team`
 

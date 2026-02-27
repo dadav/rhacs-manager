@@ -85,7 +85,12 @@ export function SecDashboard() {
           {/* Risk Acceptance Pipeline */}
           <GridItem span={4}>
             <Card style={{ height: '100%' }}>
-              <CardTitle>{t('secDashboard.pipeline')}</CardTitle>
+              <CardTitle>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <span>{t('secDashboard.pipeline')}</span>
+                  <Link to="/risikoakzeptanzen" style={{ fontSize: 12 }}>Alle anzeigen</Link>
+                </div>
+              </CardTitle>
               <CardBody>
                 {(['requested', 'approved', 'rejected', 'expired'] as const).map(status => {
                   const labels: Record<string, string> = {
@@ -95,12 +100,24 @@ export function SecDashboard() {
                     requested: '#0066cc', approved: '#1e8f19', rejected: '#c9190b', expired: '#8a8d90'
                   }
                   return (
-                    <div key={status} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                    <Link
+                      key={status}
+                      to={`/risikoakzeptanzen?status=${status}`}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 0',
+                        borderBottom: '1px solid var(--pf-t--global--border--color--default)',
+                        color: 'inherit',
+                        textDecoration: 'none',
+                      }}
+                    >
                       <span style={{ fontSize: 13 }}>{labels[status]}</span>
                       <Badge style={{ background: colors[status], color: '#fff', padding: '2px 8px' }}>
                         {data.risk_acceptance_pipeline[status]}
                       </Badge>
-                    </div>
+                    </Link>
                   )
                 })}
               </CardBody>
