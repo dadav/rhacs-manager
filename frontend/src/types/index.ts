@@ -224,11 +224,9 @@ export interface CveTrendPoint {
 
 export interface TeamDashboardData {
   stat_total_cves: number
-  stat_critical_cves: number
-  stat_fixable_cves: number
+  stat_escalations: number
+  stat_fixable_critical_cves: number
   stat_open_risk_acceptances: number
-  stat_overdue_deadlines: number
-  stat_avg_epss: number
   severity_distribution: SeverityCount[]
   cves_per_namespace: NamespaceCveCount[]
   priority_cves: CveListItem[]

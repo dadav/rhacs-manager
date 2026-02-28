@@ -72,11 +72,10 @@
   "dashboard": {
     "title": "Dashboard",
     "totalCves": "Gesamt CVEs",
-    "criticalCves": "Kritische CVEs",
-    "fixableCves": "Behebbare CVEs",
+    "escalations": "Eskalationen",
+    "fixableCriticalCves": "Behebbare kritische CVEs",
     "openRiskAcceptances": "Offene Risikoakzeptanzen",
     "overduDeadlines": "Überfällige Fristen",
-    "avgEpss": "Ø EPSS-Wahrscheinlichkeit",
     "severityDistribution": "CVEs nach Schweregrad",
     "cvesPerNamespace": "CVEs pro Namespace",
     "trend": "CVE-Verlauf (30 Tage)",

@@ -20,11 +20,9 @@ class CveTrendPoint(BaseModel):
 
 class TeamDashboardData(BaseModel):
     stat_total_cves: int
-    stat_critical_cves: int
-    stat_fixable_cves: int
+    stat_escalations: int
+    stat_fixable_critical_cves: int
     stat_open_risk_acceptances: int
-    stat_overdue_deadlines: int
-    stat_avg_epss: float
     severity_distribution: list[SeverityCount]
     cves_per_namespace: list[NamespaceCveCount]
     priority_cves: list[CveListItem]

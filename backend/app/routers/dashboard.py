@@ -87,8 +87,10 @@ async def team_dashboard(
     else:
         if not current_user.team_id:
             return TeamDashboardData(
-                stat_total_cves=0, stat_critical_cves=0, stat_fixable_cves=0,
-                stat_open_risk_acceptances=0, stat_overdue_deadlines=0, stat_avg_epss=0.0,
+                stat_total_cves=0,
+                stat_escalations=0,
+                stat_fixable_critical_cves=0,
+                stat_open_risk_acceptances=0,
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
                 high_epss_cves=[], cve_trend=[],
             )
@@ -120,9 +122,17 @@ async def team_dashboard(
 
     # Stat cards
     total = len(cves)
-    critical = sum(1 for c in cves if c.get("severity") == 4)
-    fixable = sum(1 for c in cves if c.get("fixable"))
-    avg_epss = sum(c.get("epss_probability", 0) for c in cves) / total if total else 0.0
+    fixable_critical = sum(
+        1 for c in cves if c.get("severity") == 4 and c.get("fixable")
+    )
+    escalations_result = await app_db.execute(
+        select(func.count(Escalation.id)).where(
+            *([Escalation.team_id == current_user.team_id] if current_user.team_id else [])
+        )
+    )
+    escalations = escalations_result.scalar() or 0
+
+    from datetime import datetime
 
     open_ra_result = await app_db.execute(
         select(func.count(RiskAcceptance.id)).where(
@@ -132,15 +142,21 @@ async def team_dashboard(
     )
     open_ra = open_ra_result.scalar() or 0
 
-    from datetime import datetime
-    overdue = sum(
-        1 for p in priorities.values()
-        if p.deadline and p.deadline < datetime.utcnow()
-    )
-
     # Charts
-    sev_dist = await sx.get_severity_distribution(sx_db, ns_list_for_queries)
-    ns_counts = await sx.get_cves_per_namespace(sx_db, ns_list_for_queries)
+    sev_dist = await sx.get_severity_distribution(
+        sx_db,
+        ns_list_for_queries,
+        min_cvss=min_cvss,
+        min_epss=min_epss,
+        always_show_cve_ids=always_show,
+    )
+    ns_counts = await sx.get_cves_per_namespace(
+        sx_db,
+        ns_list_for_queries,
+        min_cvss=min_cvss,
+        min_epss=min_epss,
+        always_show_cve_ids=always_show,
+    )
     trend = await sx.get_cve_trend(sx_db, ns_list_for_queries)
 
     # Deduplicate by cve_id (same CVE can appear across multiple images).
@@ -163,11 +179,9 @@ async def team_dashboard(
 
     return TeamDashboardData(
         stat_total_cves=total,
-        stat_critical_cves=critical,
-        stat_fixable_cves=fixable,
+        stat_escalations=escalations,
+        stat_fixable_critical_cves=fixable_critical,
         stat_open_risk_acceptances=open_ra,
-        stat_overdue_deadlines=overdue,
-        stat_avg_epss=round(avg_epss, 4),
         severity_distribution=[
             SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"])
             for r in sev_dist

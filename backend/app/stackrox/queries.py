@@ -46,8 +46,10 @@ async def get_cves_for_namespaces(
         WHERE (d.namespace, d.clustername) IN ({ns_values})
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
-            MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-            OR MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
             OR ic.cvebaseinfo_cve = ANY(:always_show)
         )
         ORDER BY severity DESC, cvss DESC
@@ -187,8 +189,10 @@ async def get_all_cves(
         LEFT JOIN image_components comp ON comp.id = ic.componentid
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
-            MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-            OR MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
             OR ic.cvebaseinfo_cve = ANY(:always_show)
         )
         ORDER BY severity DESC, cvss DESC
@@ -202,9 +206,14 @@ async def get_all_cves(
 async def get_severity_distribution(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     if namespaces is not None and len(namespaces) == 0:
         return []
+
+    always_show = list(always_show_cve_ids or [])
 
     if namespaces:
         ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
@@ -214,24 +223,46 @@ async def get_severity_distribution(
         where_clause = ""
 
     sql = text(f"""
-        SELECT ic.severity, COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
-        FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        {where_clause}
-        GROUP BY ic.severity
-        ORDER BY ic.severity
+        WITH visible_cves AS (
+            SELECT
+                ic.cvebaseinfo_cve AS cve_id,
+                MAX(ic.severity) AS severity
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT severity, COUNT(*) AS count
+        FROM visible_cves
+        GROUP BY severity
+        ORDER BY severity
     """)
-    result = await session.execute(sql)
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     return [dict(row._mapping) for row in result]
 
 
 async def get_cves_per_namespace(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     if namespaces is not None and len(namespaces) == 0:
         return []
+
+    always_show = list(always_show_cve_ids or [])
 
     if namespaces:
         ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
@@ -241,15 +272,32 @@ async def get_cves_per_namespace(
         where_clause = ""
 
     sql = text(f"""
-        SELECT d.namespace, COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
-        FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        {where_clause}
-        GROUP BY d.namespace
+        WITH visible_by_namespace AS (
+            SELECT
+                d.namespace AS namespace,
+                ic.cvebaseinfo_cve AS cve_id
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {where_clause}
+            GROUP BY d.namespace, ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT namespace, COUNT(*) AS count
+        FROM visible_by_namespace
+        GROUP BY namespace
         ORDER BY count DESC
     """)
-    result = await session.execute(sql)
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     return [dict(row._mapping) for row in result]
 
 
@@ -437,7 +485,7 @@ async def get_threshold_preview(
         WHERE cvebaseinfo_cve IS NOT NULL
           AND (
             COALESCE(cvss, 0) >= :min_cvss
-            OR COALESCE(cvebaseinfo_epss_epssprobability, 0) >= :min_epss
+            AND COALESCE(cvebaseinfo_epss_epssprobability, 0) >= :min_epss
           )
     """)
     total = (await session.execute(sql_total)).scalar() or 0

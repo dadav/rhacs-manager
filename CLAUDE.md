@@ -19,25 +19,25 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 
 ## Key Files
 
-| Path | Purpose |
-|------|---------|
-| `backend/app/main.py` | FastAPI app + lifespan |
-| `backend/app/config.py` | Pydantic Settings (env-driven) |
-| `backend/app/database.py` | Dual SQLAlchemy engine setup |
-| `backend/app/auth/middleware.py` | OIDC + dev-mode auth; returns `CurrentUser` |
-| `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries |
-| `backend/app/routers/` | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, teams, audit, escalations, namespaces |
-| `backend/app/models/` | SQLAlchemy ORM models (app DB) |
-| `backend/app/tasks/scheduler.py` | APScheduler background jobs (escalation, digest) |
-| `backend/app/badges/generator.py` | Pure Python SVG badge generator |
-| `backend/alembic/versions/` | DB migrations |
-| `frontend/src/api/client.ts` | Base API fetch; use `getErrorMessage` for errors |
-| `frontend/src/utils/errors.ts` | `getErrorMessage(error)` — always use this for user-visible errors |
-| `frontend/src/pages/` | One file per page/route |
-| `frontend/src/components/` | Reusable UI components |
-| `frontend/src/i18n/` | German translations |
-| `deploy/base/` | Kustomize manifests (namespace, secret, deployments, routes) |
-| `justfile` | Dev workflow commands |
+| Path                              | Purpose                                                                                                                                  |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/app/main.py`             | FastAPI app + lifespan                                                                                                                   |
+| `backend/app/config.py`           | Pydantic Settings (env-driven)                                                                                                           |
+| `backend/app/database.py`         | Dual SQLAlchemy engine setup                                                                                                             |
+| `backend/app/auth/middleware.py`  | OIDC + dev-mode auth; returns `CurrentUser`                                                                                              |
+| `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries                                                                                                       |
+| `backend/app/routers/`            | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, teams, audit, escalations, namespaces |
+| `backend/app/models/`             | SQLAlchemy ORM models (app DB)                                                                                                           |
+| `backend/app/tasks/scheduler.py`  | APScheduler background jobs (escalation, digest)                                                                                         |
+| `backend/app/badges/generator.py` | Pure Python SVG badge generator                                                                                                          |
+| `backend/alembic/versions/`       | DB migrations                                                                                                                            |
+| `frontend/src/api/client.ts`      | Base API fetch; use `getErrorMessage` for errors                                                                                         |
+| `frontend/src/utils/errors.ts`    | `getErrorMessage(error)` — always use this for user-visible errors                                                                       |
+| `frontend/src/pages/`             | One file per page/route                                                                                                                  |
+| `frontend/src/components/`        | Reusable UI components                                                                                                                   |
+| `frontend/src/i18n/`              | German translations                                                                                                                      |
+| `deploy/base/`                    | Kustomize manifests (namespace, secret, deployments, routes)                                                                             |
+| `justfile`                        | Dev workflow commands                                                                                                                    |
 
 ## StackRox DB Query Pattern
 
@@ -113,6 +113,7 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 
 - Teams own namespaces (`team_namespaces`). CVE visibility is scoped to team namespaces.
 - CVSS/EPSS thresholds in `global_settings` filter CVEs from team views (sec team sees all).
+- Threshold evaluation is conjunctive: CVEs must meet both `min_cvss_score` and `min_epss_score` unless bypassed by manual priority or active risk acceptance.
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
 - In `/cves`, prioritized CVEs must always be listed first regardless of selected sort column/direction.
 - CVE API payloads expose both timeline dates from StackRox: `first_seen` (`ic.firstimageoccurrence`) and `published_on` (`ic.cvebaseinfo_publishedon`).
@@ -124,6 +125,9 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 - Scope selections must be validated against real affected deployments for the CVE in the requesting team's namespaces.
 - Active acceptances are unique by `(team_id, cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
 - Team dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
+- Team dashboard stat cards are: `Gesamt CVEs`, `Eskalationen`, `Behebbare kritische CVEs`, and `Offene Risikoakzeptanzen`.
+- Team dashboard chart datasets (`severity_distribution`, `cves_per_namespace`) must apply the same visibility logic as `stat_total_cves` (CVSS/EPSS thresholds plus always-show CVEs from priorities/active risk acceptances).
+- Severity distribution must classify each visible CVE into exactly one bucket (use aggregated severity per CVE) so the bucket total matches `stat_total_cves`.
 - Sec dashboard (`/sec-dashboard`) risk-acceptance pipeline rows are clickable deep links to `/risikoakzeptanzen?status=<requested|approved|rejected|expired>`.
 - Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
