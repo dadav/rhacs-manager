@@ -20,6 +20,7 @@ from ..schemas.risk_acceptance import (
     RiskAcceptanceCreate,
     RiskAcceptanceResponse,
     RiskAcceptanceReview,
+    RiskAcceptanceUpdate,
     RiskScope,
     RiskScopeTarget,
 )
@@ -241,6 +242,62 @@ async def get_risk_acceptance(
         raise HTTPException(404, "Nicht gefunden")
     if not current_user.is_sec_team and ra.team_id != current_user.team_id:
         raise HTTPException(403, "Kein Zugriff")
+    return await _build_response(ra, db)
+
+
+@router.put("/{ra_id}", response_model=RiskAcceptanceResponse)
+async def update_risk_acceptance(
+    ra_id: UUID,
+    body: RiskAcceptanceUpdate,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> RiskAcceptanceResponse:
+    """Team member modifies an approved/rejected acceptance → resets to 'requested'."""
+    if current_user.is_sec_team:
+        raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen ändern")
+
+    result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
+    ra = result.scalar_one_or_none()
+    if not ra:
+        raise HTTPException(404, "Nicht gefunden")
+    if ra.team_id != current_user.team_id:
+        raise HTTPException(403, "Kein Zugriff")
+    if ra.status not in (RiskStatus.approved, RiskStatus.rejected):
+        raise HTTPException(400, "Nur genehmigte oder abgelehnte Risikoakzeptanzen können geändert werden")
+
+    team_namespaces = await _get_team_namespaces(db, ra.team_id)
+    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, team_namespaces)
+    if not deployments:
+        raise HTTPException(404, "CVE im Team-Kontext nicht mehr gefunden")
+
+    normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
+    new_scope_key = _scope_key(normalized_scope)
+
+    if new_scope_key != ra.scope_key:
+        existing = await db.execute(
+            select(RiskAcceptance).where(
+                RiskAcceptance.cve_id == ra.cve_id,
+                RiskAcceptance.team_id == ra.team_id,
+                RiskAcceptance.scope_key == new_scope_key,
+                RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+                RiskAcceptance.id != ra.id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(409, "Für diesen Scope existiert bereits eine aktive Risikoakzeptanz")
+
+    ra.justification = body.justification
+    ra.scope = normalized_scope.model_dump(mode="json")
+    ra.scope_key = new_scope_key
+    ra.expires_at = body.expires_at
+    ra.status = RiskStatus.requested
+    ra.reviewed_by = None
+    ra.reviewed_at = None
+
+    await log_action(db, current_user.id, "risk_acceptance_updated", "risk_acceptance", str(ra.id))
+    await db.commit()
+    await db.refresh(ra)
     return await _build_response(ra, db)
 
 

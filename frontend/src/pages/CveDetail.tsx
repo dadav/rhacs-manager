@@ -10,17 +10,22 @@ import {
   GridItem,
   Label,
   PageSection,
+  Pagination,
+  ProgressStep,
+  ProgressStepper,
   Spinner,
   TextArea,
+  TextInput,
   Title,
 } from '@patternfly/react-core'
+import { CheckCircleIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 import { getErrorMessage } from '../utils/errors'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAddCveComment, useCveComments, useCveDetail } from '../api/cves'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
-import { RiskStatus } from '../types'
+import { CveDetail as CveDetailType, RiskStatus } from '../types'
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -45,6 +50,58 @@ const STATUS_LABELS: Record<RiskStatus, string> = {
   [RiskStatus.expired]: 'Abgelaufen',
 }
 
+function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
+  const fmt = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('de-DE') : undefined
+
+  const steps: { id: string; label: string; date: string | null; done: boolean }[] = [
+    { id: 'discovered', label: 'Entdeckt', date: cve.first_seen, done: !!cve.first_seen },
+    { id: 'prioritized', label: 'Priorisiert', date: cve.priority_created_at, done: cve.has_priority },
+    { id: 'ra-requested', label: 'Risiko beantragt', date: cve.risk_acceptance_requested_at, done: cve.has_risk_acceptance },
+    {
+      id: 'ra-reviewed',
+      label: cve.risk_acceptance_status === RiskStatus.approved
+        ? 'Risiko genehmigt'
+        : cve.risk_acceptance_status === RiskStatus.rejected
+          ? 'Risiko abgelehnt'
+          : 'Risiko geprüft',
+      date: cve.risk_acceptance_reviewed_at,
+      done: !!cve.risk_acceptance_reviewed_at,
+    },
+  ]
+
+  const currentIdx = steps.findIndex(s => !s.done)
+
+  return (
+    <ProgressStepper aria-label="CVE Lebenszyklus">
+      {steps.map((step, i) => {
+        let variant: 'success' | 'info' | 'pending' | 'danger'
+        if (step.done) {
+          variant = step.id === 'ra-reviewed' && cve.risk_acceptance_status === RiskStatus.rejected
+            ? 'danger'
+            : 'success'
+        } else if (i === currentIdx) {
+          variant = 'info'
+        } else {
+          variant = 'pending'
+        }
+        return (
+          <ProgressStep
+            key={step.id}
+            variant={variant}
+            isCurrent={i === currentIdx}
+            id={`step-${step.id}`}
+            titleId={`step-${step.id}-title`}
+            description={fmt(step.date)}
+          >
+            {step.label}
+          </ProgressStep>
+        )
+      })}
+    </ProgressStepper>
+  )
+}
+
 export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>()
   const navigate = useNavigate()
@@ -52,6 +109,9 @@ export function CveDetail() {
   const { data: comments } = useCveComments(cveId ?? '')
   const addComment = useAddCveComment(cveId ?? '')
   const [newComment, setNewComment] = useState('')
+  const [deploymentFilter, setDeploymentFilter] = useState('')
+  const [deploymentPage, setDeploymentPage] = useState(1)
+  const deploymentPerPage = 20
 
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault()
@@ -88,6 +148,15 @@ export function CveDetail() {
             </Label>
           )}
         </div>
+      </PageSection>
+
+      <PageSection variant="default" style={{ paddingTop: 0 }}>
+        <Card>
+          <CardTitle>Lebenszyklus</CardTitle>
+          <CardBody>
+            <CveLifecycleTimeline cve={cve} />
+          </CardBody>
+        </Card>
       </PageSection>
 
       <PageSection>
@@ -133,25 +202,45 @@ export function CveDetail() {
               <CardTitle>Aktionen</CardTitle>
               <CardBody>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <Button
-                    variant="primary"
-                    onClick={() => navigate(`/risikoakzeptanzen/neu?cve=${cve.cve_id}`)}
-                  >
-                    Risikoakzeptanz beantragen
-                  </Button>
+                  {cve.risk_acceptance_status === RiskStatus.approved ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <CheckCircleIcon style={{ fontSize: 24, color: '#1e8f19', flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: '#1e8f19', fontWeight: 600 }}>Risiko akzeptiert</span>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      isDisabled={cve.risk_acceptance_status === RiskStatus.requested}
+                      onClick={() => navigate(`/risikoakzeptanzen/neu?cve=${cve.cve_id}`)}
+                    >
+                      Risikoakzeptanz beantragen
+                    </Button>
+                  )}
                   {cve.has_risk_acceptance && (
                     <div>
                       <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 8 }}>
                         Bereits eine Risikoakzeptanz vorhanden (Status: {cve.risk_acceptance_status && STATUS_LABELS[cve.risk_acceptance_status]})
                       </p>
-                      {cve.risk_acceptance_id && (
-                        <Button
-                          variant="secondary"
-                          onClick={() => navigate(`/risikoakzeptanzen/${cve.risk_acceptance_id}`)}
-                        >
-                          Zur Risikoakzeptanz
-                        </Button>
-                      )}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {cve.risk_acceptance_id && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => navigate(`/risikoakzeptanzen/${cve.risk_acceptance_id}`)}
+                          >
+                            Zur Risikoakzeptanz
+                          </Button>
+                        )}
+                        {cve.risk_acceptance_id &&
+                          (cve.risk_acceptance_status === RiskStatus.approved ||
+                            cve.risk_acceptance_status === RiskStatus.rejected) && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => navigate(`/risikoakzeptanzen/${cve.risk_acceptance_id}?edit=1`)}
+                          >
+                            Risikoakzeptanz ändern
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                   <Button variant="link" onClick={() => navigate('/schwachstellen')}>
@@ -198,35 +287,88 @@ export function CveDetail() {
           )}
 
           {/* Affected deployments */}
-          {cve.affected_deployments_list.length > 0 && (
-            <GridItem span={12}>
-              <Card>
-                <CardTitle>Betroffene Deployments ({cve.affected_deployments_list.length})</CardTitle>
-                <CardBody style={{ padding: 0 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Deployment</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Namespace</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Cluster</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Image</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cve.affected_deployments_list.map(d => (
-                        <tr key={d.deployment_id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
-                          <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{d.deployment_name}</td>
-                          <td style={{ padding: '8px 12px' }}>{d.namespace}</td>
-                          <td style={{ padding: '8px 12px', fontSize: 11 }}>{d.cluster_name}</td>
-                          <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{d.image_name}</td>
+          {cve.affected_deployments_list.length > 0 && (() => {
+            const filterLower = deploymentFilter.toLowerCase()
+            const filtered = deploymentFilter
+              ? cve.affected_deployments_list.filter(d =>
+                  d.deployment_name.toLowerCase().includes(filterLower) ||
+                  d.namespace.toLowerCase().includes(filterLower) ||
+                  d.cluster_name.toLowerCase().includes(filterLower) ||
+                  d.image_name.toLowerCase().includes(filterLower)
+                )
+              : cve.affected_deployments_list
+            const pageStart = (deploymentPage - 1) * deploymentPerPage
+            const pageItems = filtered.slice(pageStart, pageStart + deploymentPerPage)
+            return (
+              <GridItem span={12}>
+                <Card>
+                  <CardTitle>Betroffene Deployments ({cve.affected_deployments_list.length})</CardTitle>
+                  <CardBody>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                      <TextInput
+                        type="search"
+                        value={deploymentFilter}
+                        onChange={(_, v) => { setDeploymentFilter(v); setDeploymentPage(1) }}
+                        placeholder="Filtern nach Deployment, Namespace, Cluster oder Image…"
+                        style={{ flex: 1 }}
+                        aria-label="Deployments filtern"
+                      />
+                      {deploymentFilter && (
+                        <span style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                          {filtered.length} von {cve.affected_deployments_list.length}
+                        </span>
+                      )}
+                    </div>
+                  </CardBody>
+                  <CardBody style={{ padding: 0 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                      <colgroup>
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '18%' }} />
+                        <col style={{ width: '46%' }} />
+                      </colgroup>
+                      <thead>
+                        <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>Deployment</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>Namespace</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>Cluster</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>Image</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardBody>
-              </Card>
-            </GridItem>
-          )}
+                      </thead>
+                      <tbody>
+                        {pageItems.length > 0 ? pageItems.map(d => (
+                          <tr key={d.deployment_id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.deployment_name}</td>
+                            <td style={{ padding: '8px 12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.namespace}</td>
+                            <td style={{ padding: '8px 12px', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.cluster_name}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.image_name}>{d.image_name}</td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan={4} style={{ padding: '16px 12px', textAlign: 'center', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+                              Keine Deployments gefunden.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </CardBody>
+                  {filtered.length > deploymentPerPage && (
+                    <CardBody style={{ paddingTop: 0 }}>
+                      <Pagination
+                        itemCount={filtered.length}
+                        perPage={deploymentPerPage}
+                        page={deploymentPage}
+                        onSetPage={(_, p) => setDeploymentPage(p)}
+                        isCompact
+                      />
+                    </CardBody>
+                  )}
+                </Card>
+              </GridItem>
+            )
+          })()}
           {/* Comments */}
           <GridItem span={12}>
             <Card>

@@ -18,12 +18,20 @@ interface CveListParams {
   prioritized_only?: boolean
   sort_by?: string
   sort_desc?: boolean
+  cvss_min?: number
+  epss_min?: number
+  namespaces?: string[]
+  component?: string
+  risk_status?: string
 }
 
 function buildQuery(params: CveListParams): string {
   const q = new URLSearchParams()
   Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') {
+    if (v === undefined || v === null || v === '') return
+    if (Array.isArray(v)) {
+      v.forEach(item => q.append(k, String(item)))
+    } else {
       q.set(k, String(v))
     }
   })

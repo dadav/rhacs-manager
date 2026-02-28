@@ -131,7 +131,16 @@
     "imageName": "Image",
     "namespace": "Namespace",
     "cluster": "Cluster",
-    "deploymentName": "Deployment"
+    "deploymentName": "Deployment",
+    "filterCvss": "CVSS-Bereich",
+    "filterEpss": "EPSS-Bereich",
+    "filterMin": "Min",
+    "filterMax": "Max",
+    "filterComponent": "Komponente",
+    "filterNamespace": "Namespace",
+    "filterRiskStatus": "Risikostatus",
+    "filterAdvanced": "Erweiterte Filter",
+    "filterClear": "Filter zurücksetzen"
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",

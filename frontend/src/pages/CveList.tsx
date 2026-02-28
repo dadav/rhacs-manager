@@ -1,11 +1,9 @@
 import {
   Alert,
-  Button,
   Checkbox,
   PageSection,
   Pagination,
   Spinner,
-  Switch,
   TextInput,
   Title,
   Toolbar,
@@ -13,52 +11,171 @@ import {
   ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core'
-import { ShieldAltIcon } from '@patternfly/react-icons'
+import { FilterIcon, ShieldAltIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
+import { useNamespaces } from '../api/namespaces'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { Severity } from '../types'
 
 const SEVERITY_OPTIONS = [
-  { label: 'Alle', value: undefined },
-  { label: 'Kritisch', value: Severity.CRITICAL },
-  { label: 'Wichtig', value: Severity.IMPORTANT },
-  { label: 'Mittel', value: Severity.MODERATE },
-  { label: 'Niedrig', value: Severity.LOW },
+  { label: 'Alle', value: '' },
+  { label: 'Kritisch', value: String(Severity.CRITICAL) },
+  { label: 'Wichtig', value: String(Severity.IMPORTANT) },
+  { label: 'Mittel', value: String(Severity.MODERATE) },
+  { label: 'Niedrig', value: String(Severity.LOW) },
 ]
+
+const RISK_STATUS_OPTIONS = [
+  { label: 'Alle', value: '' },
+  { label: 'Beliebig (vorhanden)', value: 'any' },
+  { label: 'Angefragt', value: 'requested' },
+  { label: 'Akzeptiert', value: 'approved' },
+]
+
+function useDebounce<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(t)
+  }, [value, delayMs])
+  return debounced
+}
 
 export function CveList() {
   const { t } = useTranslation()
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [severity, setSeverity] = useState<Severity | undefined>()
-  const [fixable, setFixable] = useState<boolean | undefined>()
-  const [prioritizedOnly, setPrioritizedOnly] = useState(false)
-  const [sortBy, setSortBy] = useState('severity')
-  const [sortDesc, setSortDesc] = useState(true)
+  const [searchParams, setSearchParams] = useSearchParams()
 
+  // --- Read all filter state from URL ---
+  const urlPage       = Math.max(1, Number(searchParams.get('page')) || 1)
+  const urlSearch     = searchParams.get('search') || ''
+  const urlSeverity   = searchParams.get('severity') || ''
+  const urlFixable    = searchParams.get('fixable') || ''
+  const urlPrioOnly   = searchParams.get('prioritized_only') === '1'
+  const urlSortBy     = searchParams.get('sort_by') || 'severity'
+  const urlSortDesc   = searchParams.get('sort_desc') !== '0'
+  const urlCvssMin    = Number(searchParams.get('cvss_min')) || 0
+  const urlEpssMin    = Number(searchParams.get('epss_min')) || 0
+  const urlNamespaces = searchParams.getAll('namespaces')
+  const urlComponent  = searchParams.get('component') || ''
+  const urlRiskStatus = searchParams.get('risk_status') || ''
+  const urlAdvanced   = searchParams.get('advanced') === '1'
+
+  // Local state for slider/text inputs that need smooth UI + debounced URL writes
+  const [cvssMin, setCvssMin]           = useState(urlCvssMin)
+  const [epssMin, setEpssMin]           = useState(urlEpssMin)
+  const [componentInput, setComponentInput] = useState(urlComponent)
+  const [namespaceSearch, setNamespaceSearch] = useState('')
+
+  const debouncedCvssMin   = useDebounce(cvssMin, 200)
+  const debouncedEpssMin   = useDebounce(epssMin, 200)
+  const debouncedComponent = useDebounce(componentInput, 300)
+
+  // Skip the initial mount effect for debounced values (avoid redundant URL writes)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ cvss_min: debouncedCvssMin > 0 ? String(debouncedCvssMin) : null })
+  }, [debouncedCvssMin])
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ epss_min: debouncedEpssMin > 0 ? String(debouncedEpssMin) : null })
+  }, [debouncedEpssMin])
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ component: debouncedComponent || null })
+  }, [debouncedComponent])
+  useEffect(() => { mountedRef.current = true }, [])
+
+  // --- URL write helper ---
+  // Pass null to delete a key, a string[] to append multiple values with the same key
+  function updateParams(changes: Record<string, string | string[] | null>, resetPage = true) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (resetPage) next.delete('page')
+      for (const [key, val] of Object.entries(changes)) {
+        next.delete(key)
+        if (val === null) continue
+        if (Array.isArray(val)) val.forEach(v => next.append(key, v))
+        else next.set(key, val)
+      }
+      return next
+    }, { replace: true })
+  }
+
+  function setPage(p: number) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (p === 1) next.delete('page'); else next.set('page', String(p))
+      return next
+    }, { replace: true })
+  }
+
+  function handleSort(col: string) {
+    if (urlSortBy === col) {
+      updateParams({ sort_desc: urlSortDesc ? '0' : '1' }, false)
+    } else {
+      updateParams({ sort_by: col, sort_desc: '1' }, false)
+    }
+  }
+
+  function toggleNamespace(ns: string) {
+    const next = urlNamespaces.includes(ns)
+      ? urlNamespaces.filter(n => n !== ns)
+      : [...urlNamespaces, ns]
+    updateParams({ namespaces: next.length ? next : null })
+  }
+
+  function clearAdvanced() {
+    setCvssMin(0); setEpssMin(0); setComponentInput('')
+    updateParams({
+      cvss_min: null, epss_min: null, namespaces: null,
+      component: null, risk_status: null,
+    })
+  }
+
+  const { data: namespacesData } = useNamespaces()
+  const namespaceList = namespacesData?.map(n => n.namespace) ?? []
+  const filteredNamespaceList = namespaceSearch
+    ? namespaceList.filter(ns => ns.toLowerCase().includes(namespaceSearch.toLowerCase()))
+    : namespaceList
+
+  const hasActiveAdvanced =
+    debouncedCvssMin > 0 || debouncedEpssMin > 0 ||
+    urlNamespaces.length > 0 || debouncedComponent || urlRiskStatus
+
+  const activeFilterCount = [
+    debouncedCvssMin > 0,
+    debouncedEpssMin > 0,
+    urlNamespaces.length > 0,
+    Boolean(debouncedComponent),
+    Boolean(urlRiskStatus),
+  ].filter(Boolean).length
+
+  // --- API params ---
   const params = {
-    page,
+    page: urlPage,
     page_size: 50,
-    search: search || undefined,
-    severity,
-    fixable,
-    prioritized_only: prioritizedOnly || undefined,
-    sort_by: sortBy,
-    sort_desc: sortDesc,
+    search: urlSearch || undefined,
+    severity: urlSeverity ? Number(urlSeverity) as Severity : undefined,
+    fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
+    prioritized_only: urlPrioOnly || undefined,
+    sort_by: urlSortBy,
+    sort_desc: urlSortDesc,
+    cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
+    epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
+    namespaces: urlNamespaces.length ? urlNamespaces : undefined,
+    component: debouncedComponent || undefined,
+    risk_status: urlRiskStatus || undefined,
   }
 
   const { data, isLoading, error } = useCves(params)
 
-  function handleSort(col: string) {
-    if (sortBy === col) setSortDesc(d => !d)
-    else { setSortBy(col); setSortDesc(true) }
-  }
-
+  // --- Styles ---
   const thStyle = (col: string): React.CSSProperties => ({
     padding: '10px 12px',
     textAlign: 'left',
@@ -66,7 +183,7 @@ export function CveList() {
     userSelect: 'none',
     whiteSpace: 'nowrap',
     borderBottom: '2px solid #d2d2d2',
-    color: sortBy === col ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
+    color: urlSortBy === col ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
   })
 
   const getRowStyle = (hasPriority: boolean): React.CSSProperties => ({
@@ -74,6 +191,26 @@ export function CveList() {
     background: hasPriority ? 'rgba(236, 122, 8, 0.08)' : 'transparent',
     boxShadow: hasPriority ? 'inset 4px 0 0 #ec7a08' : 'none',
   })
+
+  const advancedBtnStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    padding: '0 12px',
+    border: hasActiveAdvanced ? '1px solid #0066cc' : '1px solid #d2d2d2',
+    borderRadius: 4,
+    background: hasActiveAdvanced ? 'rgba(0,102,204,0.08)' : 'transparent',
+    color: hasActiveAdvanced ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontFamily: 'inherit',
+  }
+
+  const sectionLabelStyle: React.CSSProperties = {
+    fontSize: 12, fontWeight: 600, marginBottom: 8,
+    color: 'var(--pf-v6-global--Color--200)',
+  }
 
   return (
     <>
@@ -86,20 +223,20 @@ export function CveList() {
           <ToolbarContent>
             <ToolbarItem>
               <TextInput
-                value={search}
-                onChange={(_, v) => { setSearch(v); setPage(1) }}
+                value={urlSearch}
+                onChange={(_, v) => updateParams({ search: v || null })}
                 placeholder={t('cves.searchPlaceholder')}
                 style={{ width: 220 }}
               />
             </ToolbarItem>
             <ToolbarItem>
               <select
-                value={severity ?? ''}
-                onChange={e => { setSeverity(e.target.value !== '' ? Number(e.target.value) as Severity : undefined); setPage(1) }}
+                value={urlSeverity}
+                onChange={e => updateParams({ severity: e.target.value || null })}
                 style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
               >
                 {SEVERITY_OPTIONS.map(o => (
-                  <option key={String(o.value)} value={o.value ?? ''}>{o.label}</option>
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </ToolbarItem>
@@ -107,20 +244,164 @@ export function CveList() {
               <Checkbox
                 id="filter-fixable"
                 label={t('cves.filterFixable')}
-                isChecked={fixable === true}
-                onChange={(_event, checked) => { setFixable(checked ? true : undefined); setPage(1) }}
+                isChecked={urlFixable === 'true'}
+                onChange={(_, checked) => updateParams({ fixable: checked ? 'true' : null })}
               />
             </ToolbarItem>
             <ToolbarItem>
               <Checkbox
                 id="filter-prioritized"
                 label={t('cves.filterPrioritized')}
-                isChecked={prioritizedOnly}
-                onChange={(_event, checked) => { setPrioritizedOnly(checked); setPage(1) }}
+                isChecked={urlPrioOnly}
+                onChange={(_, checked) => updateParams({ prioritized_only: checked ? '1' : null })}
               />
+            </ToolbarItem>
+            <ToolbarItem>
+              <button
+                style={advancedBtnStyle}
+                onClick={() => updateParams({ advanced: urlAdvanced ? null : '1' }, false)}
+                aria-expanded={urlAdvanced}
+              >
+                <FilterIcon />
+                {t('cves.filterAdvanced')}
+                {Boolean(hasActiveAdvanced) && (
+                  <span style={{
+                    background: '#0066cc', color: '#fff', borderRadius: '50%',
+                    fontSize: 10, fontWeight: 700, minWidth: 16, height: 16,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+                  }}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
+
+        {urlAdvanced && (
+          <div style={{
+            padding: '16px 20px',
+            background: 'var(--pf-v6-global--BackgroundColor--200)',
+            borderTop: '1px solid #d2d2d2',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 28,
+            alignItems: 'flex-start',
+          }}>
+
+            {/* CVSS min slider */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterCvss')}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 28 }}>
+                  {cvssMin.toFixed(1)}
+                </span>
+                <input
+                  type="range" min={0} max={10} step={0.1}
+                  value={cvssMin}
+                  onChange={e => setCvssMin(parseFloat(e.target.value))}
+                  style={{ width: 180, accentColor: '#0066cc' }}
+                  aria-label="CVSS Minimum"
+                />
+                <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>min</span>
+              </div>
+            </div>
+
+            {/* EPSS min slider */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterEpss')}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 36 }}>
+                  {(epssMin * 100).toFixed(0)}%
+                </span>
+                <input
+                  type="range" min={0} max={1} step={0.01}
+                  value={epssMin}
+                  onChange={e => setEpssMin(parseFloat(e.target.value))}
+                  style={{ width: 180, accentColor: '#0066cc' }}
+                  aria-label="EPSS Minimum"
+                />
+                <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>min</span>
+              </div>
+            </div>
+
+            {/* Component */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterComponent')}</div>
+              <TextInput
+                value={componentInput}
+                onChange={(_, v) => setComponentInput(v)}
+                placeholder="z.B. openssl"
+                style={{ width: 160 }}
+                aria-label={t('cves.filterComponent')}
+              />
+            </div>
+
+            {/* Risk status */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterRiskStatus')}</div>
+              <select
+                value={urlRiskStatus}
+                onChange={e => updateParams({ risk_status: e.target.value || null })}
+                style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+              >
+                {RISK_STATUS_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Namespaces */}
+            {namespaceList.length > 0 && (
+              <div>
+                <div style={sectionLabelStyle}>
+                  {t('cves.filterNamespace')}
+                  {urlNamespaces.length > 0 && (
+                    <span style={{ marginLeft: 6, color: '#0066cc' }}>({urlNamespaces.length})</span>
+                  )}
+                </div>
+                <TextInput
+                  value={namespaceSearch}
+                  onChange={(_, v) => setNamespaceSearch(v)}
+                  placeholder="Suchen..."
+                  style={{ width: 200, marginBottom: 6 }}
+                  aria-label="Namespace suchen"
+                />
+                <div style={{
+                  maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4,
+                  border: '1px solid #d2d2d2', borderRadius: 4, padding: '6px 8px',
+                  background: 'var(--pf-v6-global--BackgroundColor--100)', width: 200,
+                }}>
+                  {filteredNamespaceList.length === 0
+                    ? <span style={{ fontSize: 12, color: '#6a6e73', padding: '4px 0' }}>Keine Ergebnisse</span>
+                    : filteredNamespaceList.map(ns => (
+                      <Checkbox
+                        key={ns} id={`ns-${ns}`} label={ns}
+                        isChecked={urlNamespaces.includes(ns)}
+                        onChange={() => toggleNamespace(ns)}
+                      />
+                    ))
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* Clear */}
+            {hasActiveAdvanced && (
+              <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
+                <button
+                  onClick={clearAdvanced}
+                  style={{
+                    background: 'none', border: 'none', color: '#0066cc',
+                    cursor: 'pointer', fontSize: 13, padding: '4px 0', fontFamily: 'inherit',
+                  }}
+                >
+                  {t('cves.filterClear')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </PageSection>
 
       <PageSection>
@@ -148,45 +429,35 @@ export function CveList() {
                 </thead>
                 <tbody>
                   {data.items.map(cve => (
-                    <tr
-                      key={cve.cve_id}
-                      style={getRowStyle(cve.has_priority)}
-                    >
+                    <tr key={cve.cve_id} style={getRowStyle(cve.has_priority)}>
                       <td style={{ padding: '8px 12px' }}>
                         <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
                           {cve.cve_id}
                         </Link>
                         {cve.has_priority && (
-                          <span
-                            style={{
-                              marginLeft: 6,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              letterSpacing: 0.3,
-                              background: 'rgba(236, 122, 8, 0.18)',
-                              color: '#ec7a08',
-                              border: '1px solid rgba(236, 122, 8, 0.45)',
-                              padding: '1px 5px',
-                              borderRadius: 3,
-                            }}
-                          >
-                            PRIO
-                          </span>
+                          <span style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                            background: 'rgba(236, 122, 8, 0.18)', color: '#ec7a08',
+                            border: '1px solid rgba(236, 122, 8, 0.45)', padding: '1px 5px', borderRadius: 3,
+                          }}>PRIO</span>
+                        )}
+                        {cve.has_risk_acceptance && cve.risk_acceptance_status === 'approved' && (
+                          <span style={{
+                            marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                            background: 'rgba(30, 143, 25, 0.18)', color: '#1e8f19',
+                            border: '1px solid rgba(30, 143, 25, 0.45)', padding: '1px 5px', borderRadius: 3,
+                          }}>ACK</span>
                         )}
                       </td>
                       <td style={{ padding: '8px 12px' }}><SeverityBadge severity={cve.severity} /></td>
                       <td style={{ padding: '8px 12px', fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? '#c9190b' : 'inherit' }}>
                         {cve.cvss.toFixed(1)}
                       </td>
-                      <td style={{ padding: '8px 12px' }}>
-                        <EpssBadge value={cve.epss_probability} />
-                      </td>
+                      <td style={{ padding: '8px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_images}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
                       <td style={{ padding: '8px 12px' }}>
-                        {cve.fixable
-                          ? <span style={{ color: '#1e8f19' }}>✓</span>
-                          : <span style={{ color: '#8a8d90' }}>✗</span>}
+                        {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
                       </td>
                       <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</td>
                       <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
@@ -195,9 +466,12 @@ export function CveList() {
                       <td style={{ padding: '8px 12px', textAlign: 'center', width: 40 }}>
                         <Tooltip content={t('cves.requestRiskAcceptance')}>
                           <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
-                            <Button variant="plain" aria-label={t('cves.requestRiskAcceptance')} style={{ color: '#6a6e73', padding: '2px 6px' }}>
+                            <button
+                              aria-label={t('cves.requestRiskAcceptance')}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6a6e73', padding: '2px 6px', lineHeight: 1 }}
+                            >
                               <ShieldAltIcon />
-                            </Button>
+                            </button>
                           </Link>
                         </Tooltip>
                       </td>
@@ -210,7 +484,7 @@ export function CveList() {
               <Pagination
                 itemCount={data.total}
                 perPage={50}
-                page={page}
+                page={urlPage}
                 onSetPage={(_, p) => setPage(p)}
                 variant="bottom"
               />

@@ -488,3 +488,55 @@ async def get_namespaces_with_cve(
     """)
     result = await session.execute(sql, {"cve_id": cve_id})
     return [(row.namespace, row.clustername) for row in result]
+
+
+async def get_cve_namespace_map(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]],
+) -> dict[str, list[str]]:
+    """Returns {cve_id: [namespace, ...]} for the given CVEs within the given namespaces."""
+    if not cve_ids or not namespaces:
+        return {}
+    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+    ns_values = ", ".join(ns_pairs)
+    sql = text(f"""
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, d.namespace
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE (d.namespace, d.clustername) IN ({ns_values})
+          AND ic.cvebaseinfo_cve = ANY(:cve_ids)
+    """)
+    result = await session.execute(sql, {"cve_ids": cve_ids})
+    mapping: dict[str, list[str]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, []).append(row.namespace)
+    return mapping
+
+
+async def get_cve_component_map(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]],
+) -> dict[str, list[str]]:
+    """Returns {cve_id: [component_name, ...]} for the given CVEs within the given namespaces."""
+    if not cve_ids or not namespaces:
+        return {}
+    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+    ns_values = ", ".join(ns_pairs)
+    sql = text(f"""
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, comp.name AS component_name
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_components comp ON comp.id = ic.componentid
+        WHERE (d.namespace, d.clustername) IN ({ns_values})
+          AND ic.cvebaseinfo_cve = ANY(:cve_ids)
+          AND comp.name IS NOT NULL
+    """)
+    result = await session.execute(sql, {"cve_ids": cve_ids})
+    mapping: dict[str, list[str]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, []).append(row.component_name)
+    return mapping

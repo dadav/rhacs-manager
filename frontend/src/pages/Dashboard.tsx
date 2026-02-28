@@ -21,8 +21,8 @@ import { SeverityBadge } from '../components/common/SeverityBadge'
 
 function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <Card isCompact>
-      <CardBody>
+    <Card isCompact style={{ height: '100%' }}>
+      <CardBody style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ fontSize: 28, fontWeight: 700, color: color ?? 'var(--pf-v6-global--Color--100)', lineHeight: 1.2 }}>
           {value}
         </div>
@@ -166,7 +166,7 @@ export function Dashboard() {
 
           {/* Charts */}
           <GridItem span={6}>
-            <Card>
+            <Card style={{ height: '100%' }}>
               <CardTitle>{t('dashboard.severityDistribution')}</CardTitle>
               <CardBody>
                 <SeverityDonut data={data.severity_distribution} />
@@ -175,7 +175,7 @@ export function Dashboard() {
           </GridItem>
 
           <GridItem span={6}>
-            <Card>
+            <Card style={{ height: '100%' }}>
               <CardTitle>{t('dashboard.cvesPerNamespace')}</CardTitle>
               <CardBody>
                 <CvesPerNamespace data={data.cves_per_namespace} />

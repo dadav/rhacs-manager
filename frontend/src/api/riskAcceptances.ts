@@ -56,6 +56,21 @@ export function useReviewRiskAcceptance(id: string) {
   })
 }
 
+export function useUpdateRiskAcceptance(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      justification: string
+      scope: RiskScope
+      expires_at?: string | null
+    }) => api.put<RiskAcceptance>(`/risk-acceptances/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
+      qc.invalidateQueries({ queryKey: ['cves'] })
+    },
+  })
+}
+
 export function useAddComment(raId: string) {
   const qc = useQueryClient()
   return useMutation({

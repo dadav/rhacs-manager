@@ -32,6 +32,12 @@ class RiskAcceptanceCreate(BaseModel):
     expires_at: datetime | None = None
 
 
+class RiskAcceptanceUpdate(BaseModel):
+    justification: str = Field(min_length=10, max_length=5000)
+    scope: RiskScope
+    expires_at: datetime | None = None
+
+
 class RiskAcceptanceReview(BaseModel):
     approved: bool
     comment: str | None = Field(default=None, max_length=2000)

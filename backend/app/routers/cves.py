@@ -65,6 +65,11 @@ async def list_cves(
     prioritized_only: bool = Query(False),
     sort_by: str = Query("severity"),
     sort_desc: bool = Query(True),
+    cvss_min: float | None = Query(None, ge=0, le=10),
+    epss_min: float | None = Query(None, ge=0, le=1),
+    namespaces: list[str] | None = Query(None),
+    component: str | None = Query(None),
+    risk_status: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -107,6 +112,33 @@ async def list_cves(
         items = [i for i in items if i.fixable == fixable]
     if prioritized_only:
         items = [i for i in items if i.has_priority]
+    if cvss_min is not None:
+        items = [i for i in items if i.cvss >= cvss_min]
+    if epss_min is not None:
+        items = [i for i in items if i.epss_probability >= epss_min]
+    if risk_status == "any":
+        items = [i for i in items if i.has_risk_acceptance]
+    elif risk_status in ("requested", "approved"):
+        items = [i for i in items if i.risk_acceptance_status == risk_status]
+
+    # Namespace / component filters require extra StackRox lookups
+    if (namespaces or component) and items:
+        cve_ids = [i.cve_id for i in items]
+        if current_user.is_sec_team:
+            all_ns = await sx.list_namespaces(sx_db)
+            ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
+        else:
+            ns_list = await _get_team_namespaces(app_db, current_user.team_id)
+
+        if namespaces:
+            ns_cve_map = await sx.get_cve_namespace_map(sx_db, cve_ids, ns_list)
+            items = [i for i in items if any(ns in namespaces for ns in ns_cve_map.get(i.cve_id, []))]
+
+        if component and items:
+            comp_lower = component.lower()
+            cve_ids = [i.cve_id for i in items]
+            comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
+            items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
 
     # Sort
     sort_key_map = {
@@ -192,6 +224,9 @@ async def get_cve(
         has_risk_acceptance=acceptance is not None,
         risk_acceptance_status=acceptance.status.value if acceptance else None,
         risk_acceptance_id=str(acceptance.id) if acceptance else None,
+        priority_created_at=priority.created_at if priority else None,
+        risk_acceptance_requested_at=acceptance.created_at if acceptance else None,
+        risk_acceptance_reviewed_at=acceptance.reviewed_at if acceptance else None,
         affected_deployments_list=[
             AffectedDeployment(
                 deployment_id=str(d["deployment_id"]),
