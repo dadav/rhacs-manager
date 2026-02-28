@@ -39,6 +39,7 @@ class CveListItem(BaseModel):
     affected_images: int
     affected_deployments: int
     first_seen: datetime | None
+    published_on: datetime | None = None
     operating_system: str | None = None
     has_priority: bool = False
     priority_level: str | None = None

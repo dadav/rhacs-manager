@@ -60,6 +60,7 @@ def _enrich_cves(cves: list[dict], priorities: dict, acceptances: dict) -> list[
                 affected_images=int(c.get("affected_images", 0)),
                 affected_deployments=int(c.get("affected_deployments", 0)),
                 first_seen=c.get("first_seen"),
+                published_on=c.get("published_on"),
                 has_priority=p is not None,
                 priority_level=p.priority.value if p else None,
                 priority_deadline=p.deadline if p else None,

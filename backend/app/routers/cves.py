@@ -45,6 +45,7 @@ def _build_cve_item(
         affected_images=int(c.get("affected_images", 0)),
         affected_deployments=int(c.get("affected_deployments", 0)),
         first_seen=c.get("first_seen"),
+        published_on=c.get("published_on"),
         operating_system=c.get("operating_system"),
         has_priority=p is not None,
         priority_level=p.priority.value if p else None,
@@ -147,6 +148,7 @@ async def list_cves(
         "epss_probability": lambda x: x.epss_probability,
         "affected_deployments": lambda x: x.affected_deployments,
         "first_seen": lambda x: x.first_seen or "",
+        "published_on": lambda x: x.published_on or "",
     }
     key_fn = sort_key_map.get(sort_by, lambda x: x.severity.value)
     items.sort(key=key_fn, reverse=sort_desc)
@@ -217,6 +219,7 @@ async def get_cve(
         affected_images=int(cve_data.get("affected_images", 0)),
         affected_deployments=int(cve_data.get("affected_deployments", 0)),
         first_seen=cve_data.get("first_seen"),
+        published_on=cve_data.get("published_on"),
         operating_system=cve_data.get("operating_system"),
         has_priority=priority is not None,
         priority_level=priority.priority.value if priority else None,

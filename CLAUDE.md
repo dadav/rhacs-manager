@@ -52,7 +52,7 @@ LEFT JOIN image_components comp ON comp.id = ic.componentid
 
 -- Key fields on image_cves_v2:
 -- ic.cvebaseinfo_cve, ic.severity, ic.cvss, ic.cvebaseinfo_epss_epssprobability
--- ic.impactscore, ic.firstimageoccurrence, ic.isfixable, ic.fixedby
+-- ic.impactscore, ic.firstimageoccurrence, ic.cvebaseinfo_publishedon, ic.isfixable, ic.fixedby
 -- ic.imageid, ic.componentid
 ```
 
@@ -115,6 +115,8 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 - CVSS/EPSS thresholds in `global_settings` filter CVEs from team views (sec team sees all).
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
 - In `/cves`, prioritized CVEs must always be listed first regardless of selected sort column/direction.
+- CVE API payloads expose both timeline dates from StackRox: `first_seen` (`ic.firstimageoccurrence`) and `published_on` (`ic.cvebaseinfo_publishedon`).
+- CVE detail lifecycle timeline includes a dedicated "Veröffentlicht" step sourced from `published_on`, in addition to "Entdeckt" from `first_seen`.
 - Risk acceptance creation is CVE-contextual only: users should start requests from CVE list/detail views; `/risikoakzeptanzen` is a list/review view and does not provide a standalone "new" action.
 - Risk acceptances are scope-aware. `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`

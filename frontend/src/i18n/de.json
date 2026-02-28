@@ -114,6 +114,7 @@
     "fixable": "Behebbar",
     "fixVersion": "Fix-Version",
     "firstSeen": "Erstmals gesehen",
+    "publishedOn": "Veröffentlicht am",
     "searchPlaceholder": "CVE-ID suchen...",
     "filterSeverity": "Schweregrad filtern",
     "filterFixable": "Nur behebbare",

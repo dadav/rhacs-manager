@@ -46,6 +46,7 @@ export interface CveListItem {
   affected_images: number
   affected_deployments: number
   first_seen: string | null
+  published_on: string | null
   operating_system?: string | null
   has_priority: boolean
   priority_level: PriorityLevel | null

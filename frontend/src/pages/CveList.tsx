@@ -424,6 +424,7 @@ export function CveList() {
                     <th style={thStyle('fixable')}>{t('cves.fixable')}</th>
                     <th style={thStyle('fixed_by')}>{t('cves.fixVersion')}</th>
                     <th style={thStyle('first_seen')} onClick={() => handleSort('first_seen')}>{t('cves.firstSeen')}</th>
+                    <th style={thStyle('published_on')} onClick={() => handleSort('published_on')}>{t('cves.publishedOn')}</th>
                     <th style={thStyle('actions')}></th>
                   </tr>
                 </thead>
@@ -462,6 +463,9 @@ export function CveList() {
                       <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</td>
                       <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
                         {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
+                        {cve.published_on ? new Date(cve.published_on).toLocaleDateString('de-DE') : '–'}
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'center', width: 40 }}>
                         <Tooltip content={t('cves.requestRiskAcceptance')}>

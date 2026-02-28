@@ -55,6 +55,7 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     iso ? new Date(iso).toLocaleDateString('de-DE') : undefined
 
   const steps: { id: string; label: string; date: string | null; done: boolean }[] = [
+    { id: 'published', label: 'Veröffentlicht', date: cve.published_on, done: !!cve.published_on },
     { id: 'discovered', label: 'Entdeckt', date: cve.first_seen, done: !!cve.first_seen },
     { id: 'prioritized', label: 'Priorisiert', date: cve.priority_created_at, done: cve.has_priority },
     { id: 'ra-requested', label: 'Risiko beantragt', date: cve.risk_acceptance_requested_at, done: cve.has_risk_acceptance },
@@ -184,6 +185,9 @@ export function CveDetail() {
                     {cve.fixed_by && <DetailRow label="Fix-Version" value={<span style={{ fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by}</span>} />}
                     <DetailRow label="Erstmals gesehen" value={
                       cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'
+                    } />
+                    <DetailRow label="Veröffentlicht am" value={
+                      cve.published_on ? new Date(cve.published_on).toLocaleDateString('de-DE') : '–'
                     } />
                     {cve.operating_system && <DetailRow label="Betriebssystem" value={cve.operating_system} />}
                     {cve.priority_level && <DetailRow label="Priorität" value={cve.priority_level} />}
