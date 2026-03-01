@@ -52,6 +52,12 @@ def upgrade() -> None:
     op.drop_index("ix_badge_tokens_team_id", table_name="badge_tokens", if_exists=True)
     op.drop_column("badge_tokens", "team_id")
     op.add_column("badge_tokens", sa.Column("created_by", sa.String(255), nullable=True))
+    # Ensure a 'system' user exists for FK reference
+    op.execute(
+        "INSERT INTO users (id, username, email, role, created_at) "
+        "VALUES ('system', 'system', 'system@localhost', 'sec_team', NOW()) "
+        "ON CONFLICT (id) DO NOTHING"
+    )
     # Set defaults for existing rows
     op.execute("UPDATE badge_tokens SET created_by = 'system' WHERE created_by IS NULL")
     op.alter_column("badge_tokens", "created_by", nullable=False)
