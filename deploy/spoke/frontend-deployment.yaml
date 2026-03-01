@@ -22,7 +22,7 @@ spec:
             - --https-address=:8443
             - --provider=openshift
             - --openshift-service-account=rhacs-manager-oauth-proxy
-            - --upstream=http://localhost:8080
+            - --upstream=http://localhost:8081
             - --tls-cert=/etc/tls/private/tls.crt
             - --tls-key=/etc/tls/private/tls.key
             - --cookie-secret=GENERATE_A_RANDOM_32_BYTE_BASE64
@@ -41,6 +41,35 @@ spec:
             limits:
               cpu: 100m
               memory: 64Mi
+
+        # Namespace resolver — resolves X-Forwarded-User to X-Forwarded-Namespaces
+        - name: namespace-resolver
+          image: rhacs-manager-namespace-resolver:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: rhacs-manager-spoke-secret
+                  key: CLUSTER_NAME
+            - name: NAMESPACE_ANNOTATION
+              value: "rhacs-manager.io/users"
+            - name: CACHE_TTL_SECONDS
+              value: "300"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
 
         # Frontend SPA with spoke nginx config (proxies /api/* to hub)
         - name: frontend

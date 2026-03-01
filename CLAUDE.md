@@ -16,7 +16,8 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 - **Backend**: `backend/` — FastAPI, SQLAlchemy 2 async, Alembic, Pydantic v2, `uv`
 - **Two databases**: StackRox Central (`central_active`, read-only) + own app DB (read-write)
 - **Dev mode**: `DEV_MODE=true` bypasses OIDC; user is synced to DB from `DEV_USER_*` env vars
-- **No teams**: Namespace access is derived from K8s RBAC via `X-Forwarded-Namespaces` header
+- **No teams**: Namespace access is derived from K8s namespace annotations via `X-Forwarded-Namespaces` header
+- **Namespace resolver**: `namespace-resolver/` — Go sidecar that reads namespace annotations and sets `X-Forwarded-Namespaces`
 
 ## Key Files
 
@@ -40,7 +41,10 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `frontend/src/i18n/`              | German translations                                                                                                             |
 | `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes)                                                               |
 | `deploy/hub/`                     | Hub overlay (= base, with backend + DBs)                                                                                        |
-| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy sidecar, no backend)                                                                      |
+| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy + namespace-resolver, no backend)                                                         |
+| `namespace-resolver/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
+| `namespace-resolver/Containerfile` | Multi-stage build for namespace-resolver (distroless runtime)                                                                   |
+| `deploy/spoke/namespace-resolver-rbac.yaml` | ClusterRole/Binding for namespace list permission                                                                      |
 | `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
 | `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
 | `justfile`                        | Dev workflow commands                                                                                                           |
@@ -147,24 +151,32 @@ The spoke proxy is responsible for querying K8s RBAC (SubjectAccessReview for `g
 RHACS runs on a hub cluster (admin-only) with spoke clusters per user group. Spoke users authenticate via OpenShift OAuth (Keycloak-backed) and never need hub access.
 
 ```
-SPOKE CLUSTER                         HUB CLUSTER
-Route → oauth-proxy → nginx SPA  →→  Route → FastAPI backend
-       (OpenShift OAuth)   /api/*     (X-Api-Key + X-Forwarded-*)
-                           proxy
+SPOKE CLUSTER                                      HUB CLUSTER
+Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAPI backend
+       (OpenShift OAuth)  :8081 (Go sidecar)  :8080    (X-Api-Key + X-Forwarded-*)
+                          sets X-Forwarded-Namespaces
 ```
 
 **Auth flow (spoke proxy mode):**
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups` headers
-2. Spoke proxy queries K8s RBAC (SubjectAccessReview) and sets `X-Forwarded-Namespaces` header
+2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up K8s namespace annotations (`rhacs-manager.io/users`), sets `X-Forwarded-Namespaces` header
 3. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
 4. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces from headers
 5. `sec_team_group` in groups grants sec_team role
 6. Users auto-provisioned with ID `spoke:<username>`
 
+**Namespace resolver** (`namespace-resolver/`):
+- Go sidecar sitting between oauth-proxy (:8443) and nginx (:8080) on port :8081
+- Caches `namespace → []username` map from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
+- Annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
+- Users listed in the annotation get access to that namespace's CVEs
+- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `CACHE_TTL_SECONDS` (default: `300`)
+- Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/namespace-resolver-rbac.yaml`)
+
 **Deploy:**
 - Hub: `kubectl kustomize deploy/hub/` (= base, backend + frontend + DBs)
-- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy only)
-- Spoke secret: `deploy/spoke/spoke-secret.yaml` (HUB_API_URL, SPOKE_API_KEY)
+- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy + namespace-resolver)
+- Spoke secret: `deploy/spoke/spoke-secret.yaml` (HUB_API_URL, SPOKE_API_KEY, CLUSTER_NAME)
 
 ## Data Model Highlights
 

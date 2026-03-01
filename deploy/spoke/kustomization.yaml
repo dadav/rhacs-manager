@@ -9,4 +9,5 @@ resources:
   - frontend-deployment.yaml
   - frontend-service.yaml
   - oauth-proxy.yaml
+  - namespace-resolver-rbac.yaml
   - route.yaml
