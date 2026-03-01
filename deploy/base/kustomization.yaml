@@ -9,3 +9,11 @@ resources:
   - frontend-deployment.yaml
   - frontend-service.yaml
   - route.yaml
+
+images:
+  - name: rhacs-manager-backend
+    newName: ghcr.io/dadav/rhacs-manager-backend
+    newTag: latest
+  - name: rhacs-manager-frontend
+    newName: ghcr.io/dadav/rhacs-manager-frontend
+    newTag: latest

@@ -11,3 +11,11 @@ resources:
   - oauth-proxy.yaml
   - namespace-resolver-rbac.yaml
   - route.yaml
+
+images:
+  - name: rhacs-manager-frontend-spoke
+    newName: ghcr.io/dadav/rhacs-manager-spoke
+    newTag: latest
+  - name: rhacs-manager-namespace-resolver
+    newName: ghcr.io/dadav/rhacs-manager-namespace-resolver
+    newTag: latest
