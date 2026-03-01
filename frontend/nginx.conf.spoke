@@ -22,6 +22,7 @@ server {
         proxy_set_header X-Forwarded-User $http_x_forwarded_user;
         proxy_set_header X-Forwarded-Email $http_x_forwarded_email;
         proxy_set_header X-Forwarded-Groups $http_x_forwarded_groups;
+        proxy_set_header X-Forwarded-Namespaces $http_x_forwarded_namespaces;
 
         # Authenticate to hub with spoke API key
         proxy_set_header X-Api-Key ${SPOKE_API_KEY};

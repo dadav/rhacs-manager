@@ -105,7 +105,6 @@ export function RiskAcceptances() {
             <thead>
               <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>CVE</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Team</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Status</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Begründung</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>Beantragt von</th>
@@ -123,7 +122,6 @@ export function RiskAcceptances() {
                       {ra.cve_id}
                     </Link>
                   </td>
-                  <td style={{ padding: '8px 12px' }}>{ra.team_name}</td>
                   <td style={{ padding: '8px 12px' }}>
                     <span style={{
                       display: 'inline-block',

@@ -8,19 +8,16 @@ from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
-from ..models.team import Team, TeamNamespace
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
     CveTrendPoint,
     EpssMatrixPoint,
-    FixabilityByTeam,
     NamespaceCveCount,
     RiskAcceptancePipeline,
     SecDashboardData,
     SeverityCount,
     TeamDashboardData,
-    TeamHealthScore,
     ThresholdPreview,
 )
 from ..schemas.cve import CveListItem, SeverityLevel
@@ -32,15 +29,6 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 async def _get_settings(session: AsyncSession) -> GlobalSettings | None:
     result = await session.execute(select(GlobalSettings).limit(1))
     return result.scalar_one_or_none()
-
-
-async def _get_team_namespaces(
-    session: AsyncSession, team_id
-) -> list[tuple[str, str]]:
-    result = await session.execute(
-        select(TeamNamespace).where(TeamNamespace.team_id == team_id)
-    )
-    return [(n.namespace, n.cluster_name) for n in result.scalars().all()]
 
 
 def _enrich_cves(cves: list[dict], priorities: dict, acceptances: dict) -> list[CveListItem]:
@@ -85,7 +73,7 @@ async def team_dashboard(
     if current_user.is_sec_team:
         namespaces: list[tuple[str, str]] = []  # empty = all for sec team
     else:
-        if not current_user.team_id:
+        if not current_user.has_namespaces:
             return TeamDashboardData(
                 stat_total_cves=0,
                 stat_escalations=0,
@@ -94,18 +82,16 @@ async def team_dashboard(
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
                 high_epss_cves=[], cve_trend=[],
             )
-        namespaces = await _get_team_namespaces(app_db, current_user.team_id)
+        namespaces = current_user.namespaces
 
     # Get prioritized CVEs (always shown)
     prio_result = await app_db.execute(select(CvePriority))
     priorities = {p.cve_id: p for p in prio_result.scalars().all()}
 
-    # Get active risk acceptances for the team
+    # Get active risk acceptances
     ra_query = select(RiskAcceptance).where(
         RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved])
     )
-    if current_user.team_id and not current_user.is_sec_team:
-        ra_query = ra_query.where(RiskAcceptance.team_id == current_user.team_id)
     ra_result = await app_db.execute(ra_query)
     acceptances = {ra.cve_id: ra for ra in ra_result.scalars().all()}
 
@@ -125,19 +111,24 @@ async def team_dashboard(
     fixable_critical = sum(
         1 for c in cves if c.get("severity") == 4 and c.get("fixable")
     )
-    escalations_result = await app_db.execute(
-        select(func.count(Escalation.id)).where(
-            *([Escalation.team_id == current_user.team_id] if current_user.team_id else [])
-        )
-    )
-    escalations = escalations_result.scalar() or 0
 
-    from datetime import datetime
+    # Escalation count: for non-sec users, filter by their namespaces
+    if current_user.is_sec_team:
+        escalations_result = await app_db.execute(
+            select(func.count(Escalation.id))
+        )
+    else:
+        ns_names = [ns for ns, _ in current_user.namespaces]
+        escalations_result = await app_db.execute(
+            select(func.count(Escalation.id)).where(
+                Escalation.namespace.in_(ns_names)
+            )
+        )
+    escalations = escalations_result.scalar() or 0
 
     open_ra_result = await app_db.execute(
         select(func.count(RiskAcceptance.id)).where(
             RiskAcceptance.status == RiskStatus.requested,
-            *([RiskAcceptance.team_id == current_user.team_id] if current_user.team_id else [])
         )
     )
     open_ra = open_ra_result.scalar() or 0
@@ -161,6 +152,8 @@ async def team_dashboard(
 
     # Deduplicate by cve_id (same CVE can appear across multiple images).
     # Keep the entry with the highest epss_probability for each unique CVE.
+    from datetime import datetime
+
     seen_cve_ids: dict[str, CveListItem] = {}
     for item in enriched:
         if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
@@ -222,77 +215,11 @@ async def sec_dashboard(
     heatmap_rows = await sx.get_cluster_heatmap(sx_db)
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
 
-    # Team health scores
-    teams_result = await app_db.execute(select(Team))
-    teams = list(teams_result.scalars().all())
-
-    team_scores: list[TeamHealthScore] = []
-    fixability_list: list[FixabilityByTeam] = []
-
-    from datetime import datetime
-    prio_result = await app_db.execute(select(CvePriority))
-    all_priorities = {p.cve_id: p for p in prio_result.scalars().all()}
-
-    for team in teams:
-        ns_list = [(n.namespace, n.cluster_name) for n in team.namespaces]
-        cves = await sx.get_cves_for_namespaces(sx_db, ns_list, min_cvss, min_epss)
-        fix_stats = await sx.get_fixability_stats(sx_db, ns_list)
-
-        open_ra_result = await app_db.execute(
-            select(func.count(RiskAcceptance.id)).where(
-                RiskAcceptance.team_id == team.id,
-                RiskAcceptance.status == RiskStatus.requested,
-            )
-        )
-        open_ra = open_ra_result.scalar() or 0
-
-        overdue = sum(
-            1 for p in all_priorities.values()
-            if p.deadline and p.deadline < datetime.utcnow()
-        )
-
-        total_cves = len(cves)
-        critical_cves = sum(1 for c in cves if c.get("severity") == 4)
-        avg_epss = sum(c.get("epss_probability", 0) for c in cves) / total_cves if total_cves else 0.0
-
-        # Risk score: weighted formula
-        risk_score = min(
-            100.0,
-            critical_cves * 5
-            + sum(1 for c in cves if c.get("severity") == 3) * 2
-            + avg_epss * 100
-            + overdue * 10,
-        )
-
-        team_scores.append(
-            TeamHealthScore(
-                team_id=str(team.id),
-                team_name=team.name,
-                total_cves=total_cves,
-                critical_cves=critical_cves,
-                avg_epss=round(avg_epss, 4),
-                overdue_items=overdue,
-                open_risk_acceptances=open_ra,
-                risk_score=round(risk_score, 1),
-            )
-        )
-        fixability_list.append(
-            FixabilityByTeam(
-                team_name=team.name,
-                fixable=fix_stats["fixable"],
-                unfixable=fix_stats["unfixable"],
-            )
-        )
-
-    team_scores.sort(key=lambda x: x.risk_score, reverse=True)
-
     # Aging distribution
     aging_rows = await sx.get_cve_aging(sx_db, None)
     aging_dist = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
 
     # Risk acceptance pipeline
-    for status in ["requested", "approved", "rejected", "expired"]:
-        pass
     ra_counts = {}
     for st in ["requested", "approved", "rejected", "expired"]:
         count_result = await app_db.execute(
@@ -320,14 +247,11 @@ async def sec_dashboard(
     return SecDashboardData(
         epss_matrix=epss_matrix,
         cluster_heatmap=cluster_heatmap,
-        team_scoreboard=team_scores,
-        fixability_by_team=fixability_list,
         aging_distribution=aging_dist,
         risk_acceptance_pipeline=pipeline,
         total_cves=total_org,
         total_critical=total_critical,
         avg_epss=round(org_avg_epss, 4),
-        total_teams=len(teams),
         cves_last_7_days=cves_last_7_days,
         threshold_preview=threshold_preview,
     )

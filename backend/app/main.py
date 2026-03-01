@@ -16,7 +16,6 @@ from .routers import (
     priorities,
     risk_acceptances,
     settings,
-    teams,
 )
 from .tasks.scheduler import setup_scheduler
 
@@ -61,7 +60,6 @@ for router_module in [
     notifications,
     badges,
     settings,
-    teams,
     audit,
 ]:
     app.include_router(router_module.router, prefix="/api")

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     dev_user_name: str = Field(default="Dev User")
     dev_user_email: str = Field(default="dev@example.com")
     dev_user_role: str = Field(default="sec_team")  # "sec_team" or "team_member"
-    dev_user_team_id: str | None = Field(default=None)
+    dev_user_namespaces: str = Field(default="")  # format: ns1:cluster1,ns2:cluster2
 
     # OIDC (production)
     oidc_issuer: str = Field(default="")
@@ -39,12 +39,12 @@ class Settings(BaseSettings):
 
     # Spoke proxy auth (hub-spoke architecture)
     spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies
-    group_team_mapping: dict[str, str] = Field(default_factory=dict)  # keycloak group → team name
     sec_team_group: str = Field(default="rhacs-sec-team")  # group granting sec_team role
 
     # App
     app_base_url: str = Field(default="http://localhost:5173")
     secret_key: str = Field(default="dev-secret-key-change-in-production")
+    management_email: str = Field(default="")  # org-wide digest recipient
 
 
 settings = Settings()

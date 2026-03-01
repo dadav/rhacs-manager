@@ -12,6 +12,9 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> dict:
         "username": current_user.username,
         "email": current_user.email,
         "role": current_user.role.value,
-        "team_id": str(current_user.team_id) if current_user.team_id else None,
         "is_sec_team": current_user.is_sec_team,
+        "namespaces": [
+            {"namespace": ns, "cluster_name": cluster}
+            for ns, cluster in current_user.namespaces
+        ],
     }

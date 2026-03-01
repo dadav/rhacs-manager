@@ -1,5 +1,4 @@
 import logging
-from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,11 +31,6 @@ async def create_notification(
     return n
 
 
-async def _get_team_users(session: AsyncSession, team_id: UUID) -> list[User]:
-    result = await session.execute(select(User).where(User.team_id == team_id))
-    return list(result.scalars().all())
-
-
 async def _get_sec_team_users(session: AsyncSession) -> list[User]:
     result = await session.execute(
         select(User).where(User.role == UserRole.sec_team)
@@ -61,10 +55,10 @@ async def notify_risk_comment(
                 session, user.id, NotificationType.risk_comment, title, msg, link
             )
     else:
-        # Notify team members
-        for user in await _get_team_users(session, acceptance.team_id):
+        # Notify the RA creator
+        if acceptance.created_by != author.id:
             await create_notification(
-                session, user.id, NotificationType.risk_comment, title, msg, link
+                session, acceptance.created_by, NotificationType.risk_comment, title, msg, link
             )
 
 
@@ -85,8 +79,8 @@ async def notify_risk_status_change(
         else NotificationType.risk_rejected
     )
 
-    for user in await _get_team_users(session, acceptance.team_id):
-        await create_notification(session, user.id, ntype, title, msg, link)
+    # Notify the RA creator
+    await create_notification(session, acceptance.created_by, ntype, title, msg, link)
 
 
 async def notify_risk_expiring(
@@ -97,45 +91,41 @@ async def notify_risk_expiring(
     title = f"Risikoakzeptanz läuft ab: {acceptance.cve_id}"
     msg = f"Die Risikoakzeptanz für {acceptance.cve_id} läuft in 7 Tagen ab."
 
-    for user in await _get_team_users(session, acceptance.team_id):
-        await create_notification(
-            session, user.id, NotificationType.risk_expiring, title, msg, link
-        )
+    # Notify the RA creator
+    await create_notification(
+        session, acceptance.created_by, NotificationType.risk_expiring, title, msg, link
+    )
 
 
 async def notify_new_priority(
     session: AsyncSession,
     cve_id: str,
     priority_level: str,
-    affected_team_ids: list[UUID],
 ) -> None:
-    link = f"/priorisierungen"
+    """Notify sec team about new CVE priority (they set priorities, they get notified)."""
+    link = "/priorisierungen"
     title = f"CVE priorisiert: {cve_id}"
     msg = f"{cve_id} wurde als '{priority_level}' priorisiert."
 
-    for team_id in affected_team_ids:
-        for user in await _get_team_users(session, team_id):
-            await create_notification(
-                session, user.id, NotificationType.new_priority, title, msg, link
-            )
+    for user in await _get_sec_team_users(session):
+        await create_notification(
+            session, user.id, NotificationType.new_priority, title, msg, link
+        )
 
 
 async def notify_escalation(
     session: AsyncSession,
     cve_id: str,
-    team_id: UUID,
+    namespace: str,
+    cluster_name: str,
     level: int,
 ) -> None:
-    link = f"/eskalationen"
+    """Notify sec team about escalation (no persistent user→namespace mapping)."""
+    link = "/eskalationen"
     title = f"Eskalation Stufe {level}: {cve_id}"
-    msg = f"CVE {cve_id} wurde auf Eskalationsstufe {level} hochgestuft."
+    msg = f"CVE {cve_id} in {namespace}/{cluster_name} wurde auf Eskalationsstufe {level} hochgestuft."
 
-    for user in await _get_team_users(session, team_id):
+    for user in await _get_sec_team_users(session):
         await create_notification(
             session, user.id, NotificationType.escalation, title, msg, link
         )
-    if level >= 2:
-        for user in await _get_sec_team_users(session):
-            await create_notification(
-                session, user.id, NotificationType.escalation, title, msg, link
-            )

@@ -14,7 +14,7 @@ class BadgeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    team_id: UUID
+    created_by: str
     namespace: str | None
     cluster_name: str | None
     token: str

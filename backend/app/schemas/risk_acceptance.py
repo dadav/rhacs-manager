@@ -64,8 +64,6 @@ class RiskAcceptanceResponse(BaseModel):
 
     id: UUID
     cve_id: str
-    team_id: UUID
-    team_name: str
     status: str
     justification: str
     scope: RiskScope

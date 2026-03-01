@@ -1,6 +1,6 @@
 # RHACS CVE Manager — CLAUDE.md
 
-Self-service CVE management app for OpenShift RHACS. Teams manage their own CVEs; sec team has org-wide visibility and a monitoring dashboard. EPSS-driven prioritization is the core design principle.
+Self-service CVE management app for OpenShift RHACS. Users see CVEs scoped to their K8s RBAC-accessible namespaces; sec team has org-wide visibility and a monitoring dashboard. EPSS-driven prioritization is the core design principle.
 
 ---
 
@@ -16,33 +16,34 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 - **Backend**: `backend/` — FastAPI, SQLAlchemy 2 async, Alembic, Pydantic v2, `uv`
 - **Two databases**: StackRox Central (`central_active`, read-only) + own app DB (read-write)
 - **Dev mode**: `DEV_MODE=true` bypasses OIDC; user is synced to DB from `DEV_USER_*` env vars
+- **No teams**: Namespace access is derived from K8s RBAC via `X-Forwarded-Namespaces` header
 
 ## Key Files
 
-| Path                              | Purpose                                                                                                                                  |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `backend/app/main.py`             | FastAPI app + lifespan                                                                                                                   |
-| `backend/app/config.py`           | Pydantic Settings (env-driven)                                                                                                           |
-| `backend/app/database.py`         | Dual SQLAlchemy engine setup                                                                                                             |
-| `backend/app/auth/middleware.py`  | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser`                                                                    |
-| `backend/app/auth/group_mapping.py` | Spoke proxy: maps Keycloak groups → teams + roles                                                                                     |
-| `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries                                                                                                       |
-| `backend/app/routers/`            | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, teams, audit, escalations, namespaces |
-| `backend/app/models/`             | SQLAlchemy ORM models (app DB)                                                                                                           |
-| `backend/app/tasks/scheduler.py`  | APScheduler background jobs (escalation, digest)                                                                                         |
-| `backend/app/badges/generator.py` | Pure Python SVG badge generator                                                                                                          |
-| `backend/alembic/versions/`       | DB migrations                                                                                                                            |
-| `frontend/src/api/client.ts`      | Base API fetch; use `getErrorMessage` for errors                                                                                         |
-| `frontend/src/utils/errors.ts`    | `getErrorMessage(error)` — always use this for user-visible errors                                                                       |
-| `frontend/src/pages/`             | One file per page/route                                                                                                                  |
-| `frontend/src/components/`        | Reusable UI components                                                                                                                   |
-| `frontend/src/i18n/`              | German translations                                                                                                                      |
-| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes)                                                                        |
-| `deploy/hub/`                     | Hub overlay (= base, with backend + DBs)                                                                                                 |
-| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy sidecar, no backend)                                                                               |
-| `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                                       |
-| `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                          |
-| `justfile`                        | Dev workflow commands                                                                                                                    |
+| Path                              | Purpose                                                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `backend/app/main.py`             | FastAPI app + lifespan                                                                                                          |
+| `backend/app/config.py`           | Pydantic Settings (env-driven)                                                                                                  |
+| `backend/app/database.py`         | Dual SQLAlchemy engine setup                                                                                                    |
+| `backend/app/auth/middleware.py`  | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser` with `namespaces`                                         |
+| `backend/app/auth/group_mapping.py` | Resolves sec_team role from Keycloak groups                                                                                   |
+| `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries                                                                                              |
+| `backend/app/routers/`            | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, audit, escalations, namespaces |
+| `backend/app/models/`             | SQLAlchemy ORM models (app DB)                                                                                                  |
+| `backend/app/tasks/scheduler.py`  | APScheduler background jobs (escalation, digest)                                                                                |
+| `backend/app/badges/generator.py` | Pure Python SVG badge generator                                                                                                 |
+| `backend/alembic/versions/`       | DB migrations                                                                                                                   |
+| `frontend/src/api/client.ts`      | Base API fetch; use `getErrorMessage` for errors                                                                                |
+| `frontend/src/utils/errors.ts`    | `getErrorMessage(error)` — always use this for user-visible errors                                                              |
+| `frontend/src/pages/`             | One file per page/route                                                                                                         |
+| `frontend/src/components/`        | Reusable UI components                                                                                                          |
+| `frontend/src/i18n/`              | German translations                                                                                                             |
+| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes)                                                               |
+| `deploy/hub/`                     | Hub overlay (= base, with backend + DBs)                                                                                        |
+| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy sidecar, no backend)                                                                      |
+| `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
+| `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
+| `justfile`                        | Dev workflow commands                                                                                                           |
 
 ## StackRox DB Query Pattern
 
@@ -110,13 +111,40 @@ just lint
 
 Dev environment uses local Postgres. Set `APP_DB_URL` and `STACKROX_DB_URL` or rely on `justfile` defaults. Alembic migrations run automatically on `just dev`.
 
-## Auth / Dev Mode
+## Auth Model (K8s RBAC-Derived Namespaces)
 
-In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_*` env vars into the DB on each request. `DEV_USER_ID` is ignored — the DB-assigned UUID is used. Team assignment comes from the DB unless `DEV_USER_TEAM_ID` is explicitly set.
+**No teams concept.** Namespace access is derived from Kubernetes RBAC and delivered via `X-Forwarded-Namespaces` header.
+
+**Header format:** `X-Forwarded-Namespaces: ns1:cluster1,ns2:cluster2,...`
+
+The spoke proxy is responsible for querying K8s RBAC (SubjectAccessReview for `get pods`) and populating this header.
+
+**`CurrentUser` carries:**
+- `id`, `username`, `email`, `role` (persisted in DB)
+- `namespaces: list[tuple[str, str]]` (from header, NOT persisted)
+- `is_sec_team` (from `sec_team_group` config via `X-Forwarded-Groups`)
+
+**Auth modes:**
+1. **Dev mode** (`DEV_MODE=true`): namespaces from `DEV_USER_NAMESPACES` env var (format: `ns1:cluster1,ns2:cluster2`)
+2. **Spoke proxy** (`X-Api-Key`): namespaces from `X-Forwarded-Namespaces` header, role from `X-Forwarded-Groups`
+3. **OIDC JWT**: namespaces from JWT `namespaces` claim (if available)
+
+**Access control:**
+- Sec team sees all CVEs, escalations, risk acceptances (org-wide)
+- Non-sec users see only CVEs in their namespaces
+- Risk acceptances: accessible if user's namespaces overlap with RA's scope targets, or user is the RA creator
+- Escalations: namespace-scoped (filter by user's namespace list)
+- Badges: scoped by creator (user) and specific namespace/cluster
+
+**Config (hub backend env vars):**
+- `SPOKE_API_KEYS`: JSON list of allowed API keys, e.g. `'["key1","key2"]'`
+- `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
+- `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2`)
+- `MANAGEMENT_EMAIL`: org-wide weekly digest recipient
 
 ## Hub-Spoke Architecture
 
-RHACS runs on a hub cluster (admin-only) with spoke clusters per team. Spoke users authenticate via OpenShift OAuth (Keycloak-backed) and never need hub access.
+RHACS runs on a hub cluster (admin-only) with spoke clusters per user group. Spoke users authenticate via OpenShift OAuth (Keycloak-backed) and never need hub access.
 
 ```
 SPOKE CLUSTER                         HUB CLUSTER
@@ -127,15 +155,11 @@ Route → oauth-proxy → nginx SPA  →→  Route → FastAPI backend
 
 **Auth flow (spoke proxy mode):**
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups` headers
-2. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
-3. Hub backend validates API key (`settings.spoke_api_keys`), reads identity from headers
-4. Groups mapped to teams via `settings.group_team_mapping`; `settings.sec_team_group` grants sec_team role
-5. Users auto-provisioned with ID `spoke:<username>`
-
-**Config (hub backend env vars):**
-- `SPOKE_API_KEYS`: JSON list of allowed API keys, e.g. `'["key1","key2"]'`
-- `GROUP_TEAM_MAPPING`: JSON dict of group→team, e.g. `'{"dev-group":"Dev Team"}'`
-- `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
+2. Spoke proxy queries K8s RBAC (SubjectAccessReview) and sets `X-Forwarded-Namespaces` header
+3. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
+4. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces from headers
+5. `sec_team_group` in groups grants sec_team role
+6. Users auto-provisioned with ID `spoke:<username>`
 
 **Deploy:**
 - Hub: `kubectl kustomize deploy/hub/` (= base, backend + frontend + DBs)
@@ -144,8 +168,8 @@ Route → oauth-proxy → nginx SPA  →→  Route → FastAPI backend
 
 ## Data Model Highlights
 
-- Teams own namespaces (`team_namespaces`). CVE visibility is scoped to team namespaces.
-- CVSS/EPSS thresholds in `global_settings` filter CVEs from team views (sec team sees all).
+- CVE visibility is scoped by user's namespaces (from `X-Forwarded-Namespaces` header).
+- CVSS/EPSS thresholds in `global_settings` filter CVEs from non-sec views (sec team sees all).
 - Threshold evaluation is conjunctive: CVEs must meet both `min_cvss_score` and `min_epss_score` unless bypassed by manual priority or active risk acceptance.
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
 - In `/cves`, prioritized CVEs must always be listed first regardless of selected sort column/direction.
@@ -155,14 +179,16 @@ Route → oauth-proxy → nginx SPA  →→  Route → FastAPI backend
 - Risk acceptances are scope-aware. `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`
   - `targets`: `{ cluster_name, namespace, image_name?, deployment_id? }[]`
-- Scope selections must be validated against real affected deployments for the CVE in the requesting team's namespaces.
-- Active acceptances are unique by `(team_id, cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
-- Team dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
-- Team dashboard stat cards are: `Gesamt CVEs`, `Eskalationen`, `Behebbare kritische CVEs`, and `Offene Risikoakzeptanzen`.
-- Team dashboard chart datasets (`severity_distribution`, `cves_per_namespace`) must apply the same visibility logic as `stat_total_cves` (CVSS/EPSS thresholds plus always-show CVEs from priorities/active risk acceptances).
+- Scope selections must be validated against real affected deployments for the CVE in the user's namespaces.
+- Active acceptances are unique by `(cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
+- Dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
+- Dashboard stat cards are: `Gesamt CVEs`, `Eskalationen`, `Behebbare kritische CVEs`, and `Offene Risikoakzeptanzen`.
+- Dashboard chart datasets (`severity_distribution`, `cves_per_namespace`) must apply the same visibility logic as `stat_total_cves` (CVSS/EPSS thresholds plus always-show CVEs from priorities/active risk acceptances).
 - Severity distribution must classify each visible CVE into exactly one bucket (use aggregated severity per CVE) so the bucket total matches `stat_total_cves`.
 - Sec dashboard (`/sec-dashboard`) risk-acceptance pipeline rows are clickable deep links to `/risikoakzeptanzen?status=<requested|approved|rejected|expired>`.
 - Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
+- Escalations are namespace-scoped (`cve_id`, `namespace`, `cluster_name`, `level`).
+- Badges are scoped by `created_by` (user) + optional `namespace`/`cluster_name`.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
 - `users.role`: `team_member | sec_team`
 

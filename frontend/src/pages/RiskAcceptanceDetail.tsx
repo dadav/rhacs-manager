@@ -553,7 +553,6 @@ function RiskAcceptanceView({ id }: { id: string }) {
                   <tbody>
                     {([
                       ['CVE-ID', <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
-                      ['Team', ra.team_name],
                       ['Scope', `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
                       ['Beantragt von', ra.created_by_name],
                       ['Beantragt am', new Date(ra.created_at).toLocaleDateString('de-DE')],

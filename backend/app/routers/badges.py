@@ -10,7 +10,6 @@ from ..config import settings
 from ..deps import get_app_db, get_stackrox_db
 from ..models.badge import BadgeToken
 from ..models.global_settings import GlobalSettings
-from ..models.team import TeamNamespace
 from ..schemas.badge import BadgeCreate, BadgeResponse
 from ..stackrox import queries as sx
 
@@ -24,7 +23,7 @@ def _badge_url(token: str, base: str) -> str:
 async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
     return BadgeResponse(
         id=b.id,
-        team_id=b.team_id,
+        created_by=b.created_by,
         namespace=b.namespace,
         cluster_name=b.cluster_name,
         token=b.token,
@@ -55,13 +54,19 @@ async def get_badge_svg(
     min_cvss = float(gs.min_cvss_score) if gs else 0.0
     min_epss = float(gs.min_epss_score) if gs else 0.0
 
+    # Badge always scoped by its namespace/cluster
     if badge.namespace:
         ns = [(badge.namespace, badge.cluster_name or "")]
     else:
-        ns_result = await app_db.execute(
-            select(TeamNamespace).where(TeamNamespace.team_id == badge.team_id)
+        # No namespace specified — show empty
+        ns = []
+
+    if not ns:
+        return Response(
+            generate_badge_svg(0, 0, 0, 0, badge.label),
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "max-age=300"},
         )
-        ns = [(n.namespace, n.cluster_name) for n in ns_result.scalars().all()]
 
     cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
 
@@ -86,11 +91,9 @@ async def list_badges(
     if current_user.is_sec_team:
         result = await db.execute(select(BadgeToken).order_by(BadgeToken.created_at.desc()))
     else:
-        if not current_user.team_id:
-            return []
         result = await db.execute(
             select(BadgeToken)
-            .where(BadgeToken.team_id == current_user.team_id)
+            .where(BadgeToken.created_by == current_user.id)
             .order_by(BadgeToken.created_at.desc())
         )
     return [await _build_response(b, db) for b in result.scalars().all()]
@@ -102,13 +105,19 @@ async def create_badge(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> BadgeResponse:
-    if not current_user.team_id and not current_user.is_sec_team:
-        raise HTTPException(400, "Kein Team zugeordnet")
     if current_user.is_sec_team:
         raise HTTPException(403, "Nur Team-Mitglieder können Badges erstellen")
+    if not current_user.has_namespaces:
+        raise HTTPException(400, "Keine Namespaces zugeordnet")
+
+    # Validate namespace is in user's accessible namespaces
+    if body.namespace:
+        user_ns = set(current_user.namespaces)
+        if (body.namespace, body.cluster_name or "") not in user_ns:
+            raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
 
     badge = BadgeToken(
-        team_id=current_user.team_id,
+        created_by=current_user.id,
         namespace=body.namespace,
         cluster_name=body.cluster_name,
         label=body.label,
@@ -129,7 +138,7 @@ async def delete_badge(
     badge = result.scalar_one_or_none()
     if not badge:
         raise HTTPException(404, "Nicht gefunden")
-    if not current_user.is_sec_team and badge.team_id != current_user.team_id:
+    if not current_user.is_sec_team and badge.created_by != current_user.id:
         raise HTTPException(403, "Kein Zugriff")
     await db.delete(badge)
     await db.commit()

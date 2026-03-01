@@ -8,12 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
 from ..models.cve_priority import CvePriority
-from ..models.team import Team, TeamNamespace
 from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.priority import PriorityCreate, PriorityResponse, PriorityUpdate
 from ..services.audit_service import log_action
-from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/priorities", tags=["priorities"])
 
@@ -66,21 +64,8 @@ async def create_priority(
     db.add(priority)
     await db.flush()
 
-    # Notify teams that have this CVE
-    ns_pairs = await sx.get_namespaces_with_cve(sx_db, body.cve_id)
-    if ns_pairs:
-        all_ns = {(n, c) for n, c in ns_pairs}
-        teams_result = await db.execute(select(Team))
-        affected_team_ids = []
-        for team in teams_result.scalars().all():
-            team_ns = {(tn.namespace, tn.cluster_name) for tn in team.namespaces}
-            if team_ns & all_ns:
-                affected_team_ids.append(team.id)
-
-        if affected_team_ids:
-            await notif_svc.notify_new_priority(
-                db, body.cve_id, body.priority.value, affected_team_ids
-            )
+    # Notify sec team about new priority
+    await notif_svc.notify_new_priority(db, body.cve_id, body.priority.value)
 
     await log_action(db, current_user.id, "priority_created", "cve_priority", str(priority.id))
     await db.commit()

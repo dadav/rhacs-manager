@@ -8,7 +8,6 @@
     "escalations": "Eskalationen",
     "badges": "Badges",
     "settings": "Einstellungen",
-    "teamAdmin": "Team-Verwaltung",
     "auditLog": "Audit-Log"
   },
   "common": {
@@ -90,8 +89,6 @@
     "epssMatrix": "EPSS-Risikomatrix",
     "epssMatrixDescription": "Jeder Punkt ist eine CVE. Oben rechts = sofortiger Handlungsbedarf.",
     "clusterHeatmap": "Cluster-Heatmap",
-    "teamScoreboard": "Team-Risiko-Ranking",
-    "fixability": "Behebbarkeit nach Team",
     "aging": "CVE-Alterungsverteilung",
     "pipeline": "Risikoakzeptanz-Pipeline",
     "thresholdConfig": "Schwellenwert-Konfiguration",
@@ -146,7 +143,6 @@
     "title": "Risikoakzeptanzen",
     "create": "Risikoakzeptanz beantragen",
     "cveId": "CVE-ID",
-    "team": "Team",
     "status": "Status",
     "createdAt": "Erstellt am",
     "expiresAt": "Ablaufdatum",
@@ -189,7 +185,7 @@
   "escalations": {
     "title": "Eskalationen",
     "cveId": "CVE-ID",
-    "team": "Team",
+    "namespace": "Namespace",
     "level": "Stufe",
     "triggeredAt": "Ausgelöst am",
     "notified": "Benachrichtigt",
@@ -238,18 +234,6 @@
     ],
     "managementEmail": "Management-E-Mail",
     "saved": "Einstellungen gespeichert"
-  },
-  "teams": {
-    "title": "Team-Verwaltung",
-    "create": "Team erstellen",
-    "name": "Teamname",
-    "email": "Team-E-Mail",
-    "namespaces": "Namespaces",
-    "addNamespace": "Namespace hinzufügen",
-    "namespace": "Namespace",
-    "cluster": "Cluster",
-    "noTeams": "Keine Teams vorhanden",
-    "deleteConfirm": "Team wirklich löschen? Alle zugehörigen Daten werden gelöscht."
   },
   "auditLog": {
     "title": "Audit-Log",

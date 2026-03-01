@@ -1,6 +1,5 @@
 import logging
 import secrets
-from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
@@ -13,17 +12,37 @@ from ..models.user import User, UserRole
 logger = logging.getLogger(__name__)
 
 
+def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
+    """Parse 'ns1:cluster1,ns2:cluster2' into [(ns, cluster), ...]."""
+    if not raw.strip():
+        return []
+    pairs = []
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if ":" not in entry:
+            continue
+        ns, cluster = entry.split(":", 1)
+        ns, cluster = ns.strip(), cluster.strip()
+        if ns and cluster:
+            pairs.append((ns, cluster))
+    return pairs
+
+
 class CurrentUser:
-    def __init__(self, id: str, username: str, email: str, role: UserRole, team_id: UUID | None):
+    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]]):
         self.id = id
         self.username = username
         self.email = email
         self.role = role
-        self.team_id = team_id
+        self.namespaces = namespaces
 
     @property
     def is_sec_team(self) -> bool:
         return self.role == UserRole.sec_team
+
+    @property
+    def has_namespaces(self) -> bool:
+        return len(self.namespaces) > 0
 
 
 async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
@@ -35,7 +54,6 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
             username=user_data["username"],
             email=user_data["email"],
             role=UserRole(user_data["role"]),
-            team_id=user_data.get("team_id"),
         )
         session.add(user)
         await session.commit()
@@ -45,7 +63,7 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
 
 
 async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) -> User:
-    """Update user fields if they differ from provided data. Commits and refreshes if changed."""
+    """Update user fields if they differ from provided data."""
     updated = False
     if user.username != user_data["username"]:
         user.username = user_data["username"]
@@ -57,61 +75,51 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     if user.role != desired_role:
         user.role = desired_role
         updated = True
-    if "team_id" in user_data and user_data["team_id"] is not None:
-        if user.team_id != user_data["team_id"]:
-            user.team_id = user_data["team_id"]
-            updated = True
     if updated:
         await session.commit()
         await session.refresh(user)
     return user
 
 
-def _to_current_user(user: User) -> CurrentUser:
+def _to_current_user(user: User, namespaces: list[tuple[str, str]]) -> CurrentUser:
     return CurrentUser(
         id=user.id,
         username=user.username,
         email=user.email,
         role=user.role,
-        team_id=user.team_id,
+        namespaces=namespaces,
     )
 
 
 async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
-    team_id_override: UUID | None = None
-    if settings.dev_user_team_id:
-        try:
-            team_id_override = UUID(settings.dev_user_team_id)
-        except ValueError:
-            pass
+    namespaces = _parse_namespaces_header(settings.dev_user_namespaces)
 
     user_data = {
         "id": settings.dev_user_id,
         "username": settings.dev_user_name,
         "email": settings.dev_user_email,
         "role": settings.dev_user_role,
-        "team_id": team_id_override,
     }
     user = await _get_or_create_user(session, user_data)
     user = await _sync_user_fields(session, user, user_data)
-    return _to_current_user(user)
+    return _to_current_user(user, namespaces)
 
 
 async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> CurrentUser:
     """Authenticate requests from spoke proxy via X-Api-Key + X-Forwarded-* headers."""
-    from .group_mapping import resolve_team_and_role
-
     forwarded_user = request.headers.get("X-Forwarded-User", "")
     forwarded_email = request.headers.get("X-Forwarded-Email", "")
     forwarded_groups_raw = request.headers.get("X-Forwarded-Groups", "")
+    forwarded_namespaces_raw = request.headers.get("X-Forwarded-Namespaces", "")
 
     if not forwarded_user:
         raise HTTPException(status_code=401, detail="X-Forwarded-User header fehlt")
 
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
+    namespaces = _parse_namespaces_header(forwarded_namespaces_raw)
 
-    # Resolve team and role from groups
-    team_id, role = await resolve_team_and_role(groups, settings, session)
+    # Determine role from groups
+    role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
 
     # Use spoke:<username> as user ID to avoid collisions across clusters
     user_id = f"spoke:{forwarded_user}"
@@ -121,13 +129,12 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
         "username": forwarded_user,
         "email": forwarded_email or f"{forwarded_user}@spoke.local",
         "role": role.value,
-        "team_id": team_id,
     }
     user = await _get_or_create_user(session, user_data)
     user = await _sync_user_fields(session, user, user_data)
 
-    logger.info("Spoke proxy auth: user=%s, role=%s, team_id=%s", user_id, role.value, team_id)
-    return _to_current_user(user)
+    logger.info("Spoke proxy auth: user=%s, role=%s, namespaces=%d", user_id, role.value, len(namespaces))
+    return _to_current_user(user, namespaces)
 
 
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:
@@ -154,7 +161,11 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         if user is None:
             raise HTTPException(status_code=401, detail="Benutzer nicht gefunden")
 
-        return _to_current_user(user)
+        # Namespaces from JWT claims (if available)
+        ns_claim = payload.get("namespaces", "")
+        namespaces = _parse_namespaces_header(ns_claim) if ns_claim else []
+
+        return _to_current_user(user, namespaces)
     except Exception as e:
         logger.warning("Auth failed: %s", e)
         raise HTTPException(status_code=401, detail="Authentifizierung fehlgeschlagen")

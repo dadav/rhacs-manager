@@ -92,8 +92,6 @@ export interface CveComment {
 export interface RiskAcceptance {
   id: string
   cve_id: string
-  team_id: string
-  team_name: string
   status: RiskStatus
   justification: string
   scope: RiskScope
@@ -153,28 +151,18 @@ export interface AppNotification {
   created_at: string
 }
 
+export interface UserNamespace {
+  namespace: string
+  cluster_name: string
+}
+
 export interface User {
   id: string
   username: string
   email: string
   role: UserRole
-  team_id: string | null
   is_sec_team: boolean
-}
-
-export interface TeamNamespace {
-  id: string
-  team_id: string
-  namespace: string
-  cluster_name: string
-}
-
-export interface Team {
-  id: string
-  name: string
-  email: string
-  created_at: string
-  namespaces: TeamNamespace[]
+  namespaces: UserNamespace[]
 }
 
 export interface EscalationRule {
@@ -198,7 +186,7 @@ export interface GlobalSettings {
 
 export interface BadgeToken {
   id: string
-  team_id: string
+  created_by: string
   namespace: string | null
   cluster_name: string | null
   token: string
@@ -251,23 +239,6 @@ export interface ClusterHeatmapRow {
   total: number
 }
 
-export interface TeamHealthScore {
-  team_id: string
-  team_name: string
-  total_cves: number
-  critical_cves: number
-  avg_epss: number
-  overdue_items: number
-  open_risk_acceptances: number
-  risk_score: number
-}
-
-export interface FixabilityByTeam {
-  team_name: string
-  fixable: number
-  unfixable: number
-}
-
 export interface AgingBucket {
   bucket: string
   count: number
@@ -289,14 +260,11 @@ export interface ThresholdPreview {
 export interface SecDashboardData {
   epss_matrix: EpssMatrixPoint[]
   cluster_heatmap: ClusterHeatmapRow[]
-  team_scoreboard: TeamHealthScore[]
-  fixability_by_team: FixabilityByTeam[]
   aging_distribution: AgingBucket[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
   total_cves: number
   total_critical: number
   avg_epss: number
-  total_teams: number
   cves_last_7_days: number
   threshold_preview: ThresholdPreview
 }
@@ -304,8 +272,8 @@ export interface SecDashboardData {
 export interface Escalation {
   id: string
   cve_id: string
-  team_id: string
-  team_name: string
+  namespace: string
+  cluster_name: string
   level: number
   triggered_at: string
   notified: boolean

@@ -32,7 +32,6 @@ import { RiskAcceptanceDetail } from './pages/RiskAcceptanceDetail'
 import { Priorities } from './pages/Priorities'
 import { Escalations } from './pages/Escalations'
 import { Settings } from './pages/Settings'
-import { TeamAdmin } from './pages/TeamAdmin'
 import { AuditLog } from './pages/AuditLog'
 import { Badges } from './pages/Badges'
 
@@ -53,7 +52,6 @@ const SEC_NAV_ITEMS: NavEntry[] = [
   { to: '/sec-dashboard', label: 'Sicherheits-Dashboard' },
   { to: '/eskalationen', label: 'Eskalationen' },
   { to: '/einstellungen', label: 'Einstellungen' },
-  { to: '/teams', label: 'Teams' },
   { to: '/audit-log', label: 'Audit-Log' },
 ]
 
@@ -183,7 +181,6 @@ export function App() {
         <Route path="/prioritaeten" element={<Priorities />} />
         <Route path="/eskalationen" element={isSecTeam ? <Escalations /> : <Navigate to="/dashboard" replace />} />
         <Route path="/einstellungen" element={isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/teams" element={isSecTeam ? <TeamAdmin /> : <Navigate to="/dashboard" replace />} />
         <Route path="/audit-log" element={isSecTeam ? <AuditLog /> : <Navigate to="/dashboard" replace />} />
         <Route path="/badges" element={<Badges />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

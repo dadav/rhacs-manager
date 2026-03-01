@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
 
@@ -16,8 +16,8 @@ class BadgeToken(Base):
     __tablename__ = "badge_tokens"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    team_id: Mapped[UUID] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
+    created_by: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
     )
     namespace: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cluster_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -26,5 +26,3 @@ class BadgeToken(Base):
     )
     label: Mapped[str] = mapped_column(String(255), nullable=False, default="CVEs")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-
-    team: Mapped["Team"] = relationship("Team")  # type: ignore[name-defined]

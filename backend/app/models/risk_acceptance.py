@@ -22,7 +22,6 @@ class RiskAcceptance(Base):
     __table_args__ = (
         Index(
             "uq_risk_acceptances_active_scope",
-            "team_id",
             "cve_id",
             "scope_key",
             unique=True,
@@ -32,9 +31,6 @@ class RiskAcceptance(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     cve_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    team_id: Mapped[UUID] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True
-    )
     status: Mapped[RiskStatus] = mapped_column(
         SQLEnum(RiskStatus), nullable=False, default=RiskStatus.requested, index=True
     )
@@ -51,7 +47,6 @@ class RiskAcceptance(Base):
     )
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    team: Mapped["Team"] = relationship("Team")  # type: ignore[name-defined]
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # type: ignore[name-defined]
     reviewer: Mapped["User | None"] = relationship("User", foreign_keys=[reviewed_by])  # type: ignore[name-defined]
     comments: Mapped[list["RiskAcceptanceComment"]] = relationship(

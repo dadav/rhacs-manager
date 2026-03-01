@@ -50,7 +50,7 @@ export function Escalations() {
               <thead>
                 <tr style={{ background: '#f0f0f0' }}>
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>CVE</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Team</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Namespace</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>Level</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>Ausgelöst am</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>Benachrichtigt</th>
@@ -64,7 +64,7 @@ export function Escalations() {
                         {e.cve_id}
                       </Link>
                     </td>
-                    <td style={{ padding: '8px 12px' }}>{e.team_name}</td>
+                    <td style={{ padding: '8px 12px' }}>{e.cluster_name}/{e.namespace}</td>
                     <td style={{ padding: '8px 12px' }}>
                       <span style={{
                         display: 'inline-block',

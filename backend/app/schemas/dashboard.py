@@ -47,23 +47,6 @@ class ClusterHeatmapRow(BaseModel):
     total: int
 
 
-class TeamHealthScore(BaseModel):
-    team_id: str
-    team_name: str
-    total_cves: int
-    critical_cves: int
-    avg_epss: float
-    overdue_items: int
-    open_risk_acceptances: int
-    risk_score: float  # 0-100 calculated score
-
-
-class FixabilityByTeam(BaseModel):
-    team_name: str
-    fixable: int
-    unfixable: int
-
-
 class AgingBucket(BaseModel):
     bucket: str  # "0-7 Tage", "8-30 Tage", etc.
     count: int
@@ -85,13 +68,10 @@ class ThresholdPreview(BaseModel):
 class SecDashboardData(BaseModel):
     epss_matrix: list[EpssMatrixPoint]
     cluster_heatmap: list[ClusterHeatmapRow]
-    team_scoreboard: list[TeamHealthScore]
-    fixability_by_team: list[FixabilityByTeam]
     aging_distribution: list[AgingBucket]
     risk_acceptance_pipeline: RiskAcceptancePipeline
     total_cves: int
     total_critical: int
     avg_epss: float
-    total_teams: int
     cves_last_7_days: int
     threshold_preview: ThresholdPreview

@@ -10,6 +10,7 @@ export function useAuth() {
     error,
     isAuthenticated: !!user,
     isSecTeam: user?.role === UserRole.sec_team || user?.is_sec_team === true,
-    teamId: user?.team_id ?? null,
+    namespaces: user?.namespaces ?? [],
+    hasNamespaces: (user?.namespaces?.length ?? 0) > 0,
   }
 }

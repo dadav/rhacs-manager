@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
-from ..models.team import Team, TeamNamespace
 from ..models.user import User
 from ..mail import service as mail_svc
 from ..notifications import service as notif_svc
@@ -30,11 +29,6 @@ from ..stackrox import queries as sx
 router = APIRouter(prefix="/risk-acceptances", tags=["risk-acceptances"])
 
 
-async def _get_team_namespaces(db: AsyncSession, team_id: UUID) -> list[tuple[str, str]]:
-    result = await db.execute(select(TeamNamespace).where(TeamNamespace.team_id == team_id))
-    return [(n.namespace, n.cluster_name) for n in result.scalars().all()]
-
-
 def _normalize_scope(scope: dict) -> RiskScope:
     if isinstance(scope, dict) and "mode" in scope and "targets" in scope:
         return RiskScope.model_validate(scope)
@@ -45,6 +39,28 @@ def _normalize_scope(scope: dict) -> RiskScope:
 def _scope_key(scope: RiskScope) -> str:
     canonical = json.dumps(scope.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
     return hashlib.md5(canonical.encode("utf-8")).hexdigest()
+
+
+def _get_scope_namespaces(scope: dict) -> set[tuple[str, str]]:
+    """Extract (namespace, cluster_name) pairs from a risk acceptance scope."""
+    ns_scope = _normalize_scope(scope)
+    if ns_scope.mode == "all":
+        return set()
+    return {(t.namespace, t.cluster_name) for t in ns_scope.targets}
+
+
+def _user_can_access_ra(user: CurrentUser, ra: RiskAcceptance) -> bool:
+    """Check if user can access a risk acceptance based on namespace overlap."""
+    if user.is_sec_team:
+        return True
+    if ra.created_by == user.id:
+        return True
+    scope_ns = _get_scope_namespaces(ra.scope)
+    if not scope_ns:
+        # 'all' scope — accessible to anyone with any namespace
+        return user.has_namespaces
+    user_ns = set(user.namespaces)
+    return bool(scope_ns & user_ns)
 
 
 def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -> RiskScope:
@@ -60,7 +76,7 @@ def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) 
         for target in body_scope.targets:
             key = (target.cluster_name, target.namespace)
             if key not in available_namespaces:
-                raise HTTPException(400, "Scope enthält Namespaces ohne diese CVE im Team-Kontext")
+                raise HTTPException(400, "Scope enthält Namespaces ohne diese CVE")
             normalized.add(key)
         targets = [
             RiskScopeTarget(cluster_name=cluster, namespace=namespace)
@@ -69,17 +85,17 @@ def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) 
         return RiskScope(mode="namespace", targets=targets)
 
     if body_scope.mode == "image":
-        normalized: set[tuple[str, str, str]] = set()
+        normalized_img: set[tuple[str, str, str]] = set()
         for target in body_scope.targets:
             if not target.image_name:
                 raise HTTPException(400, "Image-Scope erfordert image_name für jedes Target")
             key = (target.cluster_name, target.namespace, target.image_name)
             if key not in available_images:
-                raise HTTPException(400, "Scope enthält Images ohne diese CVE im Team-Kontext")
-            normalized.add(key)
+                raise HTTPException(400, "Scope enthält Images ohne diese CVE")
+            normalized_img.add(key)
         targets = [
             RiskScopeTarget(cluster_name=cluster, namespace=namespace, image_name=image_name)
-            for cluster, namespace, image_name in sorted(normalized)
+            for cluster, namespace, image_name in sorted(normalized_img)
         ]
         return RiskScope(mode="image", targets=targets)
 
@@ -93,7 +109,7 @@ def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) 
             continue
         deployment = by_deployment.get(target.deployment_id)
         if not deployment:
-            raise HTTPException(400, "Scope enthält Deployments ohne diese CVE im Team-Kontext")
+            raise HTTPException(400, "Scope enthält Deployments ohne diese CVE")
         seen_ids.add(target.deployment_id)
         normalized_targets.append(
             RiskScopeTarget(
@@ -112,9 +128,6 @@ def _validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) 
 
 
 async def _build_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanceResponse:
-    team_result = await db.execute(select(Team).where(Team.id == ra.team_id))
-    team = team_result.scalar_one_or_none()
-
     creator_result = await db.execute(select(User).where(User.id == ra.created_by))
     creator = creator_result.scalar_one_or_none()
 
@@ -133,8 +146,6 @@ async def _build_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanc
     return RiskAcceptanceResponse(
         id=ra.id,
         cve_id=ra.cve_id,
-        team_id=ra.team_id,
-        team_name=team.name if team else "",
         status=ra.status.value,
         justification=ra.justification,
         scope=_normalize_scope(ra.scope),
@@ -156,22 +167,14 @@ async def create_risk_acceptance(
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RiskAcceptanceResponse:
-    if not current_user.team_id and not current_user.is_sec_team:
-        raise HTTPException(400, "Kein Team zugeordnet")
-
-    team_id = current_user.team_id
     if current_user.is_sec_team:
         raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen beantragen")
-    if team_id is None:
-        raise HTTPException(400, "Kein Team zugeordnet")
+    if not current_user.has_namespaces:
+        raise HTTPException(400, "Keine Namespaces zugeordnet")
 
-    team_namespaces = await _get_team_namespaces(db, team_id)
-    if not team_namespaces:
-        raise HTTPException(400, "Team hat keine konfigurierten Namespaces")
-
-    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, team_namespaces)
+    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, current_user.namespaces)
     if not deployments:
-        raise HTTPException(404, "CVE im Team-Kontext nicht gefunden")
+        raise HTTPException(404, "CVE in Ihren Namespaces nicht gefunden")
 
     normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
     scope_key = _scope_key(normalized_scope)
@@ -180,7 +183,6 @@ async def create_risk_acceptance(
     existing = await db.execute(
         select(RiskAcceptance).where(
             RiskAcceptance.cve_id == body.cve_id,
-            RiskAcceptance.team_id == team_id,
             RiskAcceptance.scope_key == scope_key,
             RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
         )
@@ -190,7 +192,6 @@ async def create_risk_acceptance(
 
     ra = RiskAcceptance(
         cve_id=body.cve_id,
-        team_id=team_id,
         status=RiskStatus.requested,
         justification=body.justification,
         scope=normalized_scope.model_dump(mode="json"),
@@ -215,11 +216,6 @@ async def list_risk_acceptances(
 ) -> list[RiskAcceptanceResponse]:
     query = select(RiskAcceptance).order_by(RiskAcceptance.created_at.desc())
 
-    if not current_user.is_sec_team:
-        if not current_user.team_id:
-            return []
-        query = query.where(RiskAcceptance.team_id == current_user.team_id)
-
     if status:
         try:
             query = query.where(RiskAcceptance.status == RiskStatus[status])
@@ -227,7 +223,12 @@ async def list_risk_acceptances(
             raise HTTPException(400, f"Ungültiger Status: {status}")
 
     result = await db.execute(query)
-    return [await _build_response(ra, db) for ra in result.scalars().all()]
+    all_ras = result.scalars().all()
+
+    # Filter by namespace access for non-sec users
+    accessible = [ra for ra in all_ras if _user_can_access_ra(current_user, ra)]
+
+    return [await _build_response(ra, db) for ra in accessible]
 
 
 @router.get("/{ra_id}", response_model=RiskAcceptanceResponse)
@@ -240,7 +241,7 @@ async def get_risk_acceptance(
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
-    if not current_user.is_sec_team and ra.team_id != current_user.team_id:
+    if not _user_can_access_ra(current_user, ra):
         raise HTTPException(403, "Kein Zugriff")
     return await _build_response(ra, db)
 
@@ -261,15 +262,17 @@ async def update_risk_acceptance(
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
-    if ra.team_id != current_user.team_id:
-        raise HTTPException(403, "Kein Zugriff")
+    if ra.created_by != current_user.id:
+        raise HTTPException(403, "Nur der Ersteller kann die Risikoakzeptanz ändern")
     if ra.status not in (RiskStatus.approved, RiskStatus.rejected):
         raise HTTPException(400, "Nur genehmigte oder abgelehnte Risikoakzeptanzen können geändert werden")
 
-    team_namespaces = await _get_team_namespaces(db, ra.team_id)
-    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, team_namespaces)
+    if not current_user.has_namespaces:
+        raise HTTPException(400, "Keine Namespaces zugeordnet")
+
+    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, current_user.namespaces)
     if not deployments:
-        raise HTTPException(404, "CVE im Team-Kontext nicht mehr gefunden")
+        raise HTTPException(404, "CVE in Ihren Namespaces nicht mehr gefunden")
 
     normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
     new_scope_key = _scope_key(normalized_scope)
@@ -278,7 +281,6 @@ async def update_risk_acceptance(
         existing = await db.execute(
             select(RiskAcceptance).where(
                 RiskAcceptance.cve_id == ra.cve_id,
-                RiskAcceptance.team_id == ra.team_id,
                 RiskAcceptance.scope_key == new_scope_key,
                 RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
                 RiskAcceptance.id != ra.id,
@@ -338,14 +340,14 @@ async def review_risk_acceptance(
 
     await notif_svc.notify_risk_status_change(db, ra, current_user)
 
-    # Email to team
-    team_result = await db.execute(select(Team).where(Team.id == ra.team_id))
-    team = team_result.scalar_one_or_none()
-    if team and team.email:
+    # Email to RA creator
+    creator_result = await db.execute(select(User).where(User.id == ra.created_by))
+    creator = creator_result.scalar_one_or_none()
+    if creator and creator.email:
         reviewer_result = await db.execute(select(User).where(User.id == current_user.id))
         reviewer = reviewer_result.scalar_one_or_none()
         await mail_svc.send_risk_status_email(
-            team.email, ra.cve_id, str(ra.id), ra.status.value,
+            creator.email, ra.cve_id, str(ra.id), ra.status.value,
             reviewer.username if reviewer else current_user.id, body.comment,
         )
 
@@ -365,7 +367,7 @@ async def add_comment(
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
-    if not current_user.is_sec_team and ra.team_id != current_user.team_id:
+    if not _user_can_access_ra(current_user, ra):
         raise HTTPException(403, "Kein Zugriff")
 
     comment = RiskAcceptanceComment(
@@ -378,13 +380,13 @@ async def add_comment(
 
     await notif_svc.notify_risk_comment(db, ra, comment, current_user)
 
-    # Email
+    # Email to RA creator if sec team comments
     if current_user.is_sec_team:
-        team_result = await db.execute(select(Team).where(Team.id == ra.team_id))
-        team = team_result.scalar_one_or_none()
-        if team and team.email:
+        creator_result = await db.execute(select(User).where(User.id == ra.created_by))
+        creator = creator_result.scalar_one_or_none()
+        if creator and creator.email:
             await mail_svc.send_risk_comment_email(
-                team.email, ra.cve_id, str(ra.id), current_user.username, body.message
+                creator.email, ra.cve_id, str(ra.id), current_user.username, body.message
             )
 
     await db.commit()
@@ -411,7 +413,7 @@ async def list_comments(
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
-    if not current_user.is_sec_team and ra.team_id != current_user.team_id:
+    if not _user_can_access_ra(current_user, ra):
         raise HTTPException(403, "Kein Zugriff")
 
     comments_result = await db.execute(

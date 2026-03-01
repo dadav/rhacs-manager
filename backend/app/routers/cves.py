@@ -8,7 +8,6 @@ from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
-from ..models.team import TeamNamespace
 from ..models.user import User
 from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, SeverityLevel
 from ..schemas.common import PaginatedResponse
@@ -20,11 +19,6 @@ router = APIRouter(prefix="/cves", tags=["cves"])
 async def _get_settings(db: AsyncSession) -> GlobalSettings | None:
     r = await db.execute(select(GlobalSettings).limit(1))
     return r.scalar_one_or_none()
-
-
-async def _get_team_namespaces(db: AsyncSession, team_id) -> list[tuple[str, str]]:
-    r = await db.execute(select(TeamNamespace).where(TeamNamespace.team_id == team_id))
-    return [(n.namespace, n.cluster_name) for n in r.scalars().all()]
 
 
 def _build_cve_item(
@@ -85,8 +79,6 @@ async def list_cves(
     ra_query = select(RiskAcceptance).where(
         RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved])
     )
-    if not current_user.is_sec_team and current_user.team_id:
-        ra_query = ra_query.where(RiskAcceptance.team_id == current_user.team_id)
     ra_result = await app_db.execute(ra_query)
     acceptances = {ra.cve_id: ra for ra in ra_result.scalars().all()}
 
@@ -95,10 +87,9 @@ async def list_cves(
     if current_user.is_sec_team:
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
     else:
-        if not current_user.team_id:
+        if not current_user.has_namespaces:
             return PaginatedResponse(items=[], total=0, page=page, page_size=page_size)
-        ns = await _get_team_namespaces(app_db, current_user.team_id)
-        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show)
+        cves = await sx.get_cves_for_namespaces(sx_db, current_user.namespaces, min_cvss, min_epss, always_show)
 
     # Build items
     items = [_build_cve_item(c, priorities, acceptances) for c in cves]
@@ -129,7 +120,7 @@ async def list_cves(
             all_ns = await sx.list_namespaces(sx_db)
             ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
-            ns_list = await _get_team_namespaces(app_db, current_user.team_id)
+            ns_list = current_user.namespaces
 
         if namespaces:
             ns_cve_map = await sx.get_cve_namespace_map(sx_db, cve_ids, ns_list)
@@ -182,24 +173,18 @@ async def get_cve(
         RiskAcceptance.cve_id == cve_id,
         RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
     )
-    if not current_user.is_sec_team and current_user.team_id:
-        ra_query = ra_query.where(RiskAcceptance.team_id == current_user.team_id)
     ra_result = await app_db.execute(ra_query)
     acceptance = ra_result.scalar_one_or_none()
 
     if current_user.is_sec_team:
-        ns: list[tuple[str, str]] = []
+        all_ns = await sx.list_namespaces(sx_db)
+        ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         cve_data = await sx.get_all_cves(sx_db)
         cve_data = next((c for c in cve_data if c["cve_id"] == cve_id), None)
-        # get_cve_detail needs namespace list; for sec team we use empty = all
-        from ..stackrox.queries import get_affected_deployments, get_affected_components
-        # Use a simpler approach: get all namespaces
-        all_ns = await sx.list_namespaces(sx_db)
-        ns = [(r["namespace"], r["cluster_name"]) for r in all_ns]
     else:
-        if not current_user.team_id:
+        if not current_user.has_namespaces:
             raise HTTPException(404, "CVE nicht gefunden")
-        ns = await _get_team_namespaces(app_db, current_user.team_id)
+        ns = current_user.namespaces
         cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
 
     if not cve_data:
@@ -321,9 +306,9 @@ async def get_cve_deployments(
         all_ns = await sx.list_namespaces(sx_db)
         ns = [(r["namespace"], r["cluster_name"]) for r in all_ns]
     else:
-        if not current_user.team_id:
+        if not current_user.has_namespaces:
             return []
-        ns = await _get_team_namespaces(app_db, current_user.team_id)
+        ns = current_user.namespaces
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     return [
