@@ -46,23 +46,21 @@ backend/app/
   deps.py              # FastAPI dependency injection (DB sessions)
   auth/
     middleware.py       # Auth: dev mode -> spoke proxy -> OIDC JWT
-    group_mapping.py    # Spoke: Keycloak groups -> team + role
+    group_mapping.py    # Spoke: Keycloak groups -> role (sec_team check)
   routers/             # One module per API domain
     auth.py            # GET /api/auth/me
     cves.py            # CVE listing, detail, comments, deployments
-    dashboard.py       # Team + sec dashboards
+    dashboard.py       # Dashboard + sec dashboard
     risk_acceptances.py # Risk acceptance CRUD + review workflow
     priorities.py      # CVE prioritization (sec team)
     escalations.py     # Escalation listing
     notifications.py   # In-app notifications
     badges.py          # SVG badge management
     settings.py        # Global settings (thresholds, escalation rules)
-    teams.py           # Team CRUD (sec team)
     audit.py           # Audit log listing
     namespaces.py      # Namespace listing
   models/              # SQLAlchemy ORM models
     user.py            # User, UserRole enum
-    team.py            # Team, TeamNamespace
     risk_acceptance.py # RiskAcceptance, RiskAcceptanceComment, RiskStatus enum
     cve_priority.py    # CvePriority, PriorityLevel enum
     cve_comment.py     # CveComment

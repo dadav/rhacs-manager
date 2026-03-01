@@ -80,31 +80,12 @@ async def send_risk_status_email(
     )
 
 
-async def send_escalation_email(
-    to_email: str,
-    cve_id: str,
-    team_name: str,
-    level: int,
-    base_url: str | None = None,
-) -> None:
-    base_url = base_url or settings.app_base_url
-    tmpl = _jinja_env.get_template("escalation.html")
-    html = tmpl.render(
-        cve_id=cve_id,
-        team_name=team_name,
-        level=level,
-        link=f"{base_url}/eskalationen",
-    )
-    await send_email(to_email, f"Eskalation Stufe {level}: {cve_id}", html)
-
-
 async def send_weekly_digest(
     to_email: str,
-    team_name: str,
     stats: dict,
     base_url: str | None = None,
 ) -> None:
     base_url = base_url or settings.app_base_url
     tmpl = _jinja_env.get_template("weekly_digest.html")
-    html = tmpl.render(team_name=team_name, stats=stats, link=base_url)
-    await send_email(to_email, f"Wöchentlicher CVE-Bericht: {team_name}", html)
+    html = tmpl.render(stats=stats, link=base_url)
+    await send_email(to_email, "Wöchentlicher CVE-Bericht", html)

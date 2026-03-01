@@ -49,8 +49,8 @@ Edit `deploy/base/secret.yaml` before deploying. Required values:
 
 ```yaml
 stringData:
-  APP_DATABASE_URL: "postgresql+asyncpg://user:password@postgres:5432/rhacs_manager"
-  STACKROX_DATABASE_URL: "postgresql+asyncpg://postgres:password@central-db.stackrox.svc:5432/central_active"
+  APP_DB_URL: "postgresql+asyncpg://user:password@postgres:5432/rhacs_manager"
+  STACKROX_DB_URL: "postgresql+asyncpg://postgres:password@central-db.stackrox.svc:5432/central_active"
   SECRET_KEY: "your-random-secret-key"
   DEV_MODE: "false"
   SMTP_HOST: "smtp.example.com"
@@ -60,8 +60,8 @@ stringData:
   SMTP_FROM: "rhacs-manager@example.com"
   APP_BASE_URL: "https://rhacs-manager.apps.hub.example.com"
   SPOKE_API_KEYS: '["generated-spoke-key-1","generated-spoke-key-2"]'
-  GROUP_TEAM_MAPPING: '{"dev-group":"Development","ops-group":"Operations"}'
   SEC_TEAM_GROUP: "rhacs-sec-team"
+  MANAGEMENT_EMAIL: "security-team@example.com"
 ```
 
 !!! tip "Generating API keys"

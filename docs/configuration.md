@@ -22,7 +22,7 @@ Both databases use `asyncpg` with connection pool pre-ping enabled.
 | `DEV_USER_NAME` | `Dev User` | Dev user display name |
 | `DEV_USER_EMAIL` | `dev@example.com` | Dev user email |
 | `DEV_USER_ROLE` | `sec_team` | Dev user role: `sec_team` or `team_member` |
-| `DEV_USER_TEAM_ID` | _(none)_ | Optional UUID to assign the dev user to a specific team |
+| `DEV_USER_NAMESPACES` | `""` | Namespace access in dev mode (format: `ns1:cluster1,ns2:cluster2`) |
 
 !!! warning
     Set `DEV_MODE=false` in production. Dev mode bypasses all authentication and creates a synthetic user on every request.
@@ -39,11 +39,10 @@ Both databases use `asyncpg` with connection pool pre-ping enabled.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SPOKE_API_KEYS` | `[]` | JSON list of allowed API keys from spoke proxies. Example: `'["key1","key2"]'` |
-| `GROUP_TEAM_MAPPING` | `{}` | JSON dict mapping Keycloak group names to team names. Example: `'{"dev-group":"Dev Team"}'` |
 | `SEC_TEAM_GROUP` | `rhacs-sec-team` | Keycloak group name that grants the `sec_team` role |
 
-!!! tip "Group mapping example"
-    If a user belongs to Keycloak group `platform-team` and `GROUP_TEAM_MAPPING` contains `{"platform-team": "Platform"}`, the user is assigned to the team named "Platform" in the database. The team must already exist.
+!!! note "Namespace access"
+    Namespace access for spoke users is determined by the namespace-resolver sidecar, which reads K8s namespace annotations (`rhacs-manager.io/users`) and sets the `X-Forwarded-Namespaces` header. There is no group-to-team mapping -- groups only determine the user's role.
 
 ## SMTP (Email)
 
@@ -62,6 +61,7 @@ Both databases use `asyncpg` with connection pool pre-ping enabled.
 |----------|---------|-------------|
 | `APP_BASE_URL` | `http://localhost:5173` | Base URL for links in emails and badge URLs |
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | JWT signing key |
+| `MANAGEMENT_EMAIL` | `""` | Email address for org-wide weekly digest reports |
 
 !!! danger
     Change `SECRET_KEY` to a strong random value in production. The default is insecure.
@@ -116,5 +116,6 @@ These variables are used by the spoke nginx container (set via `rhacs-manager-sp
 |----------|-------------|
 | `HUB_API_URL` | Full URL of the hub backend API route (e.g. `https://rhacs-manager-api.hub.example.com`) |
 | `SPOKE_API_KEY` | API key matching one of the hub's `SPOKE_API_KEYS` entries |
+| `CLUSTER_NAME` | Name of the spoke cluster (used by namespace-resolver for namespace:cluster pairs) |
 
 These are substituted into the nginx config at container startup via `envsubst`.

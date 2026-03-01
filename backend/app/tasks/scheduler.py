@@ -188,7 +188,7 @@ async def run_weekly_digest() -> None:
                 ),
             }
             await mail_svc.send_weekly_digest(
-                app_settings.management_email, "Organisation", stats
+                app_settings.management_email, stats
             )
 
 

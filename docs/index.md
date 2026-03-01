@@ -1,14 +1,14 @@
 # RHACS CVE Manager
 
-Self-service CVE management application for OpenShift RHACS (Red Hat Advanced Cluster Security). Teams manage their own CVEs with EPSS-driven prioritization; the security team has organization-wide visibility and a monitoring dashboard.
+Self-service CVE management application for OpenShift RHACS (Red Hat Advanced Cluster Security). Users manage CVEs scoped to their K8s RBAC-accessible namespaces with EPSS-driven prioritization; the security team has organization-wide visibility and a monitoring dashboard.
 
 ## Key Features
 
 - **CVE listing** with EPSS-driven prioritization and CVSS/EPSS threshold filtering
-- **Team-scoped namespaces** -- each team sees only CVEs affecting their deployments
+- **Namespace-scoped access** -- users see only CVEs in namespaces derived from K8s RBAC annotations
 - **Risk acceptance workflow** -- teams request risk acceptances, sec team reviews (requested, approved, rejected, expired)
-- **Security team dashboard** -- org-wide metrics: EPSS risk matrix, cluster heatmap, team health scores, aging distribution
-- **Team dashboard** -- severity distribution, CVEs per namespace, priority CVEs, high-EPSS CVEs, trend charts
+- **Security team dashboard** -- org-wide metrics: EPSS risk matrix, cluster heatmap, aging distribution
+- **User dashboard** -- severity distribution, CVEs per namespace, priority CVEs, high-EPSS CVEs, trend charts
 - **Manual CVE prioritization** -- sec team marks CVEs as critical/high/medium/low with deadlines
 - **Escalation system** -- configurable rules trigger escalations based on severity, EPSS, and age
 - **Notification system** -- in-app notifications for priority changes, risk acceptance status updates, comments
@@ -31,6 +31,7 @@ graph TB
 
     subgraph "Spoke Cluster"
         OAUTH["oauth-proxy<br/>(OpenShift OAuth)"]
+        NR["namespace-resolver"]
         FE_SPOKE["Spoke Frontend<br/>(nginx + SPA)"]
     end
 
@@ -39,7 +40,8 @@ graph TB
     BE -->|read-only| SX_DB
     BE -->|email| SMTP
 
-    OAUTH -->|auth| FE_SPOKE
+    OAUTH -->|auth| NR
+    NR -->|"X-Forwarded-Namespaces"| FE_SPOKE
     FE_SPOKE -->|"/api/* proxy<br/>X-Api-Key + X-Forwarded-*"| BE
 ```
 
@@ -55,12 +57,12 @@ The application connects to two PostgreSQL databases:
 
 | Database | Access | Purpose |
 |----------|--------|---------|
-| **App DB** | Read-write | Teams, users, risk acceptances, priorities, escalations, settings, audit logs |
+| **App DB** | Read-write | Users, risk acceptances, priorities, escalations, settings, audit logs |
 | **StackRox Central DB** | Read-only | CVE data, deployments, images, components (managed by RHACS) |
 
-### Team Scoping
+### Namespace-Based Access
 
-Teams own namespaces (namespace + cluster pairs). All CVE visibility is scoped to a team's namespaces. The security team (`sec_team` role) sees all CVEs across all namespaces.
+Namespace access is derived from Kubernetes RBAC via namespace annotations (`rhacs-manager.io/users`). Each user sees only CVEs in their accessible namespaces, delivered via the `X-Forwarded-Namespaces` header. The security team (`sec_team` role) sees all CVEs across all namespaces.
 
 ### Risk Acceptance Workflow
 

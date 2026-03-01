@@ -65,7 +65,7 @@ The `just dev` command starts both backend (port 8000) and frontend (port 5173) 
     just dev user
     ```
 
-    Runs as `DEV_USER_ROLE=team_member` with team-scoped access.
+    Runs as `DEV_USER_ROLE=team_member` with namespace-scoped access.
 
 The frontend dev server proxies `/api` requests to the backend at `http://localhost:8000`.
 
@@ -98,7 +98,7 @@ rhacs-manager/
       database.py           # Dual SQLAlchemy engine setup
       auth/
         middleware.py        # Three-mode auth (dev/spoke-proxy/OIDC)
-        group_mapping.py     # Spoke proxy group-to-team mapping
+        group_mapping.py     # Spoke proxy: groups -> role (sec_team check)
       routers/               # API route modules
       models/                # SQLAlchemy ORM models
       stackrox/queries.py    # Read-only StackRox SQL queries

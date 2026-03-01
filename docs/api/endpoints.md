@@ -16,8 +16,11 @@ All endpoints are prefixed with `/api`. Authentication is required unless noted 
     "username": "Dev Security User",
     "email": "dev-sec@example.com",
     "role": "sec_team",
-    "team_id": "550e8400-e29b-41d4-a716-446655440000",
-    "is_sec_team": true
+    "is_sec_team": true,
+    "namespaces": [
+        {"namespace": "production", "cluster_name": "cluster-1"},
+        {"namespace": "staging", "cluster_name": "cluster-1"}
+    ]
 }
 ```
 
@@ -55,7 +58,7 @@ All endpoints are prefixed with `/api`. Authentication is required unless noted 
     Regardless of the selected sort column/direction, CVEs with a manual priority are always shown at the top of the list.
 
 !!! note "Visibility rules"
-    Team members only see CVEs in their assigned namespaces. CVEs must meet both CVSS and EPSS thresholds unless they have a manual priority or active risk acceptance.
+    Non-sec users only see CVEs in their namespaces (from `X-Forwarded-Namespaces`). CVEs must meet both CVSS and EPSS thresholds unless they have a manual priority or active risk acceptance.
 
 ---
 
@@ -63,10 +66,10 @@ All endpoints are prefixed with `/api`. Authentication is required unless noted 
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/dashboard` | Any | Team dashboard data |
+| GET | `/api/dashboard` | Any | Dashboard data (namespace-scoped for non-sec users) |
 | GET | `/api/dashboard/sec` | sec_team | Security team dashboard data |
 
-### Team Dashboard Response
+### Dashboard Response
 
 ```json
 {
@@ -93,7 +96,7 @@ All endpoints are prefixed with `/api`. Authentication is required unless noted 
 
 ### Sec Dashboard Response
 
-Includes org-wide metrics: `epss_matrix`, `cluster_heatmap`, `team_scoreboard`, `fixability_by_team`, `aging_distribution`, `risk_acceptance_pipeline`, plus aggregate stats (`total_cves`, `total_critical`, `avg_epss`, `total_teams`, `cves_last_7_days`, `threshold_preview`).
+Includes org-wide metrics: `epss_matrix`, `cluster_heatmap`, `aging_distribution`, `risk_acceptance_pipeline`, plus aggregate stats (`total_cves`, `total_critical`, `avg_epss`, `cves_last_7_days`, `threshold_preview`).
 
 ---
 
@@ -131,7 +134,7 @@ Includes org-wide metrics: `epss_matrix`, `cluster_heatmap`, `team_scoreboard`, 
 }
 ```
 
-Scope modes: `all`, `namespace`, `image`, `deployment`. Targets are validated against the actual affected deployments for the CVE in the requesting team's namespaces.
+Scope modes: `all`, `namespace`, `image`, `deployment`. Targets are validated against the actual affected deployments for the CVE in the user's accessible namespaces.
 
 ### Review Request Body
 
@@ -143,7 +146,7 @@ Scope modes: `all`, `namespace`, `image`, `deployment`. Targets are validated ag
 ```
 
 !!! note "Uniqueness constraint"
-    Active acceptances (status `requested` or `approved`) are unique by `(team_id, cve_id, scope_key)`. Creating a duplicate returns HTTP 409.
+    Active acceptances (status `requested` or `approved`) are unique by `(cve_id, scope_key)`. Creating a duplicate returns HTTP 409.
 
 ---
 
@@ -175,9 +178,9 @@ Priority levels: `critical`, `high`, `medium`, `low`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/escalations` | Any | List escalations (team-scoped for team_member) |
+| GET | `/api/escalations` | Any | List escalations (namespace-scoped for non-sec users) |
 
-Escalation records are created by the background scheduler, not via API.
+Escalation records are created by the background scheduler, not via API. Each record is scoped by `(cve_id, namespace, cluster_name, level)`.
 
 ---
 
@@ -232,38 +235,13 @@ The badge SVG endpoint is public and returns an SVG image showing CVE severity c
 
 ---
 
-## Teams
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/api/teams` | sec_team | List all teams |
-| POST | `/api/teams` | sec_team | Create a team |
-| GET | `/api/teams/{id}` | sec_team | Get a team |
-| PATCH | `/api/teams/{id}` | sec_team | Update a team (name, email, namespaces) |
-| DELETE | `/api/teams/{id}` | sec_team | Delete a team |
-
-### Create/Update Request Body
-
-```json
-{
-    "name": "Platform Team",
-    "email": "platform@example.com",
-    "namespaces": [
-        {"namespace": "platform-prod", "cluster_name": "production"},
-        {"namespace": "platform-staging", "cluster_name": "staging"}
-    ]
-}
-```
-
----
-
 ## Namespaces
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/namespaces` | Any | List namespaces (all for sec_team, team-scoped otherwise) |
+| GET | `/api/namespaces` | Any | List namespaces accessible to the current user |
 
-Returns `[{"namespace": "...", "cluster_name": "..."}]`. Sec team gets all namespaces from StackRox; team members get their assigned namespaces.
+Returns `[{"namespace": "...", "cluster_name": "..."}]`. Sec team gets all namespaces from StackRox; non-sec users get namespaces from their `X-Forwarded-Namespaces` header.
 
 ---
 
@@ -295,4 +273,4 @@ Returns `[{"namespace": "...", "cluster_name": "..."}]`. Sec team gets all names
 }
 ```
 
-Tracked actions: `team_created`, `team_updated`, `team_deleted`, `priority_created`, `priority_updated`, `priority_deleted`, `risk_acceptance_created`, `risk_acceptance_updated`, `risk_acceptance_reviewed`, `settings_updated`.
+Tracked actions: `priority_created`, `priority_updated`, `priority_deleted`, `risk_acceptance_created`, `risk_acceptance_updated`, `risk_acceptance_reviewed`, `settings_updated`.
