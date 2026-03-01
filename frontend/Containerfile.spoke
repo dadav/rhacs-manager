@@ -1,0 +1,34 @@
+# Build stage
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Serve stage — spoke variant with API proxying to hub
+FROM nginxinc/nginx-unprivileged:alpine
+
+# Install envsubst (gettext package)
+USER root
+RUN apk add --no-cache gettext
+USER 101
+
+# Copy built SPA
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx template (envsubst will process it at startup)
+COPY nginx.conf.spoke /etc/nginx/templates/default.conf.template
+
+# Copy entrypoint script
+COPY docker-entrypoint-spoke.sh /docker-entrypoint.sh
+USER root
+RUN chmod +x /docker-entrypoint.sh
+USER 101
+
+EXPOSE 8080
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

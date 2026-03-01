@@ -24,7 +24,8 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `backend/app/main.py`             | FastAPI app + lifespan                                                                                                                   |
 | `backend/app/config.py`           | Pydantic Settings (env-driven)                                                                                                           |
 | `backend/app/database.py`         | Dual SQLAlchemy engine setup                                                                                                             |
-| `backend/app/auth/middleware.py`  | OIDC + dev-mode auth; returns `CurrentUser`                                                                                              |
+| `backend/app/auth/middleware.py`  | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser`                                                                    |
+| `backend/app/auth/group_mapping.py` | Spoke proxy: maps Keycloak groups → teams + roles                                                                                     |
 | `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries                                                                                                       |
 | `backend/app/routers/`            | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, teams, audit, escalations, namespaces |
 | `backend/app/models/`             | SQLAlchemy ORM models (app DB)                                                                                                           |
@@ -36,7 +37,11 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `frontend/src/pages/`             | One file per page/route                                                                                                                  |
 | `frontend/src/components/`        | Reusable UI components                                                                                                                   |
 | `frontend/src/i18n/`              | German translations                                                                                                                      |
-| `deploy/base/`                    | Kustomize manifests (namespace, secret, deployments, routes)                                                                             |
+| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes)                                                                        |
+| `deploy/hub/`                     | Hub overlay (= base, with backend + DBs)                                                                                                 |
+| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy sidecar, no backend)                                                                               |
+| `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                                       |
+| `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                          |
 | `justfile`                        | Dev workflow commands                                                                                                                    |
 
 ## StackRox DB Query Pattern
@@ -109,6 +114,34 @@ Dev environment uses local Postgres. Set `APP_DB_URL` and `STACKROX_DB_URL` or r
 
 In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_*` env vars into the DB on each request. `DEV_USER_ID` is ignored — the DB-assigned UUID is used. Team assignment comes from the DB unless `DEV_USER_TEAM_ID` is explicitly set.
 
+## Hub-Spoke Architecture
+
+RHACS runs on a hub cluster (admin-only) with spoke clusters per team. Spoke users authenticate via OpenShift OAuth (Keycloak-backed) and never need hub access.
+
+```
+SPOKE CLUSTER                         HUB CLUSTER
+Route → oauth-proxy → nginx SPA  →→  Route → FastAPI backend
+       (OpenShift OAuth)   /api/*     (X-Api-Key + X-Forwarded-*)
+                           proxy
+```
+
+**Auth flow (spoke proxy mode):**
+1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups` headers
+2. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
+3. Hub backend validates API key (`settings.spoke_api_keys`), reads identity from headers
+4. Groups mapped to teams via `settings.group_team_mapping`; `settings.sec_team_group` grants sec_team role
+5. Users auto-provisioned with ID `spoke:<username>`
+
+**Config (hub backend env vars):**
+- `SPOKE_API_KEYS`: JSON list of allowed API keys, e.g. `'["key1","key2"]'`
+- `GROUP_TEAM_MAPPING`: JSON dict of group→team, e.g. `'{"dev-group":"Dev Team"}'`
+- `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
+
+**Deploy:**
+- Hub: `kubectl kustomize deploy/hub/` (= base, backend + frontend + DBs)
+- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy only)
+- Spoke secret: `deploy/spoke/spoke-secret.yaml` (HUB_API_URL, SPOKE_API_KEY)
+
 ## Data Model Highlights
 
 - Teams own namespaces (`team_namespaces`). CVE visibility is scoped to team namespaces.
@@ -135,9 +168,12 @@ In dev mode (`DEV_MODE=true`), the middleware syncs the dev user from `DEV_USER_
 
 ## Containers & Deploy
 
-- Backend: `backend/Containerfile` (multi-stage, `uv sync --frozen`)
-- Frontend: `frontend/Containerfile` (multi-stage, `npm run build`)
-- Kustomize: `deploy/base/` — edit `deploy/base/secret.yaml` template before deploying
+- Backend: `backend/Containerfile` (multi-stage, `uv sync --frozen`) — hub only
+- Frontend: `frontend/Containerfile` (multi-stage, `npm run build`) — hub deployment
+- Frontend spoke: `frontend/Containerfile.spoke` (adds envsubst + API proxy nginx) — spoke deployment
+- Kustomize base: `deploy/base/` — edit `deploy/base/secret.yaml` template before deploying
+- Kustomize hub: `deploy/hub/` — references base (identical to base)
+- Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
 - All dependencies bundled at build time; no internet access at runtime
 
 ## Tests

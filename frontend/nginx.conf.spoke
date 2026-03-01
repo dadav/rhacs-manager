@@ -1,0 +1,42 @@
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to hub backend
+    # HUB_API_URL and SPOKE_API_KEY are substituted at container startup via envsubst
+    location /api/ {
+        proxy_pass ${HUB_API_URL};
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Forward oauth-proxy identity headers to hub
+        proxy_set_header X-Forwarded-User $http_x_forwarded_user;
+        proxy_set_header X-Forwarded-Email $http_x_forwarded_email;
+        proxy_set_header X-Forwarded-Groups $http_x_forwarded_groups;
+
+        # Authenticate to hub with spoke API key
+        proxy_set_header X-Api-Key ${SPOKE_API_KEY};
+
+        proxy_ssl_verify off;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 10s;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+}

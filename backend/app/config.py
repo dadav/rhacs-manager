@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     smtp_password: str = Field(default="")
     smtp_tls: bool = Field(default=False)
 
+    # Spoke proxy auth (hub-spoke architecture)
+    spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies
+    group_team_mapping: dict[str, str] = Field(default_factory=dict)  # keycloak group → team name
+    sec_team_group: str = Field(default="rhacs-sec-team")  # group granting sec_team role
+
     # App
     app_base_url: str = Field(default="http://localhost:5173")
     secret_key: str = Field(default="dev-secret-key-change-in-production")

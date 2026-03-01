@@ -3,12 +3,58 @@ set shell := ["bash", "-euxo", "pipefail", "-c"]
 app_db_url := "postgresql+asyncpg://postgres@localhost/rhacs_manager"
 stackrox_db_url := "postgresql+asyncpg://postgres@localhost/central_active"
 
+# List available recipes
+default:
+  @just --list
+
+# Run backend tests
 test:
   uv --directory backend run pytest
 
+# Run frontend linter
 lint:
   npm --prefix frontend run lint
 
+# Type-check and build frontend
+build-frontend:
+  npm --prefix frontend run build
+
+# Check everything (tests + lint + frontend build)
+check:
+  just test
+  just lint
+  just build-frontend
+
+# Run alembic migration (upgrade to head)
+migrate:
+  APP_DB_URL="{{app_db_url}}" uv --directory backend run alembic upgrade head
+
+# Create a new alembic migration
+migrate-new message:
+  APP_DB_URL="{{app_db_url}}" uv --directory backend run alembic revision --autogenerate -m "{{message}}"
+
+# Show current alembic migration status
+migrate-status:
+  APP_DB_URL="{{app_db_url}}" uv --directory backend run alembic current
+
+# Install all dependencies (backend + frontend)
+install:
+  uv --directory backend sync
+  npm --prefix frontend install
+
+# Build backend container image
+build-backend-image tag="rhacs-manager-backend:latest":
+  podman build -t {{tag}} backend/
+
+# Build frontend hub container image
+build-frontend-image tag="rhacs-manager-frontend:latest":
+  podman build -t {{tag}} frontend/
+
+# Build frontend spoke container image
+build-spoke-image tag="rhacs-manager-spoke:latest":
+  podman build -t {{tag}} -f frontend/Containerfile.spoke frontend/
+
+# Start dev server (session: sec or user)
 dev session="sec":
   #!/usr/bin/env bash
   set -euo pipefail
@@ -45,3 +91,46 @@ dev session="sec":
   uv --directory backend run alembic upgrade head
   uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
   npm --prefix frontend run dev -- --host 0.0.0.0
+
+# Start only the backend dev server
+dev-backend session="sec":
+  #!/usr/bin/env bash
+  set -euo pipefail
+  export APP_DB_URL="{{app_db_url}}"
+  export STACKROX_DB_URL="{{stackrox_db_url}}"
+  export DEV_MODE=true
+
+  case "{{session}}" in
+    sec|sec_team)
+      export DEV_USER_ROLE="sec_team"
+      export DEV_USER_ID="dev-sec-1"
+      export DEV_USER_NAME="Dev Security User"
+      export DEV_USER_EMAIL="dev-sec@example.com"
+      ;;
+    user|normal|team_member)
+      export DEV_USER_ROLE="team_member"
+      export DEV_USER_ID="dev-user-1"
+      export DEV_USER_NAME="Dev Team User"
+      export DEV_USER_EMAIL="dev-user@example.com"
+      ;;
+    *)
+      echo "Invalid session '{{session}}'. Use one of: sec, user"
+      exit 1
+      ;;
+  esac
+
+  echo "Starting backend: {{session}} (DEV_USER_ROLE=${DEV_USER_ROLE})"
+  uv --directory backend run alembic upgrade head
+  uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Start only the frontend dev server
+dev-frontend:
+  npm --prefix frontend run dev -- --host 0.0.0.0
+
+# Serve docs locally with live reload
+docs:
+  uv run --with mkdocs-material mkdocs serve
+
+# Build docs to site/ directory
+docs-build:
+  uv run --with mkdocs-material mkdocs build
