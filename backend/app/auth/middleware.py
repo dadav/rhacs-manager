@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..database import AppSessionLocal
+from ..models.namespace_contact import NamespaceContact
 from ..models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,50 @@ def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
         if ns and cluster:
             pairs.append((ns, cluster))
     return pairs
+
+
+def _parse_namespace_emails_header(raw: str) -> list[tuple[str, str, str]]:
+    """Parse 'ns1:cluster1=email@x.com,ns2:cluster2=email@y.com' into [(ns, cluster, email), ...]."""
+    if not raw.strip():
+        return []
+    result = []
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if "=" not in entry:
+            continue
+        ns_cluster, email = entry.rsplit("=", 1)
+        email = email.strip()
+        if ":" not in ns_cluster or not email:
+            continue
+        ns, cluster = ns_cluster.split(":", 1)
+        ns, cluster = ns.strip(), cluster.strip()
+        if ns and cluster:
+            result.append((ns, cluster, email))
+    return result
+
+
+async def _upsert_namespace_contacts(
+    session: AsyncSession, contacts: list[tuple[str, str, str]]
+) -> None:
+    """Upsert namespace escalation email contacts. Only writes if data changed."""
+    if not contacts:
+        return
+    for ns, cluster, email in contacts:
+        result = await session.execute(
+            select(NamespaceContact).where(
+                NamespaceContact.namespace == ns,
+                NamespaceContact.cluster_name == cluster,
+            )
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            if existing.escalation_email != email:
+                existing.escalation_email = email
+        else:
+            session.add(NamespaceContact(
+                namespace=ns, cluster_name=cluster, escalation_email=email,
+            ))
+    await session.commit()
 
 
 class CurrentUser:
@@ -94,6 +139,11 @@ def _to_current_user(user: User, namespaces: list[tuple[str, str]]) -> CurrentUs
 async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
     namespaces = _parse_namespaces_header(settings.dev_user_namespaces)
 
+    # Upsert dev namespace email contacts
+    ns_emails = _parse_namespace_emails_header(settings.dev_namespace_emails)
+    if ns_emails:
+        await _upsert_namespace_contacts(session, ns_emails)
+
     user_data = {
         "id": settings.dev_user_id,
         "username": settings.dev_user_name,
@@ -132,6 +182,12 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     }
     user = await _get_or_create_user(session, user_data)
     user = await _sync_user_fields(session, user, user_data)
+
+    # Upsert namespace escalation email contacts from header
+    ns_emails_raw = request.headers.get("X-Forwarded-Namespace-Emails", "")
+    ns_emails = _parse_namespace_emails_header(ns_emails_raw)
+    if ns_emails:
+        await _upsert_namespace_contacts(session, ns_emails)
 
     logger.info("Spoke proxy auth: user=%s, role=%s, namespaces=%d", user_id, role.value, len(namespaces))
     return _to_current_user(user, namespaces)

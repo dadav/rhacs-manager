@@ -10,6 +10,7 @@ from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
+from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
 from ..mail import service as mail_svc
@@ -146,6 +147,26 @@ async def run_escalation_check() -> None:
                         app_session, cve["cve_id"], ns_name, cluster, level
                     )
                     esc.notified = True
+
+                    # Send escalation email to namespace contact (if configured)
+                    contact_result = await app_session.execute(
+                        select(NamespaceContact).where(
+                            NamespaceContact.namespace == ns_name,
+                            NamespaceContact.cluster_name == cluster,
+                        )
+                    )
+                    contact = contact_result.scalar_one_or_none()
+                    if contact:
+                        await mail_svc.send_escalation_email(
+                            contact.escalation_email,
+                            cve["cve_id"], ns_name, cluster, level,
+                        )
+                    elif app_settings.management_email:
+                        await mail_svc.send_escalation_email(
+                            app_settings.management_email,
+                            cve["cve_id"], ns_name, cluster, level,
+                        )
+
                     break  # apply highest matching rule only
 
         await app_session.commit()

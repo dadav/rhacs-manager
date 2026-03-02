@@ -21,6 +21,7 @@ class CveTrendPoint(BaseModel):
 class TeamDashboardData(BaseModel):
     stat_total_cves: int
     stat_escalations: int
+    stat_upcoming_escalations: int
     stat_fixable_critical_cves: int
     stat_open_risk_acceptances: int
     severity_distribution: list[SeverityCount]

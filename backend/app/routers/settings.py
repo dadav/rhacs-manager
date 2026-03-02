@@ -42,6 +42,7 @@ async def update_settings(
     s.min_cvss_score = body.min_cvss_score
     s.min_epss_score = body.min_epss_score
     s.escalation_rules = [r.model_dump() for r in body.escalation_rules]
+    s.escalation_warning_days = body.escalation_warning_days
     s.digest_day = body.digest_day
     s.management_email = body.management_email
     s.updated_by = current_user.id

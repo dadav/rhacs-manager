@@ -22,6 +22,7 @@ from ..schemas.dashboard import (
     ThresholdPreview,
 )
 from ..schemas.cve import CveListItem, SeverityLevel
+from ..services.escalation_preview import compute_upcoming_escalations
 from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -88,6 +89,7 @@ async def team_dashboard(
             return TeamDashboardData(
                 stat_total_cves=0,
                 stat_escalations=0,
+                stat_upcoming_escalations=0,
                 stat_fixable_critical_cves=0,
                 stat_open_risk_acceptances=0,
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
@@ -168,6 +170,12 @@ async def team_dashboard(
     )
     trend = await sx.get_cve_trend(sx_db, ns_list_for_queries)
 
+    # Upcoming escalation count
+    upcoming_escalations = []
+    if settings:
+        upcoming_ns = namespaces if (has_scope or not current_user.is_sec_team) else []
+        upcoming_escalations = await compute_upcoming_escalations(sx_db, app_db, upcoming_ns, settings)
+
     # Deduplicate by cve_id (same CVE can appear across multiple images).
     # Keep the entry with the highest epss_probability for each unique CVE.
     from datetime import datetime
@@ -191,6 +199,7 @@ async def team_dashboard(
     return TeamDashboardData(
         stat_total_cves=total,
         stat_escalations=escalations,
+        stat_upcoming_escalations=len(upcoming_escalations),
         stat_fixable_critical_cves=fixable_critical,
         stat_open_risk_acceptances=open_ra,
         severity_distribution=[

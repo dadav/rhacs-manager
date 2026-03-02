@@ -24,10 +24,12 @@ function StatCard({
   label,
   value,
   color,
+  subtitle,
 }: {
   label: string;
   value: string | number;
   color?: string;
+  subtitle?: string;
 }) {
   return (
     <Card isCompact style={{ height: "100%" }}>
@@ -57,6 +59,11 @@ function StatCard({
         >
           {label}
         </div>
+        {subtitle && (
+          <div style={{ fontSize: 11, color: '#ec7a08', marginTop: 4 }}>
+            {subtitle}
+          </div>
+        )}
       </CardBody>
     </Card>
   );
@@ -106,11 +113,16 @@ export function Dashboard() {
             />
           </GridItem>
           <GridItem span={3}>
-            <StatCard
-              label={t("dashboard.escalations")}
-              value={data.stat_escalations}
-              color={data.stat_escalations > 0 ? "#ec7a08" : undefined}
-            />
+            <Link to="/eskalationen" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+              <StatCard
+                label={t("dashboard.escalations")}
+                value={data.stat_escalations}
+                color={data.stat_escalations > 0 ? "#ec7a08" : undefined}
+                subtitle={data.stat_upcoming_escalations > 0
+                  ? `${data.stat_upcoming_escalations} bevorstehend`
+                  : undefined}
+              />
+            </Link>
           </GridItem>
           <GridItem span={3}>
             <StatCard

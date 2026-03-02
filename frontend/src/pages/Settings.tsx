@@ -81,6 +81,7 @@ export function Settings() {
   const [minCvss, setMinCvss] = useState(0)
   const [minEpss, setMinEpss] = useState(0)
   const [escalationRules, setEscalationRules] = useState<EscalationRule[]>([])
+  const [escalationWarningDays, setEscalationWarningDays] = useState(3)
   const [digestDay, setDigestDay] = useState(1)
   const [managementEmail, setManagementEmail] = useState('')
   const [saved, setSaved] = useState(false)
@@ -92,6 +93,7 @@ export function Settings() {
       setMinCvss(settings.min_cvss_score)
       setMinEpss(settings.min_epss_score)
       setEscalationRules(settings.escalation_rules ?? [])
+      setEscalationWarningDays(settings.escalation_warning_days ?? 3)
       setDigestDay(settings.digest_day)
       setManagementEmail(settings.management_email)
     }
@@ -102,6 +104,7 @@ export function Settings() {
       min_cvss_score: minCvss,
       min_epss_score: minEpss,
       escalation_rules: escalationRules,
+      escalation_warning_days: escalationWarningDays,
       digest_day: digestDay,
       management_email: managementEmail,
     })
@@ -206,6 +209,18 @@ export function Settings() {
                   </table>
                 </div>
                 <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>+ Regel hinzufügen</Button>
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>Vorwarnzeit (Tage)</label>
+                  <p style={{ fontSize: 12, color: '#6a6e73', margin: '4px 0 8px' }}>
+                    Nutzer werden so viele Tage vor einer bevorstehenden Eskalation gewarnt.
+                  </p>
+                  <input
+                    type="number" min={1} max={14} step={1}
+                    value={escalationWarningDays}
+                    onChange={e => setEscalationWarningDays(Number(e.target.value))}
+                    style={{ width: 80, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+                  />
+                </div>
               </CardBody>
             </Card>
           </GridItem>

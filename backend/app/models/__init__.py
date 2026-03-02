@@ -4,6 +4,7 @@ from .cve_comment import CveComment
 from .cve_priority import CvePriority, PriorityLevel
 from .escalation import Escalation
 from .global_settings import GlobalSettings
+from .namespace_contact import NamespaceContact
 from .notification import Notification, NotificationType
 from .risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from .user import User, UserRole
@@ -23,4 +24,5 @@ __all__ = [
     "Notification",
     "NotificationType",
     "AuditLog",
+    "NamespaceContact",
 ]

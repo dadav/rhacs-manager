@@ -178,6 +178,7 @@ export interface GlobalSettings {
   min_cvss_score: number
   min_epss_score: number
   escalation_rules: EscalationRule[]
+  escalation_warning_days: number
   digest_day: number
   management_email: string
   updated_by: string | null
@@ -213,6 +214,7 @@ export interface CveTrendPoint {
 export interface TeamDashboardData {
   stat_total_cves: number
   stat_escalations: number
+  stat_upcoming_escalations: number
   stat_fixable_critical_cves: number
   stat_open_risk_acceptances: number
   severity_distribution: SeverityCount[]
@@ -277,6 +279,15 @@ export interface Escalation {
   level: number
   triggered_at: string
   notified: boolean
+}
+
+export interface UpcomingEscalation {
+  cve_id: string
+  severity: number
+  epss_probability: number
+  current_age_days: number
+  next_level: number
+  days_until_escalation: number
 }
 
 export interface AuditEntry {

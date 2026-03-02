@@ -16,6 +16,7 @@ class SettingsUpdate(BaseModel):
     min_cvss_score: float = Field(ge=0.0, le=10.0)
     min_epss_score: float = Field(ge=0.0, le=1.0)
     escalation_rules: list[EscalationRule]
+    escalation_warning_days: int = Field(ge=1, le=14, default=3)
     digest_day: int = Field(ge=0, le=6)
     management_email: str = ""
 
@@ -27,6 +28,7 @@ class SettingsResponse(BaseModel):
     min_cvss_score: float
     min_epss_score: float
     escalation_rules: list[dict]
+    escalation_warning_days: int
     digest_day: int
     management_email: str
     updated_by: str | None

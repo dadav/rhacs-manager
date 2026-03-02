@@ -1,15 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
-import type { Escalation } from '../types'
+import type { Escalation, UpcomingEscalation } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
-export function useEscalations(scope: ScopeParams = {}) {
+function buildQs(scope: ScopeParams): string {
   const q = new URLSearchParams()
   if (scope.cluster) q.set('cluster', scope.cluster)
   if (scope.namespace) q.set('namespace', scope.namespace)
-  const qs = q.toString()
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+export function useEscalations(scope: ScopeParams = {}) {
   return useQuery({
     queryKey: ['escalations', scope],
-    queryFn: () => api.get<Escalation[]>(`/escalations${qs ? `?${qs}` : ''}`),
+    queryFn: () => api.get<Escalation[]>(`/escalations${buildQs(scope)}`),
+  })
+}
+
+export function useUpcomingEscalations(scope: ScopeParams = {}) {
+  return useQuery({
+    queryKey: ['escalations', 'upcoming', scope],
+    queryFn: () => api.get<UpcomingEscalation[]>(`/escalations/upcoming${buildQs(scope)}`),
   })
 }

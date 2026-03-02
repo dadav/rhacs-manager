@@ -22,6 +22,7 @@ type config struct {
 	UpstreamAddr        string
 	ClusterName         string
 	NamespaceAnnotation string
+	EmailAnnotation     string
 	CacheTTLSeconds     int
 }
 
@@ -31,6 +32,7 @@ func loadConfig() config {
 		UpstreamAddr:        envOrDefault("UPSTREAM_ADDR", "http://localhost:8080"),
 		ClusterName:         os.Getenv("CLUSTER_NAME"),
 		NamespaceAnnotation: envOrDefault("NAMESPACE_ANNOTATION", "rhacs-manager.io/users"),
+		EmailAnnotation:     envOrDefault("EMAIL_ANNOTATION", "rhacs-manager.io/escalation-email"),
 		CacheTTLSeconds:     300,
 	}
 	if c.ClusterName == "" {
@@ -52,10 +54,12 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
-// nsCache maps lowercase usernames to the namespaces they can access.
+// nsCache maps lowercase usernames to the namespaces they can access,
+// and namespaces to their escalation email addresses.
 type nsCache struct {
 	mu        sync.RWMutex
-	userToNS  map[string][]string // username → []namespace
+	userToNS  map[string][]string // username -> []namespace
+	nsEmails  map[string]string   // namespace -> escalation email
 	fetchedAt time.Time
 }
 
@@ -65,10 +69,17 @@ func (c *nsCache) namespacesForUser(username string) []string {
 	return c.userToNS[strings.ToLower(username)]
 }
 
-func (c *nsCache) update(userToNS map[string][]string) {
+func (c *nsCache) emailForNamespace(ns string) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.nsEmails[ns]
+}
+
+func (c *nsCache) update(userToNS map[string][]string, nsEmails map[string]string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.userToNS = userToNS
+	c.nsEmails = nsEmails
 	c.fetchedAt = time.Now()
 }
 
@@ -98,21 +109,33 @@ func fetchAndUpdate(ctx context.Context, client kubernetes.Interface, cache *nsC
 	}
 
 	userToNS := make(map[string][]string)
+	nsEmails := make(map[string]string)
+
 	for _, ns := range nsList.Items {
+		// User annotation
 		annotation, ok := ns.Annotations[cfg.NamespaceAnnotation]
-		if !ok || strings.TrimSpace(annotation) == "" {
-			continue
-		}
-		for _, raw := range strings.Split(annotation, ",") {
-			username := strings.ToLower(strings.TrimSpace(raw))
-			if username != "" {
-				userToNS[username] = append(userToNS[username], ns.Name)
+		if ok && strings.TrimSpace(annotation) != "" {
+			for _, raw := range strings.Split(annotation, ",") {
+				username := strings.ToLower(strings.TrimSpace(raw))
+				if username != "" {
+					userToNS[username] = append(userToNS[username], ns.Name)
+				}
 			}
+		}
+
+		// Email annotation
+		email, ok := ns.Annotations[cfg.EmailAnnotation]
+		if ok && strings.TrimSpace(email) != "" {
+			nsEmails[ns.Name] = strings.TrimSpace(email)
 		}
 	}
 
-	cache.update(userToNS)
-	slog.Info("namespace cache refreshed", "namespaces_with_annotation", len(nsList.Items), "mapped_users", len(userToNS))
+	cache.update(userToNS, nsEmails)
+	slog.Info("namespace cache refreshed",
+		"namespaces_with_users", len(userToNS),
+		"namespaces_with_email", len(nsEmails),
+		"mapped_users", len(userToNS),
+	)
 }
 
 func main() {
@@ -123,6 +146,7 @@ func main() {
 		"upstream", cfg.UpstreamAddr,
 		"cluster", cfg.ClusterName,
 		"annotation", cfg.NamespaceAnnotation,
+		"email_annotation", cfg.EmailAnnotation,
 		"cache_ttl_seconds", cfg.CacheTTLSeconds,
 	)
 
@@ -138,7 +162,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	cache := &nsCache{userToNS: make(map[string][]string)}
+	cache := &nsCache{
+		userToNS: make(map[string][]string),
+		nsEmails: make(map[string]string),
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -162,21 +189,26 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		user := r.Header.Get("X-Forwarded-User")
 		if user == "" {
-			// No user header — forward with empty namespaces.
+			// No user header -- forward with empty namespaces.
 			r.Header.Set("X-Forwarded-Namespaces", "")
+			r.Header.Set("X-Forwarded-Namespace-Emails", "")
 			proxy.ServeHTTP(w, r)
 			return
 		}
 
 		namespaces := cache.namespacesForUser(user)
-		var pairs []string
+		var nsPairs []string
+		var emailPairs []string
 		for _, ns := range namespaces {
-			pairs = append(pairs, ns+":"+cfg.ClusterName)
+			nsPairs = append(nsPairs, ns+":"+cfg.ClusterName)
+			if email := cache.emailForNamespace(ns); email != "" {
+				emailPairs = append(emailPairs, ns+":"+cfg.ClusterName+"="+email)
+			}
 		}
-		header := strings.Join(pairs, ",")
-		r.Header.Set("X-Forwarded-Namespaces", header)
+		r.Header.Set("X-Forwarded-Namespaces", strings.Join(nsPairs, ","))
+		r.Header.Set("X-Forwarded-Namespace-Emails", strings.Join(emailPairs, ","))
 
-		slog.Debug("resolved namespaces", "user", user, "namespaces", header)
+		slog.Debug("resolved namespaces", "user", user, "namespaces", strings.Join(nsPairs, ","))
 		proxy.ServeHTTP(w, r)
 	})
 

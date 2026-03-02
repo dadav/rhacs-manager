@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     dev_user_email: str = Field(default="dev@example.com")
     dev_user_role: str = Field(default="sec_team")  # "sec_team" or "team_member"
     dev_user_namespaces: str = Field(default="")  # format: ns1:cluster1,ns2:cluster2
+    dev_namespace_emails: str = Field(default="")  # format: ns1:cluster1=email@example.com,ns2:cluster2=other@example.com
 
     # OIDC (production)
     oidc_issuer: str = Field(default="")
