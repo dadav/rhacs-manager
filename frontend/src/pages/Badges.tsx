@@ -136,7 +136,7 @@ export function Badges() {
           <ModalBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={{ fontSize: 13, color: '#6a6e73' }}>
-                Leer lassen für einen team-weiten Badge. Namespace+Cluster für einen namespace-spezifischen Badge.
+                Leer lassen für einen allgemeinen Badge. Namespace+Cluster für einen namespace-spezifischen Badge.
               </p>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>Namespace (optional)</label>

@@ -37,14 +37,14 @@
   },
   "severity": {
     "0": "Unbekannt",
-    "1": "Niedrig",
+    "1": "Gering",
     "2": "Mittel",
-    "3": "Wichtig",
+    "3": "Hoch",
     "4": "Kritisch",
     "UNKNOWN": "Unbekannt",
-    "LOW": "Niedrig",
+    "LOW": "Gering",
     "MODERATE": "Mittel",
-    "IMPORTANT": "Wichtig",
+    "IMPORTANT": "Hoch",
     "CRITICAL": "Kritisch"
   },
   "status": {
@@ -57,7 +57,7 @@
     "critical": "Kritisch",
     "high": "Hoch",
     "medium": "Mittel",
-    "low": "Niedrig"
+    "low": "Gering"
   },
   "notificationType": {
     "risk_comment": "Kommentar",
@@ -92,7 +92,7 @@
     "aging": "CVE-Alterungsverteilung",
     "pipeline": "Risikoakzeptanz-Pipeline",
     "thresholdConfig": "Schwellenwert-Konfiguration",
-    "thresholdDescription": "CVEs unterhalb beider Schwellenwerte werden für Teams ausgeblendet. Die Schwellenwerte werden in den Einstellungen konfiguriert.",
+    "thresholdDescription": "CVEs unterhalb beider Schwellenwerte werden für Nutzer ausgeblendet. Die Schwellenwerte werden in den Einstellungen konfiguriert.",
     "totalCves": "Gesamt-CVEs",
     "criticalCves": "Kritische CVEs",
     "avgEpss": "Ø EPSS",
@@ -163,7 +163,7 @@
     "addComment": "Kommentar senden",
     "noComments": "Noch keine Kommentare",
     "secTeamLabel": "Security-Team",
-    "teamLabel": "Team",
+    "teamLabel": "Nutzer",
     "noAcceptances": "Keine Risikoakzeptanzen",
     "reviewedBy": "Bewertet von",
     "reviewedAt": "Bewertet am",
@@ -190,8 +190,8 @@
     "triggeredAt": "Ausgelöst am",
     "notified": "Benachrichtigt",
     "noEscalations": "Keine aktiven Eskalationen",
-    "level1": "Stufe 1 - Team",
-    "level2": "Stufe 2 - Team & Security",
+    "level1": "Stufe 1 - Nutzer",
+    "level2": "Stufe 2 - Nutzer & Security",
     "level3": "Stufe 3 - Management"
   },
   "badges": {
@@ -213,7 +213,7 @@
     "thresholds": "Anzeigeschwellenwerte",
     "minCvss": "Mindest-CVSS-Score",
     "minEpss": "Mindest-EPSS-Score",
-    "thresholdHint": "CVEs unter beiden Schwellenwerten werden für Teams ausgeblendet (nicht für das Security-Team). Priorisierte CVEs sind immer sichtbar.",
+    "thresholdHint": "CVEs unter beiden Schwellenwerten werden für Nutzer ausgeblendet (nicht für das Security-Team). Priorisierte CVEs sind immer sichtbar.",
     "escalationRules": "Eskalationsregeln",
     "addRule": "Regel hinzufügen",
     "removeRule": "Entfernen",

@@ -12,7 +12,7 @@ import {
 import { getErrorMessage } from "../utils/errors";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { useTeamDashboard } from "../api/dashboard";
+import { useDashboard } from "../api/dashboard";
 import { useScope } from "../hooks/useScope";
 import { CvesPerNamespace } from "../components/charts/CvesPerNamespace";
 import { SeverityDonut } from "../components/charts/SeverityDonut";
@@ -72,7 +72,7 @@ function StatCard({
 export function Dashboard() {
   const { t } = useTranslation();
   const { scopeParams } = useScope();
-  const { data, isLoading, error } = useTeamDashboard(scopeParams);
+  const { data, isLoading, error } = useDashboard(scopeParams);
 
   if (isLoading)
     return (

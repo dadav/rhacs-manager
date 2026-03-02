@@ -33,7 +33,7 @@ const PRIORITY_OPTIONS = [
   { label: 'Kritisch', value: PriorityLevel.critical },
   { label: 'Hoch', value: PriorityLevel.high },
   { label: 'Mittel', value: PriorityLevel.medium },
-  { label: 'Niedrig', value: PriorityLevel.low },
+  { label: 'Gering', value: PriorityLevel.low },
 ]
 
 function PriorityBadge({ level }: { level: PriorityLevel }) {

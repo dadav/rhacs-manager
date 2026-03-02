@@ -11,9 +11,9 @@ const COLORS: Record<number, string> = {
 
 const LABELS: Record<number, string> = {
   [Severity.CRITICAL]: 'Kritisch',
-  [Severity.IMPORTANT]: 'Wichtig',
+  [Severity.IMPORTANT]: 'Hoch',
   [Severity.MODERATE]: 'Mittel',
-  [Severity.LOW]: 'Niedrig',
+  [Severity.LOW]: 'Gering',
   [Severity.UNKNOWN]: 'Unbekannt',
 }
 

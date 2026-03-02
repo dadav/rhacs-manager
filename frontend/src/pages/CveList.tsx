@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
-import { useNamespaces } from '../api/namespaces'
+
 import { useScope } from '../hooks/useScope'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
@@ -26,9 +26,9 @@ import { Severity } from '../types'
 const SEVERITY_OPTIONS = [
   { label: 'Alle', value: '' },
   { label: 'Kritisch', value: String(Severity.CRITICAL) },
-  { label: 'Wichtig', value: String(Severity.IMPORTANT) },
+  { label: 'Hoch', value: String(Severity.IMPORTANT) },
   { label: 'Mittel', value: String(Severity.MODERATE) },
-  { label: 'Niedrig', value: String(Severity.LOW) },
+  { label: 'Gering', value: String(Severity.LOW) },
 ]
 
 const RISK_STATUS_OPTIONS = [
@@ -61,23 +61,27 @@ export function CveList() {
   const urlSortDesc   = searchParams.get('sort_desc') !== '0'
   const urlCvssMin    = Number(searchParams.get('cvss_min')) || 0
   const urlEpssMin    = Number(searchParams.get('epss_min')) || 0
-  const urlNamespaces = searchParams.getAll('namespaces')
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
-  const [cvssMin, setCvssMin]           = useState(urlCvssMin)
-  const [epssMin, setEpssMin]           = useState(urlEpssMin)
+  const [searchInput, setSearchInput]       = useState(urlSearch)
+  const [cvssMin, setCvssMin]               = useState(urlCvssMin)
+  const [epssMin, setEpssMin]               = useState(urlEpssMin)
   const [componentInput, setComponentInput] = useState(urlComponent)
-  const [namespaceSearch, setNamespaceSearch] = useState('')
 
+  const debouncedSearch    = useDebounce(searchInput, 300)
   const debouncedCvssMin   = useDebounce(cvssMin, 200)
   const debouncedEpssMin   = useDebounce(epssMin, 200)
   const debouncedComponent = useDebounce(componentInput, 300)
 
   // Skip the initial mount effect for debounced values (avoid redundant URL writes)
   const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ search: debouncedSearch || null })
+  }, [debouncedSearch])
   useEffect(() => {
     if (!mountedRef.current) return
     updateParams({ cvss_min: debouncedCvssMin > 0 ? String(debouncedCvssMin) : null })
@@ -124,35 +128,21 @@ export function CveList() {
     }
   }
 
-  function toggleNamespace(ns: string) {
-    const next = urlNamespaces.includes(ns)
-      ? urlNamespaces.filter(n => n !== ns)
-      : [...urlNamespaces, ns]
-    updateParams({ namespaces: next.length ? next : null })
-  }
-
   function clearAdvanced() {
     setCvssMin(0); setEpssMin(0); setComponentInput('')
     updateParams({
-      cvss_min: null, epss_min: null, namespaces: null,
+      cvss_min: null, epss_min: null,
       component: null, risk_status: null,
     })
   }
 
-  const { data: namespacesData } = useNamespaces()
-  const namespaceList = namespacesData?.map(n => n.namespace) ?? []
-  const filteredNamespaceList = namespaceSearch
-    ? namespaceList.filter(ns => ns.toLowerCase().includes(namespaceSearch.toLowerCase()))
-    : namespaceList
-
   const hasActiveAdvanced =
     debouncedCvssMin > 0 || debouncedEpssMin > 0 ||
-    urlNamespaces.length > 0 || debouncedComponent || urlRiskStatus
+    debouncedComponent || urlRiskStatus
 
   const activeFilterCount = [
     debouncedCvssMin > 0,
     debouncedEpssMin > 0,
-    urlNamespaces.length > 0,
     Boolean(debouncedComponent),
     Boolean(urlRiskStatus),
   ].filter(Boolean).length
@@ -161,7 +151,7 @@ export function CveList() {
   const params = {
     page: urlPage,
     page_size: 50,
-    search: urlSearch || undefined,
+    search: debouncedSearch || undefined,
     severity: urlSeverity ? Number(urlSeverity) as Severity : undefined,
     fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
     prioritized_only: urlPrioOnly || undefined,
@@ -169,7 +159,6 @@ export function CveList() {
     sort_desc: urlSortDesc,
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
-    namespaces: urlNamespaces.length ? urlNamespaces : undefined,
     component: debouncedComponent || undefined,
     risk_status: urlRiskStatus || undefined,
   }
@@ -225,8 +214,8 @@ export function CveList() {
           <ToolbarContent>
             <ToolbarItem>
               <TextInput
-                value={urlSearch}
-                onChange={(_, v) => updateParams({ search: v || null })}
+                value={searchInput}
+                onChange={(_, v) => setSearchInput(v)}
                 placeholder={t('cves.searchPlaceholder')}
                 style={{ width: 220 }}
               />
@@ -295,7 +284,7 @@ export function CveList() {
             <div>
               <div style={sectionLabelStyle}>{t('cves.filterCvss')}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 28 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, width: 34, textAlign: 'right', flexShrink: 0 }}>
                   {cvssMin.toFixed(1)}
                 </span>
                 <input
@@ -313,7 +302,7 @@ export function CveList() {
             <div>
               <div style={sectionLabelStyle}>{t('cves.filterEpss')}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, minWidth: 36 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, width: 40, textAlign: 'right', flexShrink: 0 }}>
                   {(epssMin * 100).toFixed(0)}%
                 </span>
                 <input
@@ -352,41 +341,6 @@ export function CveList() {
                 ))}
               </select>
             </div>
-
-            {/* Namespaces */}
-            {namespaceList.length > 0 && (
-              <div>
-                <div style={sectionLabelStyle}>
-                  {t('cves.filterNamespace')}
-                  {urlNamespaces.length > 0 && (
-                    <span style={{ marginLeft: 6, color: '#0066cc' }}>({urlNamespaces.length})</span>
-                  )}
-                </div>
-                <TextInput
-                  value={namespaceSearch}
-                  onChange={(_, v) => setNamespaceSearch(v)}
-                  placeholder="Suchen..."
-                  style={{ width: 200, marginBottom: 6 }}
-                  aria-label="Namespace suchen"
-                />
-                <div style={{
-                  maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4,
-                  border: '1px solid #d2d2d2', borderRadius: 4, padding: '6px 8px',
-                  background: 'var(--pf-v6-global--BackgroundColor--100)', width: 200,
-                }}>
-                  {filteredNamespaceList.length === 0
-                    ? <span style={{ fontSize: 12, color: '#6a6e73', padding: '4px 0' }}>Keine Ergebnisse</span>
-                    : filteredNamespaceList.map(ns => (
-                      <Checkbox
-                        key={ns} id={`ns-${ns}`} label={ns}
-                        isChecked={urlNamespaces.includes(ns)}
-                        onChange={() => toggleNamespace(ns)}
-                      />
-                    ))
-                  }
-                </div>
-              </div>
-            )}
 
             {/* Clear */}
             {hasActiveAdvanced && (

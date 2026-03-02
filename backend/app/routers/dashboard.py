@@ -18,7 +18,7 @@ from ..schemas.dashboard import (
     RiskAcceptancePipeline,
     SecDashboardData,
     SeverityCount,
-    TeamDashboardData,
+    DashboardData,
     ThresholdPreview,
 )
 from ..schemas.cve import CveListItem, SeverityLevel
@@ -62,14 +62,14 @@ def _enrich_cves(cves: list[dict], priorities: dict, acceptances: dict) -> list[
     return items
 
 
-@router.get("", response_model=TeamDashboardData)
-async def team_dashboard(
+@router.get("", response_model=DashboardData)
+async def dashboard(
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
-) -> TeamDashboardData:
+) -> DashboardData:
     settings = await _get_settings(app_db)
     min_cvss = float(settings.min_cvss_score) if settings else 0.0
     min_epss = float(settings.min_epss_score) if settings else 0.0
@@ -86,7 +86,7 @@ async def team_dashboard(
             namespaces = []  # empty = all for sec team
     else:
         if not current_user.has_namespaces:
-            return TeamDashboardData(
+            return DashboardData(
                 stat_total_cves=0,
                 stat_escalations=0,
                 stat_upcoming_escalations=0,
@@ -196,7 +196,7 @@ async def team_dashboard(
         ),
     )[:8]
 
-    return TeamDashboardData(
+    return DashboardData(
         stat_total_cves=total,
         stat_escalations=escalations,
         stat_upcoming_escalations=len(upcoming_escalations),

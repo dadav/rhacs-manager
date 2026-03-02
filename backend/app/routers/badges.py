@@ -111,7 +111,7 @@ async def create_badge(
     db: AsyncSession = Depends(get_app_db),
 ) -> BadgeResponse:
     if current_user.is_sec_team:
-        raise HTTPException(403, "Nur Team-Mitglieder können Badges erstellen")
+        raise HTTPException(403, "Nur Nutzer können Badges erstellen")
     if not current_user.has_namespaces:
         raise HTTPException(400, "Keine Namespaces zugeordnet")
 

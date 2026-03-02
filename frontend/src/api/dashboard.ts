@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
-import type { TeamDashboardData, SecDashboardData } from '../types'
+import type { DashboardData, SecDashboardData } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const dashboardKeys = {
-  team: (scope: ScopeParams = {}) => ['dashboard', 'team', scope] as const,
+  main: (scope: ScopeParams = {}) => ['dashboard', 'main', scope] as const,
   sec: ['dashboard', 'sec'] as const,
 }
 
@@ -16,10 +16,10 @@ function scopeQuery(scope: ScopeParams): string {
   return s ? `?${s}` : ''
 }
 
-export function useTeamDashboard(scope: ScopeParams = {}) {
+export function useDashboard(scope: ScopeParams = {}) {
   return useQuery({
-    queryKey: dashboardKeys.team(scope),
-    queryFn: () => api.get<TeamDashboardData>(`/dashboard${scopeQuery(scope)}`),
+    queryKey: dashboardKeys.main(scope),
+    queryFn: () => api.get<DashboardData>(`/dashboard${scopeQuery(scope)}`),
     refetchInterval: 5 * 60 * 1000,
   })
 }

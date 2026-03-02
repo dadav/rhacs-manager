@@ -18,7 +18,7 @@ class CveTrendPoint(BaseModel):
     count: int
 
 
-class TeamDashboardData(BaseModel):
+class DashboardData(BaseModel):
     stat_total_cves: int
     stat_escalations: int
     stat_upcoming_escalations: int

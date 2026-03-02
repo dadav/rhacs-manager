@@ -79,7 +79,7 @@ export function EpssRiskMatrix({ data }: Props) {
           <span key={sev} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
             <span style={{ color: 'var(--pf-t--global--text--color--regular, inherit)' }}>
-              {['Unbekannt', 'Niedrig', 'Mittel', 'Wichtig', 'Kritisch'][Number(sev)]}
+              {['Unbekannt', 'Gering', 'Mittel', 'Hoch', 'Kritisch'][Number(sev)]}
             </span>
           </span>
         ))}

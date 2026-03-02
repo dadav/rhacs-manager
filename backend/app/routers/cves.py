@@ -63,7 +63,6 @@ async def list_cves(
     sort_desc: bool = Query(True),
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
-    namespaces: list[str] | None = Query(None),
     component: str | None = Query(None),
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
@@ -126,24 +125,17 @@ async def list_cves(
     elif risk_status in ("requested", "approved"):
         items = [i for i in items if i.risk_acceptance_status == risk_status]
 
-    # Namespace / component filters require extra StackRox lookups
-    if (namespaces or component) and items:
+    # Component filter requires extra StackRox lookup
+    if component and items:
+        comp_lower = component.lower()
         cve_ids = [i.cve_id for i in items]
         if current_user.is_sec_team:
             all_ns = await sx.list_namespaces(sx_db)
             ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
             ns_list = current_user.namespaces
-
-        if namespaces:
-            ns_cve_map = await sx.get_cve_namespace_map(sx_db, cve_ids, ns_list)
-            items = [i for i in items if any(ns in namespaces for ns in ns_cve_map.get(i.cve_id, []))]
-
-        if component and items:
-            comp_lower = component.lower()
-            cve_ids = [i.cve_id for i in items]
-            comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
-            items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
+        comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
+        items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
 
     # Sort
     sort_key_map = {

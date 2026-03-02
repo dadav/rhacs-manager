@@ -16,6 +16,24 @@ import { useEffect, useState } from 'react'
 import { useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
 import type { EscalationRule } from '../types'
 
+const SEVERITY_OPTIONS = [
+  { value: 1, label: 'Gering' },
+  { value: 2, label: 'Mittel' },
+  { value: 3, label: 'Hoch' },
+  { value: 4, label: 'Kritisch' },
+]
+
+const EPSS_OPTIONS = [
+  { value: 0.01, label: '1%' },
+  { value: 0.05, label: '5%' },
+  { value: 0.1, label: '10%' },
+  { value: 0.2, label: '20%' },
+  { value: 0.3, label: '30%' },
+  { value: 0.5, label: '50%' },
+  { value: 0.7, label: '70%' },
+  { value: 0.9, label: '90%' },
+]
+
 function EscalationRuleRow({
   rule,
   onChange,
@@ -28,20 +46,26 @@ function EscalationRuleRow({
   return (
     <tr>
       <td style={{ padding: '6px 8px' }}>
-        <input
-          type="number" min={0} max={4} step={1}
+        <select
           value={rule.severity_min}
           onChange={e => onChange({ ...rule, severity_min: Number(e.target.value) })}
-          style={{ width: 60, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
-        />
+          style={{ width: 120, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+        >
+          {SEVERITY_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </td>
       <td style={{ padding: '6px 8px' }}>
-        <input
-          type="number" min={0} max={1} step={0.01}
+        <select
           value={rule.epss_threshold}
           onChange={e => onChange({ ...rule, epss_threshold: Number(e.target.value) })}
-          style={{ width: 80, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
-        />
+          style={{ width: 90, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+        >
+          {EPSS_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </td>
       <td style={{ padding: '6px 8px' }}>
         <input
@@ -141,7 +165,7 @@ export function Settings() {
               <CardTitle>CVE-Schwellenwerte</CardTitle>
               <CardBody>
                 <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 16 }}>
-                  CVEs, die beide Schwellenwerte unterschreiten, werden für Team-Nutzer ausgeblendet.
+                  CVEs, die beide Schwellenwerte unterschreiten, werden für Nutzer ausgeblendet.
                   Priorisierte CVEs und CVEs mit aktiven Risikoakzeptanzen sind immer sichtbar.
                 </p>
                 <Grid hasGutter>
@@ -188,7 +212,7 @@ export function Settings() {
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. Schweregrad (0-4)</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. Schweregrad</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. EPSS</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L1</th>
                         <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L2</th>

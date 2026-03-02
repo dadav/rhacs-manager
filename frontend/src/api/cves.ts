@@ -21,7 +21,6 @@ interface CveListParams {
   sort_desc?: boolean
   cvss_min?: number
   epss_min?: number
-  namespaces?: string[]
   component?: string
   risk_status?: string
   cluster?: string

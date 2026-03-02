@@ -211,7 +211,7 @@ export interface CveTrendPoint {
   count: number
 }
 
-export interface TeamDashboardData {
+export interface DashboardData {
   stat_total_cves: number
   stat_escalations: number
   stat_upcoming_escalations: number

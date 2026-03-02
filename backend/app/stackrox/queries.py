@@ -433,11 +433,10 @@ async def get_cve_aging(
 
     sql = text(f"""
         SELECT
-            EXTRACT(EPOCH FROM (NOW() - MIN(ice.firstimageoccurrence))) / 86400 AS age_days
+            EXTRACT(EPOCH FROM (NOW() - MIN(ic.firstimageoccurrence))) / 86400 AS age_days
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
     """)

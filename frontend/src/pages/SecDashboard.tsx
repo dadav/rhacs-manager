@@ -26,7 +26,7 @@ import {
 import { useSecDashboard } from '../api/dashboard'
 import { EpssRiskMatrix } from '../components/charts/EpssRiskMatrix'
 
-const SEVERITY_LABELS = ['Unbekannt', 'Niedrig', 'Mittel', 'Wichtig', 'Kritisch']
+const SEVERITY_LABELS = ['Unbekannt', 'Gering', 'Mittel', 'Hoch', 'Kritisch']
 
 function StatCard({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (

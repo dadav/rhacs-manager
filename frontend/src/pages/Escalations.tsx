@@ -33,9 +33,9 @@ const LEVEL_LABELS: Record<number, string> = {
 
 const SEVERITY_LABELS: Record<number, string> = {
   0: 'Unbekannt',
-  1: 'Niedrig',
+  1: 'Gering',
   2: 'Mittel',
-  3: 'Wichtig',
+  3: 'Hoch',
   4: 'Kritisch',
 }
 
@@ -148,8 +148,8 @@ export function Escalations() {
                   und dem Alter der Schwachstelle.
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>Level 1</strong> — Team-Benachrichtigung<br />
-                  <strong>Level 2</strong> — Team &amp; Security-Team<br />
+                  <strong>Level 1</strong> — Nutzer-Benachrichtigung<br />
+                  <strong>Level 2</strong> — Nutzer &amp; Security-Team<br />
                   <strong>Level 3 (Kritisch)</strong> — Management-Eskalation
                 </p>
                 <p style={{ margin: 0 }}>
@@ -215,9 +215,9 @@ export function Escalations() {
                   >
                     <option value="">Alle Schweregrade</option>
                     <option value="4">Kritisch</option>
-                    <option value="3">Wichtig</option>
+                    <option value="3">Hoch</option>
                     <option value="2">Mittel</option>
-                    <option value="1">Niedrig</option>
+                    <option value="1">Gering</option>
                   </select>
                 </ToolbarItem>
               </ToolbarContent>
