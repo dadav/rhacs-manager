@@ -211,6 +211,8 @@ async def create_risk_acceptance(
 @router.get("", response_model=list[RiskAcceptanceResponse])
 async def list_risk_acceptances(
     status: str | None = Query(None),
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[RiskAcceptanceResponse]:
@@ -227,6 +229,22 @@ async def list_risk_acceptances(
 
     # Filter by namespace access for non-sec users
     accessible = [ra for ra in all_ras if _user_can_access_ra(current_user, ra)]
+
+    # Apply global scope filter on scope targets
+    if cluster or namespace:
+        def _ra_matches_scope(ra: RiskAcceptance) -> bool:
+            scope_ns = _get_scope_namespaces(ra.scope)
+            if not scope_ns:
+                # 'all' scope — matches any cluster/namespace filter
+                return True
+            for ns, cl in scope_ns:
+                if cluster and cl != cluster:
+                    continue
+                if namespace and ns != namespace:
+                    continue
+                return True
+            return False
+        accessible = [ra for ra in accessible if _ra_matches_scope(ra)]
 
     return [await _build_response(ra, db) for ra in accessible]
 

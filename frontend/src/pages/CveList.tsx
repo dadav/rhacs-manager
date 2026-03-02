@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
 import { useNamespaces } from '../api/namespaces'
+import { useScope } from '../hooks/useScope'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { Severity } from '../types'
@@ -173,7 +174,8 @@ export function CveList() {
     risk_status: urlRiskStatus || undefined,
   }
 
-  const { data, isLoading, error } = useCves(params)
+  const { scopeParams } = useScope()
+  const { data, isLoading, error } = useCves(params, scopeParams)
 
   // --- Styles ---
   const thStyle = (col: string): React.CSSProperties => ({

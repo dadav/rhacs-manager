@@ -1,17 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { RiskAcceptance, RiskComment, RiskScope } from '../types'
+import type { ScopeParams } from '../hooks/useScope'
 
 export const raKeys = {
-  list: (status?: string) => ['risk-acceptances', 'list', status] as const,
+  list: (status?: string, scope: ScopeParams = {}) => ['risk-acceptances', 'list', status, scope] as const,
   detail: (id: string) => ['risk-acceptances', 'detail', id] as const,
   comments: (id: string) => ['risk-acceptances', 'comments', id] as const,
 }
 
-export function useRiskAcceptances(status?: string) {
+export function useRiskAcceptances(status?: string, scope: ScopeParams = {}) {
+  const q = new URLSearchParams()
+  if (status) q.set('status', status)
+  if (scope.cluster) q.set('cluster', scope.cluster)
+  if (scope.namespace) q.set('namespace', scope.namespace)
+  const qs = q.toString()
   return useQuery({
-    queryKey: raKeys.list(status),
-    queryFn: () => api.get<RiskAcceptance[]>(`/risk-acceptances${status ? `?status=${status}` : ''}`),
+    queryKey: raKeys.list(status, scope),
+    queryFn: () => api.get<RiskAcceptance[]>(`/risk-acceptances${qs ? `?${qs}` : ''}`),
   })
 }
 

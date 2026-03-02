@@ -54,13 +54,26 @@ build-frontend-image tag="rhacs-manager-frontend:latest":
 build-spoke-image tag="rhacs-manager-spoke:latest":
   podman build -t {{tag}} -f frontend/Containerfile.spoke frontend/
 
-# Start dev server (session: sec or user)
-dev session="sec":
+# Start dev server (session: sec or user; optional namespaces for team_member)
+dev session="sec" *namespaces:
   #!/usr/bin/env bash
   set -euo pipefail
   export APP_DB_URL="{{app_db_url}}"
   export STACKROX_DB_URL="{{stackrox_db_url}}"
   export DEV_MODE=true
+  export DEV_USER_NAMESPACES=""
+
+  namespaces_raw="{{namespaces}}"
+  if [[ -n "${namespaces_raw}" ]]; then
+    IFS=' ' read -r -a namespace_args <<< "${namespaces_raw}"
+    for ns in "${namespace_args[@]}"; do
+      if [[ "${ns}" != *:* ]]; then
+        echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster"
+        exit 1
+      fi
+    done
+    export DEV_USER_NAMESPACES="${namespaces_raw// /,}"
+  fi
 
   case "{{session}}" in
     sec|sec_team)
@@ -81,7 +94,7 @@ dev session="sec":
       ;;
   esac
 
-  echo "Starting dev session: {{session}} (DEV_USER_ROLE=${DEV_USER_ROLE})"
+  echo "Starting dev session: {{session}} (DEV_USER_ROLE=${DEV_USER_ROLE}, DEV_USER_NAMESPACES='${DEV_USER_NAMESPACES}')"
 
   cleanup() {
     jobs -p | xargs -r kill
@@ -92,13 +105,26 @@ dev session="sec":
   uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
   npm --prefix frontend run dev -- --host 0.0.0.0
 
-# Start only the backend dev server
-dev-backend session="sec":
+# Start only the backend dev server (session: sec or user; optional namespaces for team_member)
+dev-backend session="sec" *namespaces:
   #!/usr/bin/env bash
   set -euo pipefail
   export APP_DB_URL="{{app_db_url}}"
   export STACKROX_DB_URL="{{stackrox_db_url}}"
   export DEV_MODE=true
+  export DEV_USER_NAMESPACES=""
+
+  namespaces_raw="{{namespaces}}"
+  if [[ -n "${namespaces_raw}" ]]; then
+    IFS=' ' read -r -a namespace_args <<< "${namespaces_raw}"
+    for ns in "${namespace_args[@]}"; do
+      if [[ "${ns}" != *:* ]]; then
+        echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster"
+        exit 1
+      fi
+    done
+    export DEV_USER_NAMESPACES="${namespaces_raw// /,}"
+  fi
 
   case "{{session}}" in
     sec|sec_team)
@@ -119,7 +145,7 @@ dev-backend session="sec":
       ;;
   esac
 
-  echo "Starting backend: {{session}} (DEV_USER_ROLE=${DEV_USER_ROLE})"
+  echo "Starting backend: {{session}} (DEV_USER_ROLE=${DEV_USER_ROLE}, DEV_USER_NAMESPACES='${DEV_USER_NAMESPACES}')"
   uv --directory backend run alembic upgrade head
   uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 

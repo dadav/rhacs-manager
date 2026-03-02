@@ -12,6 +12,7 @@ import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useRiskAcceptances } from '../api/riskAcceptances'
+import { useScope } from '../hooks/useScope'
 
 const STATUS_LABELS: Record<string, string> = {
   '': 'Alle',
@@ -59,7 +60,8 @@ export function RiskAcceptances() {
     })
   }
 
-  const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined)
+  const { scopeParams } = useScope()
+  const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined, scopeParams)
 
   return (
     <>

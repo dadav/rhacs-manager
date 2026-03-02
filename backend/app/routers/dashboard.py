@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,7 @@ from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
+from ._scope import narrow_namespaces
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
@@ -62,6 +63,8 @@ def _enrich_cves(cves: list[dict], priorities: dict, acceptances: dict) -> list[
 
 @router.get("", response_model=TeamDashboardData)
 async def team_dashboard(
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -70,8 +73,16 @@ async def team_dashboard(
     min_cvss = float(settings.min_cvss_score) if settings else 0.0
     min_epss = float(settings.min_epss_score) if settings else 0.0
 
+    has_scope = cluster is not None or namespace is not None
+
     if current_user.is_sec_team:
-        namespaces: list[tuple[str, str]] = []  # empty = all for sec team
+        if has_scope:
+            all_ns = await sx.list_namespaces(sx_db)
+            namespaces: list[tuple[str, str]] = narrow_namespaces(
+                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+            )
+        else:
+            namespaces = []  # empty = all for sec team
     else:
         if not current_user.has_namespaces:
             return TeamDashboardData(
@@ -82,7 +93,7 @@ async def team_dashboard(
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
                 high_epss_cves=[], cve_trend=[],
             )
-        namespaces = current_user.namespaces
+        namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
 
     # Get prioritized CVEs (always shown)
     prio_result = await app_db.execute(select(CvePriority))
@@ -97,7 +108,7 @@ async def team_dashboard(
 
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
-    if current_user.is_sec_team:
+    if current_user.is_sec_team and not has_scope:
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
         ns_list_for_queries = None
     else:
@@ -112,18 +123,25 @@ async def team_dashboard(
         1 for c in cves if c.get("severity") == 4 and c.get("fixable")
     )
 
-    # Escalation count: for non-sec users, filter by their namespaces
-    if current_user.is_sec_team:
+    # Escalation count: filter by scope-narrowed namespaces
+    if current_user.is_sec_team and not has_scope:
         escalations_result = await app_db.execute(
             select(func.count(Escalation.id))
         )
     else:
-        ns_names = [ns for ns, _ in current_user.namespaces]
-        escalations_result = await app_db.execute(
-            select(func.count(Escalation.id)).where(
-                Escalation.namespace.in_(ns_names)
+        esc_ns = namespaces if has_scope or not current_user.is_sec_team else []
+        if esc_ns:
+            ns_pairs_esc = [(ns, cl) for ns, cl in esc_ns]
+            esc_query = select(func.count(Escalation.id)).where(
+                Escalation.namespace.in_([ns for ns, _ in ns_pairs_esc])
             )
-        )
+            if cluster:
+                esc_query = esc_query.where(Escalation.cluster_name == cluster)
+            escalations_result = await app_db.execute(esc_query)
+        else:
+            escalations_result = await app_db.execute(
+                select(func.count(Escalation.id))
+            )
     escalations = escalations_result.scalar() or 0
 
     open_ra_result = await app_db.execute(

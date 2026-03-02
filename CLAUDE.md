@@ -105,6 +105,8 @@ just dev
 
 # Run as normal team member:
 just dev user
+just dev user payments:cluster-a
+just dev user payments:cluster-a inventory:cluster-a
 
 # Run tests:
 just test

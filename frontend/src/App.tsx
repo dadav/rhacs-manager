@@ -22,7 +22,9 @@ import { BarsIcon, MoonIcon, SunIcon } from '@patternfly/react-icons'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import { useScope, buildScopedTo } from './hooks/useScope'
 import { NotificationBell } from './components/notifications/NotificationBell'
+import { ScopeSelector } from './components/scope/ScopeSelector'
 import { Dashboard } from './pages/Dashboard'
 import { SecDashboard } from './pages/SecDashboard'
 import { CveList } from './pages/CveList'
@@ -58,6 +60,7 @@ const SEC_NAV_ITEMS: NavEntry[] = [
 export function App() {
   const location = useLocation()
   const { user, isLoading, isSecTeam } = useAuth()
+  const { scopeSearchString } = useScope()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isDark, setIsDark] = useState(() => localStorage.getItem('pf-theme') === 'dark')
 
@@ -82,6 +85,8 @@ export function App() {
     )
   }
 
+  const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString)
+
   const masthead = (
     <Masthead>
       <MastheadMain>
@@ -97,7 +102,7 @@ export function App() {
         </MastheadToggle>
         <MastheadBrand>
           <Link
-            to="/dashboard"
+            to={scopedLink('/dashboard')}
             style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}
           >
             {/* OCP-style product icon: red shield shape */}
@@ -140,12 +145,13 @@ export function App() {
   const sidebar = (
     <PageSidebar isSidebarOpen={sidebarOpen}>
       <PageSidebarBody>
+        <ScopeSelector />
         <Nav aria-label="Navigation">
           <NavList>
-            <NavGroup title="Team">
+            <NavGroup title="Allgemein">
               {TEAM_NAV_ITEMS.map(item => (
                 <NavItem key={item.to} isActive={location.pathname.startsWith(item.to)}>
-                  <Link to={item.to} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Link to={scopedLink(item.to)} style={{ textDecoration: 'none', color: 'inherit' }}>
                     {item.label}
                   </Link>
                 </NavItem>
@@ -155,7 +161,7 @@ export function App() {
               <NavGroup title="Sicherheit">
                 {SEC_NAV_ITEMS.map(item => (
                   <NavItem key={item.to} isActive={location.pathname.startsWith(item.to)}>
-                    <Link to={item.to} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Link to={scopedLink(item.to)} style={{ textDecoration: 'none', color: 'inherit' }}>
                       {item.label}
                     </Link>
                   </NavItem>
@@ -170,21 +176,21 @@ export function App() {
 
   return (
     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/sec-dashboard" element={isSecTeam ? <SecDashboard /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/schwachstellen" element={<CveList />} />
-        <Route path="/schwachstellen/:cveId" element={<CveDetail />} />
-        <Route path="/risikoakzeptanzen" element={<RiskAcceptances />} />
-        <Route path="/risikoakzeptanzen/:id" element={<RiskAcceptanceDetail />} />
-        <Route path="/prioritaeten" element={<Priorities />} />
-        <Route path="/eskalationen" element={isSecTeam ? <Escalations /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/einstellungen" element={isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/audit-log" element={isSecTeam ? <AuditLog /> : <Navigate to="/dashboard" replace />} />
-        <Route path="/badges" element={<Badges />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/sec-dashboard" element={isSecTeam ? <SecDashboard /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/schwachstellen" element={<CveList />} />
+          <Route path="/schwachstellen/:cveId" element={<CveDetail />} />
+          <Route path="/risikoakzeptanzen" element={<RiskAcceptances />} />
+          <Route path="/risikoakzeptanzen/:id" element={<RiskAcceptanceDetail />} />
+          <Route path="/prioritaeten" element={<Priorities />} />
+          <Route path="/eskalationen" element={isSecTeam ? <Escalations /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/einstellungen" element={isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/audit-log" element={isSecTeam ? <AuditLog /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/badges" element={<Badges />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
     </Page>
   )
 }

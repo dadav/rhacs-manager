@@ -16,9 +16,11 @@ import {
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useBadges, useCreateBadge, useDeleteBadge } from '../api/badges'
+import { useScope } from '../hooks/useScope'
 
 export function Badges() {
-  const { data: badges, isLoading, error } = useBadges()
+  const { scopeParams } = useScope()
+  const { data: badges, isLoading, error } = useBadges(scopeParams)
   const createBadge = useCreateBadge()
   const deleteBadge = useDeleteBadge()
 

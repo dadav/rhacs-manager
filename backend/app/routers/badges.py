@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -85,17 +85,22 @@ async def get_badge_svg(
 
 @router.get("", response_model=list[BadgeResponse])
 async def list_badges(
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[BadgeResponse]:
     if current_user.is_sec_team:
-        result = await db.execute(select(BadgeToken).order_by(BadgeToken.created_at.desc()))
+        query = select(BadgeToken).order_by(BadgeToken.created_at.desc())
     else:
-        result = await db.execute(
-            select(BadgeToken)
-            .where(BadgeToken.created_by == current_user.id)
-            .order_by(BadgeToken.created_at.desc())
-        )
+        query = select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
+
+    if cluster:
+        query = query.where(BadgeToken.cluster_name == cluster)
+    if namespace:
+        query = query.where(BadgeToken.namespace == namespace)
+
+    result = await db.execute(query)
     return [await _build_response(b, db) for b in result.scalars().all()]
 
 

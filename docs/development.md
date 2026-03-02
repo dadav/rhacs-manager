@@ -8,8 +8,10 @@ The project uses [just](https://github.com/casey/just) as a command runner. All 
 |---------|-------------|
 | `just dev` | Start backend + frontend (sec_team user) |
 | `just dev user` | Start backend + frontend (team_member user) |
+| `just dev user <ns:cluster> [ns:cluster...]` | Start backend + frontend (team_member user) scoped to one or more namespaces |
 | `just dev-backend` | Start only the backend (sec_team user) |
 | `just dev-backend user` | Start only the backend (team_member user) |
+| `just dev-backend user <ns:cluster> [ns:cluster...]` | Start only the backend (team_member user) scoped to one or more namespaces |
 | `just dev-frontend` | Start only the frontend dev server |
 | `just test` | Run backend tests (`uv run pytest`) |
 | `just lint` | Run frontend linter |
@@ -33,6 +35,16 @@ The `just dev` command accepts a session argument that configures the mock user:
 | `user` | `team_member` | `dev-user-1` | Dev Team User |
 
 The backend starts on port 8000 and the frontend on port 5173. Alembic migrations run automatically before the backend starts. Both processes run with hot reload.
+
+For `user` sessions, you can pass one or multiple namespace scopes in `namespace:cluster` format:
+
+```bash
+just dev user payments:cluster-a
+just dev user payments:cluster-a inventory:cluster-a platform:cluster-b
+just dev-backend user payments:cluster-a inventory:cluster-a
+```
+
+These arguments are translated to `DEV_USER_NAMESPACES` as a comma-separated list.
 
 ## Code Structure
 

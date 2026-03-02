@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment } from '../types'
+import type { ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
   list: (params: Record<string, unknown>) => ['cves', 'list', params] as const,
@@ -23,6 +24,8 @@ interface CveListParams {
   namespaces?: string[]
   component?: string
   risk_status?: string
+  cluster?: string
+  namespace?: string
 }
 
 function buildQuery(params: CveListParams): string {
@@ -39,10 +42,11 @@ function buildQuery(params: CveListParams): string {
   return s ? `?${s}` : ''
 }
 
-export function useCves(params: CveListParams = {}) {
+export function useCves(params: CveListParams = {}, scope: ScopeParams = {}) {
+  const merged = { ...params, cluster: scope.cluster, namespace: scope.namespace }
   return useQuery({
-    queryKey: cveKeys.list(params as Record<string, unknown>),
-    queryFn: () => api.get<Paginated<CveListItem>>(`/cves${buildQuery(params)}`),
+    queryKey: cveKeys.list(merged as Record<string, unknown>),
+    queryFn: () => api.get<Paginated<CveListItem>>(`/cves${buildQuery(merged)}`),
   })
 }
 

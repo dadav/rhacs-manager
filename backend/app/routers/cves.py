@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ._scope import narrow_namespaces
 from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
@@ -65,6 +66,8 @@ async def list_cves(
     namespaces: list[str] | None = Query(None),
     component: str | None = Query(None),
     risk_status: str | None = Query(None),
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -72,6 +75,8 @@ async def list_cves(
     settings = await _get_settings(app_db)
     min_cvss = float(settings.min_cvss_score) if settings else 0.0
     min_epss = float(settings.min_epss_score) if settings else 0.0
+
+    has_scope = cluster is not None or namespace is not None
 
     prio_result = await app_db.execute(select(CvePriority))
     priorities = {p.cve_id: p for p in prio_result.scalars().all()}
@@ -85,11 +90,19 @@ async def list_cves(
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
     if current_user.is_sec_team:
-        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
+        if has_scope:
+            all_ns = await sx.list_namespaces(sx_db)
+            scoped_ns = narrow_namespaces(
+                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+            )
+            cves = await sx.get_cves_for_namespaces(sx_db, scoped_ns, min_cvss, min_epss, always_show)
+        else:
+            cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
     else:
         if not current_user.has_namespaces:
             return PaginatedResponse(items=[], total=0, page=page, page_size=page_size)
-        cves = await sx.get_cves_for_namespaces(sx_db, current_user.namespaces, min_cvss, min_epss, always_show)
+        scoped_user_ns = narrow_namespaces(current_user.namespaces, cluster, namespace)
+        cves = await sx.get_cves_for_namespaces(sx_db, scoped_user_ns, min_cvss, min_epss, always_show)
 
     # Build items
     items = [_build_cve_item(c, priorities, acceptances) for c in cves]

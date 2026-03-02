@@ -63,6 +63,10 @@ The `just dev` command starts both backend (port 8000) and frontend (port 5173) 
 
     ```bash
     just dev user
+    # one namespace:
+    just dev user payments:cluster-a
+    # multiple namespaces:
+    just dev user payments:cluster-a inventory:cluster-a
     ```
 
     Runs as `DEV_USER_ROLE=team_member` with namespace-scoped access.

@@ -8,6 +8,7 @@ import { CheckCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { Link } from 'react-router-dom'
 import { useEscalations } from '../api/escalations'
+import { useScope } from '../hooks/useScope'
 
 const LEVEL_COLORS: Record<number, string> = {
   1: '#ec7a08',
@@ -22,7 +23,8 @@ const LEVEL_LABELS: Record<number, string> = {
 }
 
 export function Escalations() {
-  const { data, isLoading, error } = useEscalations()
+  const { scopeParams } = useScope()
+  const { data, isLoading, error } = useEscalations(scopeParams)
 
   return (
     <>
