@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import settings as app_settings
 from .routers import (
     audit,
     auth,
@@ -63,6 +64,13 @@ for router_module in [
     audit,
 ]:
     app.include_router(router_module.router, prefix="/api")
+
+
+# Register dev-only router when DEV_MODE is enabled
+if app_settings.dev_mode:
+    from .routers import dev
+
+    app.include_router(dev.router, prefix="/api")
 
 
 @app.get("/health")
