@@ -22,6 +22,21 @@ spec:
             - secretRef:
                 name: rhacs-manager-backend-secret
           env:
+            # App DB connection params (from CNPG-generated secret)
+            - name: APP_DB_HOST
+              value: "rhacs-manager-db-rw"
+            - name: APP_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rhacs-manager-db-app
+                  key: username
+            - name: APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rhacs-manager-db-app
+                  key: password
+            - name: APP_DB_NAME
+              value: "rhacs_manager"
             # StackRox Central DB connection params (built into URL by config.py)
             - name: STACKROX_DB_HOST
               value: "central-db.stackrox.svc"

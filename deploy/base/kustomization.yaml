@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - secret.yaml
+  - app-db.yaml
   - backend-deployment.yaml
   - backend-service.yaml
   - frontend-deployment.yaml

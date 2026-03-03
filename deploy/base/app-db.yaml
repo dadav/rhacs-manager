@@ -1,0 +1,13 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: rhacs-manager-db
+  namespace: rhacs-manager
+spec:
+  instances: 1
+  bootstrap:
+    initdb:
+      database: rhacs_manager
+      owner: rhacs_manager
+  storage:
+    size: 5Gi

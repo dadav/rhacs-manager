@@ -8,9 +8,21 @@ class Settings(BaseSettings):
     )
 
     # App database (read-write)
-    app_db_url: str = Field(
-        default="postgresql+asyncpg://postgres@localhost/rhacs_manager"
-    )
+    # Either set app_db_url directly, or set individual params below.
+    # If app_db_url is empty, it is built from the individual params.
+    app_db_url: str = Field(default="")
+    app_db_host: str = Field(default="localhost")
+    app_db_port: int = Field(default=5432)
+    app_db_user: str = Field(default="postgres")
+    app_db_password: str = Field(default="")
+    app_db_name: str = Field(default="rhacs_manager")
+
+    @property
+    def effective_app_db_url(self) -> str:
+        if self.app_db_url:
+            return self.app_db_url
+        cred = f"{self.app_db_user}:{self.app_db_password}" if self.app_db_password else self.app_db_user
+        return f"postgresql+asyncpg://{cred}@{self.app_db_host}:{self.app_db_port}/{self.app_db_name}"
 
     # StackRox Central database (read-only)
     # Either set stackrox_db_url directly, or set individual params below.
