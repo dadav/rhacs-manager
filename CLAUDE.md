@@ -241,6 +241,8 @@ npm run build
 just docs-build
 ```
 
+Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[tool.pytest.ini_options] testpaths = ["tests"]`) so operational scripts in `backend/scripts/` are not collected as tests in CI.
+
 Always verify backend, frontend, and docs build before marking work done.
 
 ## Helm Deployment (Hub Alternative)
