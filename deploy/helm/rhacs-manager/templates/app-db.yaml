@@ -1,0 +1,17 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.database.cnpg.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.database.cnpg.clusterName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.database.cnpg.instances }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.database.cnpg.database }}
+      owner: {{ .Values.database.cnpg.owner }}
+  storage:
+    size: {{ .Values.database.cnpg.storage.size }}
+{{- end }}

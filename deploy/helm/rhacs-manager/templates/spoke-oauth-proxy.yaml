@@ -1,0 +1,27 @@
+{{- if eq (default "hub" .Values.mode) "spoke" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.spoke.oauthProxy.serviceAccountName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    serviceaccounts.openshift.io/oauth-redirectreference.primary: |
+      {"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"{{ .Values.spoke.route.name }}"}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.spoke.oauthProxy.authDelegatorClusterRoleBindingName }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.spoke.oauthProxy.serviceAccountName }}
+    namespace: {{ include "rhacs-manager.namespace" . }}
+{{- end }}

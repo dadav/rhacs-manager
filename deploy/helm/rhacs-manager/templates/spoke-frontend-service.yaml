@@ -1,0 +1,18 @@
+{{- if eq (default "hub" .Values.mode) "spoke" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.spoke.frontend.serviceName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.spoke.service.annotations | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Values.spoke.frontend.deploymentName }}
+  ports:
+    - name: {{ .Values.spoke.service.portName }}
+      port: {{ .Values.spoke.service.port }}
+      targetPort: {{ .Values.spoke.service.targetPort }}
+{{- end }}

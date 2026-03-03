@@ -89,6 +89,16 @@ kubectl apply -k deploy/hub/
 
 # Spoke (frontend + oauth-proxy + namespace-resolver)
 kubectl apply -k deploy/spoke/
+
+# Hub via Helm
+helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace
+
+# Spoke via Helm
+helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  --set mode=spoke \
+  --set spoke.oauthProxy.cookieSecret='<base64-32-byte-secret>'
 ```
 
 ## Project Structure

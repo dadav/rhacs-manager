@@ -1,0 +1,89 @@
+{{- if eq (default "hub" .Values.mode) "spoke" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.spoke.frontend.deploymentName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.spoke.frontend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.spoke.frontend.deploymentName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.spoke.frontend.deploymentName }}
+        {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.spoke.oauthProxy.serviceAccountName }}
+      containers:
+        - name: oauth-proxy
+          image: "{{ .Values.spoke.oauthProxy.image.repository }}:{{ .Values.spoke.oauthProxy.image.tag }}"
+          imagePullPolicy: {{ .Values.spoke.oauthProxy.image.pullPolicy }}
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account={{ .Values.spoke.oauthProxy.serviceAccountName }}
+            - --upstream=http://localhost:8081
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret={{ required "spoke.oauthProxy.cookieSecret is required in spoke mode" .Values.spoke.oauthProxy.cookieSecret }}
+            - --pass-user-headers=true
+          ports:
+            - containerPort: 8443
+              name: oauth-proxy
+          volumeMounts:
+            - name: proxy-tls
+              mountPath: /etc/tls/private
+              readOnly: true
+          resources:
+            {{- toYaml .Values.spoke.oauthProxy.resources | nindent 12 }}
+
+        - name: namespace-resolver
+          image: "{{ .Values.spoke.namespaceResolver.image.repository }}:{{ .Values.spoke.namespaceResolver.image.tag }}"
+          imagePullPolicy: {{ .Values.spoke.namespaceResolver.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.spoke.secret.name }}
+                  key: CLUSTER_NAME
+            - name: NAMESPACE_ANNOTATION
+              value: {{ .Values.spoke.namespaceResolver.namespaceAnnotation | quote }}
+            - name: CACHE_TTL_SECONDS
+              value: {{ .Values.spoke.namespaceResolver.cacheTtlSeconds | quote }}
+          resources:
+            {{- toYaml .Values.spoke.namespaceResolver.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+        - name: frontend
+          image: "{{ .Values.spoke.frontend.image.repository }}:{{ .Values.spoke.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.spoke.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: {{ .Values.spoke.secret.name }}
+          resources:
+            {{- toYaml .Values.spoke.frontend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.spoke.frontend.readinessProbe.path }}
+              port: 8080
+            initialDelaySeconds: {{ .Values.spoke.frontend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.spoke.frontend.readinessProbe.periodSeconds }}
+
+      volumes:
+        - name: proxy-tls
+          secret:
+            secretName: {{ .Values.spoke.oauthProxy.tlsSecretName }}
+{{- end }}

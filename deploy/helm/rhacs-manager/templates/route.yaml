@@ -1,0 +1,37 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.route.enabled }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Values.route.frontend.name }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  host: {{ required "route.frontend.host is required when route.enabled=true" .Values.route.frontend.host }}
+  to:
+    kind: Service
+    name: {{ .Values.frontend.serviceName }}
+  port:
+    targetPort: {{ .Values.frontend.service.port }}
+  tls:
+    termination: {{ .Values.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ .Values.route.backend.name }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  host: {{ required "route.backend.host is required when route.enabled=true" .Values.route.backend.host }}
+  to:
+    kind: Service
+    name: {{ .Values.backend.serviceName }}
+  port:
+    targetPort: {{ .Values.backend.service.port }}
+  tls:
+    termination: {{ .Values.route.tls.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+{{- end }}

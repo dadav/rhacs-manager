@@ -241,3 +241,19 @@ just docs-build
 ```
 
 Always verify backend, frontend, and docs build before marking work done.
+
+## Helm Deployment (Hub Alternative)
+
+- A functional Helm chart now exists at `deploy/helm/rhacs-manager` as an alternative to `deploy/base`/`deploy/hub` kustomize deployment.
+- Default chart output includes: Namespace, backend secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend/frontend Deployments + Services, and two OpenShift Routes.
+- Install command:
+  - `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace`
+- Critical pre-reqs remain the same as kustomize:
+  - CNPG operator installed in cluster
+  - `central-db-password` secret present in `rhacs-manager` namespace for StackRox DB access
+  - Route hosts and secret values overridden from defaults before production use
+- Helm chart now supports **spoke mode** via `--set mode=spoke`, which renders spoke resources (spoke secret, oauth-proxy SA+CRB, namespace-resolver RBAC, spoke frontend deployment/service, spoke route) instead of hub resources.
+- Spoke install example:
+  - `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke --set spoke.oauthProxy.cookieSecret=<base64-32-byte-secret> --set spoke.secret.stringData.HUB_API_URL=<hub-api-url> --set spoke.secret.stringData.SPOKE_API_KEY=<spoke-key> --set spoke.secret.stringData.CLUSTER_NAME=<cluster-name>`
+- README and `docs/deployment/index.md` include short Helm usage snippets for hub and spoke installs.
+- CI build workflow now publishes Helm chart OCI artifacts to GHCR from `.github/workflows/build.yaml` (`build-helm-chart` job), packaging `deploy/helm/rhacs-manager` and pushing to `oci://ghcr.io/<owner>/charts`.

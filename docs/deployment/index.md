@@ -1,6 +1,6 @@
 # Deployment Overview
 
-RHACS CVE Manager uses a hub-spoke deployment model on OpenShift, managed with Kustomize.
+RHACS CVE Manager uses a hub-spoke deployment model on OpenShift, managed with Kustomize or Helm.
 
 ## Deployment Topology
 
@@ -87,4 +87,18 @@ kubectl kustomize deploy/hub/ | kubectl apply -f -
 
 # Spoke deployment
 kubectl kustomize deploy/spoke/ | kubectl apply -f -
+```
+
+## Helm Chart (Alternative)
+
+```bash
+# Hub deployment
+helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace
+
+# Spoke deployment
+helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  --set mode=spoke \
+  --set spoke.oauthProxy.cookieSecret='<base64-32-byte-secret>'
 ```

@@ -1,0 +1,71 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.backend.deploymentName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.backend.deploymentName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.backend.deploymentName }}
+        {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.targetPort }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.backend.secret.name }}
+          env:
+            - name: APP_DB_HOST
+              value: {{ .Values.backend.env.appDbHost | quote }}
+            - name: APP_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.appDbSecretName }}
+                  key: {{ .Values.backend.env.appDbUserKey }}
+            - name: APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.appDbSecretName }}
+                  key: {{ .Values.backend.env.appDbPasswordKey }}
+            - name: APP_DB_NAME
+              value: {{ .Values.backend.env.appDbName | quote }}
+            - name: STACKROX_DB_HOST
+              value: {{ .Values.backend.env.stackroxDbHost | quote }}
+            - name: STACKROX_DB_PORT
+              value: {{ .Values.backend.env.stackroxDbPort | quote }}
+            - name: STACKROX_DB_USER
+              value: {{ .Values.backend.env.stackroxDbUser | quote }}
+            - name: STACKROX_DB_NAME
+              value: {{ .Values.backend.env.stackroxDbName | quote }}
+            - name: STACKROX_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.stackroxDbPasswordSecretName }}
+                  key: {{ .Values.backend.env.stackroxDbPasswordKey }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.readinessProbe.path }}
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: {{ .Values.backend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.readinessProbe.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.backend.livenessProbe.path }}
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: {{ .Values.backend.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.livenessProbe.periodSeconds }}
+{{- end }}

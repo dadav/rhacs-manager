@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/rhacs-manager
+  HELM_CHART_REGISTRY: oci://ghcr.io/${{ github.repository_owner }}/charts
 
 jobs:
   build-backend:
@@ -133,3 +134,36 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  build-helm-chart:
+    name: Helm Chart (OCI)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Login to GHCR for Helm OCI push
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
+      - name: Package Helm chart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/helm
+          base_version="$(helm show chart deploy/helm/rhacs-manager | awk '/^version:/ {print $2}')"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            package_version="${base_version}"
+            app_version="${base_version}"
+          else
+            package_version="${base_version}-main.${GITHUB_SHA::7}"
+            app_version="${GITHUB_SHA::7}"
+          fi
+          helm package deploy/helm/rhacs-manager \
+            --destination .artifacts/helm \
+            --version "${package_version}" \
+            --app-version "${app_version}"
+      - name: Push Helm chart to GHCR as OCI artifact
+        run: |
+          chart_archive="$(ls .artifacts/helm/rhacs-manager-*.tgz)"
+          helm push "${chart_archive}" "${{ env.HELM_CHART_REGISTRY }}"
