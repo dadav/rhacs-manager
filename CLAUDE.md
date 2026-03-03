@@ -227,6 +227,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
 - All dependencies bundled at build time; no internet access at runtime
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
+- Alembic DB URL resolution is sourced from `app.config.settings.effective_app_db_url` (not a hardcoded `APP_DB_URL` fallback), so deployments using split env vars (`APP_DB_HOST`, `APP_DB_USER`, `APP_DB_PASSWORD`, `APP_DB_NAME`) work for migrations and runtime consistently.
 
 ## Tests
 

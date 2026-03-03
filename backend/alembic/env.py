@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app.config import settings
 from app.database import Base
 from app.models import (  # noqa: F401 — imports register models with Base.metadata
     AuditLog,
@@ -27,11 +28,8 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    import os
-    return os.environ.get(
-        "APP_DB_URL",
-        "postgresql+asyncpg://postgres@localhost/rhacs_manager",
-    )
+    # Keep Alembic DSN resolution identical to runtime app settings.
+    return settings.effective_app_db_url
 
 
 def run_migrations_offline() -> None:
