@@ -121,7 +121,7 @@ async def notify_escalation(
     level: int,
 ) -> None:
     """Notify sec team about escalation (no persistent user→namespace mapping)."""
-    link = "/eskalationen"
+    link = f"/schwachstellen/{cve_id}"
     title = f"Eskalation Stufe {level}: {cve_id}"
     msg = f"CVE {cve_id} in {namespace}/{cluster_name} wurde auf Eskalationsstufe {level} hochgestuft."
 
