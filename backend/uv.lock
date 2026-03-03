@@ -768,7 +768,7 @@ wheels = [
 [[package]]
 name = "rhacs-manager-backend"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "aiosmtplib" },
     { name = "alembic" },

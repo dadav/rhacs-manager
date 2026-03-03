@@ -226,6 +226,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Kustomize hub: `deploy/hub/` — references base (identical to base)
 - Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
 - All dependencies bundled at build time; no internet access at runtime
+- Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
 
 ## Tests
 
