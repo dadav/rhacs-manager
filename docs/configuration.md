@@ -1,15 +1,20 @@
 # Configuration
 
-All configuration is driven by environment variables, loaded via Pydantic Settings (`backend/app/config.py`). Variables can also be set in a `.env` file in the backend directory.
+Application configuration is environment-driven via `backend/app/config.py` (Pydantic Settings).
 
 ## Database
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_DB_URL` | `postgresql+asyncpg://postgres@localhost/rhacs_manager` | App database connection string (read-write) |
-| `STACKROX_DB_URL` | `postgresql+asyncpg://postgres@localhost/central_active` | StackRox Central database connection string (read-only) |
+| `APP_DB_URL` | `postgresql+asyncpg://postgres@localhost/rhacs_manager` | App DB URL (read-write) |
+| `STACKROX_DB_URL` | `""` | Optional full StackRox DB URL; overrides component fields |
+| `STACKROX_DB_HOST` | `localhost` | StackRox host |
+| `STACKROX_DB_PORT` | `5432` | StackRox port |
+| `STACKROX_DB_USER` | `postgres` | StackRox user |
+| `STACKROX_DB_PASSWORD` | `""` | StackRox password |
+| `STACKROX_DB_NAME` | `central_active` | StackRox DB name |
 
-Both databases use `asyncpg` with connection pool pre-ping enabled.
+`STACKROX_DB_URL` is optional. If unset, the backend builds the effective URL from `STACKROX_DB_*` parts.
 
 ## Authentication
 
@@ -17,105 +22,84 @@ Both databases use `asyncpg` with connection pool pre-ping enabled.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DEV_MODE` | `true` | Enable dev mode (bypasses OIDC, uses mock user) |
-| `DEV_USER_ID` | `dev-user-1` | Dev user identifier (ignored -- DB-assigned UUID is used) |
-| `DEV_USER_NAME` | `Dev User` | Dev user display name |
-| `DEV_USER_EMAIL` | `dev@example.com` | Dev user email |
-| `DEV_USER_ROLE` | `sec_team` | Dev user role: `sec_team` or `team_member` |
-| `DEV_USER_NAMESPACES` | `""` | Namespace access in dev mode (format: `ns1:cluster1,ns2:cluster2`) |
-
-!!! warning
-    Set `DEV_MODE=false` in production. Dev mode bypasses all authentication and creates a synthetic user on every request.
+| `DEV_MODE` | `true` | Enable local auth bypass |
+| `DEV_USER_ID` | `dev-user-1` | Dev user ID |
+| `DEV_USER_NAME` | `Dev User` | Dev display name |
+| `DEV_USER_EMAIL` | `dev@example.com` | Dev email |
+| `DEV_USER_ROLE` | `sec_team` | `sec_team` or `team_member` |
+| `DEV_USER_NAMESPACES` | `""` | `ns1:cluster1,ns2:cluster2` |
+| `DEV_NAMESPACE_EMAILS` | `""` | `ns1:cluster1=email@company.com,...` mapping for notifications |
 
 ### OIDC (Production)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OIDC_ISSUER` | `""` | OIDC provider issuer URL |
-| `OIDC_CLIENT_ID` | `""` | OIDC client ID for token validation |
+| `OIDC_ISSUER` | `""` | OIDC issuer URL |
+| `OIDC_CLIENT_ID` | `""` | OIDC client ID |
 
-### Spoke Proxy
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SPOKE_API_KEYS` | `[]` | JSON list of allowed API keys from spoke proxies. Example: `'["key1","key2"]'` |
-| `SEC_TEAM_GROUP` | `rhacs-sec-team` | Keycloak group name that grants the `sec_team` role |
-
-!!! note "Namespace access"
-    Namespace access for spoke users is determined by the namespace-resolver sidecar, which reads K8s namespace annotations (`rhacs-manager.io/users`) and sets the `X-Forwarded-Namespaces` header. There is no group-to-team mapping -- groups only determine the user's role.
-
-## SMTP (Email)
+### Spoke Proxy / Group Mapping
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SMTP_HOST` | `localhost` | SMTP server hostname |
-| `SMTP_PORT` | `25` | SMTP server port |
-| `SMTP_FROM` | `rhacs-manager@example.com` | Sender email address |
-| `SMTP_USER` | `""` | SMTP authentication username |
-| `SMTP_PASSWORD` | `""` | SMTP authentication password |
+| `SPOKE_API_KEYS` | `[]` | JSON list of accepted spoke keys |
+| `SEC_TEAM_GROUP` | `rhacs-sec-team` | Group mapped to `sec_team` |
+
+## SMTP
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_HOST` | `localhost` | SMTP host |
+| `SMTP_PORT` | `25` | SMTP port |
+| `SMTP_FROM` | `rhacs-manager@example.com` | Sender |
+| `SMTP_USER` | `""` | Username |
+| `SMTP_PASSWORD` | `""` | Password |
 | `SMTP_TLS` | `false` | Enable STARTTLS |
 
 ## Application
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_BASE_URL` | `http://localhost:5173` | Base URL for links in emails and badge URLs |
-| `SECRET_KEY` | `dev-secret-key-change-in-production` | JWT signing key |
-| `MANAGEMENT_EMAIL` | `""` | Email address for org-wide weekly digest reports |
+| `APP_BASE_URL` | `http://localhost:5173` | Base URL used in links and badge URLs |
+| `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
+| `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
 
-!!! danger
-    Change `SECRET_KEY` to a strong random value in production. The default is insecure.
+## Runtime Settings (`/api/settings`)
 
-## Runtime Settings (Global Settings)
-
-These are configured through the API (`/api/settings`) by the security team, not via environment variables. They are stored in the `global_settings` table.
+Security team users manage runtime behavior via API/UI. Values are stored in `global_settings`.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `min_cvss_score` | `0.0` | Minimum CVSS score for CVE visibility (0.0-10.0) |
-| `min_epss_score` | `0.0` | Minimum EPSS probability for CVE visibility (0.0-1.0) |
-| `escalation_rules` | _(see below)_ | JSON array of escalation rule definitions |
-| `digest_day` | `0` (Monday) | Day of week for weekly digest email (0=Monday) |
-| `management_email` | `""` | Email address for management digest reports |
+| `min_cvss_score` | `0.0` | Minimum CVSS threshold |
+| `min_epss_score` | `0.0` | Minimum EPSS threshold |
+| `escalation_rules` | Built-in defaults | Rule set for level escalation |
+| `escalation_warning_days` | `3` | Lead time used for upcoming escalation warnings |
+| `digest_day` | `0` | Weekly digest day (`0` = Monday) |
+| `management_email` | `""` | Digest recipient (runtime override) |
 
 ### Default Escalation Rules
 
 ```json
 [
-    {
-        "severity_min": 3,
-        "epss_threshold": 0.0,
-        "days_to_level1": 14,
-        "days_to_level2": 21,
-        "days_to_level3": 30
-    },
-    {
-        "severity_min": 4,
-        "epss_threshold": 0.0,
-        "days_to_level1": 7,
-        "days_to_level2": 14,
-        "days_to_level3": 21
-    },
-    {
-        "severity_min": 2,
-        "epss_threshold": 0.5,
-        "days_to_level1": 14,
-        "days_to_level2": 21,
-        "days_to_level3": 30
-    }
+  {
+    "severity_min": 3,
+    "epss_threshold": 0.0,
+    "days_to_level1": 14,
+    "days_to_level2": 21,
+    "days_to_level3": 30
+  },
+  {
+    "severity_min": 4,
+    "epss_threshold": 0.0,
+    "days_to_level1": 7,
+    "days_to_level2": 14,
+    "days_to_level3": 21
+  },
+  {
+    "severity_min": 2,
+    "epss_threshold": 0.5,
+    "days_to_level1": 14,
+    "days_to_level2": 21,
+    "days_to_level3": 30
+  }
 ]
 ```
-
-Severity values: `1` = Low, `2` = Moderate, `3` = Important, `4` = Critical.
-
-## Spoke Frontend Environment
-
-These variables are used by the spoke nginx container (set via `rhacs-manager-spoke-secret`):
-
-| Variable | Description |
-|----------|-------------|
-| `HUB_API_URL` | Full URL of the hub backend API route (e.g. `https://rhacs-manager-api.hub.example.com`) |
-| `SPOKE_API_KEY` | API key matching one of the hub's `SPOKE_API_KEYS` entries |
-| `CLUSTER_NAME` | Name of the spoke cluster (used by namespace-resolver for namespace:cluster pairs) |
-
-These are substituted into the nginx config at container startup via `envsubst`.

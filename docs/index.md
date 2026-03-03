@@ -1,89 +1,100 @@
 # RHACS CVE Manager
 
-Self-service CVE management application for OpenShift RHACS (Red Hat Advanced Cluster Security). Users manage CVEs scoped to their K8s RBAC-accessible namespaces with EPSS-driven prioritization; the security team has organization-wide visibility and a monitoring dashboard.
+<div class="rhacs-hero" markdown>
 
-## Key Features
+Self-service CVE management for OpenShift RHACS environments. Teams get namespace-scoped vulnerability views with a clear remediation path, while the security team gets organization-wide controls and reporting.
 
-- **CVE listing** with EPSS-driven prioritization and CVSS/EPSS threshold filtering
-- **Namespace-scoped access** -- users see only CVEs in namespaces derived from K8s RBAC annotations
-- **Risk acceptance workflow** -- teams request risk acceptances, sec team reviews (requested, approved, rejected, expired)
-- **Security team dashboard** -- org-wide metrics: EPSS risk matrix, cluster heatmap, aging distribution
-- **User dashboard** -- severity distribution, CVEs per namespace, priority CVEs, high-EPSS CVEs, trend charts
-- **Manual CVE prioritization** -- sec team marks CVEs as critical/high/medium/low with deadlines
-- **Escalation system** -- configurable rules trigger escalations based on severity, EPSS, and age
-- **Notification system** -- in-app notifications for priority changes, risk acceptance status updates, comments
-- **Email notifications** -- SMTP integration for risk acceptance reviews and weekly digests
-- **SVG badge generator** -- embeddable status badges for external dashboards or README files
-- **Audit logging** -- all administrative actions are logged with user and timestamp
-- **Hub-spoke deployment** -- hub cluster runs the backend; spoke clusters run a frontend proxy with OpenShift OAuth
+<div class="rhacs-hero-actions" markdown>
 
-## Architecture Overview
+[Get Started :material-rocket-launch:](getting-started.md){ .md-button .md-button--primary }
+[Deployment Guide :material-cloud-upload:](deployment/index.md){ .md-button }
+[API Endpoints :material-api:](api/endpoints.md){ .md-button }
+
+</div>
+
+</div>
+
+## Platform Highlights
+
+<div class="rhacs-card-grid" markdown>
+<div class="grid cards" markdown>
+
+- :material-shield-alert:{ .lg .middle } __EPSS-first triage__
+
+    ---
+
+    Prioritize by exploit probability, CVSS, and runtime impact so teams focus on likely threats first.
+
+- :material-family-tree:{ .lg .middle } __Namespace-scoped access__
+
+    ---
+
+    Team visibility comes from `X-Forwarded-Namespaces` (`namespace:cluster` pairs) in spoke/hub mode.
+
+- :material-file-sign:{ .lg .middle } __Risk acceptance workflow__
+
+    ---
+
+    Track requests from creation to approval/rejection/expiry with comments and audit history.
+
+- :material-bell-badge:{ .lg .middle } __Escalations and digests__
+
+    ---
+
+    Rule-driven escalation levels and weekly summaries keep unresolved risk visible.
+
+- :material-chart-areaspline:{ .lg .middle } __Operational dashboards__
+
+    ---
+
+    Severity, EPSS matrix, cluster heatmap, trend, aging, and risk pipeline in one place.
+
+- :material-tag-outline:{ .lg .middle } __Public SVG badges__
+
+    ---
+
+    Create namespace badges for dashboards and status pages without exposing API access.
+
+</div>
+</div>
+
+## Architecture Snapshot
 
 ```mermaid
 graph TB
     subgraph "Hub Cluster"
-        FE_HUB["Frontend SPA<br/>(React 19 + PatternFly 6)"]
-        BE["FastAPI Backend<br/>(Python 3.12)"]
-        APP_DB[("App DB<br/>(PostgreSQL)")]
-        SX_DB[("StackRox Central DB<br/>(read-only)")]
-        SMTP["SMTP Server"]
+        FE_HUB["Frontend SPA\n(React + PatternFly)"]
+        BE["FastAPI Backend"]
+        APP_DB[("App DB\nread-write")]
+        SX_DB[("StackRox Central DB\nread-only")]
     end
 
     subgraph "Spoke Cluster"
-        OAUTH["oauth-proxy<br/>(OpenShift OAuth)"]
+        OAUTH["oauth-proxy"]
         NR["namespace-resolver"]
-        FE_SPOKE["Spoke Frontend<br/>(nginx + SPA)"]
+        FE_SPOKE["Spoke Frontend\nnginx + SPA"]
     end
 
     FE_HUB -->|"/api/*"| BE
-    BE -->|read-write| APP_DB
-    BE -->|read-only| SX_DB
-    BE -->|email| SMTP
+    BE --> APP_DB
+    BE --> SX_DB
 
-    OAUTH -->|auth| NR
-    NR -->|"X-Forwarded-Namespaces"| FE_SPOKE
-    FE_SPOKE -->|"/api/* proxy<br/>X-Api-Key + X-Forwarded-*"| BE
+    OAUTH --> NR
+    NR --> FE_SPOKE
+    FE_SPOKE -->|"X-Api-Key + X-Forwarded-*"| BE
 ```
 
-## Core Concepts
+## Core Design Rules
 
-### EPSS-Driven Prioritization
+- CVE visibility for non-sec users is namespace-scoped.
+- Threshold filtering is conjunctive (`min_cvss_score` and `min_epss_score`).
+- Prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
+- `image_cves_v2` is the authoritative StackRox source for CVE data.
 
-The Exploit Prediction Scoring System (EPSS) probability is the primary metric for CVE triage. Combined with CVSS scores, configurable thresholds filter the CVE list to show only actionable vulnerabilities. CVEs below both thresholds are hidden from team views unless they have a manual priority or active risk acceptance.
+## Documentation Map
 
-### Dual Database Design
-
-The application connects to two PostgreSQL databases:
-
-| Database | Access | Purpose |
-|----------|--------|---------|
-| **App DB** | Read-write | Users, risk acceptances, priorities, escalations, settings, audit logs |
-| **StackRox Central DB** | Read-only | CVE data, deployments, images, components (managed by RHACS) |
-
-### Namespace-Based Access
-
-Namespace access is derived from Kubernetes RBAC via namespace annotations (`rhacs-manager.io/users`). Each user sees only CVEs in their accessible namespaces, delivered via the `X-Forwarded-Namespaces` header. The security team (`sec_team` role) sees all CVEs across all namespaces.
-
-### Risk Acceptance Workflow
-
-```mermaid
-stateDiagram-v2
-    [*] --> requested: Team member creates
-    requested --> approved: Sec team approves
-    requested --> rejected: Sec team rejects
-    approved --> expired: Expiry date reached
-    rejected --> requested: Team member resubmits
-    approved --> requested: Team member modifies
-```
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Vite, PatternFly 6, TanStack Query 5, react-i18next |
-| Backend | FastAPI, Python 3.12, SQLAlchemy 2 (async), Alembic, Pydantic v2, uv |
-| Auth | OIDC JWT (hub), OpenShift OAuth + spoke proxy, dev mode bypass |
-| Databases | PostgreSQL (app DB + StackRox Central DB) |
-| Email | SMTP with configurable TLS |
-| Scheduling | APScheduler (escalation checks, weekly digest) |
-| Deploy | Kustomize, Podman/Docker, OpenShift |
+- [Getting Started](getting-started.md): local setup, migration, and developer workflow
+- [Architecture](architecture.md): trust boundaries, auth modes, and data flow
+- [Configuration](configuration.md): all environment variables and runtime settings
+- [Deployment](deployment/index.md): hub and spoke deployment on OpenShift
+- [API](api/index.md): contracts and endpoint behavior

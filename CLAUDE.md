@@ -47,7 +47,18 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `deploy/spoke/namespace-resolver-rbac.yaml` | ClusterRole/Binding for namespace list permission                                                                      |
 | `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
 | `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
+| `docs/`                           | MkDocs Material documentation site                                                                                               |
+| `docs/stylesheets/extra.css`      | Custom docs theming for homepage/visual polish                                                                                  |
+| `mkdocs.yml`                      | Docs site config (Material theme features, markdown extensions, nav)                                                            |
 | `justfile`                        | Dev workflow commands                                                                                                           |
+
+## Documentation Stack
+
+- Documentation is built with **MkDocs + Material for MkDocs**.
+- `mkdocs.yml` enables modern Material features (`navigation.instant`, `search.share`, `content.action.*`, etc.).
+- Custom docs styling is intentionally centralized in `docs/stylesheets/extra.css`.
+- Homepage layout uses Material card-grid/button patterns (`docs/index.md`) for predictable LLM-friendly regeneration.
+- Docs validation command: `just docs-build` (or `uv run --with mkdocs-material mkdocs build`).
 
 ## StackRox DB Query Pattern
 
@@ -123,7 +134,7 @@ Dev environment uses local Postgres. Set `APP_DB_URL` and `STACKROX_DB_URL` or r
 
 **Header format:** `X-Forwarded-Namespaces: ns1:cluster1,ns2:cluster2,...`
 
-The spoke proxy is responsible for querying K8s RBAC (SubjectAccessReview for `get pods`) and populating this header.
+The spoke proxy is responsible for querying namespace annotations and populating this header.
 
 **`CurrentUser` carries:**
 - `id`, `username`, `email`, `role` (persisted in DB)
@@ -161,7 +172,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 
 **Auth flow (spoke proxy mode):**
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups` headers
-2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up K8s namespace annotations (`rhacs-manager.io/users`), sets `X-Forwarded-Namespaces` header
+2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up namespace annotations (`rhacs-manager.io/users`), sets `X-Forwarded-Namespaces` header
 3. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
 4. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces from headers
 5. `sec_team_group` in groups grants sec_team role
@@ -224,6 +235,9 @@ uv run pytest tests/
 
 # Frontend (TypeScript + Vite build must be clean):
 npm run build
+
+# Docs (MkDocs Material):
+just docs-build
 ```
 
-Always verify both before marking work done.
+Always verify backend, frontend, and docs build before marking work done.

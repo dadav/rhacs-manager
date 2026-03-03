@@ -2,125 +2,110 @@
 
 ## Prerequisites
 
-- **Python 3.12+** with [uv](https://docs.astral.sh/uv/) package manager
-- **Node.js 22+** with npm
-- **PostgreSQL** -- two databases required:
-    - `rhacs_manager` -- application database (read-write)
-    - `central_active` -- StackRox Central database (read-only, provided by RHACS)
-- **[just](https://github.com/casey/just)** -- command runner (optional but recommended)
+- Python 3.12+ with [uv](https://docs.astral.sh/uv/)
+- Node.js 22+ with npm
+- PostgreSQL with:
+  - `rhacs_manager` (application DB, read-write)
+  - `central_active` (StackRox DB, read-only)
+- [just](https://github.com/casey/just) (recommended)
 
-## Installation
-
-Clone the repository and install dependencies:
+## Install Dependencies
 
 ```bash
 git clone <repo-url> rhacs-manager
 cd rhacs-manager
 
-# Install all dependencies (backend + frontend)
 just install
-
-# Or manually:
+# or manually:
 uv --directory backend sync
 npm --prefix frontend install
 ```
 
-## Database Setup
-
-Create the application database in PostgreSQL:
+## Create App Database
 
 ```sql
 CREATE DATABASE rhacs_manager;
 ```
 
-The StackRox Central database (`central_active`) is provided by your RHACS installation. You need read-only access to it.
-
-Run Alembic migrations to set up the app DB schema:
+Run migrations:
 
 ```bash
 just migrate
 
-# Or manually:
+# or manually:
 APP_DB_URL="postgresql+asyncpg://postgres@localhost/rhacs_manager" \
   uv --directory backend run alembic upgrade head
 ```
 
-## Running the Dev Server
+## Start Development
 
-The `just dev` command starts both backend (port 8000) and frontend (port 5173) with hot reload. It automatically runs Alembic migrations before starting.
+`just dev` starts backend (`:8000`) and frontend (`:5173`) with hot reload.
 
-=== "Security Team User (default)"
+=== "Security Team Session"
 
     ```bash
     just dev
-    # or explicitly:
-    just dev sec
+    # same as: just dev sec
     ```
 
-    Runs as `DEV_USER_ROLE=sec_team` with full access to all features.
-
-=== "Normal Team Member"
+=== "Team Member Session"
 
     ```bash
     just dev user
-    # one namespace:
     just dev user payments:cluster-a
-    # multiple namespaces:
     just dev user payments:cluster-a inventory:cluster-a
     ```
 
-    Runs as `DEV_USER_ROLE=team_member` with namespace-scoped access.
+In user mode, namespace scopes are translated into `DEV_USER_NAMESPACES`.
 
-The frontend dev server proxies `/api` requests to the backend at `http://localhost:8000`.
-
-!!! note "Dev mode"
-    When `DEV_MODE=true`, authentication is bypassed entirely. The dev user is synced to the database from `DEV_USER_*` environment variables on each request. See [Configuration](configuration.md) for all dev mode settings.
-
-## Running Tests
+## Verify Changes
 
 ```bash
-# Run all checks (backend tests + frontend lint + frontend build)
 just check
 
-# Individual commands:
-just test           # Backend: uv run pytest tests/
-just lint           # Frontend: npm run lint
-just build-frontend # Frontend: npm run build (type-check + Vite build)
+# individual commands:
+just test           # backend tests
+just lint           # frontend lint
+just build-frontend # frontend type-check + build
 ```
 
 !!! warning
-    All 5 backend tests must pass, and the frontend build must complete without errors before submitting changes.
+    Backend tests and frontend build must pass before merging.
 
-## Project Structure
+## Local Docs Preview
 
+```bash
+just docs
+# build static output:
+just docs-build
 ```
+
+## Project Layout
+
+```text
 rhacs-manager/
   backend/
     app/
-      main.py              # FastAPI app + lifespan
-      config.py             # Pydantic Settings (env-driven)
-      database.py           # Dual SQLAlchemy engine setup
-      auth/
-        middleware.py        # Three-mode auth (dev/spoke-proxy/OIDC)
-        group_mapping.py     # Spoke proxy: groups -> role (sec_team check)
-      routers/               # API route modules
-      models/                # SQLAlchemy ORM models
-      stackrox/queries.py    # Read-only StackRox SQL queries
-      tasks/scheduler.py     # APScheduler background jobs
-      badges/generator.py    # SVG badge generator
-    alembic/                 # DB migrations
-    tests/                   # Backend tests
+      main.py
+      config.py
+      database.py
+      routers/
+      models/
+      stackrox/queries.py
+      tasks/scheduler.py
+    alembic/
+    tests/
   frontend/
     src/
-      pages/                 # One file per route
-      components/            # Reusable UI components
-      api/client.ts          # API fetch wrapper
-      utils/errors.ts        # Error message extraction
-      i18n/                  # German translations
+      pages/
+      components/
+      api/client.ts
+      utils/errors.ts
   deploy/
-    base/                    # Kustomize base manifests
-    hub/                     # Hub overlay
-    spoke/                   # Spoke overlay
-  justfile                   # Dev workflow commands
-  mkdocs.yml                 # This documentation site
+    base/
+    hub/
+    spoke/
+  docs/
+  mkdocs.yml
+  justfile
 ```
