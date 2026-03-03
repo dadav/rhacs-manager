@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
@@ -96,7 +96,7 @@ async def run_escalation_check() -> None:
         always_show |= {row[0] for row in active_ra_result}
 
         async with StackRoxSessionLocal() as sx_session:
-            from ..stackrox.queries import get_cves_for_namespaces, list_namespaces
+            from ..stackrox.queries import get_cves_by_namespace_detail, list_namespaces
 
             # Get all namespaces from StackRox
             all_ns_rows = await list_namespaces(sx_session)
@@ -105,22 +105,22 @@ async def run_escalation_check() -> None:
             if not all_ns:
                 return
 
-            # Get all CVEs across all namespaces (filtered by thresholds)
-            cves = await get_cves_for_namespaces(
+            # Get CVEs per (namespace, cluster) — not aggregated
+            cve_rows = await get_cves_by_namespace_detail(
                 sx_session, all_ns, min_cvss, min_epss, always_show,
             )
 
-            for cve in cves:
-                if cve["cve_id"] in accepted_ids:
+            for row in cve_rows:
+                if row["cve_id"] in accepted_ids:
                     continue
 
                 age_days = 0
-                if cve.get("first_seen"):
-                    age_days = (datetime.utcnow() - cve["first_seen"]).days
+                if row.get("first_seen"):
+                    age_days = (datetime.utcnow() - row["first_seen"]).days
 
                 for rule in settings.escalation_rules:
-                    severity_ok = cve.get("severity", 0) >= rule.get("severity_min", 0)
-                    epss_ok = cve.get("epss_probability", 0) >= rule.get("epss_threshold", 0)
+                    severity_ok = row.get("severity", 0) >= rule.get("severity_min", 0)
+                    epss_ok = row.get("epss_probability", 0) >= rule.get("epss_threshold", 0)
                     if not (severity_ok or epss_ok):
                         continue
 
@@ -135,22 +135,23 @@ async def run_escalation_check() -> None:
                     if level is None:
                         continue
 
-                    # For namespace-scoped escalations, we need the namespace info
-                    # CVEs from get_cves_for_namespaces are aggregated; we escalate org-wide
-                    # Check if escalation already exists at this level for any namespace
+                    ns_name = row["namespace"]
+                    cluster = row["cluster_name"]
+
+                    # Dedup: check (cve_id, level, namespace, cluster_name)
                     existing = await app_session.execute(
                         select(Escalation).where(
-                            Escalation.cve_id == cve["cve_id"],
+                            Escalation.cve_id == row["cve_id"],
                             Escalation.level == level,
+                            Escalation.namespace == ns_name,
+                            Escalation.cluster_name == cluster,
                         )
                     )
                     if existing.scalar_one_or_none():
                         continue
 
-                    # Create org-wide escalation (use first namespace from all_ns as representative)
-                    ns_name, cluster = all_ns[0] if all_ns else ("unknown", "unknown")
                     esc = Escalation(
-                        cve_id=cve["cve_id"],
+                        cve_id=row["cve_id"],
                         namespace=ns_name,
                         cluster_name=cluster,
                         level=level,
@@ -160,7 +161,7 @@ async def run_escalation_check() -> None:
                     await app_session.flush()
 
                     await notif_svc.notify_escalation(
-                        app_session, cve["cve_id"], ns_name, cluster, level
+                        app_session, row["cve_id"], ns_name, cluster, level
                     )
                     esc.notified = True
 
@@ -175,15 +176,32 @@ async def run_escalation_check() -> None:
                     if contact:
                         await mail_svc.send_escalation_email(
                             contact.escalation_email,
-                            cve["cve_id"], ns_name, cluster, level,
+                            row["cve_id"], ns_name, cluster, level,
                         )
                     elif app_settings.management_email:
                         await mail_svc.send_escalation_email(
                             app_settings.management_email,
-                            cve["cve_id"], ns_name, cluster, level,
+                            row["cve_id"], ns_name, cluster, level,
                         )
 
                     break  # apply highest matching rule only
+
+        # Cleanup: remove escalations for CVEs that no longer pass thresholds
+        # Collect all CVE IDs that are currently visible (pass thresholds or always-show)
+        visible_cve_ids = {row["cve_id"] for row in cve_rows} | always_show
+
+        all_esc_result = await app_session.execute(
+            select(Escalation.id, Escalation.cve_id)
+        )
+        stale_ids = [
+            esc_id for esc_id, cve_id in all_esc_result
+            if cve_id not in visible_cve_ids and cve_id not in accepted_ids
+        ]
+        if stale_ids:
+            await app_session.execute(
+                delete(Escalation).where(Escalation.id.in_(stale_ids))
+            )
+            logger.info("Cleaned up %d stale escalations for CVEs below thresholds", len(stale_ids))
 
         await app_session.commit()
         logger.info("Escalation check complete")

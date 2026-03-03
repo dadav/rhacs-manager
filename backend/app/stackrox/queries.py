@@ -301,6 +301,57 @@ async def get_cves_per_namespace(
     return [dict(row._mapping) for row in result]
 
 
+async def get_cves_by_namespace_detail(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]],
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> list[dict]:
+    """CVEs grouped by (cve_id, namespace, cluster) — for escalation scheduler.
+
+    Unlike get_cves_for_namespaces which aggregates across all namespaces,
+    this returns one row per (cve_id, namespace, cluster) so escalations
+    can be created with the actual namespace where the CVE exists.
+    """
+    if not namespaces:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+    ns_values = ", ".join(ns_pairs)
+
+    sql = text(f"""
+        SELECT
+            ic.cvebaseinfo_cve              AS cve_id,
+            d.namespace,
+            d.clustername                   AS cluster_name,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MIN(ic.firstimageoccurrence)    AS first_seen,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        GROUP BY ic.cvebaseinfo_cve, d.namespace, d.clustername
+        HAVING (
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
+            OR ic.cvebaseinfo_cve = ANY(:always_show)
+        )
+    """)
+
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
+    return [dict(row._mapping) for row in result]
+
+
 async def get_cve_trend(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
