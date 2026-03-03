@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
+      org.opencontainers.image.description="RHACS CVE Manager Backend" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install uv

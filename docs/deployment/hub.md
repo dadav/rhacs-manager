@@ -20,7 +20,7 @@ This deploys:
 - **Frontend deployment** -- nginx container serving the SPA
 - **Frontend service** -- ClusterIP service for the frontend
 - **Route** -- OpenShift route exposing the frontend
-- **Secret** -- Backend configuration (DB URLs, SMTP, auth)
+- **Secret** -- Backend configuration (app DB URL, SMTP, auth)
 - **Namespace** -- `rhacs-manager`
 
 ## Backend Deployment
@@ -43,14 +43,51 @@ Health probes:
 - **Readiness**: `GET /health` every 10s (initial delay 10s)
 - **Liveness**: `GET /health` every 30s (initial delay 30s)
 
+## StackRox Central DB Connection
+
+The backend connects to the StackRox Central DB (`central_active`) via individual env vars set in the deployment manifest. The DB password is sourced from the `central-db-password` secret (key: `password`), which must exist in the `rhacs-manager` namespace.
+
+**Copy the secret from the `stackrox` namespace:**
+
+```bash
+kubectl get secret central-db-password -n stackrox -o json \
+  | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+  | kubectl apply -n rhacs-manager -f -
+```
+
+The deployment sets these env vars directly (no need to configure them in the secret):
+
+| Env Var | Value | Source |
+|---------|-------|--------|
+| `STACKROX_DB_HOST` | `central-db.stackrox.svc` | Deployment manifest |
+| `STACKROX_DB_PORT` | `5432` | Deployment manifest |
+| `STACKROX_DB_USER` | `postgres` | Deployment manifest |
+| `STACKROX_DB_NAME` | `central_active` | Deployment manifest |
+| `STACKROX_DB_PASSWORD` | *(from secret)* | `central-db-password` secret, key `password` |
+
+## StackRox NetworkPolicy
+
+The `stackrox` namespace has restrictive NetworkPolicies. You must allow ingress from `rhacs-manager` to `central-db` on port 5432:
+
+```bash
+kubectl apply -f deploy/hub/stackrox-networkpolicy.yaml
+```
+
+Verify the `podSelector` label matches your central-db pods:
+
+```bash
+kubectl get pods -n stackrox -l app.kubernetes.io/name=central-db --show-labels
+```
+
+If the label differs, update `deploy/hub/stackrox-networkpolicy.yaml` accordingly.
+
 ## Configuring the Secret
 
 Edit `deploy/base/secret.yaml` before deploying. Required values:
 
 ```yaml
 stringData:
-  APP_DB_URL: "postgresql+asyncpg://user:password@postgres:5432/rhacs_manager"
-  STACKROX_DB_URL: "postgresql+asyncpg://postgres:password@central-db.stackrox.svc:5432/central_active"
+  APP_DATABASE_URL: "postgresql+asyncpg://user:password@postgres:5432/rhacs_manager"
   SECRET_KEY: "your-random-secret-key"
   DEV_MODE: "false"
   SMTP_HOST: "smtp.example.com"
@@ -70,6 +107,15 @@ stringData:
 ## Applying
 
 ```bash
+# 1. Copy central-db-password secret from stackrox namespace
+kubectl get secret central-db-password -n stackrox -o json \
+  | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+  | kubectl apply -n rhacs-manager -f -
+
+# 2. Apply the stackrox NetworkPolicy (allows backend → central-db traffic)
+kubectl apply -f deploy/hub/stackrox-networkpolicy.yaml
+
+# 3. Deploy the application
 kubectl kustomize deploy/hub/ | kubectl apply -f -
 ```
 

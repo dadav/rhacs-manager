@@ -12,6 +12,10 @@ RUN npm run build
 # Serve stage
 FROM nginxinc/nginx-unprivileged:alpine
 
+LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
+      org.opencontainers.image.description="RHACS CVE Manager Frontend" \
+      org.opencontainers.image.licenses="MIT"
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # SPA routing: all unknown paths → index.html

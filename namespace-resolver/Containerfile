@@ -7,6 +7,11 @@ COPY main.go .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /namespace-resolver .
 
 FROM gcr.io/distroless/static:nonroot
+
+LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
+      org.opencontainers.image.description="RHACS CVE Manager Namespace Resolver" \
+      org.opencontainers.image.licenses="MIT"
+
 COPY --from=builder /namespace-resolver /namespace-resolver
 USER nonroot:nonroot
 ENTRYPOINT ["/namespace-resolver"]

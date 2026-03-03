@@ -21,6 +21,22 @@ spec:
           envFrom:
             - secretRef:
                 name: rhacs-manager-backend-secret
+          env:
+            # StackRox Central DB connection params (built into URL by config.py)
+            - name: STACKROX_DB_HOST
+              value: "central-db.stackrox.svc"
+            - name: STACKROX_DB_PORT
+              value: "5432"
+            - name: STACKROX_DB_USER
+              value: "postgres"
+            - name: STACKROX_DB_NAME
+              value: "central_active"
+            # Password from central-db-password secret (copied from stackrox namespace)
+            - name: STACKROX_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: central-db-password
+                  key: password
           resources:
             requests:
               cpu: 100m

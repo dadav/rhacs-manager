@@ -13,9 +13,21 @@ class Settings(BaseSettings):
     )
 
     # StackRox Central database (read-only)
-    stackrox_db_url: str = Field(
-        default="postgresql+asyncpg://postgres@localhost/central_active"
-    )
+    # Either set stackrox_db_url directly, or set individual params below.
+    # If stackrox_db_url is empty, it is built from the individual params.
+    stackrox_db_url: str = Field(default="")
+    stackrox_db_host: str = Field(default="localhost")
+    stackrox_db_port: int = Field(default=5432)
+    stackrox_db_user: str = Field(default="postgres")
+    stackrox_db_password: str = Field(default="")
+    stackrox_db_name: str = Field(default="central_active")
+
+    @property
+    def effective_stackrox_db_url(self) -> str:
+        if self.stackrox_db_url:
+            return self.stackrox_db_url
+        cred = f"{self.stackrox_db_user}:{self.stackrox_db_password}" if self.stackrox_db_password else self.stackrox_db_user
+        return f"postgresql+asyncpg://{cred}@{self.stackrox_db_host}:{self.stackrox_db_port}/{self.stackrox_db_name}"
 
     # Auth — set dev_mode=true to skip OIDC and use mock user
     dev_mode: bool = Field(default=True)

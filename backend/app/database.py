@@ -15,7 +15,7 @@ AppSessionLocal = async_sessionmaker(
 
 # StackRox Central database — read-only
 stackrox_engine = create_async_engine(
-    settings.stackrox_db_url,
+    settings.effective_stackrox_db_url,
     echo=False,
     pool_pre_ping=True,
     execution_options={"postgresql_readonly": True},
