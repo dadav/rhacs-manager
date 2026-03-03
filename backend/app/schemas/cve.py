@@ -55,6 +55,12 @@ class CveDetail(CveListItem):
     priority_created_at: datetime | None = None
     risk_acceptance_requested_at: datetime | None = None
     risk_acceptance_reviewed_at: datetime | None = None
+    escalation_level1_at: datetime | None = None
+    escalation_level2_at: datetime | None = None
+    escalation_level3_at: datetime | None = None
+    escalation_level1_expected: datetime | None = None
+    escalation_level2_expected: datetime | None = None
+    escalation_level3_expected: datetime | None = None
 
 
 class CveListParams(BaseModel):

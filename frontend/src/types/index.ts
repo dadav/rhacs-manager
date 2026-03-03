@@ -77,6 +77,12 @@ export interface CveDetail extends CveListItem {
   priority_created_at: string | null
   risk_acceptance_requested_at: string | null
   risk_acceptance_reviewed_at: string | null
+  escalation_level1_at: string | null
+  escalation_level2_at: string | null
+  escalation_level3_at: string | null
+  escalation_level1_expected: string | null
+  escalation_level2_expected: string | null
+  escalation_level3_expected: string | null
 }
 
 export interface CveComment {

@@ -190,7 +190,7 @@ async def dashboard(
     unique_items = list(seen_cve_ids.values())
     top_epss = sorted(unique_items, key=lambda x: x.epss_probability, reverse=True)[:5]
     top_priorities = sorted(
-        (item for item in unique_items if item.has_priority),
+        (item for item in unique_items if item.has_priority and not item.has_risk_acceptance),
         key=lambda x: (
             x.priority_deadline is None,
             x.priority_deadline or x.first_seen or datetime.max,

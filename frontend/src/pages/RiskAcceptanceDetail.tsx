@@ -16,7 +16,7 @@ import {
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useAddComment, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
+import { useAddComment, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser } from '../api/auth'
 import { useCveDetail } from '../api/cves'
 import { RiskScope, RiskScopeMode, RiskStatus } from '../types'
@@ -494,8 +494,11 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const { data: me } = useCurrentUser()
   const addComment = useAddComment(id)
   const review = useReviewRiskAcceptance(id)
+  const cancelRA = useCancelRiskAcceptance(id)
   const [newComment, setNewComment] = useState('')
   const [reviewError, setReviewError] = useState('')
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelError, setCancelError] = useState('')
 
   if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
   if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
@@ -602,6 +605,44 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       Ablehnen
                     </Button>
                   </div>
+                </CardBody>
+              </Card>
+            )}
+
+            {/* Creator cancel action */}
+            {!me?.is_sec_team && me?.id === ra.created_by && ra.status === RiskStatus.requested && (
+              <Card>
+                <CardTitle>Antrag zurückziehen</CardTitle>
+                <CardBody>
+                  {cancelError && <Alert variant="danger" isInline title={cancelError} style={{ marginBottom: 12 }} />}
+                  {confirmCancel ? (
+                    <div>
+                      <p style={{ fontSize: 13, marginBottom: 12 }}>Sind Sie sicher? Der Antrag wird unwiderruflich gelöscht.</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Button
+                          variant="danger"
+                          isLoading={cancelRA.isPending}
+                          onClick={async () => {
+                            try {
+                              await cancelRA.mutateAsync()
+                              navigate('/risikoakzeptanzen')
+                            } catch (err) {
+                              setCancelError(getErrorMessage(err))
+                            }
+                          }}
+                        >
+                          Endgültig zurückziehen
+                        </Button>
+                        <Button variant="link" onClick={() => setConfirmCancel(false)}>
+                          Abbrechen
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button variant="warning" onClick={() => setConfirmCancel(true)}>
+                      Zurückziehen
+                    </Button>
+                  )}
                 </CardBody>
               </Card>
             )}

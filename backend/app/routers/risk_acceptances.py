@@ -374,6 +374,30 @@ async def review_risk_acceptance(
     return await _build_response(ra, db)
 
 
+@router.delete("/{ra_id}", status_code=204)
+async def cancel_risk_acceptance(
+    ra_id: UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> None:
+    """Creator cancels their own pending (requested) risk acceptance."""
+    if current_user.is_sec_team:
+        raise HTTPException(403, "Security-Team kann keine eigenen Risikoakzeptanzen zurückziehen")
+
+    result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
+    ra = result.scalar_one_or_none()
+    if not ra:
+        raise HTTPException(404, "Nicht gefunden")
+    if ra.created_by != current_user.id:
+        raise HTTPException(403, "Nur der Ersteller kann den Antrag zurückziehen")
+    if ra.status != RiskStatus.requested:
+        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können zurückgezogen werden")
+
+    await log_action(db, current_user.id, "risk_acceptance_cancelled", "risk_acceptance", str(ra.id))
+    await db.delete(ra)
+    await db.commit()
+
+
 @router.post("/{ra_id}/comments", response_model=CommentResponse, status_code=201)
 async def add_comment(
     ra_id: UUID,

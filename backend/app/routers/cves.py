@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,7 @@ from ._scope import narrow_namespaces
 from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
+from ..models.escalation import Escalation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
 from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, SeverityLevel
@@ -181,6 +184,16 @@ async def get_cve(
     ra_result = await app_db.execute(ra_query)
     acceptance = ra_result.scalar_one_or_none()
 
+    esc_result = await app_db.execute(
+        select(Escalation).where(Escalation.cve_id == cve_id)
+    )
+    escalations = esc_result.scalars().all()
+    esc_dates: dict[int, datetime | None] = {1: None, 2: None, 3: None}
+    for esc in escalations:
+        cur = esc_dates.get(esc.level)
+        if cur is None or esc.triggered_at < cur:
+            esc_dates[esc.level] = esc.triggered_at
+
     if current_user.is_sec_team:
         all_ns = await sx.list_namespaces(sx_db)
         ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
@@ -194,6 +207,23 @@ async def get_cve(
 
     if not cve_data:
         raise HTTPException(404, "CVE nicht gefunden")
+
+    # Compute expected escalation dates from rules + first_seen
+    esc_expected: dict[int, datetime | None] = {1: None, 2: None, 3: None}
+    first_seen = cve_data.get("first_seen")
+    if first_seen:
+        settings = await _get_settings(app_db)
+        severity = cve_data.get("severity", 0)
+        epss = float(cve_data.get("epss_probability", 0))
+        if settings and settings.escalation_rules:
+            for rule in settings.escalation_rules:
+                severity_ok = severity >= rule.get("severity_min", 0)
+                epss_ok = epss >= rule.get("epss_threshold", 0)
+                if severity_ok or epss_ok:
+                    esc_expected[1] = first_seen + timedelta(days=rule.get("days_to_level1", 999))
+                    esc_expected[2] = first_seen + timedelta(days=rule.get("days_to_level2", 999))
+                    esc_expected[3] = first_seen + timedelta(days=rule.get("days_to_level3", 999))
+                    break  # first matching rule only
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     components = await sx.get_affected_components(sx_db, cve_id, ns)
@@ -220,6 +250,12 @@ async def get_cve(
         priority_created_at=priority.created_at if priority else None,
         risk_acceptance_requested_at=acceptance.created_at if acceptance else None,
         risk_acceptance_reviewed_at=acceptance.reviewed_at if acceptance else None,
+        escalation_level1_at=esc_dates[1],
+        escalation_level2_at=esc_dates[2],
+        escalation_level3_at=esc_dates[3],
+        escalation_level1_expected=esc_expected[1],
+        escalation_level2_expected=esc_expected[2],
+        escalation_level3_expected=esc_expected[3],
         affected_deployments_list=[
             AffectedDeployment(
                 deployment_id=str(d["deployment_id"]),

@@ -77,6 +77,17 @@ export function useUpdateRiskAcceptance(id: string) {
   })
 }
 
+export function useCancelRiskAcceptance(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete(`/risk-acceptances/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
+      qc.invalidateQueries({ queryKey: ['cves'] })
+    },
+  })
+}
+
 export function useAddComment(raId: string) {
   const qc = useQueryClient()
   return useMutation({

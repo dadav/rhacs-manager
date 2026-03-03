@@ -18,7 +18,7 @@ from .routers import (
     risk_acceptances,
     settings,
 )
-from .tasks.scheduler import setup_scheduler
+from .tasks.scheduler import run_escalation_check, setup_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +29,11 @@ async def lifespan(app: FastAPI):
     scheduler = setup_scheduler()
     scheduler.start()
     logger.info("APScheduler started")
+    try:
+        await run_escalation_check()
+        logger.info("Initial escalation check complete")
+    except Exception:
+        logger.exception("Initial escalation check failed")
     yield
     scheduler.shutdown()
     logger.info("APScheduler stopped")
