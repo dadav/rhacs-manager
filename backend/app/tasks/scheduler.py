@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
+from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
@@ -73,6 +74,9 @@ async def run_escalation_check() -> None:
         if not settings or not settings.escalation_rules:
             return
 
+        min_cvss = float(settings.min_cvss_score) if settings.min_cvss_score else 0.0
+        min_epss = float(settings.min_epss_score) if settings.min_epss_score else 0.0
+
         # Get all approved risk acceptance CVE IDs
         accepted_result = await app_session.execute(
             select(RiskAcceptance.cve_id).where(
@@ -80,6 +84,16 @@ async def run_escalation_check() -> None:
             )
         )
         accepted_ids = {row[0] for row in accepted_result}
+
+        # Build always_show: prioritized CVEs + non-approved active RAs
+        prio_result = await app_session.execute(select(CvePriority.cve_id))
+        always_show = {row[0] for row in prio_result}
+        active_ra_result = await app_session.execute(
+            select(RiskAcceptance.cve_id).where(
+                RiskAcceptance.status == RiskStatus.requested,
+            )
+        )
+        always_show |= {row[0] for row in active_ra_result}
 
         async with StackRoxSessionLocal() as sx_session:
             from ..stackrox.queries import get_cves_for_namespaces, list_namespaces
@@ -91,8 +105,10 @@ async def run_escalation_check() -> None:
             if not all_ns:
                 return
 
-            # Get all CVEs across all namespaces
-            cves = await get_cves_for_namespaces(sx_session, all_ns)
+            # Get all CVEs across all namespaces (filtered by thresholds)
+            cves = await get_cves_for_namespaces(
+                sx_session, all_ns, min_cvss, min_epss, always_show,
+            )
 
             for cve in cves:
                 if cve["cve_id"] in accepted_ids:
@@ -186,10 +202,23 @@ async def run_weekly_digest() -> None:
             logger.info("No management_email configured, skipping digest")
             return
 
+        min_cvss = float(settings.min_cvss_score) if settings and settings.min_cvss_score else 0.0
+        min_epss = float(settings.min_epss_score) if settings and settings.min_epss_score else 0.0
+
+        # Build always_show from priorities and active RAs
+        prio_result = await app_session.execute(select(CvePriority.cve_id))
+        always_show: set[str] = {row[0] for row in prio_result}
+        active_ra_result = await app_session.execute(
+            select(RiskAcceptance.cve_id).where(
+                RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+            )
+        )
+        always_show |= {row[0] for row in active_ra_result}
+
         async with StackRoxSessionLocal() as sx_session:
             from ..stackrox.queries import get_all_cves
 
-            cves = await get_all_cves(sx_session)
+            cves = await get_all_cves(sx_session, min_cvss, min_epss, always_show)
 
             open_ra_result = await app_session.execute(
                 select(RiskAcceptance).where(

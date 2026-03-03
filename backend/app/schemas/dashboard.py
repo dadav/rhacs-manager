@@ -18,19 +18,6 @@ class CveTrendPoint(BaseModel):
     count: int
 
 
-class DashboardData(BaseModel):
-    stat_total_cves: int
-    stat_escalations: int
-    stat_upcoming_escalations: int
-    stat_fixable_critical_cves: int
-    stat_open_risk_acceptances: int
-    severity_distribution: list[SeverityCount]
-    cves_per_namespace: list[NamespaceCveCount]
-    priority_cves: list[CveListItem]
-    high_epss_cves: list[CveListItem]  # top 5 by EPSS
-    cve_trend: list[CveTrendPoint]
-
-
 class EpssMatrixPoint(BaseModel):
     cve_id: str
     cvss: float
@@ -66,13 +53,18 @@ class ThresholdPreview(BaseModel):
     hidden_cves: int
 
 
-class SecDashboardData(BaseModel):
+class DashboardData(BaseModel):
+    stat_total_cves: int
+    stat_escalations: int
+    stat_upcoming_escalations: int
+    stat_fixable_critical_cves: int
+    stat_open_risk_acceptances: int
+    severity_distribution: list[SeverityCount]
+    cves_per_namespace: list[NamespaceCveCount]
+    priority_cves: list[CveListItem]
+    high_epss_cves: list[CveListItem]  # top 5 by EPSS
+    cve_trend: list[CveTrendPoint]
     epss_matrix: list[EpssMatrixPoint]
     cluster_heatmap: list[ClusterHeatmapRow]
     aging_distribution: list[AgingBucket]
     risk_acceptance_pipeline: RiskAcceptancePipeline
-    total_cves: int
-    total_critical: int
-    avg_epss: float
-    cves_last_7_days: int
-    threshold_preview: ThresholdPreview

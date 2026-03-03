@@ -222,6 +222,10 @@ export interface DashboardData {
   priority_cves: CveListItem[]
   high_epss_cves: CveListItem[]
   cve_trend: CveTrendPoint[]
+  epss_matrix: EpssMatrixPoint[]
+  cluster_heatmap: ClusterHeatmapRow[]
+  aging_distribution: AgingBucket[]
+  risk_acceptance_pipeline: RiskAcceptancePipeline
 }
 
 export interface EpssMatrixPoint {
@@ -259,17 +263,6 @@ export interface ThresholdPreview {
   hidden_cves: number
 }
 
-export interface SecDashboardData {
-  epss_matrix: EpssMatrixPoint[]
-  cluster_heatmap: ClusterHeatmapRow[]
-  aging_distribution: AgingBucket[]
-  risk_acceptance_pipeline: RiskAcceptancePipeline
-  total_cves: number
-  total_critical: number
-  avg_epss: number
-  cves_last_7_days: number
-  threshold_preview: ThresholdPreview
-}
 
 export interface Escalation {
   id: string

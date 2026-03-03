@@ -1,6 +1,6 @@
 # RHACS CVE Manager — CLAUDE.md
 
-Self-service CVE management app for OpenShift RHACS. Users see CVEs scoped to their K8s RBAC-accessible namespaces; sec team has org-wide visibility and a monitoring dashboard. EPSS-driven prioritization is the core design principle.
+Self-service CVE management app for OpenShift RHACS. Users see CVEs scoped to their K8s RBAC-accessible namespaces; sec team has org-wide visibility. All dashboard charts (EPSS matrix, cluster heatmap, aging distribution, RA pipeline) are available to all users, namespace-scoped for non-sec users. EPSS-driven prioritization is the core design principle.
 
 ---
 
@@ -199,7 +199,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Dashboard stat cards are: `Gesamt CVEs`, `Eskalationen`, `Behebbare kritische CVEs`, and `Offene Risikoakzeptanzen`.
 - Dashboard chart datasets (`severity_distribution`, `cves_per_namespace`) must apply the same visibility logic as `stat_total_cves` (CVSS/EPSS thresholds plus always-show CVEs from priorities/active risk acceptances).
 - Severity distribution must classify each visible CVE into exactly one bucket (use aggregated severity per CVE) so the bucket total matches `stat_total_cves`.
-- Sec dashboard (`/sec-dashboard`) risk-acceptance pipeline rows are clickable deep links to `/risikoakzeptanzen?status=<requested|approved|rejected|expired>`.
+- Dashboard risk-acceptance pipeline (sec team only) rows are clickable deep links to `/risikoakzeptanzen?status=<requested|approved|rejected|expired>`.
 - Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
 - Escalations are namespace-scoped (`cve_id`, `namespace`, `cluster_name`, `level`).
 - Badges are scoped by `created_by` (user) + optional `namespace`/`cluster_name`.

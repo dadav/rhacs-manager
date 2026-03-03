@@ -305,12 +305,17 @@ async def get_cve_trend(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
     days: int = 30,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """CVE first-seen trend per day over the last N days."""
     since = datetime.utcnow() - timedelta(days=days)
 
     if namespaces is not None and len(namespaces) == 0:
         return []
+
+    always_show = list(always_show_cve_ids or [])
 
     if namespaces:
         ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
@@ -320,53 +325,134 @@ async def get_cve_trend(
         where_clause = ""
 
     sql = text(f"""
-        SELECT
-            DATE(ic.firstimageoccurrence) AS date,
-            COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
-        FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        WHERE ic.firstimageoccurrence >= :since
-        {where_clause}
-        GROUP BY DATE(ic.firstimageoccurrence)
+        WITH visible_cves AS (
+            SELECT
+                ic.cvebaseinfo_cve AS cve_id,
+                MIN(ic.firstimageoccurrence) AS first_seen
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            WHERE ic.firstimageoccurrence >= :since
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT DATE(first_seen) AS date, COUNT(*) AS count
+        FROM visible_cves
+        GROUP BY DATE(first_seen)
         ORDER BY date
     """)
-    result = await session.execute(sql, {"since": since})
+    result = await session.execute(
+        sql, {"since": since, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     return [{"date": str(row.date), "count": row.count} for row in result]
 
 
-async def get_epss_risk_matrix(session: AsyncSession) -> list[dict]:
-    """All CVEs with cvss+epss for sec team scatter plot."""
-    sql = text("""
-        SELECT DISTINCT
+async def get_epss_risk_matrix(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> list[dict]:
+    """CVEs with cvss+epss for scatter plot. None namespaces = all."""
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        SELECT
             ic.cvebaseinfo_cve AS cve_id,
-            COALESCE(ic.cvss, 0) AS cvss,
-            COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss,
-            ic.severity
-        FROM image_cves ic
-        WHERE ic.cvebaseinfo_cve IS NOT NULL
-        ORDER BY ic.severity DESC, cvss DESC
-        LIMIT 500
+            MAX(COALESCE(ic.cvss, 0)) AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss,
+            MAX(ic.severity) AS severity
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        {where_clause}
+        GROUP BY ic.cvebaseinfo_cve
+        HAVING (
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
+            OR ic.cvebaseinfo_cve = ANY(:always_show)
+        )
+        ORDER BY severity DESC, cvss DESC
     """)
-    result = await session.execute(sql)
+    result = await session.execute(
+        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     return [dict(row._mapping) for row in result]
 
 
-async def get_cluster_heatmap(session: AsyncSession) -> list[dict]:
+async def get_cluster_heatmap(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> list[dict]:
     """CVE counts per cluster per severity."""
-    sql = text("""
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT
+                ic.cvebaseinfo_cve AS cve_id,
+                MAX(ic.severity) AS severity
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
         SELECT
             d.clustername AS cluster,
-            ic.severity,
-            COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
-        FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        GROUP BY d.clustername, ic.severity
-        ORDER BY d.clustername, ic.severity
+            vc.severity,
+            COUNT(DISTINCT vc.cve_id) AS count
+        FROM visible_cves vc
+        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN deployments_containers dc ON dc.image_id = ic.imageid
+        JOIN deployments d ON d.id = dc.deployments_id
+        {where_clause}
+        GROUP BY d.clustername, vc.severity
+        ORDER BY d.clustername, vc.severity
     """)
-    result = await session.execute(sql)
+    result = await session.execute(
+        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     rows = [dict(row._mapping) for row in result]
 
     # Pivot into one row per cluster
@@ -419,10 +505,15 @@ async def get_fixability_stats(
 async def get_cve_aging(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """Age distribution of CVEs."""
     if namespaces is not None and len(namespaces) == 0:
         return []
+
+    always_show = list(always_show_cve_ids or [])
 
     if namespaces:
         ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
@@ -439,8 +530,17 @@ async def get_cve_aging(
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
+        HAVING (
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
+            OR ic.cvebaseinfo_cve = ANY(:always_show)
+        )
     """)
-    result = await session.execute(sql)
+    result = await session.execute(
+        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
     rows = [r.age_days for r in result if r.age_days is not None]
 
     buckets = [

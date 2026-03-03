@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
@@ -39,6 +40,9 @@ async def compute_upcoming_escalations(
 
     warning_days = settings.escalation_warning_days
 
+    min_cvss = float(settings.min_cvss_score) if settings.min_cvss_score else 0.0
+    min_epss = float(settings.min_epss_score) if settings.min_epss_score else 0.0
+
     # Get approved risk acceptance CVE IDs (excluded from escalation)
     accepted_result = await app_db.execute(
         select(RiskAcceptance.cve_id).where(
@@ -46,6 +50,16 @@ async def compute_upcoming_escalations(
         )
     )
     accepted_ids = {row[0] for row in accepted_result}
+
+    # Build always_show from priorities and non-approved active RAs
+    prio_result = await app_db.execute(select(CvePriority.cve_id))
+    always_show: set[str] = {row[0] for row in prio_result}
+    active_ra_result = await app_db.execute(
+        select(RiskAcceptance.cve_id).where(
+            RiskAcceptance.status == RiskStatus.requested,
+        )
+    )
+    always_show |= {row[0] for row in active_ra_result}
 
     # Get existing escalations to skip already-escalated levels
     existing_result = await app_db.execute(
@@ -55,11 +69,11 @@ async def compute_upcoming_escalations(
     for cve_id, level in existing_result:
         existing_escalations.setdefault(cve_id, set()).add(level)
 
-    # Get CVEs from StackRox
+    # Get CVEs from StackRox (filtered by thresholds)
     if namespaces:
-        cves = await sx.get_cves_for_namespaces(sx_db, namespaces)
+        cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
     else:
-        cves = await sx.get_all_cves(sx_db)
+        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
 
     upcoming: list[UpcomingEscalation] = []
 

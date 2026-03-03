@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from './client'
-import type { DashboardData, SecDashboardData } from '../types'
+import type { DashboardData } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const dashboardKeys = {
   main: (scope: ScopeParams = {}) => ['dashboard', 'main', scope] as const,
-  sec: ['dashboard', 'sec'] as const,
 }
 
 function scopeQuery(scope: ScopeParams): string {
@@ -20,14 +19,6 @@ export function useDashboard(scope: ScopeParams = {}) {
   return useQuery({
     queryKey: dashboardKeys.main(scope),
     queryFn: () => api.get<DashboardData>(`/dashboard${scopeQuery(scope)}`),
-    refetchInterval: 5 * 60 * 1000,
-  })
-}
-
-export function useSecDashboard() {
-  return useQuery({
-    queryKey: dashboardKeys.sec,
-    queryFn: () => api.get<SecDashboardData>('/dashboard/sec'),
     refetchInterval: 5 * 60 * 1000,
   })
 }

@@ -1,7 +1,6 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "secDashboard": "Sicherheits-Dashboard",
     "cves": "Schwachstellen",
     "riskAcceptances": "Risikoakzeptanzen",
     "priorities": "Priorisierungen",
@@ -82,21 +81,12 @@
     "priorityCvesDescription": "Diese CVEs wurden vom Security-Team priorisiert und sollten zuerst bearbeitet werden.",
     "highEpss": "Hohes Ausnutzungsrisiko (EPSS)",
     "highEpssDescription": "Diese CVEs haben die höchste Wahrscheinlichkeit, in den nächsten 30 Tagen ausgenutzt zu werden.",
-    "noHighEpss": "Keine CVEs mit hohem EPSS-Wert"
-  },
-  "secDashboard": {
-    "title": "Sicherheits-Dashboard",
+    "noHighEpss": "Keine CVEs mit hohem EPSS-Wert",
     "epssMatrix": "EPSS-Risikomatrix",
     "epssMatrixDescription": "Jeder Punkt ist eine CVE. Oben rechts = sofortiger Handlungsbedarf.",
     "clusterHeatmap": "Cluster-Heatmap",
     "aging": "CVE-Alterungsverteilung",
-    "pipeline": "Risikoakzeptanz-Pipeline",
-    "thresholdConfig": "Schwellenwert-Konfiguration",
-    "thresholdDescription": "CVEs unterhalb beider Schwellenwerte werden für Nutzer ausgeblendet. Die Schwellenwerte werden in den Einstellungen konfiguriert.",
-    "totalCves": "Gesamt-CVEs",
-    "criticalCves": "Kritische CVEs",
-    "avgEpss": "Ø EPSS",
-    "cvesLast7Days": "Neue CVEs (7 Tage)"
+    "pipeline": "Risikoakzeptanz-Pipeline"
   },
   "cves": {
     "title": "Schwachstellen",

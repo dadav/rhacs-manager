@@ -1,8 +1,10 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
+from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
@@ -16,10 +18,8 @@ from ..schemas.dashboard import (
     EpssMatrixPoint,
     NamespaceCveCount,
     RiskAcceptancePipeline,
-    SecDashboardData,
     SeverityCount,
     DashboardData,
-    ThresholdPreview,
 )
 from ..schemas.cve import CveListItem, SeverityLevel
 from ..services.escalation_preview import compute_upcoming_escalations
@@ -94,6 +94,8 @@ async def dashboard(
                 stat_open_risk_acceptances=0,
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
                 high_epss_cves=[], cve_trend=[],
+                epss_matrix=[], cluster_heatmap=[], aging_distribution=[],
+                risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
             )
         namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
 
@@ -168,7 +170,10 @@ async def dashboard(
         min_epss=min_epss,
         always_show_cve_ids=always_show,
     )
-    trend = await sx.get_cve_trend(sx_db, ns_list_for_queries)
+    trend = await sx.get_cve_trend(
+        sx_db, ns_list_for_queries,
+        min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+    )
 
     # Upcoming escalation count
     upcoming_escalations = []
@@ -178,8 +183,6 @@ async def dashboard(
 
     # Deduplicate by cve_id (same CVE can appear across multiple images).
     # Keep the entry with the highest epss_probability for each unique CVE.
-    from datetime import datetime
-
     seen_cve_ids: dict[str, CveListItem] = {}
     for item in enriched:
         if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
@@ -195,6 +198,43 @@ async def dashboard(
             -x.epss_probability,
         ),
     )[:8]
+
+    # Charts: EPSS matrix, cluster heatmap, aging, RA pipeline (scoped by namespace)
+    matrix_rows = await sx.get_epss_risk_matrix(
+        sx_db, ns_list_for_queries,
+        min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+    )
+    epss_matrix = [
+        EpssMatrixPoint(
+            cve_id=r["cve_id"],
+            cvss=float(r["cvss"]),
+            epss=float(r["epss"]),
+            severity=SeverityLevel(r["severity"]),
+        )
+        for r in matrix_rows
+    ]
+
+    heatmap_rows = await sx.get_cluster_heatmap(
+        sx_db, ns_list_for_queries,
+        min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+    )
+    cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
+
+    aging_rows = await sx.get_cve_aging(
+        sx_db, ns_list_for_queries,
+        min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+    )
+    aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
+
+    ra_counts = {}
+    for st in ["requested", "approved", "rejected", "expired"]:
+        count_result = await app_db.execute(
+            select(func.count(RiskAcceptance.id)).where(
+                RiskAcceptance.status == RiskStatus[st]
+            )
+        )
+        ra_counts[st] = count_result.scalar() or 0
+    risk_acceptance_pipeline = RiskAcceptancePipeline(**ra_counts)
 
     return DashboardData(
         stat_total_cves=total,
@@ -213,72 +253,8 @@ async def dashboard(
         priority_cves=top_priorities,
         high_epss_cves=top_epss,
         cve_trend=[CveTrendPoint(date=r["date"], count=r["count"]) for r in trend],
-    )
-
-
-@router.get("/sec", response_model=SecDashboardData)
-async def sec_dashboard(
-    _: CurrentUser = Depends(require_sec_team),
-    app_db: AsyncSession = Depends(get_app_db),
-    sx_db: AsyncSession = Depends(get_stackrox_db),
-) -> SecDashboardData:
-    settings = await _get_settings(app_db)
-    min_cvss = float(settings.min_cvss_score) if settings else 0.0
-    min_epss = float(settings.min_epss_score) if settings else 0.0
-
-    # EPSS risk matrix
-    matrix_rows = await sx.get_epss_risk_matrix(sx_db)
-    epss_matrix = [
-        EpssMatrixPoint(
-            cve_id=r["cve_id"],
-            cvss=float(r["cvss"]),
-            epss=float(r["epss"]),
-            severity=SeverityLevel(r["severity"]),
-        )
-        for r in matrix_rows
-    ]
-
-    # Cluster heatmap
-    heatmap_rows = await sx.get_cluster_heatmap(sx_db)
-    cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
-
-    # Aging distribution
-    aging_rows = await sx.get_cve_aging(sx_db, None)
-    aging_dist = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
-
-    # Risk acceptance pipeline
-    ra_counts = {}
-    for st in ["requested", "approved", "rejected", "expired"]:
-        count_result = await app_db.execute(
-            select(func.count(RiskAcceptance.id)).where(
-                RiskAcceptance.status == RiskStatus[st]
-            )
-        )
-        ra_counts[st] = count_result.scalar() or 0
-
-    pipeline = RiskAcceptancePipeline(**ra_counts)
-
-    # Org-wide totals
-    all_cves = await sx.get_all_cves(sx_db, min_cvss, min_epss)
-    total_org = len(all_cves)
-    total_critical = sum(1 for c in all_cves if c.get("severity") == 4)
-    org_avg_epss = sum(c.get("epss_probability", 0) for c in all_cves) / total_org if total_org else 0.0
-
-    # New CVEs in last 7 days
-    cves_last_7_days = await sx.get_cves_last_n_days(sx_db, days=7)
-
-    # Threshold preview
-    preview = await sx.get_threshold_preview(sx_db, min_cvss, min_epss)
-    threshold_preview = ThresholdPreview(**preview)
-
-    return SecDashboardData(
         epss_matrix=epss_matrix,
         cluster_heatmap=cluster_heatmap,
-        aging_distribution=aging_dist,
-        risk_acceptance_pipeline=pipeline,
-        total_cves=total_org,
-        total_critical=total_critical,
-        avg_epss=round(org_avg_epss, 4),
-        cves_last_7_days=cves_last_7_days,
-        threshold_preview=threshold_preview,
+        aging_distribution=aging_distribution,
+        risk_acceptance_pipeline=risk_acceptance_pipeline,
     )
