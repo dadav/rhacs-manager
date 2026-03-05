@@ -70,6 +70,36 @@
   letter-spacing: 0.05em;
 }
 
+/* ── Light-mode sidebar/nav contrast fixes ───────────────────────────── */
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar {
+  background-color: #f0f0f0;
+  border-right: 1px solid #d2d2d2;
+}
+
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-nav__link {
+  color: #4f5255;
+}
+
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-nav__link:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: #151515;
+}
+
+:root:not(.pf-v6-theme-dark)
+  .pf-v6-c-page__sidebar
+  .pf-v6-c-nav__item.pf-m-current
+  > .pf-v6-c-nav__link,
+:root:not(.pf-v6-theme-dark)
+  .pf-v6-c-page__sidebar
+  .pf-v6-c-nav__link.pf-m-current {
+  color: #151515;
+  background-color: rgba(43, 154, 243, 0.22);
+}
+
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-nav__section-title {
+  color: #6a6e73;
+}
+
 /* ── Sidebar toggle button: visible on dark background ───────────────── */
 .pf-v6-c-masthead .pf-v6-c-button {
   color: #e0e0e0;

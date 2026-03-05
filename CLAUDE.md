@@ -112,6 +112,8 @@ import { getErrorMessage } from '../utils/errors'
 - CSS import: `@patternfly/react-core/dist/styles/base.css` (declare `*.css` in `vite-env.d.ts`)
 - CVE table priority indicator should use badge text `PRIO` and a theme-tolerant style (accent stripe + subtle tint) so it remains readable in dark mode and visible in light mode.
 - Notification dropdown panels rendered from masthead actions must set an explicit text color when using a light background, otherwise masthead foreground inheritance can cause white-on-white content.
+- For PatternFly `NavItem` + `react-router-dom` `Link` children, do not set inline `color: inherit`; it can override PF nav-link color tokens and make sidebar text unreadable in light mode.
+- Sidebar nav colors must be mode-aware: keep dark-sidebar link colors for dark mode, but override link/title/active colors in light mode for readable contrast, especially in mobile overlay navigation.
 
 ## Dev Workflow
 

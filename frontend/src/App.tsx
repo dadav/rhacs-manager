@@ -204,12 +204,7 @@ export function App() {
                   key={item.to}
                   isActive={location.pathname.startsWith(item.to)}
                 >
-                  <Link
-                    to={scopedLink(item.to)}
-                    style={{ textDecoration: "none", color: "inherit" }}
-                  >
-                    {item.label}
-                  </Link>
+                  <Link to={scopedLink(item.to)}>{item.label}</Link>
                 </NavItem>
               ))}
             </NavGroup>
@@ -220,12 +215,7 @@ export function App() {
                     key={item.to}
                     isActive={location.pathname.startsWith(item.to)}
                   >
-                    <Link
-                      to={scopedLink(item.to)}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      {item.label}
-                    </Link>
+                    <Link to={scopedLink(item.to)}>{item.label}</Link>
                   </NavItem>
                 ))}
               </NavGroup>
