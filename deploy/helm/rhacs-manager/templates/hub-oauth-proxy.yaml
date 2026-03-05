@@ -1,0 +1,27 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.frontend.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.frontend.oauthProxy.serviceAccountName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    serviceaccounts.openshift.io/oauth-redirectreference.primary: |
+      {"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"{{ .Values.route.frontend.name }}"}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.frontend.oauthProxy.authDelegatorClusterRoleBindingName }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.frontend.oauthProxy.serviceAccountName }}
+    namespace: {{ include "rhacs-manager.namespace" . }}
+{{- end }}

@@ -6,10 +6,13 @@ metadata:
   namespace: {{ include "rhacs-manager.namespace" . }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.frontend.service.annotations | nindent 4 }}
 spec:
   selector:
     app: {{ .Values.frontend.deploymentName }}
   ports:
-    - port: {{ .Values.frontend.service.port }}
+    - name: {{ .Values.frontend.service.portName }}
+      port: {{ .Values.frontend.service.port }}
       targetPort: {{ .Values.frontend.service.targetPort }}
 {{- end }}

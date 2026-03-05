@@ -13,11 +13,75 @@ spec:
       labels:
         app: rhacs-manager-frontend
     spec:
+      serviceAccountName: rhacs-manager-oauth-proxy
       containers:
+        # oauth-proxy sidecar — handles OpenShift OAuth login
+        - name: oauth-proxy
+          image: quay.io/openshift/origin-oauth-proxy:4.14
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account=rhacs-manager-oauth-proxy
+            - --upstream=http://localhost:8081
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret=GENERATE_A_RANDOM_32_BYTE_BASE64
+            - --pass-user-headers=true
+            - --pass-access-token=true
+          ports:
+            - containerPort: 8443
+              name: oauth-proxy
+          volumeMounts:
+            - name: proxy-tls
+              mountPath: /etc/tls/private
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+        # Namespace resolver — resolves X-Forwarded-User to X-Forwarded-Namespaces
+        - name: namespace-resolver
+          image: rhacs-manager-namespace-resolver:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: rhacs-manager-hub-spoke-secret
+                  key: CLUSTER_NAME
+            - name: NAMESPACE_ANNOTATION
+              value: "rhacs-manager.io/users"
+            - name: GROUP_ANNOTATION
+              value: "rhacs-manager.io/groups"
+            - name: CACHE_TTL_SECONDS
+              value: "300"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+        # Frontend SPA with spoke nginx config (proxies /api/* to hub backend)
         - name: frontend
-          image: rhacs-manager-frontend:latest
+          image: rhacs-manager-frontend-spoke:latest
           ports:
             - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: rhacs-manager-hub-spoke-secret
           resources:
             requests:
               cpu: 50m
@@ -31,3 +95,8 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+
+      volumes:
+        - name: proxy-tls
+          secret:
+            secretName: rhacs-manager-oauth-proxy-tls

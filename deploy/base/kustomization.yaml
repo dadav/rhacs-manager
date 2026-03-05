@@ -9,12 +9,18 @@ resources:
   - backend-service.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
+  - oauth-proxy.yaml
+  - namespace-resolver-rbac.yaml
+  - hub-spoke-secret.yaml
   - route.yaml
 
 images:
   - name: rhacs-manager-backend
     newName: ghcr.io/dadav/rhacs-manager-backend
     newTag: latest
-  - name: rhacs-manager-frontend
-    newName: ghcr.io/dadav/rhacs-manager-frontend
+  - name: rhacs-manager-frontend-spoke
+    newName: ghcr.io/dadav/rhacs-manager-spoke
+    newTag: latest
+  - name: rhacs-manager-namespace-resolver
+    newName: ghcr.io/dadav/rhacs-manager-namespace-resolver
     newTag: latest

@@ -79,18 +79,17 @@ backend:
     initialDelaySeconds: 30
     periodSeconds: 30
 
+# Hub frontend — spoke-style 3-container pod (oauth-proxy + namespace-resolver + spoke-nginx)
 frontend:
   enabled: true
   deploymentName: rhacs-manager-frontend
   serviceName: rhacs-manager-frontend
   replicaCount: 1
+  # Spoke frontend image (nginx with envsubst + API proxy)
   image:
-    repository: ghcr.io/dadav/rhacs-manager-frontend
+    repository: ghcr.io/dadav/rhacs-manager-spoke
     tag: latest
     pullPolicy: IfNotPresent
-  service:
-    port: 8080
-    targetPort: 8080
   resources:
     requests:
       cpu: 50m
@@ -102,6 +101,54 @@ frontend:
     path: /
     initialDelaySeconds: 5
     periodSeconds: 10
+  # Hub-local spoke secret (points /api/* to the local backend service)
+  secret:
+    create: true
+    name: rhacs-manager-hub-spoke-secret
+    stringData:
+      HUB_API_URL: "http://rhacs-manager-backend:8000"
+      SPOKE_API_KEY: "change-me-to-match-hub-key"
+      CLUSTER_NAME: "hub"
+  oauthProxy:
+    serviceAccountName: rhacs-manager-oauth-proxy
+    image:
+      repository: quay.io/openshift/origin-oauth-proxy
+      tag: "4.14"
+      pullPolicy: IfNotPresent
+    cookieSecret: ""
+    tlsSecretName: rhacs-manager-oauth-proxy-tls
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+    authDelegatorClusterRoleBindingName: rhacs-manager-oauth-proxy-review
+  namespaceResolver:
+    image:
+      repository: ghcr.io/dadav/rhacs-manager-namespace-resolver
+      tag: latest
+      pullPolicy: IfNotPresent
+    namespaceAnnotation: rhacs-manager.io/users
+    groupAnnotation: rhacs-manager.io/groups
+    cacheTtlSeconds: "300"
+    groupCacheTtlSeconds: "60"
+    clusterRoleName: rhacs-manager-namespace-reader
+    clusterRoleBindingName: rhacs-manager-namespace-reader
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+  service:
+    annotations:
+      service.beta.openshift.io/serving-cert-secret-name: rhacs-manager-oauth-proxy-tls
+    portName: oauth-proxy
+    port: 8443
+    targetPort: 8443
 
 route:
   enabled: true
@@ -112,8 +159,12 @@ route:
     name: rhacs-manager-api
     host: rhacs-manager-api.apps.example.com
   tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
+    frontend:
+      termination: reencrypt
+      insecureEdgeTerminationPolicy: Redirect
+    backend:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
 
 spoke:
   secret:

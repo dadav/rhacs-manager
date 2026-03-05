@@ -17,18 +17,78 @@ spec:
         app: {{ .Values.frontend.deploymentName }}
         {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ .Values.frontend.oauthProxy.serviceAccountName }}
       containers:
+        - name: oauth-proxy
+          image: "{{ .Values.frontend.oauthProxy.image.repository }}:{{ .Values.frontend.oauthProxy.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.oauthProxy.image.pullPolicy }}
+          args:
+            - --https-address=:8443
+            - --provider=openshift
+            - --openshift-service-account={{ .Values.frontend.oauthProxy.serviceAccountName }}
+            - --upstream=http://localhost:8081
+            - --tls-cert=/etc/tls/private/tls.crt
+            - --tls-key=/etc/tls/private/tls.key
+            - --cookie-secret={{ required "frontend.oauthProxy.cookieSecret is required" .Values.frontend.oauthProxy.cookieSecret }}
+            - --pass-user-headers=true
+            - --pass-access-token=true
+          ports:
+            - containerPort: 8443
+              name: oauth-proxy
+          volumeMounts:
+            - name: proxy-tls
+              mountPath: /etc/tls/private
+              readOnly: true
+          resources:
+            {{- toYaml .Values.frontend.oauthProxy.resources | nindent 12 }}
+
+        - name: namespace-resolver
+          image: "{{ .Values.frontend.namespaceResolver.image.repository }}:{{ .Values.frontend.namespaceResolver.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.namespaceResolver.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+          env:
+            - name: CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frontend.secret.name }}
+                  key: CLUSTER_NAME
+            - name: NAMESPACE_ANNOTATION
+              value: {{ .Values.frontend.namespaceResolver.namespaceAnnotation | quote }}
+            - name: GROUP_ANNOTATION
+              value: {{ .Values.frontend.namespaceResolver.groupAnnotation | quote }}
+            - name: CACHE_TTL_SECONDS
+              value: {{ .Values.frontend.namespaceResolver.cacheTtlSeconds | quote }}
+            - name: GROUP_CACHE_TTL_SECONDS
+              value: {{ .Values.frontend.namespaceResolver.groupCacheTtlSeconds | quote }}
+          resources:
+            {{- toYaml .Values.frontend.namespaceResolver.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.frontend.service.targetPort }}
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: {{ .Values.frontend.secret.name }}
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           readinessProbe:
             httpGet:
               path: {{ .Values.frontend.readinessProbe.path }}
-              port: {{ .Values.frontend.service.targetPort }}
+              port: 8080
             initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
+
+      volumes:
+        - name: proxy-tls
+          secret:
+            secretName: {{ .Values.frontend.oauthProxy.tlsSecretName }}
 {{- end }}

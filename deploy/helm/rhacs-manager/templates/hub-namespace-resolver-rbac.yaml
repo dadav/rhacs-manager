@@ -1,0 +1,27 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.frontend.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.frontend.namespaceResolver.clusterRoleName }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.frontend.namespaceResolver.clusterRoleBindingName }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.frontend.namespaceResolver.clusterRoleName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.frontend.oauthProxy.serviceAccountName }}
+    namespace: {{ include "rhacs-manager.namespace" . }}
+{{- end }}

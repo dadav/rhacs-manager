@@ -12,10 +12,10 @@ spec:
     kind: Service
     name: {{ .Values.frontend.serviceName }}
   port:
-    targetPort: {{ .Values.frontend.service.port }}
+    targetPort: {{ .Values.frontend.service.portName }}
   tls:
-    termination: {{ .Values.route.tls.termination }}
-    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+    termination: {{ .Values.route.tls.frontend.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.frontend.insecureEdgeTerminationPolicy }}
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -32,6 +32,6 @@ spec:
   port:
     targetPort: {{ .Values.backend.service.port }}
   tls:
-    termination: {{ .Values.route.tls.termination }}
-    insecureEdgeTerminationPolicy: {{ .Values.route.tls.insecureEdgeTerminationPolicy }}
+    termination: {{ .Values.route.tls.backend.termination }}
+    insecureEdgeTerminationPolicy: {{ .Values.route.tls.backend.insecureEdgeTerminationPolicy }}
 {{- end }}
