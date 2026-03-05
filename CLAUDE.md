@@ -224,6 +224,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
 - Escalations are namespace-scoped (`cve_id`, `namespace`, `cluster_name`, `level`).
 - Badges are scoped by `created_by` (user) + optional `namespace`/`cluster_name`.
+- Badge API responses intentionally return relative badge paths (`/api/badges/{token}/status.svg`); frontend must resolve them against `window.location.origin` so spoke users get spoke-local embeddable URLs instead of hub URLs.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
 - `users.role`: `team_member | sec_team`
 

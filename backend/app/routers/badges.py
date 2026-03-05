@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..badges.generator import generate_badge_svg
-from ..config import settings
 from ..deps import get_app_db, get_stackrox_db
 from ..models.badge import BadgeToken
 from ..models.global_settings import GlobalSettings
@@ -16,8 +15,8 @@ from ..stackrox import queries as sx
 router = APIRouter(prefix="/badges", tags=["badges"])
 
 
-def _badge_url(token: str, base: str) -> str:
-    return f"{base}/api/badges/{token}/status.svg"
+def _badge_url(token: str) -> str:
+    return f"/api/badges/{token}/status.svg"
 
 
 async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
@@ -29,7 +28,7 @@ async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
         token=b.token,
         label=b.label,
         created_at=b.created_at,
-        badge_url=_badge_url(b.token, settings.app_base_url),
+        badge_url=_badge_url(b.token),
     )
 
 

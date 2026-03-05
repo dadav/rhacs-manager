@@ -30,6 +30,7 @@ export function Badges() {
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
+  const toAbsoluteBadgeUrl = (url: string) => new URL(url, window.location.origin).toString()
 
   async function handleCreate() {
     try {
@@ -85,14 +86,14 @@ export function Badges() {
 
                     {/* Live badge preview */}
                     <div>
-                      <img src={badge.badge_url} alt="Badge" style={{ height: 20 }} />
+                      <img src={toAbsoluteBadgeUrl(badge.badge_url)} alt="Badge" style={{ height: 20 }} />
                     </div>
 
                     <div style={{ display: 'flex', gap: 8 }}>
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => copyToClipboard(badge.badge_url, badge.id + '-url')}
+                        onClick={() => copyToClipboard(toAbsoluteBadgeUrl(badge.badge_url), badge.id + '-url')}
                       >
                         {copied === badge.id + '-url' ? '✓ Kopiert' : 'URL kopieren'}
                       </Button>
@@ -100,7 +101,7 @@ export function Badges() {
                         variant="secondary"
                         size="sm"
                         onClick={() => copyToClipboard(
-                          `![CVE Badge](${badge.badge_url})`,
+                          `![CVE Badge](${toAbsoluteBadgeUrl(badge.badge_url)})`,
                           badge.id + '-md'
                         )}
                       >
@@ -120,7 +121,7 @@ export function Badges() {
                   {/* URL display */}
                   <div style={{ marginTop: 8, padding: '6px 10px', background: '#f9f9f9', borderRadius: 3 }}>
                     <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6a6e73', wordBreak: 'break-all' }}>
-                      {badge.badge_url}
+                      {toAbsoluteBadgeUrl(badge.badge_url)}
                     </span>
                   </div>
                 </CardBody>
