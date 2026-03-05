@@ -211,6 +211,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - CVE API payloads expose both timeline dates from StackRox: `first_seen` (`ic.firstimageoccurrence`) and `published_on` (`ic.cvebaseinfo_publishedon`).
 - CVE detail lifecycle timeline includes a dedicated "Veröffentlicht" step sourced from `published_on`, in addition to "Entdeckt" from `first_seen`.
 - CVE detail view includes external reference links for each CVE ID: Red Hat (`https://access.redhat.com/security/cve/<CVE-ID>`) and NVD (`https://nvd.nist.gov/vuln/detail/<CVE-ID>`).
+- CVE detail API now includes `contact_emails` (deduplicated `namespace_contacts.escalation_email` values) and the detail UI renders them as mailto links; values are populated for sec-team requests.
 - Risk acceptance creation is CVE-contextual only: users should start requests from CVE list/detail views; `/risikoakzeptanzen` is a list/review view and does not provide a standalone "new" action.
 - Risk acceptances are scope-aware. `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`

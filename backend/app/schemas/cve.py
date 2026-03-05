@@ -53,6 +53,7 @@ class CveListItem(BaseModel):
 class CveDetail(CveListItem):
     affected_deployments_list: list[AffectedDeployment] = []
     components: list[AffectedComponent] = []
+    contact_emails: list[str] = Field(default_factory=list)
     priority_created_at: datetime | None = None
     risk_acceptance_requested_at: datetime | None = None
     risk_acceptance_reviewed_at: datetime | None = None

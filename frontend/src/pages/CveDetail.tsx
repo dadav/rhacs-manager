@@ -320,6 +320,22 @@ export function CveDetail() {
                       }
                     />
                     <DetailRow
+                      label="Kontakt E-Mail"
+                      value={
+                        cve.contact_emails.length > 0 ? (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {cve.contact_emails.map((email) => (
+                              <a key={email} href={`mailto:${email}`}>
+                                {email}
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          "–"
+                        )
+                      }
+                    />
+                    <DetailRow
                       label="Schweregrad"
                       value={<SeverityBadge severity={cve.severity} />}
                     />

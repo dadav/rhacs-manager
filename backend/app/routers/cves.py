@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -11,6 +11,7 @@ from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
 from ..models.escalation import Escalation
+from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
 from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, SeverityLevel
@@ -237,6 +238,23 @@ async def get_cve(
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     components = await sx.get_affected_components(sx_db, cve_id, ns)
+    contact_emails: list[str] = []
+    if current_user.is_sec_team and deployments:
+        ns_cluster_pairs = sorted({
+            (d["namespace"], d["cluster_name"])
+            for d in deployments
+            if d.get("namespace") and d.get("cluster_name")
+        })
+        if ns_cluster_pairs:
+            contact_result = await app_db.execute(
+                select(NamespaceContact.escalation_email).where(
+                    tuple_(
+                        NamespaceContact.namespace,
+                        NamespaceContact.cluster_name,
+                    ).in_(ns_cluster_pairs)
+                )
+            )
+            contact_emails = sorted({row[0] for row in contact_result if row[0]})
 
     return CveDetail(
         cve_id=cve_data["cve_id"],
@@ -266,6 +284,7 @@ async def get_cve(
         escalation_level1_expected=esc_expected[1],
         escalation_level2_expected=esc_expected[2],
         escalation_level3_expected=esc_expected[3],
+        contact_emails=contact_emails,
         affected_deployments_list=[
             AffectedDeployment(
                 deployment_id=str(d["deployment_id"]),
