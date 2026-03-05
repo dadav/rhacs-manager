@@ -147,7 +147,9 @@ spoke:
       tag: latest
       pullPolicy: IfNotPresent
     namespaceAnnotation: rhacs-manager.io/users
+    groupAnnotation: rhacs-manager.io/groups
     cacheTtlSeconds: "300"
+    groupCacheTtlSeconds: "60"
     clusterRoleName: rhacs-manager-namespace-reader
     clusterRoleBindingName: rhacs-manager-namespace-reader
     resources:

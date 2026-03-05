@@ -27,6 +27,7 @@ spec:
             - --tls-key=/etc/tls/private/tls.key
             - --cookie-secret=GENERATE_A_RANDOM_32_BYTE_BASE64
             - --pass-user-headers=true
+            - --pass-access-token=true
           ports:
             - containerPort: 8443
               name: oauth-proxy
@@ -55,6 +56,8 @@ spec:
                   key: CLUSTER_NAME
             - name: NAMESPACE_ANNOTATION
               value: "rhacs-manager.io/users"
+            - name: GROUP_ANNOTATION
+              value: "rhacs-manager.io/groups"
             - name: CACHE_TTL_SECONDS
               value: "300"
           resources:

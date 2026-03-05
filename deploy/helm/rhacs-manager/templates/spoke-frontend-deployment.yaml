@@ -31,6 +31,7 @@ spec:
             - --tls-key=/etc/tls/private/tls.key
             - --cookie-secret={{ required "spoke.oauthProxy.cookieSecret is required in spoke mode" .Values.spoke.oauthProxy.cookieSecret }}
             - --pass-user-headers=true
+            - --pass-access-token=true
           ports:
             - containerPort: 8443
               name: oauth-proxy
@@ -54,8 +55,12 @@ spec:
                   key: CLUSTER_NAME
             - name: NAMESPACE_ANNOTATION
               value: {{ .Values.spoke.namespaceResolver.namespaceAnnotation | quote }}
+            - name: GROUP_ANNOTATION
+              value: {{ .Values.spoke.namespaceResolver.groupAnnotation | quote }}
             - name: CACHE_TTL_SECONDS
               value: {{ .Values.spoke.namespaceResolver.cacheTtlSeconds | quote }}
+            - name: GROUP_CACHE_TTL_SECONDS
+              value: {{ .Values.spoke.namespaceResolver.groupCacheTtlSeconds | quote }}
           resources:
             {{- toYaml .Values.spoke.namespaceResolver.resources | nindent 12 }}
           readinessProbe:

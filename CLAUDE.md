@@ -171,19 +171,22 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 ```
 
 **Auth flow (spoke proxy mode):**
-1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups` headers
-2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up namespace annotations (`rhacs-manager.io/users`), sets `X-Forwarded-Namespaces` header
-3. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
-4. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces from headers
-5. `sec_team_group` in groups grants sec_team role
-6. Users auto-provisioned with ID `spoke:<username>`
+1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups/Access-Token` headers
+2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations
+3. If `X-Forwarded-Access-Token` is present, namespace-resolver calls OpenShift user API (`/apis/user.openshift.io/v1/users/~`) to resolve the user's groups, then merges group-based namespaces with user-based namespaces
+4. namespace-resolver sets `X-Forwarded-Namespaces` (merged, deduplicated) and `X-Forwarded-Groups` (from OpenShift user API)
+5. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
+6. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces + groups from headers
+7. `sec_team_group` in groups grants sec_team role
+8. Users auto-provisioned with ID `spoke:<username>`
 
 **Namespace resolver** (`namespace-resolver/`):
 - Go sidecar sitting between oauth-proxy (:8443) and nginx (:8080) on port :8081
-- Caches `namespace → []username` map from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
-- Annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
-- Users listed in the annotation get access to that namespace's CVEs
-- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `CACHE_TTL_SECONDS` (default: `300`)
+- Caches `namespace → []username` and `namespace → []group` maps from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
+- User annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
+- Group annotation format: `rhacs-manager.io/groups: group1,group2` on any namespace — all members of listed groups get access
+- Groups are resolved by calling the OpenShift user API with the forwarded access token (cached per token for `GROUP_CACHE_TTL_SECONDS`, default 60)
+- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
 - Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/namespace-resolver-rbac.yaml`)
 
 **Deploy:**
