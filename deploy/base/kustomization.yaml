@@ -18,7 +18,7 @@ images:
   - name: rhacs-manager-backend
     newName: ghcr.io/dadav/rhacs-manager-backend
     newTag: latest
-  - name: rhacs-manager-frontend-spoke
+  - name: rhacs-manager-spoke
     newName: ghcr.io/dadav/rhacs-manager-spoke
     newTag: latest
   - name: rhacs-manager-namespace-resolver

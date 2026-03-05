@@ -17,7 +17,7 @@ spec:
       containers:
         # oauth-proxy sidecar — handles OpenShift OAuth login
         - name: oauth-proxy
-          image: quay.io/openshift/origin-oauth-proxy:4.14
+          image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14
           args:
             - --https-address=:8443
             - --provider=openshift
@@ -76,7 +76,7 @@ spec:
 
         # Frontend SPA with spoke nginx config (proxies /api/* to hub)
         - name: frontend
-          image: rhacs-manager-frontend-spoke:latest
+          image: rhacs-manager-spoke:latest
           ports:
             - containerPort: 8080
           envFrom:

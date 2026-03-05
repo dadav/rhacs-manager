@@ -112,8 +112,8 @@ frontend:
   oauthProxy:
     serviceAccountName: rhacs-manager-oauth-proxy
     image:
-      repository: quay.io/openshift/origin-oauth-proxy
-      tag: "4.14"
+      repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      tag: "v4.14"
       pullPolicy: IfNotPresent
     cookieSecret: ""
     tlsSecretName: rhacs-manager-oauth-proxy-tls
@@ -178,8 +178,8 @@ spoke:
   oauthProxy:
     serviceAccountName: rhacs-manager-oauth-proxy
     image:
-      repository: quay.io/openshift/origin-oauth-proxy
-      tag: "4.14"
+      repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      tag: "v4.14"
       pullPolicy: IfNotPresent
     cookieSecret: ""
     tlsSecretName: rhacs-manager-oauth-proxy-tls
