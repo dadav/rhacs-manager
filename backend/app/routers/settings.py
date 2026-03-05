@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.middleware import CurrentUser, require_sec_team
+from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
 from ..models.global_settings import GlobalSettings
-from ..schemas.settings import SettingsResponse, SettingsUpdate, ThresholdPreviewResponse
+from ..schemas.settings import SettingsResponse, SettingsUpdate, ThresholdPreviewResponse, ThresholdResponse
 from ..services.audit_service import log_action
 from ..stackrox import queries as sx
 
@@ -20,6 +20,19 @@ async def _get_or_create_settings(db: AsyncSession) -> GlobalSettings:
         db.add(s)
         await db.flush()
     return s
+
+
+@router.get("/thresholds", response_model=ThresholdResponse)
+async def get_thresholds(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> ThresholdResponse:
+    s = await _get_or_create_settings(db)
+    await db.commit()
+    return ThresholdResponse(
+        min_cvss_score=s.min_cvss_score,
+        min_epss_score=s.min_epss_score,
+    )
 
 
 @router.get("", response_model=SettingsResponse)

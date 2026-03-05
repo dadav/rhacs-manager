@@ -1,10 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { GlobalSettings, ThresholdPreview } from '../types'
+import type { GlobalSettings, ThresholdInfo, ThresholdPreview } from '../types'
 
 export const settingsKeys = {
   settings: ['settings'] as const,
+  thresholds: ['settings', 'thresholds'] as const,
   preview: (cvss: number, epss: number) => ['settings', 'preview', cvss, epss] as const,
+}
+
+export function useThresholds() {
+  return useQuery({
+    queryKey: settingsKeys.thresholds,
+    queryFn: () => api.get<ThresholdInfo>('/settings/thresholds'),
+    staleTime: 5 * 60 * 1000,
+  })
 }
 
 export function useSettings() {

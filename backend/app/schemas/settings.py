@@ -35,6 +35,11 @@ class SettingsResponse(BaseModel):
     updated_at: datetime
 
 
+class ThresholdResponse(BaseModel):
+    min_cvss_score: float
+    min_epss_score: float
+
+
 class ThresholdPreviewResponse(BaseModel):
     total_cves: int
     visible_cves: int

@@ -40,6 +40,11 @@ class AgingBucket(BaseModel):
     count: int
 
 
+class ComponentCveCount(BaseModel):
+    component_name: str
+    cve_count: int
+
+
 class RiskAcceptancePipeline(BaseModel):
     requested: int
     approved: int
@@ -67,4 +72,5 @@ class DashboardData(BaseModel):
     epss_matrix: list[EpssMatrixPoint]
     cluster_heatmap: list[ClusterHeatmapRow]
     aging_distribution: list[AgingBucket]
+    top_vulnerable_components: list[ComponentCveCount]
     risk_acceptance_pipeline: RiskAcceptancePipeline

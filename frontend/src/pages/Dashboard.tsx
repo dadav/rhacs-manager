@@ -398,6 +398,36 @@ export function Dashboard() {
               </CardBody>
             </Card>
           </GridItem>
+
+          {/* Top Vulnerable Components */}
+          {data.top_vulnerable_components.length > 0 && (
+            <GridItem span={12}>
+              <Card>
+                <CardTitle>{t('dashboard.topVulnerableComponents')}</CardTitle>
+                <CardBody>
+                  <ResponsiveContainer width="100%" height={data.top_vulnerable_components.length * 40 + 20}>
+                    <BarChart
+                      data={data.top_vulnerable_components}
+                      layout="vertical"
+                      margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="component_name"
+                        tick={{ fontSize: 11 }}
+                        width={200}
+                        interval={0}
+                      />
+                      <Tooltip />
+                      <Bar dataKey="cve_count" name="CVEs" fill="#0066cc" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
         </Grid>
       </PageSection>
     </>

@@ -42,7 +42,7 @@ async def get_cves_for_namespaces(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        LEFT JOIN image_components comp ON comp.id = ic.componentid
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
@@ -90,7 +90,7 @@ async def get_cve_detail(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        LEFT JOIN image_components comp ON comp.id = ic.componentid
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
         GROUP BY ic.cvebaseinfo_cve
@@ -150,7 +150,7 @@ async def get_affected_components(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        JOIN image_components comp ON comp.id = ic.componentid
+        JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = :cve_id
           AND comp.name IS NOT NULL
@@ -186,7 +186,7 @@ async def get_all_cves(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        LEFT JOIN image_components comp ON comp.id = ic.componentid
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
             (
@@ -716,6 +716,68 @@ async def get_cve_namespace_map(
     return mapping
 
 
+async def get_top_vulnerable_components(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+    limit: int = 10,
+) -> list[dict]:
+    """Top N components by CVE count, respecting visibility filters."""
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    if namespaces:
+        ns_filter = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        ns_filter = ""
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT ic.cvebaseinfo_cve AS cve_id
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT
+            comp.name AS component_name,
+            COUNT(DISTINCT vc.cve_id) AS cve_count
+        FROM visible_cves vc
+        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN image_component_v2 comp ON comp.id = ic.componentid
+        JOIN deployments_containers dc ON dc.image_id = ic.imageid
+        JOIN deployments d ON d.id = dc.deployments_id
+        WHERE comp.name IS NOT NULL {ns_filter}
+        GROUP BY comp.name
+        ORDER BY cve_count DESC
+        LIMIT :limit
+    """)
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "limit": limit},
+    )
+    return [dict(row._mapping) for row in result]
+
+
 async def get_cve_component_map(
     session: AsyncSession,
     cve_ids: list[str],
@@ -731,7 +793,7 @@ async def get_cve_component_map(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        LEFT JOIN image_components comp ON comp.id = ic.componentid
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE (d.namespace, d.clustername) IN ({ns_values})
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
           AND comp.name IS NOT NULL

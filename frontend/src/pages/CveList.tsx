@@ -11,14 +11,16 @@ import {
   ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core'
-import { FilterIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import { FilterIcon, InfoCircleIcon, ShieldAltIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
+import { useThresholds } from '../api/settings'
 
 import { useScope } from '../hooks/useScope'
+import { useAuth } from '../hooks/useAuth'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { Severity } from '../types'
@@ -165,6 +167,11 @@ export function CveList() {
 
   const { scopeParams } = useScope()
   const { data, isLoading, error } = useCves(params, scopeParams)
+  const { isSecTeam } = useAuth()
+  const { data: thresholds } = useThresholds()
+
+  const hasActiveThresholds = thresholds && !isSecTeam &&
+    (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
   // --- Styles ---
   const thStyle = (col: string): React.CSSProperties => ({
@@ -208,6 +215,22 @@ export function CveList() {
       <PageSection variant="default">
         <Title headingLevel="h1" size="xl">{t('cves.title')}</Title>
       </PageSection>
+
+      {hasActiveThresholds && (
+        <PageSection variant="default" padding={{ default: 'noPadding' }}>
+          <Alert
+            variant="info"
+            isInline
+            isPlain
+            customIcon={<InfoCircleIcon />}
+            title={t('cves.thresholdHint', {
+              cvss: thresholds.min_cvss_score.toFixed(1),
+              epss: (thresholds.min_epss_score * 100).toFixed(0),
+            })}
+            style={{ padding: '8px 20px' }}
+          />
+        </PageSection>
+      )}
 
       <PageSection variant="default" padding={{ default: 'noPadding' }}>
         <Toolbar>
@@ -375,6 +398,7 @@ export function CveList() {
                     <th style={thStyle('severity')} onClick={() => handleSort('severity')}>{t('cves.severity')}</th>
                     <th style={thStyle('cvss')} onClick={() => handleSort('cvss')}>{t('cves.cvss')}</th>
                     <th style={thStyle('epss_probability')} onClick={() => handleSort('epss_probability')}>{t('cves.epss')}</th>
+                    <th style={{ ...thStyle('component'), cursor: 'default' }}>{t('cves.componentName')}</th>
                     <th style={thStyle('affected_images')} onClick={() => handleSort('affected_images')}>{t('cves.affectedImages')}</th>
                     <th style={thStyle('affected_deployments')} onClick={() => handleSort('affected_deployments')}>{t('cves.affectedDeployments')}</th>
                     <th style={thStyle('fixable')}>{t('cves.fixable')}</th>
@@ -411,6 +435,14 @@ export function CveList() {
                         {cve.cvss.toFixed(1)}
                       </td>
                       <td style={{ padding: '8px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
+                      <td style={{ padding: '8px 12px', maxWidth: 200, fontSize: 11 }}>
+                        {cve.component_names.length > 0 ? (
+                          <span title={cve.component_names.join(', ')}>
+                            {cve.component_names.slice(0, 3).join(', ')}
+                            {cve.component_names.length > 3 && ` (+${cve.component_names.length - 3})`}
+                          </span>
+                        ) : '–'}
+                      </td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_images}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
                       <td style={{ padding: '8px 12px' }}>

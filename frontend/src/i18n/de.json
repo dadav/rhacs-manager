@@ -86,7 +86,8 @@
     "epssMatrixDescription": "Jeder Punkt ist eine CVE. Oben rechts = sofortiger Handlungsbedarf.",
     "clusterHeatmap": "Cluster-Heatmap",
     "aging": "CVE-Alterungsverteilung",
-    "pipeline": "Risikoakzeptanz-Pipeline"
+    "pipeline": "Risikoakzeptanz-Pipeline",
+    "topVulnerableComponents": "Top 10 anfälligste Komponenten"
   },
   "cves": {
     "title": "Schwachstellen",
@@ -127,7 +128,8 @@
     "filterNamespace": "Namespace",
     "filterRiskStatus": "Risikostatus",
     "filterAdvanced": "Erweiterte Filter",
-    "filterClear": "Filter zurücksetzen"
+    "filterClear": "Filter zurücksetzen",
+    "thresholdHint": "Es werden nur CVEs mit CVSS \u2265 {{cvss}} und EPSS \u2265 {{epss}}% angezeigt. Priorisierte CVEs und aktive Risikoakzeptanzen sind immer sichtbar."
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",

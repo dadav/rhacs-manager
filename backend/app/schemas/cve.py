@@ -44,6 +44,7 @@ class CveListItem(BaseModel):
     has_priority: bool = False
     priority_level: str | None = None
     priority_deadline: datetime | None = None
+    component_names: list[str] = []
     has_risk_acceptance: bool = False
     risk_acceptance_status: str | None = None
     risk_acceptance_id: str | None = None

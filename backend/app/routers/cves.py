@@ -29,6 +29,7 @@ def _build_cve_item(
     c: dict,
     priorities: dict,
     acceptances: dict,
+    component_map: dict[str, list[str]] | None = None,
 ) -> CveListItem:
     p = priorities.get(c["cve_id"])
     a = acceptances.get(c["cve_id"])
@@ -45,6 +46,7 @@ def _build_cve_item(
         first_seen=c.get("first_seen"),
         published_on=c.get("published_on"),
         operating_system=c.get("operating_system"),
+        component_names=sorted(set(component_map.get(c["cve_id"], []))) if component_map else [],
         has_priority=p is not None,
         priority_level=p.priority.value if p else None,
         priority_deadline=p.deadline if p else None,
@@ -91,23 +93,31 @@ async def list_cves(
 
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
+    ns_for_components: list[tuple[str, str]] = []
     if current_user.is_sec_team:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             scoped_ns = narrow_namespaces(
                 [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
             )
+            ns_for_components = scoped_ns
             cves = await sx.get_cves_for_namespaces(sx_db, scoped_ns, min_cvss, min_epss, always_show)
         else:
+            all_ns = await sx.list_namespaces(sx_db)
+            ns_for_components = [(r["namespace"], r["cluster_name"]) for r in all_ns]
             cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
     else:
         if not current_user.has_namespaces:
             return PaginatedResponse(items=[], total=0, page=page, page_size=page_size)
-        scoped_user_ns = narrow_namespaces(current_user.namespaces, cluster, namespace)
-        cves = await sx.get_cves_for_namespaces(sx_db, scoped_user_ns, min_cvss, min_epss, always_show)
+        ns_for_components = narrow_namespaces(current_user.namespaces, cluster, namespace)
+        cves = await sx.get_cves_for_namespaces(sx_db, ns_for_components, min_cvss, min_epss, always_show)
+
+    # Batch fetch component names for all CVEs
+    cve_ids_all = [c["cve_id"] for c in cves]
+    component_map = await sx.get_cve_component_map(sx_db, cve_ids_all, ns_for_components) if cve_ids_all else {}
 
     # Build items
-    items = [_build_cve_item(c, priorities, acceptances) for c in cves]
+    items = [_build_cve_item(c, priorities, acceptances, component_map) for c in cves]
 
     # Filter
     if search:

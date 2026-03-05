@@ -39,8 +39,8 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `frontend/src/pages/`             | One file per page/route                                                                                                         |
 | `frontend/src/components/`        | Reusable UI components                                                                                                          |
 | `frontend/src/i18n/`              | German translations                                                                                                             |
-| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes)                                                               |
-| `deploy/hub/`                     | Hub overlay (= base, with backend + DBs)                                                                                        |
+| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes, oauth-proxy, namespace-resolver)                               |
+| `deploy/hub/`                     | Hub overlay (= base: backend + spoke-style frontend with oauth-proxy)                                                           |
 | `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy + namespace-resolver, no backend)                                                         |
 | `namespace-resolver/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
 | `namespace-resolver/Containerfile` | Multi-stage build for namespace-resolver (distroless runtime)                                                                   |
@@ -64,20 +64,25 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 
 **Always use `image_cves_v2`** — not the multi-table join via `image_cve_edges → image_cves → image_component_cve_edges`. The `image_cves_v2` view already joins CVE data with component and fixability info.
 
+**Always use `image_component_v2`** for component data — not `image_components`. The `image_component_v2.id` matches `image_cves_v2.componentid`; the old `image_components.id` uses a different format and joins will silently return 0 rows.
+
 ```sql
 -- Correct pattern:
 FROM deployments d
 JOIN deployments_containers dc ON dc.deployments_id = d.id
 JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-LEFT JOIN image_components comp ON comp.id = ic.componentid
+LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 
 -- Key fields on image_cves_v2:
 -- ic.cvebaseinfo_cve, ic.severity, ic.cvss, ic.cvebaseinfo_epss_epssprobability
 -- ic.impactscore, ic.firstimageoccurrence, ic.cvebaseinfo_publishedon, ic.isfixable, ic.fixedby
 -- ic.imageid, ic.componentid
+
+-- Key fields on image_component_v2:
+-- comp.name, comp.version, comp.operatingsystem, comp.riskscore, comp.topcvss
 ```
 
-The old join chain (`image_cve_edges → image_cves → image_component_edges → image_component_cve_edges`) is incorrect for this schema.
+The old join chain (`image_cve_edges → image_cves → image_component_edges → image_component_cve_edges`) is incorrect for this schema. Similarly, `image_components` has incompatible IDs — always use `image_component_v2`.
 
 For dashboard severity aggregation, querying `image_cves` via `image_cve_edges` can return empty/missing data in this project. Use `image_cves_v2` for `get_severity_distribution` as well, consistent with the other dashboard queries.
 
@@ -223,11 +228,12 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 ## Containers & Deploy
 
 - Backend: `backend/Containerfile` (multi-stage, `uv sync --frozen`) — hub only
-- Frontend: `frontend/Containerfile` (multi-stage, `npm run build`) — hub deployment
-- Frontend spoke: `frontend/Containerfile.spoke` (adds envsubst + API proxy nginx) — spoke deployment
-- Kustomize base: `deploy/base/` — edit `deploy/base/secret.yaml` template before deploying
-- Kustomize hub: `deploy/hub/` — references base (identical to base)
+- Frontend spoke: `frontend/Containerfile.spoke` (adds envsubst + API proxy nginx) — used for both hub and spoke deployments
+- Frontend (legacy): `frontend/Containerfile` — dev/build-check only; not used in production (spoke image used everywhere)
+- Kustomize base: `deploy/base/` — edit `deploy/base/secret.yaml` and `deploy/base/hub-spoke-secret.yaml` before deploying
+- Kustomize hub: `deploy/hub/` — references base (backend + spoke-style frontend with oauth-proxy)
 - Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
+- Hub frontend uses the same 3-container pod as spoke (oauth-proxy + namespace-resolver + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
 - All dependencies bundled at build time; no internet access at runtime
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
 - Alembic DB URL resolution is sourced from `app.config.settings.effective_app_db_url` (not a hardcoded `APP_DB_URL` fallback), so deployments using split env vars (`APP_DB_HOST`, `APP_DB_USER`, `APP_DB_PASSWORD`, `APP_DB_NAME`) work for migrations and runtime consistently.
@@ -252,9 +258,9 @@ Always verify backend, frontend, and docs build before marking work done.
 ## Helm Deployment (Hub Alternative)
 
 - A functional Helm chart now exists at `deploy/helm/rhacs-manager` as an alternative to `deploy/base`/`deploy/hub` kustomize deployment.
-- Default chart output includes: Namespace, backend secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend/frontend Deployments + Services, and two OpenShift Routes.
-- Install command:
-  - `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace`
+- Default chart output includes: Namespace, backend secret, hub-spoke-secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend + spoke-style frontend Deployments + Services, oauth-proxy SA/CRB, namespace-resolver RBAC, and two OpenShift Routes.
+- Hub install command:
+  - `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set frontend.oauthProxy.cookieSecret=<base64-32-byte-secret>`
 - Critical pre-reqs remain the same as kustomize:
   - CNPG operator installed in cluster
   - `central-db-password` secret present in `rhacs-manager` namespace for StackRox DB access

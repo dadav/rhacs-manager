@@ -51,6 +51,7 @@ export interface CveListItem {
   has_priority: boolean
   priority_level: PriorityLevel | null
   priority_deadline: string | null
+  component_names: string[]
   has_risk_acceptance: boolean
   risk_acceptance_status: RiskStatus | null
   risk_acceptance_id: string | null
@@ -231,6 +232,7 @@ export interface DashboardData {
   epss_matrix: EpssMatrixPoint[]
   cluster_heatmap: ClusterHeatmapRow[]
   aging_distribution: AgingBucket[]
+  top_vulnerable_components: ComponentCveCount[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
 }
 
@@ -256,11 +258,21 @@ export interface AgingBucket {
   count: number
 }
 
+export interface ComponentCveCount {
+  component_name: string
+  cve_count: number
+}
+
 export interface RiskAcceptancePipeline {
   requested: number
   approved: number
   rejected: number
   expired: number
+}
+
+export interface ThresholdInfo {
+  min_cvss_score: number
+  min_epss_score: number
 }
 
 export interface ThresholdPreview {

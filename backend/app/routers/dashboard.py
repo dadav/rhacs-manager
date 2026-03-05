@@ -14,6 +14,7 @@ from ._scope import narrow_namespaces
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
+    ComponentCveCount,
     CveTrendPoint,
     EpssMatrixPoint,
     NamespaceCveCount,
@@ -33,7 +34,12 @@ async def _get_settings(session: AsyncSession) -> GlobalSettings | None:
     return result.scalar_one_or_none()
 
 
-def _enrich_cves(cves: list[dict], priorities: dict, acceptances: dict) -> list[CveListItem]:
+def _enrich_cves(
+    cves: list[dict],
+    priorities: dict,
+    acceptances: dict,
+    component_map: dict[str, list[str]] | None = None,
+) -> list[CveListItem]:
     items = []
     for c in cves:
         p = priorities.get(c["cve_id"])
@@ -95,6 +101,7 @@ async def dashboard(
                 severity_distribution=[], cves_per_namespace=[], priority_cves=[],
                 high_epss_cves=[], cve_trend=[],
                 epss_matrix=[], cluster_heatmap=[], aging_distribution=[],
+                top_vulnerable_components=[],
                 risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
             )
         namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
@@ -226,6 +233,16 @@ async def dashboard(
     )
     aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
 
+    # Top vulnerable components
+    top_components_rows = await sx.get_top_vulnerable_components(
+        sx_db, ns_list_for_queries,
+        min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+    )
+    top_vulnerable_components = [
+        ComponentCveCount(component_name=r["component_name"], cve_count=r["cve_count"])
+        for r in top_components_rows
+    ]
+
     ra_counts = {}
     for st in ["requested", "approved", "rejected", "expired"]:
         count_result = await app_db.execute(
@@ -256,5 +273,6 @@ async def dashboard(
         epss_matrix=epss_matrix,
         cluster_heatmap=cluster_heatmap,
         aging_distribution=aging_distribution,
+        top_vulnerable_components=top_vulnerable_components,
         risk_acceptance_pipeline=risk_acceptance_pipeline,
     )
