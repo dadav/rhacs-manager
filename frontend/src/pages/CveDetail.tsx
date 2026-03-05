@@ -299,6 +299,27 @@ export function CveDetail() {
                       }
                     />
                     <DetailRow
+                      label="Referenzen"
+                      value={
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                          <a
+                            href={`https://access.redhat.com/security/cve/${cve.cve_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Red Hat Security
+                          </a>
+                          <a
+                            href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            NVD
+                          </a>
+                        </div>
+                      }
+                    />
+                    <DetailRow
                       label="Schweregrad"
                       value={<SeverityBadge severity={cve.severity} />}
                     />
