@@ -88,7 +88,6 @@ For dashboard severity aggregation, querying `image_cves` via `image_cve_edges` 
 
 When building CVE list/detail aggregations, group by `ic.cvebaseinfo_cve` (CVE ID), not by `ic.id`. Grouping by `ic.id` creates duplicate rows for the same CVE and can make one prioritized CVE appear across many table rows.
 
-Remaining legacy-table usage to review in `backend/app/stackrox/queries.py`: `get_epss_risk_matrix`, `get_cluster_heatmap`, `get_fixability_stats`, `get_cve_aging`, `get_threshold_preview`, `get_cves_by_ids`, and `get_namespaces_with_cve`.
 
 ## Frontend Error Handling
 

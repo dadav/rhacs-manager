@@ -79,8 +79,13 @@ async def list_cves(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> PaginatedResponse[CveListItem]:
     settings = await _get_settings(app_db)
-    min_cvss = float(settings.min_cvss_score) if settings else 0.0
-    min_epss = float(settings.min_epss_score) if settings else 0.0
+    # Thresholds only apply to non-sec-team users (sec team sees all CVEs)
+    if current_user.is_sec_team:
+        min_cvss = 0.0
+        min_epss = 0.0
+    else:
+        min_cvss = float(settings.min_cvss_score) if settings else 0.0
+        min_epss = float(settings.min_epss_score) if settings else 0.0
 
     has_scope = cluster is not None or namespace is not None
 

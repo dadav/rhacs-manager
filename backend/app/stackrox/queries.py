@@ -533,16 +533,11 @@ async def get_fixability_stats(
 
     sql = text(f"""
         SELECT
-            BOOL_OR(COALESCE(icce.isfixable, false)) AS any_fixable,
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable,
             COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
-        LEFT JOIN image_component_edges ince ON ince.imageid = dc.image_id
-        LEFT JOIN image_component_cve_edges icce
-            ON icce.imagecomponentid = ince.imagecomponentid
-            AND icce.imagecveid = ic.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         WHERE (d.namespace, d.clustername) IN ({ns_values})
         GROUP BY ic.cvebaseinfo_cve
     """)
@@ -629,14 +624,30 @@ async def get_threshold_preview(
     min_cvss: float,
     min_epss: float,
 ) -> dict:
-    sql_total = text("SELECT COUNT(*) FROM image_cves WHERE cvebaseinfo_cve IS NOT NULL")
+    """Preview threshold impact using image_cves_v2 with deployment joins.
+
+    Counts distinct CVEs visible via active deployments, consistent with
+    how the dashboard and CVE list queries work.
+    """
+    sql_total = text("""
+        SELECT COUNT(DISTINCT ic.cvebaseinfo_cve)
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE ic.cvebaseinfo_cve IS NOT NULL
+    """)
     sql_visible = text("""
-        SELECT COUNT(*) FROM image_cves
-        WHERE cvebaseinfo_cve IS NOT NULL
-          AND (
-            COALESCE(cvss, 0) >= :min_cvss
-            AND COALESCE(cvebaseinfo_epss_epssprobability, 0) >= :min_epss
-          )
+        SELECT COUNT(*) FROM (
+            SELECT ic.cvebaseinfo_cve
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            WHERE ic.cvebaseinfo_cve IS NOT NULL
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+        ) sub
     """)
     total = (await session.execute(sql_total)).scalar() or 0
     visible = (await session.execute(sql_visible, {"min_cvss": min_cvss, "min_epss": min_epss})).scalar() or 0
@@ -660,15 +671,16 @@ async def get_cves_by_ids(
     if not cve_ids:
         return []
     sql = text("""
-        SELECT DISTINCT
+        SELECT
             ic.cvebaseinfo_cve AS cve_id,
-            ic.severity,
-            COALESCE(ic.cvss, 0) AS cvss,
-            COALESCE(ic.cvebaseinfo_epss_epssprobability, 0) AS epss_probability,
-            COALESCE(ic.impactscore, 0) AS impact_score,
-            ic.operatingsystem
-        FROM image_cves ic
+            MAX(ic.severity) AS severity,
+            MAX(COALESCE(ic.cvss, 0)) AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            MAX(ic.operatingsystem) AS operatingsystem
+        FROM image_cves_v2 ic
         WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+        GROUP BY ic.cvebaseinfo_cve
     """)
     result = await session.execute(sql, {"cve_ids": cve_ids})
     return [dict(row._mapping) for row in result]
@@ -683,8 +695,7 @@ async def get_namespaces_with_cve(
         SELECT DISTINCT d.namespace, d.clustername
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cve_edges ice ON ice.imageid = dc.image_id
-        JOIN image_cves ic ON ic.id = ice.imagecveid
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         WHERE ic.cvebaseinfo_cve = :cve_id
     """)
     result = await session.execute(sql, {"cve_id": cve_id})
