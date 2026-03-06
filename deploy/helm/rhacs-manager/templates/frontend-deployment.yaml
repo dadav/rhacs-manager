@@ -36,6 +36,7 @@ spec:
             - --cookie-secret={{ required "frontend.oauthProxy.cookieSecret is required" .Values.frontend.oauthProxy.cookieSecret }}
             - --pass-user-headers=true
             - --pass-access-token=true
+            - --cookie-refresh={{ .Values.frontend.oauthProxy.cookieRefresh | default "12h" }}
           ports:
             - containerPort: 8443
               name: oauth-proxy

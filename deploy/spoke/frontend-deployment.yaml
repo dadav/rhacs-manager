@@ -28,6 +28,7 @@ spec:
             - --cookie-secret=GENERATE_A_RANDOM_32_BYTE_BASE64
             - --pass-user-headers=true
             - --pass-access-token=true
+            - --cookie-refresh=12h
           ports:
             - containerPort: 8443
               name: oauth-proxy

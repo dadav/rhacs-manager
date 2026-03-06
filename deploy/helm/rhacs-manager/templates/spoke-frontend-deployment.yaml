@@ -36,6 +36,7 @@ spec:
             - --cookie-secret={{ required "spoke.oauthProxy.cookieSecret is required in spoke mode" .Values.spoke.oauthProxy.cookieSecret }}
             - --pass-user-headers=true
             - --pass-access-token=true
+            - --cookie-refresh={{ .Values.spoke.oauthProxy.cookieRefresh | default "12h" }}
           ports:
             - containerPort: 8443
               name: oauth-proxy

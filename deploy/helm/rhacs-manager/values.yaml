@@ -123,6 +123,7 @@ frontend:
       tag: "v4.14"
       pullPolicy: IfNotPresent
     cookieSecret: ""
+    cookieRefresh: "12h"
     tlsSecretName: rhacs-manager-oauth-proxy-tls
     resources:
       requests:
@@ -189,6 +190,7 @@ spoke:
       tag: "v4.14"
       pullPolicy: IfNotPresent
     cookieSecret: ""
+    cookieRefresh: "12h"
     tlsSecretName: rhacs-manager-oauth-proxy-tls
     resources:
       requests:

@@ -346,7 +346,9 @@ func main() {
 				groups, err = fetchUserGroups(cfg.KubeAPIURL, accessToken, apiHTTPClient)
 				if err != nil {
 					slog.Warn("failed to fetch user groups", "user", user, "error", err)
-					groups = nil
+					// Cache empty result to avoid re-hitting the API on every request.
+					groups = []string{}
+					tokenCache.set(accessToken, groups)
 				} else {
 					tokenCache.set(accessToken, groups)
 					slog.Debug("fetched user groups from API", "user", user, "groups", groups)
