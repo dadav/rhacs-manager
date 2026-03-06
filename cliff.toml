@@ -1,0 +1,72 @@
+[changelog]
+header = """
+# Release {{ version | default(value="Unreleased") }} - {{ timestamp | date(format="%Y-%m-%d") }}
+"""
+body = """
+{% if previous.version %}
+## Changes since {{ previous.version }}
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | trim }}{% if commit.remote.pr_number %} (#{{ commit.remote.pr_number }}){% endif %}{% if commit.remote.username %} by @{{ commit.remote.username }}{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+render_always = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+sort_commits = "oldest"
+
+[[git.commit_parsers]]
+message = "^feat"
+group = "Features"
+
+[[git.commit_parsers]]
+message = "^fix"
+group = "Bug Fixes"
+
+[[git.commit_parsers]]
+message = "^perf"
+group = "Performance"
+
+[[git.commit_parsers]]
+message = "^refactor"
+group = "Refactors"
+
+[[git.commit_parsers]]
+message = "^docs?"
+group = "Documentation"
+
+[[git.commit_parsers]]
+message = "^style"
+group = "Styling"
+
+[[git.commit_parsers]]
+message = "^test"
+group = "Tests"
+
+[[git.commit_parsers]]
+message = "^build"
+group = "Build"
+
+[[git.commit_parsers]]
+message = "^ci"
+group = "CI"
+
+[[git.commit_parsers]]
+message = "^chore"
+group = "Chores"
+
+[[git.commit_parsers]]
+message = "^revert"
+group = "Reverts"
+
+[[git.commit_parsers]]
+message = ".*"
+group = "Other Changes"

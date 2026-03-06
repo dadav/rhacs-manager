@@ -156,11 +156,22 @@ jobs:
       RESOLVER_IMAGE: ${{ env.IMAGE_PREFIX }}-namespace-resolver:${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate changelog for current release tag
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --current --verbose
+        env:
+          OUTPUT: release-notes.md
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Scan backend image with Trivy
         continue-on-error: true
         uses: aquasecurity/trivy-action@0.34.2
@@ -206,13 +217,12 @@ jobs:
           set -euo pipefail
 
           {
-            echo "# Release ${RELEASE_TAG}"
             echo
             echo "## Vulnerability Scan Summary (Trivy)"
             echo
             echo "| Image | Total | CRITICAL | HIGH | MEDIUM | LOW | UNKNOWN |"
             echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"
-          } > release-notes.md
+          } >> release-notes.md
 
           for report in trivy-report-*.json; do
             if [[ ! -f "${report}" ]]; then
