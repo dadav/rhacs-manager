@@ -272,6 +272,25 @@ export function CveDetail() {
         </div>
       </PageSection>
 
+      {cve.priority_reason && (
+        <PageSection variant="default" style={{ paddingTop: 0 }}>
+          <Alert
+            variant="warning"
+            isInline
+            title="Priorisierung"
+          >
+            <p>{cve.priority_reason}</p>
+            {cve.priority_set_by_name && (
+              <p style={{ fontSize: 12, color: "#6a6e73", marginTop: 4 }}>
+                — {cve.priority_set_by_name}
+                {cve.priority_created_at &&
+                  `, ${new Date(cve.priority_created_at).toLocaleDateString("de-DE")}`}
+              </p>
+            )}
+          </Alert>
+        </PageSection>
+      )}
+
       <PageSection variant="default" style={{ paddingTop: 0 }}>
         <Card>
           <CardTitle>Lebenszyklus</CardTitle>

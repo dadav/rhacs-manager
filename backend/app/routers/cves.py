@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
@@ -184,7 +185,9 @@ async def get_cve(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveDetail:
     prio_result = await app_db.execute(
-        select(CvePriority).where(CvePriority.cve_id == cve_id)
+        select(CvePriority)
+        .options(selectinload(CvePriority.setter))
+        .where(CvePriority.cve_id == cve_id)
     )
     priority = prio_result.scalar_one_or_none()
 
@@ -271,6 +274,8 @@ async def get_cve(
         operating_system=cve_data.get("operating_system"),
         has_priority=priority is not None,
         priority_level=priority.priority.value if priority else None,
+        priority_reason=priority.reason if priority else None,
+        priority_set_by_name=priority.setter.username if priority else None,
         priority_deadline=priority.deadline if priority else None,
         has_risk_acceptance=acceptance is not None,
         risk_acceptance_status=acceptance.status.value if acceptance else None,

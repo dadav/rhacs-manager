@@ -76,6 +76,8 @@ export interface CveDetail extends CveListItem {
   affected_deployments_list: AffectedDeployment[]
   components: AffectedComponent[]
   contact_emails: string[]
+  priority_reason: string | null
+  priority_set_by_name: string | null
   priority_created_at: string | null
   risk_acceptance_requested_at: string | null
   risk_acceptance_reviewed_at: string | null
