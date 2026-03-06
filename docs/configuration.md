@@ -53,7 +53,9 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 | `SMTP_FROM` | `rhacs-manager@example.com` | Sender |
 | `SMTP_USER` | `""` | Username |
 | `SMTP_PASSWORD` | `""` | Password |
-| `SMTP_TLS` | `false` | Enable STARTTLS |
+| `SMTP_TLS` | `false` | Enable implicit TLS/SMTPS (typically port 465) |
+| `SMTP_STARTTLS` | `true` | Enable STARTTLS upgrade (typically port 587) |
+| `SMTP_VALIDATE_CERTS` | `true` | Validate SMTP TLS certificates |
 
 ## Application
 

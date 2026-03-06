@@ -60,7 +60,9 @@ class Settings(BaseSettings):
     smtp_from: str = Field(default="rhacs-manager@example.com")
     smtp_user: str = Field(default="")
     smtp_password: str = Field(default="")
-    smtp_tls: bool = Field(default=False)
+    smtp_tls: bool = Field(default=False)  # Implicit TLS (SMTPS, e.g. port 465)
+    smtp_starttls: bool = Field(default=True)  # STARTTLS upgrade (e.g. port 587)
+    smtp_validate_certs: bool = Field(default=True)  # TLS certificate validation
 
     # Spoke proxy auth (hub-spoke architecture)
     spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies

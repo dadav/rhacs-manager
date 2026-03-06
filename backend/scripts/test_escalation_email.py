@@ -82,7 +82,13 @@ async def create_escalation(session, level: int) -> Escalation:
 
 async def main() -> None:
     logger.info("SMTP target: %s:%d", settings.smtp_host, settings.smtp_port)
-    logger.info("smtp_tls=%s, smtp_user=%r", settings.smtp_tls, settings.smtp_user or None)
+    logger.info(
+        "smtp_tls=%s, smtp_starttls=%s, smtp_validate_certs=%s, smtp_user=%r",
+        settings.smtp_tls,
+        settings.smtp_starttls,
+        settings.smtp_validate_certs,
+        settings.smtp_user or None,
+    )
 
     async with AppSessionLocal() as session:
         await ensure_global_settings(session)

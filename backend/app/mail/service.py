@@ -31,6 +31,8 @@ async def send_email(to: str, subject: str, html_body: str) -> None:
             username=settings.smtp_user or None,
             password=settings.smtp_password or None,
             use_tls=settings.smtp_tls,
+            start_tls=settings.smtp_starttls,
+            validate_certs=settings.smtp_validate_certs,
         )
         logger.info("Email sent to %s: %s", to, subject)
     except Exception as e:

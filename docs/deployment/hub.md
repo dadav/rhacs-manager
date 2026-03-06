@@ -18,7 +18,7 @@ The backend expects these core keys:
 - `APP_DB_URL`
 - `SECRET_KEY`
 - `DEV_MODE` (must be `false` in production)
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_TLS`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_TLS`, `SMTP_STARTTLS`, `SMTP_VALIDATE_CERTS`
 - `APP_BASE_URL`
 - `SPOKE_API_KEYS`
 - `SEC_TEAM_GROUP`
