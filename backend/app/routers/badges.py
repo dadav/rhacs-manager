@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -99,9 +99,13 @@ async def list_badges(
         query = select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
 
     if cluster:
-        query = query.where(BadgeToken.cluster_name == cluster)
+        query = query.where(
+            or_(BadgeToken.cluster_name == cluster, BadgeToken.cluster_name.is_(None))
+        )
     if namespace:
-        query = query.where(BadgeToken.namespace == namespace)
+        query = query.where(
+            or_(BadgeToken.namespace == namespace, BadgeToken.namespace.is_(None))
+        )
 
     result = await db.execute(query)
     return [await _build_response(b, db) for b in result.scalars().all()]

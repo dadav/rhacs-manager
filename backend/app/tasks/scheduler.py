@@ -221,19 +221,14 @@ async def run_escalation_check() -> None:
         logger.info("Escalation check complete")
 
 
-async def run_weekly_digest() -> None:
-    """Send weekly CVE digest email to management_email."""
-    logger.info("Running weekly digest")
+async def _send_digest() -> None:
+    """Core digest logic: gather stats and send email. Called by scheduled and manual triggers."""
+    if not app_settings.management_email:
+        logger.info("No management_email configured, skipping digest")
+        raise ValueError("Keine Management-E-Mail konfiguriert")
+
     async with AppSessionLocal() as app_session:
         settings = await _get_settings(app_session)
-        today = datetime.utcnow().weekday()
-        if settings and settings.digest_day != today:
-            return
-
-        if not app_settings.management_email:
-            logger.info("No management_email configured, skipping digest")
-            return
-
         min_cvss = float(settings.min_cvss_score) if settings and settings.min_cvss_score else 0.0
         min_epss = float(settings.min_epss_score) if settings and settings.min_epss_score else 0.0
 
@@ -272,6 +267,23 @@ async def run_weekly_digest() -> None:
             await mail_svc.send_weekly_digest(
                 app_settings.management_email, stats
             )
+
+
+async def run_weekly_digest() -> None:
+    """Send weekly CVE digest email to management_email (scheduled, checks day-of-week)."""
+    logger.info("Running weekly digest")
+    async with AppSessionLocal() as app_session:
+        settings = await _get_settings(app_session)
+        today = datetime.utcnow().weekday()
+        if settings and settings.digest_day != today:
+            return
+    await _send_digest()
+
+
+async def run_digest_now() -> None:
+    """Send digest immediately, skipping the day-of-week check. For manual triggers."""
+    logger.info("Manual digest send triggered")
+    await _send_digest()
 
 
 def setup_scheduler() -> AsyncIOScheduler:

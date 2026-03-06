@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Query
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +10,8 @@ from ..models.global_settings import GlobalSettings
 from ..schemas.settings import SettingsResponse, SettingsUpdate, ThresholdPreviewResponse, ThresholdResponse
 from ..services.audit_service import log_action
 from ..stackrox import queries as sx
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -67,6 +71,30 @@ async def update_settings(
     await db.commit()
     await db.refresh(s)
     return SettingsResponse.model_validate(s)
+
+
+@router.post("/send-digest")
+async def send_digest(
+    current_user: CurrentUser = Depends(require_sec_team),
+    db: AsyncSession = Depends(get_app_db),
+) -> dict:
+    """Manually trigger the weekly digest email (sec_team only)."""
+    from ..tasks.scheduler import run_digest_now
+
+    try:
+        await run_digest_now()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("Failed to send digest")
+        raise HTTPException(status_code=500, detail="Digest-Versand fehlgeschlagen")
+
+    await log_action(
+        db, current_user.id, "digest_manual_send", "settings", "",
+        {"triggered_by": current_user.username},
+    )
+    await db.commit()
+    return {"status": "sent"}
 
 
 @router.get("/threshold-preview", response_model=ThresholdPreviewResponse)

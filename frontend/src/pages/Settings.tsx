@@ -7,13 +7,15 @@ import {
   Grid,
   GridItem,
   PageSection,
+  Popover,
   Spinner,
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
-import { useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
+import { useSendDigest, useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
 import type { EscalationRule } from '../types'
 
 const SEVERITY_OPTIONS = [
@@ -101,6 +103,8 @@ function EscalationRuleRow({
 export function Settings() {
   const { data: settings, isLoading, error } = useSettings()
   const updateSettings = useUpdateSettings()
+  const sendDigest = useSendDigest()
+  const [digestSent, setDigestSent] = useState(false)
 
   const [minCvss, setMinCvss] = useState(0)
   const [minEpss, setMinEpss] = useState(0)
@@ -206,7 +210,10 @@ export function Settings() {
               <CardTitle>Eskalationsregeln</CardTitle>
               <CardBody>
                 <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 12 }}>
-                  CVEs, die unbehandelt bleiben, werden nach den konfigurierten Tagen eskaliert.
+                  Jede Regel definiert, ab welchem Schweregrad und EPSS-Wert eine CVE eskaliert wird.
+                  Bleibt eine CVE unbehandelt (keine Behebung oder Risikoakzeptanz), durchläuft sie
+                  die Stufen L1 → L2 → L3 nach den konfigurierten Tagen. Die Namespace-Verantwortlichen
+                  werden per E-Mail benachrichtigt; auf L3 zusätzlich die Management-E-Mail.
                 </p>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
@@ -236,7 +243,9 @@ export function Settings() {
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
                   <label style={{ fontSize: 13, fontWeight: 600 }}>Vorwarnzeit (Tage)</label>
                   <p style={{ fontSize: 12, color: '#6a6e73', margin: '4px 0 8px' }}>
-                    Nutzer werden so viele Tage vor einer bevorstehenden Eskalation gewarnt.
+                    Betroffene Nutzer erhalten eine E-Mail-Benachrichtigung, wenn eine CVE-Eskalation
+                    innerhalb der konfigurierten Tage die nächste Stufe erreicht. So bleibt Zeit,
+                    die CVE zu beheben oder eine Risikoakzeptanz einzureichen, bevor eskaliert wird.
                   </p>
                   <input
                     type="number" min={1} max={14} step={1}
@@ -255,7 +264,17 @@ export function Settings() {
               <CardTitle>Benachrichtigungen</CardTitle>
               <CardBody>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Wochentag für Digest-E-Mail</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Wochentag für Digest-E-Mail
+                    <Popover
+                      headerContent="Digest-E-Mail"
+                      bodyContent="Am gewählten Wochentag wird automatisch eine Zusammenfassung aller offenen CVEs, ausstehenden Eskalationen und Risikoakzeptanzen per E-Mail an die betroffenen Namespace-Verantwortlichen versendet."
+                    >
+                      <button type="button" aria-label="Hilfe zu Digest-E-Mail" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
+                        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
+                      </button>
+                    </Popover>
+                  </label>
                   <select
                     value={digestDay}
                     onChange={e => setDigestDay(Number(e.target.value))}
@@ -267,7 +286,17 @@ export function Settings() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Management-E-Mail (für Eskalationen)</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Management-E-Mail (für Eskalationen)
+                    <Popover
+                      headerContent="Management-E-Mail"
+                      bodyContent="Empfänger der wöchentlichen Management-Übersicht sowie von Eskalations-Benachrichtigungen auf höchster Stufe (L3). Typischerweise die zentrale Security-Team-Adresse oder ein Verteiler, der bei kritischen, unbehobenen CVEs informiert werden soll."
+                    >
+                      <button type="button" aria-label="Hilfe zu Management-E-Mail" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
+                        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
+                      </button>
+                    </Popover>
+                  </label>
                   <TextInput
                     type="email"
                     value={managementEmail}
@@ -275,6 +304,29 @@ export function Settings() {
                     placeholder="security@example.com"
                     style={{ marginTop: 4 }}
                   />
+                </div>
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>Digest jetzt senden</label>
+                  <p style={{ fontSize: 12, color: '#6a6e73', margin: '4px 0 8px' }}>
+                    Sendet die Digest-E-Mail sofort, unabhängig vom konfigurierten Wochentag.
+                  </p>
+                  {digestSent && <Alert variant="success" isInline title="Digest-E-Mail wurde gesendet." style={{ marginBottom: 8 }} />}
+                  {sendDigest.isError && (
+                    <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(sendDigest.error)}`} style={{ marginBottom: 8 }} />
+                  )}
+                  <Button
+                    variant="secondary"
+                    isLoading={sendDigest.isPending}
+                    onClick={async () => {
+                      setDigestSent(false)
+                      sendDigest.reset()
+                      await sendDigest.mutateAsync()
+                      setDigestSent(true)
+                      setTimeout(() => setDigestSent(false), 5000)
+                    }}
+                  >
+                    Jetzt senden
+                  </Button>
                 </div>
               </CardBody>
             </Card>

@@ -32,6 +32,12 @@ export function useUpdateSettings() {
   })
 }
 
+export function useSendDigest() {
+  return useMutation({
+    mutationFn: () => api.post<{ status: string }>('/settings/send-digest'),
+  })
+}
+
 export function useThresholdPreview(minCvss: number, minEpss: number) {
   return useQuery({
     queryKey: settingsKeys.preview(minCvss, minEpss),
