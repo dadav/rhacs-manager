@@ -7,6 +7,24 @@ on:
     branches: [main]
 
 jobs:
+  trivy-fs-scan:
+    name: Trivy Filesystem CVE Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-latest

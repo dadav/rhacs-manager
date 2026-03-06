@@ -262,6 +262,7 @@ just docs-build
 ```
 
 Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[tool.pytest.ini_options] testpaths = ["tests"]`) so operational scripts in `backend/scripts/` are not collected as tests in CI.
+- CI now includes repository CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-fs-scan` job, `aquasecurity/trivy-action@0.33.1`), failing the pipeline on `HIGH` or `CRITICAL` vulnerabilities (with `ignore-unfixed: true`).
 
 Always verify backend, frontend, and docs build before marking work done.
 
