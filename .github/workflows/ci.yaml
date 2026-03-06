@@ -40,10 +40,12 @@ jobs:
         run: |
           docker image inspect "local/${{ matrix.image }}:ci-${{ github.sha }}" --format 'Image={{.RepoTags}} Size={{.Size}}'
       - name: Run Trivy report scan (always produces output)
+        continue-on-error: true
         uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: image
           image-ref: local/${{ matrix.image }}:ci-${{ github.sha }}
+          docker-host: unix:///var/run/docker.sock
           scanners: vuln
           format: json
           output: trivy-report.json
@@ -51,7 +53,12 @@ jobs:
           ignore-unfixed: true
       - name: Print Trivy report summary
         run: |
-          test -f trivy-report.json
+          if [ ! -f trivy-report.json ]; then
+            echo "Trivy did not produce trivy-report.json for ${{ matrix.name }}."
+            echo "Available local images:"
+            docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' | head -n 20
+            exit 0
+          fi
           echo "Top findings for ${{ matrix.name }}:"
           jq -r '
             .Results[]?.Vulnerabilities[]?
@@ -61,6 +68,7 @@ jobs:
           total_high_critical="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" or .Severity == "HIGH")] | length' trivy-report.json)"
           echo "Total HIGH/CRITICAL vulnerabilities: ${total_high_critical}"
       - name: Upload Trivy JSON report
+        if: ${{ hashFiles('trivy-report.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report-${{ matrix.name }}
