@@ -39,12 +39,9 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `frontend/src/pages/`             | One file per page/route                                                                                                         |
 | `frontend/src/components/`        | Reusable UI components                                                                                                          |
 | `frontend/src/i18n/`              | German translations                                                                                                             |
-| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes, oauth-proxy, auth-header-injector)                               |
-| `deploy/hub/`                     | Hub overlay (= base: backend + spoke-style frontend with oauth-proxy)                                                           |
-| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy + auth-header-injector, no backend)                                                         |
+| `deploy/helm/rhacs-manager/`      | Helm chart for hub and spoke deployment (`--set mode=spoke`)                                                                     |
 | `auth-header-injector/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
 | `auth-header-injector/Containerfile` | Multi-stage build for auth-header-injector (distroless runtime)                                                                   |
-| `deploy/spoke/auth-header-injector-rbac.yaml` | ClusterRole/Binding for namespace list permission                                                                      |
 | `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
 | `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
 | `docs/`                           | MkDocs Material documentation site                                                                                               |
@@ -199,12 +196,12 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - Escalation contact annotation format: `rhacs-manager.io/escalation-email: team@example.com` on any namespace
 - Groups are resolved by calling the OpenShift user API with the forwarded access token (cached per token for `GROUP_CACHE_TTL_SECONDS`, default 60)
 - Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `EMAIL_ANNOTATION` (default: `rhacs-manager.io/escalation-email`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
-- Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/auth-header-injector-rbac.yaml`)
+- Requires ClusterRole with `list` on `namespaces` (included in Helm chart)
 
 **Deploy:**
-- Hub: `kubectl kustomize deploy/hub/` (= base, backend + frontend + DBs)
-- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy + auth-header-injector)
-- Spoke secret: `deploy/spoke/spoke-secret.yaml` (HUB_API_URL, SPOKE_API_KEY, CLUSTER_NAME)
+- Hub: `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace`
+- Spoke: `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke`
+- Plain YAML: `just render-hub` / `just render-spoke` for `helm template` output
 
 ## Data Model Highlights
 
@@ -240,10 +237,8 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - Backend: `backend/Containerfile` (multi-stage, `uv sync --frozen`) — hub only
 - Frontend spoke: `frontend/Containerfile.spoke` (adds envsubst + API proxy nginx) — used for both hub and spoke deployments
 - Frontend (legacy): `frontend/Containerfile` — dev/build-check only; not used in production (spoke image used everywhere)
-- Kustomize base: `deploy/base/` — edit `deploy/base/secret.yaml` and `deploy/base/hub-spoke-secret.yaml` before deploying
-- Kustomize hub: `deploy/hub/` — references base (backend + spoke-style frontend with oauth-proxy)
-- Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
-- Hub deployment prerequisite: copy `central-db-password` secret from `stackrox` namespace into `rhacs-manager` namespace before applying `deploy/hub/` (backend reads `STACKROX_DB_PASSWORD` from this secret)
+- Helm chart: `deploy/helm/rhacs-manager/` — supports hub (default) and spoke (`--set mode=spoke`) modes
+- Hub deployment prerequisite: copy `central-db-password` secret from `stackrox` namespace into `rhacs-manager` namespace (backend reads `STACKROX_DB_PASSWORD` from this secret)
 - Hub frontend uses the same 3-container pod as spoke (oauth-proxy + auth-header-injector + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
 - All dependencies bundled at build time; no internet access at runtime
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
@@ -272,23 +267,18 @@ Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[to
 
 Always verify backend, frontend, and docs build before marking work done.
 
-## Helm Deployment (Hub Alternative)
+## Helm Chart
 
-- A functional Helm chart now exists at `deploy/helm/rhacs-manager` as an alternative to `deploy/base`/`deploy/hub` kustomize deployment.
+- Helm chart at `deploy/helm/rhacs-manager/` is the sole deployment method (kustomize removed).
 - Default chart output includes: Namespace, backend secret, hub-spoke-secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend + spoke-style frontend Deployments + Services, oauth-proxy SA/CRB, auth-header-injector RBAC, and two OpenShift Routes.
-- Hub install command:
-  - `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set frontend.oauthProxy.cookieSecret=<base64-32-byte-secret>`
-- Critical pre-reqs remain the same as kustomize:
+- Hub install: `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace`
+- Spoke install: `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke --set spoke.oauthProxy.cookieSecret=<secret> --set spoke.secret.stringData.HUB_API_URL=<url> --set spoke.secret.stringData.SPOKE_API_KEY=<key> --set spoke.secret.stringData.CLUSTER_NAME=<name>`
+- Plain YAML rendering: `just render-hub` / `just render-spoke` (runs `helm template`)
+- Prerequisites:
   - CNPG operator installed in cluster
   - `central-db-password` secret present in `rhacs-manager` namespace for StackRox DB access
   - Route hosts and secret values overridden from defaults before production use
-- Helm chart now supports **spoke mode** via `--set mode=spoke`, which renders spoke resources (spoke secret, oauth-proxy SA+CRB, auth-header-injector RBAC, spoke frontend deployment/service, spoke route) instead of hub resources.
-- Spoke install example:
-  - `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke --set spoke.oauthProxy.cookieSecret=<base64-32-byte-secret> --set spoke.secret.stringData.HUB_API_URL=<hub-api-url> --set spoke.secret.stringData.SPOKE_API_KEY=<spoke-key> --set spoke.secret.stringData.CLUSTER_NAME=<cluster-name>`
-- README and `docs/deployment/index.md` include short Helm usage snippets for hub and spoke installs.
-- Minimal values override examples are available in `examples/`:
+- Minimal values override examples in `examples/`:
   - `examples/helm-values-hub-minimal.yaml`
   - `examples/helm-values-spoke-minimal.yaml`
-  - Hub minimal example now includes a basic SMTP stub (`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_TLS`, `SMTP_STARTTLS`) in `backend.secret.stringData`.
-  - Hub minimal example also includes `SPOKE_API_KEYS` as a JSON array string (`["..."]`); each spoke's `SPOKE_API_KEY` must match one of these values.
-- CI build workflow now publishes Helm chart OCI artifacts to GHCR from `.github/workflows/build.yaml` (`build-helm-chart` job), packaging `deploy/helm/rhacs-manager` and pushing to `oci://ghcr.io/<owner>/charts`.
+- CI build workflow publishes Helm chart OCI artifacts to GHCR from `.github/workflows/build.yaml` (`build-helm-chart` job).

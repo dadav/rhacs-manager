@@ -10,12 +10,13 @@ The hub cluster runs backend + frontend and stores application state.
   - `rhacs-manager` (frontend)
   - `rhacs-manager-api` (backend API)
 - Backend secret (`rhacs-manager-backend-secret`)
+- CNPG PostgreSQL cluster (app DB)
 
-## Required Secrets and Environment
+## Required Configuration
 
-The backend expects these core keys:
+The backend expects these core values in `backend.secret.stringData`:
 
-- `APP_DB_URL`
+- `APP_DB_URL` or split vars (`APP_DB_HOST`, `APP_DB_USER`, `APP_DB_PASSWORD`, `APP_DB_NAME`)
 - `SECRET_KEY`
 - `DEV_MODE` (must be `false` in production)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_TLS`, `SMTP_STARTTLS`, `SMTP_VALIDATE_CERTS`
@@ -24,7 +25,7 @@ The backend expects these core keys:
 - `SEC_TEAM_GROUP`
 - `MANAGEMENT_EMAIL`
 
-`STACKROX_DB_*` values are set directly in `deploy/base/backend-deployment.yaml`, with `STACKROX_DB_PASSWORD` sourced from `central-db-password`.
+See `examples/helm-values-hub-minimal.yaml` for a minimal values override.
 
 ## StackRox DB Password Secret
 
@@ -36,18 +37,18 @@ kubectl get secret central-db-password -n stackrox -o json \
   | kubectl apply -n rhacs-manager -f -
 ```
 
-## Network Policy (StackRox Namespace)
-
-Allow hub backend access to `central-db:5432`:
-
-```bash
-kubectl apply -f deploy/hub/stackrox-networkpolicy.yaml
-```
-
 ## Deploy
 
 ```bash
-kubectl kustomize deploy/hub/ | kubectl apply -f -
+helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  -f my-hub-values.yaml
+```
+
+Or render plain YAML:
+
+```bash
+just render-hub -f my-hub-values.yaml | kubectl apply -f -
 ```
 
 ## Verify

@@ -79,7 +79,7 @@ just lint
 | Runtime   | Python 3.12, uv                                               |
 | Databases | PostgreSQL (app) + StackRox Central DB (read-only)            |
 | Auth      | OpenShift OAuth / OIDC JWT / Dev mode                         |
-| Deploy    | Kustomize, OpenShift, multi-stage container builds            |
+| Deploy    | Helm, OpenShift, multi-stage container builds                 |
 
 ## Deployment
 
@@ -89,21 +89,19 @@ kubectl get secret central-db-password -n stackrox -o json \
   | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
   | kubectl apply -n rhacs-manager -f -
 
-# Hub (backend + frontend + databases)
-kubectl apply -k deploy/hub/
-
-# Spoke (frontend + oauth-proxy + auth-header-injector)
-kubectl apply -k deploy/spoke/
-
-# Hub via Helm
+# Hub
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
   -n rhacs-manager --create-namespace
 
-# Spoke via Helm
+# Spoke
 helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
   -n rhacs-manager --create-namespace \
   --set mode=spoke \
   --set spoke.oauthProxy.cookieSecret='<base64-32-byte-secret>'
+
+# Plain YAML (without Helm on cluster)
+just render-hub | kubectl apply -f -
+just render-spoke | kubectl apply -f -
 ```
 
 ## Project Structure
@@ -122,10 +120,8 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
 │       ├── components/Reusable UI
 │       └── i18n/      German translations
 ├── auth-header-injector/Go sidecar for K8s RBAC
-├── deploy/            Kustomize manifests
-│   ├── base/          Shared resources
-│   ├── hub/           Hub overlay
-│   └── spoke/         Spoke overlay
+├── deploy/            Deployment artifacts
+│   └── helm/          Helm chart (hub + spoke)
 └── justfile           Dev workflow commands
 ```
 

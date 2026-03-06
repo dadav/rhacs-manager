@@ -1,6 +1,6 @@
 # Deployment Overview
 
-RHACS CVE Manager uses a hub-spoke deployment model on OpenShift, managed with Kustomize or Helm.
+RHACS CVE Manager uses a hub-spoke deployment model on OpenShift, managed with Helm.
 
 ## Deployment Topology
 
@@ -42,54 +42,18 @@ graph TB
 | App DB access | Yes | No |
 | StackRox DB access | Yes | No |
 
-## Kustomize Structure
-
-```
-deploy/
-  base/           # Full stack (backend + frontend + services + route)
-    kustomization.yaml
-    namespace.yaml
-    secret.yaml
-    backend-deployment.yaml
-    backend-service.yaml
-    frontend-deployment.yaml
-    frontend-service.yaml
-    route.yaml
-  hub/            # Hub overlay (references base as-is)
-    kustomization.yaml
-  spoke/          # Spoke overlay (frontend + oauth-proxy only)
-    kustomization.yaml
-    namespace.yaml
-    spoke-secret.yaml
-    frontend-deployment.yaml
-    frontend-service.yaml
-    oauth-proxy.yaml
-    route.yaml
-```
-
 ## Prerequisites
 
 Before deploying either hub or spoke:
 
 1. Build container images (see [Container Images](containers.md))
 2. Push images to a registry accessible from the target cluster
-3. Update image references in the deployment manifests
-4. Edit secrets with real values (database URLs, API keys, SMTP credentials)
+3. Override image references and secret values via Helm values
 
 !!! warning "Secrets"
-    The secret templates contain placeholder values. You **must** replace them before deploying. Never commit real credentials to version control.
+    The default values contain placeholder credentials. You **must** override them before deploying. Never commit real credentials to version control.
 
-## Applying Manifests
-
-```bash
-# Hub deployment
-kubectl kustomize deploy/hub/ | kubectl apply -f -
-
-# Spoke deployment
-kubectl kustomize deploy/spoke/ | kubectl apply -f -
-```
-
-## Helm Chart (Alternative)
+## Helm Deployment
 
 ```bash
 # Hub deployment
@@ -102,3 +66,21 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
   --set mode=spoke \
   --set spoke.oauthProxy.cookieSecret='<base64-32-byte-secret>'
 ```
+
+See [Hub Deployment](hub.md) and [Spoke Deployment](spoke.md) for detailed configuration.
+
+## Plain YAML (without Helm)
+
+If you prefer plain manifests without installing Helm on the cluster, use `just` to render templates:
+
+```bash
+# Render hub manifests
+just render-hub > hub.yaml
+kubectl apply -f hub.yaml
+
+# Render spoke manifests
+just render-spoke > spoke.yaml
+kubectl apply -f spoke.yaml
+```
+
+You can pass additional Helm flags via `just render-hub --set key=value`.

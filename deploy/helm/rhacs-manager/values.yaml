@@ -21,6 +21,18 @@ database:
 global:
   imagePullSecrets: []
 
+# Optional NetworkPolicy for StackRox central-db access (hub only).
+# Targets the stackrox namespace — review before enabling.
+networkPolicy:
+  enabled: false
+  stackroxNamespace: stackrox
+  centralDbPodSelector:
+    app.kubernetes.io/name: central-db
+  backendPodSelector:
+    app: rhacs-manager-backend
+  sourceNamespaceLabel: kubernetes.io/metadata.name
+  port: 5432
+
 backend:
   enabled: true
   deploymentName: rhacs-manager-backend
@@ -29,8 +41,19 @@ backend:
   replicaCount: 1
   image:
     repository: ghcr.io/dadav/rhacs-manager-backend
-    tag: latest
+    # Defaults to Chart.appVersion if not set
+    tag: ""
     pullPolicy: IfNotPresent
+  podAnnotations: {}
+  podSecurityContext:
+    runAsNonRoot: true
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
   service:
     port: 8000
     targetPort: 8000
@@ -77,14 +100,27 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
+  startupProbe:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+    successThreshold: 1
   readinessProbe:
     path: /health
     initialDelaySeconds: 10
     periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
   livenessProbe:
     path: /health
     initialDelaySeconds: 30
     periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
 
 # Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx)
 frontend:
@@ -95,8 +131,19 @@ frontend:
   # Spoke frontend image (nginx with envsubst + API proxy)
   image:
     repository: ghcr.io/dadav/rhacs-manager-spoke
-    tag: latest
+    # Defaults to Chart.appVersion if not set
+    tag: ""
     pullPolicy: IfNotPresent
+  podAnnotations: {}
+  podSecurityContext:
+    runAsNonRoot: true
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
   resources:
     requests:
       cpu: 50m
@@ -108,6 +155,9 @@ frontend:
     path: /
     initialDelaySeconds: 5
     periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
   # Hub-local spoke secret (points /api/* to the local backend service)
   secret:
     create: true
@@ -122,6 +172,10 @@ frontend:
       repository: registry.redhat.io/openshift4/ose-oauth-proxy
       tag: "v4.14"
       pullPolicy: IfNotPresent
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
     cookieSecret: ""
     cookieRefresh: "12h"
     tlsSecretName: rhacs-manager-oauth-proxy-tls
@@ -136,8 +190,13 @@ frontend:
   authHeaderInjector:
     image:
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
-      tag: latest
+      # Defaults to Chart.appVersion if not set
+      tag: ""
       pullPolicy: IfNotPresent
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
     namespaceAnnotation: rhacs-manager.io/users
     groupAnnotation: rhacs-manager.io/groups
     emailAnnotation: rhacs-manager.io/escalation-email
@@ -152,6 +211,13 @@ frontend:
       limits:
         cpu: 100m
         memory: 64Mi
+    readinessProbe:
+      path: /healthz
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+      successThreshold: 1
   service:
     annotations:
       service.beta.openshift.io/serving-cert-secret-name: rhacs-manager-oauth-proxy-tls
@@ -190,6 +256,10 @@ spoke:
       repository: registry.redhat.io/openshift4/ose-oauth-proxy
       tag: "v4.14"
       pullPolicy: IfNotPresent
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
     cookieSecret: ""
     cookieRefresh: "12h"
     tlsSecretName: rhacs-manager-oauth-proxy-tls
@@ -205,8 +275,13 @@ spoke:
   authHeaderInjector:
     image:
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
-      tag: latest
+      # Defaults to Chart.appVersion if not set
+      tag: ""
       pullPolicy: IfNotPresent
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
     namespaceAnnotation: rhacs-manager.io/users
     groupAnnotation: rhacs-manager.io/groups
     emailAnnotation: rhacs-manager.io/escalation-email
@@ -221,6 +296,13 @@ spoke:
       limits:
         cpu: 100m
         memory: 64Mi
+    readinessProbe:
+      path: /healthz
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+      successThreshold: 1
 
   frontend:
     deploymentName: rhacs-manager-frontend
@@ -228,8 +310,19 @@ spoke:
     replicaCount: 1
     image:
       repository: ghcr.io/dadav/rhacs-manager-spoke
-      tag: latest
+      # Defaults to Chart.appVersion if not set
+      tag: ""
       pullPolicy: IfNotPresent
+    podAnnotations: {}
+    podSecurityContext:
+      runAsNonRoot: true
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
     resources:
       requests:
         cpu: 50m
@@ -241,6 +334,9 @@ spoke:
       path: /
       initialDelaySeconds: 5
       periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+      successThreshold: 1
 
   service:
     annotations:

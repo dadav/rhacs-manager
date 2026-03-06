@@ -162,6 +162,14 @@ test-escalation-email:
   APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_STARTTLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run alembic upgrade head
   APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_STARTTLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run python scripts/test_escalation_email.py
 
+# Render hub Helm chart to plain YAML
+render-hub *args:
+  helm template rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager {{args}}
+
+# Render spoke Helm chart to plain YAML
+render-spoke *args:
+  helm template rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --set mode=spoke {{args}}
+
 # Serve docs locally with live reload
 docs:
   uv run --with mkdocs-material mkdocs serve

@@ -164,6 +164,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: azure/setup-helm@v4
+      - name: Render Helm manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/manifests
+          helm template rhacs-manager deploy/helm/rhacs-manager \
+            -n rhacs-manager \
+            > .artifacts/manifests/rhacs-manager-hub.yaml
+          helm template rhacs-manager-spoke deploy/helm/rhacs-manager \
+            -n rhacs-manager --set mode=spoke \
+            > .artifacts/manifests/rhacs-manager-spoke.yaml
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -324,22 +336,24 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           report_files=(trivy-report-*.json)
+          manifest_files=(.artifacts/manifests/*.yaml)
+          attach_files=("${report_files[@]}" "${manifest_files[@]}")
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release edit "${RELEASE_TAG}" \
               --title "Release ${RELEASE_TAG}" \
               --notes-file release-notes.md
-            if (( ${#report_files[@]} > 0 )); then
-              gh release upload "${RELEASE_TAG}" "${report_files[@]}" --clobber
+            if (( ${#attach_files[@]} > 0 )); then
+              gh release upload "${RELEASE_TAG}" "${attach_files[@]}" --clobber
             fi
             exit 0
           fi
 
-          if (( ${#report_files[@]} > 0 )); then
+          if (( ${#attach_files[@]} > 0 )); then
             gh release create "${RELEASE_TAG}" \
               --title "Release ${RELEASE_TAG}" \
               --notes-file release-notes.md \
-              "${report_files[@]}"
+              "${attach_files[@]}"
             exit 0
           fi
 

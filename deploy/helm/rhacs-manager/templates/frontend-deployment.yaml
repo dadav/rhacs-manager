@@ -1,101 +1,48 @@
-{{- if and (eq (default "hub" .Values.mode) "hub") .Values.frontend.enabled }}
+{{- $isHub := eq (default "hub" .Values.mode) "hub" -}}
+{{- $isSpoke := eq (default "hub" .Values.mode) "spoke" -}}
+{{- if or (and $isHub .Values.frontend.enabled) $isSpoke }}
+{{- /* Resolve mode-specific values */}}
+{{- $oauthProxy := ternary .Values.frontend.oauthProxy .Values.spoke.oauthProxy $isHub -}}
+{{- $authHeaderInjector := ternary .Values.frontend.authHeaderInjector .Values.spoke.authHeaderInjector $isHub -}}
+{{- $fe := ternary (dict "image" .Values.frontend.image "resources" .Values.frontend.resources "readinessProbe" .Values.frontend.readinessProbe) (dict "image" .Values.spoke.frontend.image "resources" .Values.spoke.frontend.resources "readinessProbe" .Values.spoke.frontend.readinessProbe) $isHub -}}
+{{- $deploymentName := ternary .Values.frontend.deploymentName .Values.spoke.frontend.deploymentName $isHub -}}
+{{- $replicaCount := ternary .Values.frontend.replicaCount .Values.spoke.frontend.replicaCount $isHub -}}
+{{- $secretName := ternary .Values.frontend.secret.name .Values.spoke.secret.name $isHub -}}
+{{- $podAnnotations := ternary .Values.frontend.podAnnotations .Values.spoke.frontend.podAnnotations $isHub -}}
+{{- $podSecurityContext := ternary .Values.frontend.podSecurityContext .Values.spoke.frontend.podSecurityContext $isHub -}}
+{{- $securityContext := ternary .Values.frontend.securityContext .Values.spoke.frontend.securityContext $isHub -}}
+{{- $nodeSelector := ternary .Values.frontend.nodeSelector .Values.spoke.frontend.nodeSelector $isHub -}}
+{{- $tolerations := ternary .Values.frontend.tolerations .Values.spoke.frontend.tolerations $isHub -}}
+{{- $affinity := ternary .Values.frontend.affinity .Values.spoke.frontend.affinity $isHub -}}
+{{- $cookieSecretMsg := ternary "frontend.oauthProxy.cookieSecret is required" "spoke.oauthProxy.cookieSecret is required in spoke mode" $isHub -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.frontend.deploymentName }}
+  name: {{ $deploymentName }}
   namespace: {{ include "rhacs-manager.namespace" . }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.frontend.replicaCount }}
+  replicas: {{ $replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Values.frontend.deploymentName }}
+      app: {{ $deploymentName }}
   template:
-    metadata:
-      labels:
-        app: {{ .Values.frontend.deploymentName }}
-        {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
-    spec:
-      serviceAccountName: {{ .Values.frontend.oauthProxy.serviceAccountName }}
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      containers:
-        - name: oauth-proxy
-          image: "{{ .Values.frontend.oauthProxy.image.repository }}:{{ .Values.frontend.oauthProxy.image.tag }}"
-          imagePullPolicy: {{ .Values.frontend.oauthProxy.image.pullPolicy }}
-          args:
-            - --https-address=:8443
-            - --provider=openshift
-            - --openshift-service-account={{ .Values.frontend.oauthProxy.serviceAccountName }}
-            - --upstream=http://localhost:8081
-            - --tls-cert=/etc/tls/private/tls.crt
-            - --tls-key=/etc/tls/private/tls.key
-            - --cookie-secret={{ required "frontend.oauthProxy.cookieSecret is required" .Values.frontend.oauthProxy.cookieSecret }}
-            - --pass-user-headers=true
-            - --pass-access-token=true
-            - --cookie-refresh={{ .Values.frontend.oauthProxy.cookieRefresh | default "12h" }}
-          ports:
-            - containerPort: 8443
-              name: oauth-proxy
-          volumeMounts:
-            - name: proxy-tls
-              mountPath: /etc/tls/private
-              readOnly: true
-          resources:
-            {{- toYaml .Values.frontend.oauthProxy.resources | nindent 12 }}
-
-        - name: auth-header-injector
-          image: "{{ .Values.frontend.authHeaderInjector.image.repository }}:{{ .Values.frontend.authHeaderInjector.image.tag }}"
-          imagePullPolicy: {{ .Values.frontend.authHeaderInjector.image.pullPolicy }}
-          ports:
-            - containerPort: 8081
-          env:
-            - name: CLUSTER_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.frontend.secret.name }}
-                  key: CLUSTER_NAME
-            - name: NAMESPACE_ANNOTATION
-              value: {{ .Values.frontend.authHeaderInjector.namespaceAnnotation | quote }}
-            - name: GROUP_ANNOTATION
-              value: {{ .Values.frontend.authHeaderInjector.groupAnnotation | quote }}
-            - name: EMAIL_ANNOTATION
-              value: {{ .Values.frontend.authHeaderInjector.emailAnnotation | quote }}
-            - name: CACHE_TTL_SECONDS
-              value: {{ .Values.frontend.authHeaderInjector.cacheTtlSeconds | quote }}
-            - name: GROUP_CACHE_TTL_SECONDS
-              value: {{ .Values.frontend.authHeaderInjector.groupCacheTtlSeconds | quote }}
-          resources:
-            {{- toYaml .Values.frontend.authHeaderInjector.resources | nindent 12 }}
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 10
-
-        - name: frontend
-          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
-          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
-          ports:
-            - containerPort: 8080
-          envFrom:
-            - secretRef:
-                name: {{ .Values.frontend.secret.name }}
-          resources:
-            {{- toYaml .Values.frontend.resources | nindent 12 }}
-          readinessProbe:
-            httpGet:
-              path: {{ .Values.frontend.readinessProbe.path }}
-              port: 8080
-            initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}
-
-      volumes:
-        - name: proxy-tls
-          secret:
-            secretName: {{ .Values.frontend.oauthProxy.tlsSecretName }}
+    {{- $args := dict
+      "deploymentName" $deploymentName
+      "selectorLabels" (include "rhacs-manager.selectorLabels" .)
+      "podAnnotations" $podAnnotations
+      "oauthProxy" (merge (dict "cookieSecret" (required $cookieSecretMsg $oauthProxy.cookieSecret)) $oauthProxy)
+      "authHeaderInjector" $authHeaderInjector
+      "frontend" $fe
+      "secretName" $secretName
+      "imagePullSecrets" .Values.global.imagePullSecrets
+      "podSecurityContext" $podSecurityContext
+      "securityContext" $securityContext
+      "nodeSelector" $nodeSelector
+      "tolerations" $tolerations
+      "affinity" $affinity
+      "chart" .Chart
+    -}}
+    {{- include "rhacs-manager.frontendPodSpec" $args | nindent 4 }}
 {{- end }}

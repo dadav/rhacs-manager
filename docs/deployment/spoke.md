@@ -47,18 +47,17 @@ metadata:
 
 ## Spoke Secret
 
-Set `deploy/spoke/spoke-secret.yaml`:
+Set these values via Helm (or in a values file under `spoke.secret.stringData`):
 
-```yaml
-stringData:
-  HUB_API_URL: "https://rhacs-manager-api.apps.hub.example.com"
-  SPOKE_API_KEY: "must-match-hub-SPOKE_API_KEYS"
-  CLUSTER_NAME: "spoke-cluster-1"
-```
+| Key | Description |
+|-----|-------------|
+| `HUB_API_URL` | Hub backend API URL (e.g. `https://rhacs-manager-api.apps.hub.example.com`) |
+| `SPOKE_API_KEY` | Must match one entry in hub's `SPOKE_API_KEYS` |
+| `CLUSTER_NAME` | Name of this spoke cluster |
 
 ## OAuth Proxy Cookie Secret
 
-Generate a random value and replace `GENERATE_A_RANDOM_32_BYTE_BASE64` in `deploy/spoke/frontend-deployment.yaml`:
+Generate a random value for `spoke.oauthProxy.cookieSecret`:
 
 ```bash
 openssl rand -base64 32
@@ -73,8 +72,19 @@ podman push registry.example.com/rhacs-manager-spoke:latest
 podman push registry.example.com/rhacs-manager-auth-header-injector:latest
 ```
 
-Update image references in `deploy/spoke/frontend-deployment.yaml`, then apply:
+## Deploy
 
 ```bash
-kubectl kustomize deploy/spoke/ | kubectl apply -f -
+helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  --set mode=spoke \
+  -f my-spoke-values.yaml
 ```
+
+Or render plain YAML:
+
+```bash
+just render-spoke -f my-spoke-values.yaml | kubectl apply -f -
+```
+
+See `examples/helm-values-spoke-minimal.yaml` for a minimal values override.

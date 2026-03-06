@@ -1,0 +1,42 @@
+{{- $isHub := eq (default "hub" .Values.mode) "hub" -}}
+{{- if $isHub }}
+RHACS Manager deployed in HUB mode.
+
+Prerequisites (verify before first use):
+  1. CNPG operator must be installed in the cluster
+  2. central-db-password secret must exist in {{ include "rhacs-manager.namespace" . }} namespace:
+       kubectl get secret central-db-password -n {{ include "rhacs-manager.namespace" . }}
+     If missing, copy from stackrox namespace:
+       kubectl get secret central-db-password -n stackrox -o json \
+         | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp)' \
+         | kubectl apply -n {{ include "rhacs-manager.namespace" . }} -f -
+
+{{- if .Values.route.enabled }}
+
+Routes:
+  Frontend: https://{{ .Values.route.frontend.host }}
+  API:      https://{{ .Values.route.backend.host }}
+{{- end }}
+
+Spoke setup:
+  Each spoke cluster needs a matching API key in the hub's SPOKE_API_KEYS list.
+  Install spoke with:
+    helm upgrade --install rhacs-manager-spoke {{ .Chart.Name }} \
+      --set mode=spoke \
+      --set spoke.oauthProxy.cookieSecret=<base64-32-byte-secret> \
+      --set spoke.secret.stringData.HUB_API_URL=https://{{ .Values.route.backend.host }} \
+      --set spoke.secret.stringData.SPOKE_API_KEY=<key-from-hub-SPOKE_API_KEYS> \
+      --set spoke.secret.stringData.CLUSTER_NAME=<cluster-name>
+{{- else }}
+RHACS Manager deployed in SPOKE mode.
+
+{{- if .Values.spoke.route.enabled }}
+
+Route: https://{{ .Values.spoke.route.host }}
+{{- end }}
+
+Ensure the hub backend is reachable at:
+  {{ .Values.spoke.secret.stringData.HUB_API_URL }}
+
+And the SPOKE_API_KEY matches one of the hub's SPOKE_API_KEYS entries.
+{{- end }}
