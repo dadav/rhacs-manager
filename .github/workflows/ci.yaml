@@ -50,7 +50,7 @@ jobs:
           format: json
           output: trivy-report.json
           exit-code: "0"
-          ignore-unfixed: true
+          ignore-unfixed: false
       - name: Print Trivy report summary
         run: |
           if [ ! -f trivy-report.json ]; then
@@ -59,6 +59,16 @@ jobs:
             docker images --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' | head -n 20
             exit 0
           fi
+          echo "Severity distribution for ${{ matrix.name }}:"
+          jq -r '
+            [.Results[]?.Vulnerabilities[]?.Severity]
+            | sort
+            | group_by(.)
+            | map("\(.[0])\t\(length)")
+            | .[]
+          ' trivy-report.json
+          total_all="$(jq -r '[.Results[]?.Vulnerabilities[]?] | length' trivy-report.json)"
+          echo "Total vulnerabilities (all severities): ${total_all}"
           echo "Top findings for ${{ matrix.name }}:"
           jq -r '
             .Results[]?.Vulnerabilities[]?
