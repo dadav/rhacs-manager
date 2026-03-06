@@ -172,9 +172,12 @@ jobs:
           mkdir -p .artifacts/manifests
           helm template rhacs-manager deploy/helm/rhacs-manager \
             -n rhacs-manager \
+            --set frontend.oauthProxy.cookieSecret=CHANGE_ME \
             > .artifacts/manifests/rhacs-manager-hub.yaml
           helm template rhacs-manager-spoke deploy/helm/rhacs-manager \
-            -n rhacs-manager --set mode=spoke \
+            -n rhacs-manager \
+            --set mode=spoke \
+            --set spoke.oauthProxy.cookieSecret=CHANGE_ME \
             > .artifacts/manifests/rhacs-manager-spoke.yaml
       - uses: docker/login-action@v3
         with:
