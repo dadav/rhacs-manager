@@ -136,3 +136,169 @@ jobs:
         run: |
           chart_archive="$(ls .artifacts/helm/rhacs-manager-*.tgz)"
           helm push "${chart_archive}" "${{ env.HELM_CHART_REGISTRY }}"
+
+  create-release:
+    name: Create GitHub Release
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    needs:
+      - build-backend
+      - build-spoke
+      - build-namespace-resolver
+      - build-helm-chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      BACKEND_IMAGE: ${{ env.IMAGE_PREFIX }}-backend:${{ github.ref_name }}
+      SPOKE_IMAGE: ${{ env.IMAGE_PREFIX }}-spoke:${{ github.ref_name }}
+      RESOLVER_IMAGE: ${{ env.IMAGE_PREFIX }}-namespace-resolver:${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Scan backend image with Trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.34.2
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          scan-type: image
+          image-ref: ${{ env.BACKEND_IMAGE }}
+          format: json
+          output: trivy-report-backend.json
+          exit-code: "0"
+          ignore-unfixed: false
+      - name: Scan spoke image with Trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.34.2
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          scan-type: image
+          image-ref: ${{ env.SPOKE_IMAGE }}
+          format: json
+          output: trivy-report-spoke.json
+          exit-code: "0"
+          ignore-unfixed: false
+      - name: Scan namespace-resolver image with Trivy
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.34.2
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          scan-type: image
+          image-ref: ${{ env.RESOLVER_IMAGE }}
+          format: json
+          output: trivy-report-namespace-resolver.json
+          exit-code: "0"
+          ignore-unfixed: false
+      - name: Build vulnerability summary for release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          {
+            echo "# Release ${RELEASE_TAG}"
+            echo
+            echo "## Vulnerability Scan Summary (Trivy)"
+            echo
+            echo "| Image | Total | CRITICAL | HIGH | MEDIUM | LOW | UNKNOWN |"
+            echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+          } > release-notes.md
+
+          for report in trivy-report-*.json; do
+            if [[ ! -f "${report}" ]]; then
+              continue
+            fi
+
+            image_name="${report#trivy-report-}"
+            image_name="${image_name%.json}"
+            total="$(jq -r '[.Results[]?.Vulnerabilities[]?] | length' "${report}")"
+            critical="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "${report}")"
+            high="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "${report}")"
+            medium="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' "${report}")"
+            low="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' "${report}")"
+            unknown="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "UNKNOWN")] | length' "${report}")"
+
+            echo "| ${image_name} | ${total} | ${critical} | ${high} | ${medium} | ${low} | ${unknown} |" >> release-notes.md
+          done
+
+          {
+            echo
+            echo "## High/Critical Findings"
+            echo
+          } >> release-notes.md
+
+          for report in trivy-report-*.json; do
+            if [[ ! -f "${report}" ]]; then
+              continue
+            fi
+
+            image_name="${report#trivy-report-}"
+            image_name="${image_name%.json}"
+            {
+              echo "### ${image_name}"
+              echo
+            } >> release-notes.md
+
+            high_critical_count="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" or .Severity == "HIGH")] | length' "${report}")"
+            if [[ "${high_critical_count}" == "0" ]]; then
+              echo "No HIGH/CRITICAL vulnerabilities found." >> release-notes.md
+              echo >> release-notes.md
+              continue
+            fi
+
+            {
+              echo "| Severity | Vulnerability | Package | Installed | Fixed |"
+              echo "| --- | --- | --- | --- | --- |"
+            } >> release-notes.md
+
+            jq -r '
+              .Results[]?.Vulnerabilities[]?
+              | select(.Severity == "CRITICAL" or .Severity == "HIGH")
+              | [.Severity, .VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "n/a")]
+              | @tsv
+            ' "${report}" | head -n 20 | while IFS=$'\t' read -r severity vuln_id pkg installed fixed; do
+              echo "| ${severity} | ${vuln_id} | ${pkg} | ${installed} | ${fixed} |" >> release-notes.md
+            done
+
+            echo >> release-notes.md
+          done
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          report_files=(trivy-report-*.json)
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release edit "${RELEASE_TAG}" \
+              --title "Release ${RELEASE_TAG}" \
+              --notes-file release-notes.md
+            if (( ${#report_files[@]} > 0 )); then
+              gh release upload "${RELEASE_TAG}" "${report_files[@]}" --clobber
+            fi
+            exit 0
+          fi
+
+          if (( ${#report_files[@]} > 0 )); then
+            gh release create "${RELEASE_TAG}" \
+              --title "Release ${RELEASE_TAG}" \
+              --notes-file release-notes.md \
+              "${report_files[@]}"
+            exit 0
+          fi
+
+          gh release create "${RELEASE_TAG}" \
+            --title "Release ${RELEASE_TAG}" \
+            --notes-file release-notes.md
