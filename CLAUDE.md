@@ -165,6 +165,10 @@ The spoke proxy is responsible for querying namespace annotations and populating
 - `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
 - `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2`)
 - `MANAGEMENT_EMAIL`: org-wide weekly digest recipient
+- SMTP transport toggles:
+  - `SMTP_TLS`: implicit TLS/SMTPS (usually port 465)
+  - `SMTP_STARTTLS`: STARTTLS upgrade (usually port 587)
+  - `SMTP_VALIDATE_CERTS`: TLS certificate verification toggle (set `false` for self-signed/mismatched cert setups)
 
 ## Hub-Spoke Architecture
 
@@ -179,9 +183,9 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 
 **Auth flow (spoke proxy mode):**
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups/Access-Token` headers
-2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations
+2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations, plus namespace escalation contact annotation (`rhacs-manager.io/escalation-email`)
 3. If `X-Forwarded-Access-Token` is present, namespace-resolver calls OpenShift user API (`/apis/user.openshift.io/v1/users/~`) to resolve the user's groups, then merges group-based namespaces with user-based namespaces
-4. namespace-resolver sets `X-Forwarded-Namespaces` (merged, deduplicated) and `X-Forwarded-Groups` (from OpenShift user API)
+4. namespace-resolver sets `X-Forwarded-Namespaces` (merged, deduplicated), `X-Forwarded-Namespace-Emails` (`ns:cluster=email`), and `X-Forwarded-Groups` (from OpenShift user API)
 5. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
 6. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces + groups from headers
 7. `sec_team_group` in groups grants sec_team role
@@ -192,8 +196,9 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Caches `namespace → []username` and `namespace → []group` maps from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
 - User annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
 - Group annotation format: `rhacs-manager.io/groups: group1,group2` on any namespace — all members of listed groups get access
+- Escalation contact annotation format: `rhacs-manager.io/escalation-email: team@example.com` on any namespace
 - Groups are resolved by calling the OpenShift user API with the forwarded access token (cached per token for `GROUP_CACHE_TTL_SECONDS`, default 60)
-- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
+- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `EMAIL_ANNOTATION` (default: `rhacs-manager.io/escalation-email`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
 - Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/namespace-resolver-rbac.yaml`)
 
 **Deploy:**

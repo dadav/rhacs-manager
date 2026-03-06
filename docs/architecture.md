@@ -120,6 +120,7 @@ Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE
 | `X-Forwarded-Email` | Email address |
 | `X-Forwarded-Groups` | Comma-separated group list |
 | `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs (set by namespace-resolver) |
+| `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by namespace-resolver) |
 
 If the user belongs to the group specified by `SEC_TEAM_GROUP`, they get the `sec_team` role; otherwise they are a `team_member`. Users are auto-provisioned with ID `spoke:<username>`.
 
@@ -140,8 +141,8 @@ sequenceDiagram
     User->>OAuth: Access route
     OAuth->>OAuth: OpenShift OAuth login
     OAuth->>NR: Request + X-Forwarded-User/Email/Groups
-    NR->>NR: Look up user in K8s namespace annotations
-    NR->>Nginx: Request + X-Forwarded-Namespaces
+    NR->>NR: Resolve user/group namespace annotations + escalation-email annotation
+    NR->>Nginx: Request + X-Forwarded-Namespaces + X-Forwarded-Namespace-Emails
     Nginx->>Hub: /api/* + X-Api-Key + X-Forwarded-*
     Hub->>Hub: Validate API key (constant-time)
     Hub->>Hub: Resolve role from groups (sec_team check)
@@ -153,7 +154,16 @@ sequenceDiagram
 
 ## Namespace-Based Access
 
-Namespace access is derived from Kubernetes RBAC, not from an application-managed team model. The namespace-resolver sidecar on each spoke cluster reads namespace annotations (`rhacs-manager.io/users`) and populates the `X-Forwarded-Namespaces` header.
+Namespace access is derived from Kubernetes RBAC, not from an application-managed team model. The namespace-resolver sidecar on each spoke cluster reads namespace annotations and populates forwarded headers:
+
+- `rhacs-manager.io/users`: comma-separated usernames
+- `rhacs-manager.io/groups`: comma-separated group names
+- `rhacs-manager.io/escalation-email`: escalation contact email for the namespace
+
+The resolver emits:
+
+- `X-Forwarded-Namespaces`: `namespace:cluster` pairs
+- `X-Forwarded-Namespace-Emails`: `namespace:cluster=email` pairs
 
 **`CurrentUser` carries:**
 
