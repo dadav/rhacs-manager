@@ -41,7 +41,7 @@ jobs:
           docker image inspect "local/${{ matrix.image }}:ci-${{ github.sha }}" --format 'Image={{.RepoTags}} Size={{.Size}}'
       - name: Run Trivy report scan (always produces output)
         continue-on-error: true
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.2
         with:
           scan-type: image
           image-ref: local/${{ matrix.image }}:ci-${{ github.sha }}
