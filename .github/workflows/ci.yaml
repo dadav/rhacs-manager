@@ -7,18 +7,40 @@ on:
     branches: [main]
 
 jobs:
-  trivy-fs-scan:
-    name: Trivy Filesystem CVE Scan
+  trivy-image-scan:
+    name: Trivy Image CVE Scan (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: backend
+            dockerfile: backend/Containerfile
+            image: rhacs-manager-backend
+          - name: frontend-spoke
+            context: frontend
+            dockerfile: frontend/Containerfile.spoke
+            image: rhacs-manager-spoke
+          - name: namespace-resolver
+            context: namespace-resolver
+            dockerfile: namespace-resolver/Containerfile
+            image: rhacs-manager-namespace-resolver
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: Build image for scanning
+        run: |
+          docker build \
+            -t "local/${{ matrix.image }}:ci-${{ github.sha }}" \
+            -f "${{ matrix.dockerfile }}" \
+            "${{ matrix.context }}"
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.33.1
         with:
-          scan-type: fs
-          scan-ref: .
+          scan-type: image
+          image-ref: local/${{ matrix.image }}:ci-${{ github.sha }}
           scanners: vuln
           format: table
           exit-code: "1"
