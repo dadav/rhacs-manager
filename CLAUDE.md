@@ -243,6 +243,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Kustomize base: `deploy/base/` — edit `deploy/base/secret.yaml` and `deploy/base/hub-spoke-secret.yaml` before deploying
 - Kustomize hub: `deploy/hub/` — references base (backend + spoke-style frontend with oauth-proxy)
 - Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
+- Hub deployment prerequisite: copy `central-db-password` secret from `stackrox` namespace into `rhacs-manager` namespace before applying `deploy/hub/` (backend reads `STACKROX_DB_PASSWORD` from this secret)
 - Hub frontend uses the same 3-container pod as spoke (oauth-proxy + namespace-resolver + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
 - All dependencies bundled at build time; no internet access at runtime
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.

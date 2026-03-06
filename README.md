@@ -84,6 +84,11 @@ just lint
 ## Deployment
 
 ```bash
+# Hub prerequisite: copy StackRox central DB password secret into rhacs-manager namespace
+kubectl get secret central-db-password -n stackrox -o json \
+  | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+  | kubectl apply -n rhacs-manager -f -
+
 # Hub (backend + frontend + databases)
 kubectl apply -k deploy/hub/
 
