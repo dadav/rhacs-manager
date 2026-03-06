@@ -62,6 +62,8 @@ spec:
               value: {{ .Values.frontend.authHeaderInjector.namespaceAnnotation | quote }}
             - name: GROUP_ANNOTATION
               value: {{ .Values.frontend.authHeaderInjector.groupAnnotation | quote }}
+            - name: EMAIL_ANNOTATION
+              value: {{ .Values.frontend.authHeaderInjector.emailAnnotation | quote }}
             - name: CACHE_TTL_SECONDS
               value: {{ .Values.frontend.authHeaderInjector.cacheTtlSeconds | quote }}
             - name: GROUP_CACHE_TTL_SECONDS
