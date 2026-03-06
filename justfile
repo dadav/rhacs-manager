@@ -159,8 +159,8 @@ mailhog:
 
 # Send test escalation emails to Mailhog
 test-escalation-email:
-  APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run alembic upgrade head
-  APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run python scripts/test_escalation_email.py
+  APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_STARTTLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run alembic upgrade head
+  APP_DB_URL="{{app_db_url}}" SMTP_HOST=localhost SMTP_PORT=1025 SMTP_TLS=false SMTP_STARTTLS=false SMTP_USER="" SMTP_PASSWORD="" MANAGEMENT_EMAIL="security-team@example.com" uv --directory backend run python scripts/test_escalation_email.py
 
 # Serve docs locally with live reload
 docs:
