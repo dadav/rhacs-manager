@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useDashboard } from "../api/dashboard";
 
+import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
 import { CvesPerNamespace } from "../components/charts/CvesPerNamespace";
 import { EpssRiskMatrix } from "../components/charts/EpssRiskMatrix";
@@ -86,6 +87,7 @@ function StatCard({
 
 export function Dashboard() {
   const { t } = useTranslation();
+  const { isSecTeam } = useAuth();
   const { scopeParams } = useScope();
   const { data, isLoading, error } = useDashboard(scopeParams);
 
@@ -245,9 +247,9 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* EPSS Risk Matrix + Risk Acceptance Pipeline */}
+          {/* EPSS Risk Matrix + Risk Acceptance Pipeline + Charts */}
           {data.epss_matrix.length > 0 && (
-            <GridItem span={8}>
+            <GridItem span={isSecTeam ? 8 : 12}>
               <Card>
                 <CardTitle>{t('dashboard.epssMatrix')}</CardTitle>
                 <CardBody>
@@ -260,8 +262,8 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {(
-            <GridItem span={4}>
+          {isSecTeam && (
+            <GridItem span={data.epss_matrix.length > 0 ? 4 : 4}>
               <Card style={{ height: '100%' }}>
                 <CardTitle>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -303,8 +305,7 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* Charts */}
-          <GridItem span={6}>
+          <GridItem span={isSecTeam && data.epss_matrix.length === 0 ? 8 : 6}>
             <Card style={{ height: "100%" }}>
               <CardTitle>{t("dashboard.severityDistribution")}</CardTitle>
               <CardBody>
@@ -313,7 +314,7 @@ export function Dashboard() {
             </Card>
           </GridItem>
 
-          <GridItem span={6}>
+          <GridItem span={isSecTeam && data.epss_matrix.length === 0 ? 12 : 6}>
             <Card style={{ height: "100%" }}>
               <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
               <CardBody>
