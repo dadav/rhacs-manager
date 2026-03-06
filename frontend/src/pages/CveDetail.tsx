@@ -149,7 +149,10 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
     if (!b.date) return -1;
-    return new Date(a.date).getTime() - new Date(b.date).getTime();
+    const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
+    if (diff !== 0) return diff;
+    // Preserve original order for same-date steps (e.g. escalation levels)
+    return sortable.indexOf(a) - sortable.indexOf(b);
   });
   const sorted = [...fixed, ...sortable];
 
