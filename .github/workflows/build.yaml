@@ -32,7 +32,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern=v{{major}}.{{minor}}
             type=sha
       - uses: docker/build-push-action@v6
         with:
@@ -63,7 +65,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern=v{{major}}.{{minor}}
             type=sha
       - uses: docker/build-push-action@v6
         with:
@@ -94,7 +98,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
+            type=semver,pattern=v{{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern=v{{major}}.{{minor}}
             type=sha
       - uses: docker/build-push-action@v6
         with:
@@ -181,6 +187,7 @@ jobs:
         with:
           scan-type: image
           image-ref: ${{ env.BACKEND_IMAGE }}
+          scanners: vuln
           format: json
           output: trivy-report-backend.json
           exit-code: "0"
@@ -194,6 +201,7 @@ jobs:
         with:
           scan-type: image
           image-ref: ${{ env.SPOKE_IMAGE }}
+          scanners: vuln
           format: json
           output: trivy-report-spoke.json
           exit-code: "0"
@@ -207,6 +215,7 @@ jobs:
         with:
           scan-type: image
           image-ref: ${{ env.RESOLVER_IMAGE }}
+          scanners: vuln
           format: json
           output: trivy-report-namespace-resolver.json
           exit-code: "0"
@@ -215,6 +224,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          shopt -s nullglob
+
+          reports=(trivy-report-*.json)
 
           {
             echo
@@ -224,19 +236,31 @@ jobs:
             echo "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"
           } >> release-notes.md
 
-          for report in trivy-report-*.json; do
-            if [[ ! -f "${report}" ]]; then
+          if (( ${#reports[@]} == 0 )); then
+            echo "| n/a | 0 | 0 | 0 | 0 | 0 | 0 |" >> release-notes.md
+            echo >> release-notes.md
+            echo "Trivy did not produce any JSON report files in this job." >> release-notes.md
+          fi
+
+          for report in "${reports[@]}"; do
+            image_name="${report#trivy-report-}"
+            image_name="${image_name%.json}"
+
+            if ! jq -e . "${report}" >/dev/null 2>&1; then
+              echo "| ${image_name} | 0 | 0 | 0 | 0 | 0 | 0 |" >> release-notes.md
+              {
+                echo
+                echo "> Warning: Trivy report \`${report}\` is not valid JSON."
+              } >> release-notes.md
               continue
             fi
 
-            image_name="${report#trivy-report-}"
-            image_name="${image_name%.json}"
-            total="$(jq -r '[.Results[]?.Vulnerabilities[]?] | length' "${report}")"
-            critical="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "${report}")"
-            high="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "${report}")"
-            medium="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' "${report}")"
-            low="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length' "${report}")"
-            unknown="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "UNKNOWN")] | length' "${report}")"
+            total="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?)] | length' "${report}")"
+            critical="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "CRITICAL")] | length' "${report}")"
+            high="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "HIGH")] | length' "${report}")"
+            medium="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "MEDIUM")] | length' "${report}")"
+            low="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "LOW")] | length' "${report}")"
+            unknown="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "UNKNOWN")] | length' "${report}")"
 
             echo "| ${image_name} | ${total} | ${critical} | ${high} | ${medium} | ${low} | ${unknown} |" >> release-notes.md
           done
@@ -247,11 +271,14 @@ jobs:
             echo
           } >> release-notes.md
 
-          for report in trivy-report-*.json; do
-            if [[ ! -f "${report}" ]]; then
-              continue
-            fi
+          if (( ${#reports[@]} == 0 )); then
+            {
+              echo "No Trivy JSON reports were generated, so no HIGH/CRITICAL details are available."
+              echo
+            } >> release-notes.md
+          fi
 
+          for report in "${reports[@]}"; do
             image_name="${report#trivy-report-}"
             image_name="${image_name%.json}"
             {
@@ -259,7 +286,13 @@ jobs:
               echo
             } >> release-notes.md
 
-            high_critical_count="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" or .Severity == "HIGH")] | length' "${report}")"
+            if ! jq -e . "${report}" >/dev/null 2>&1; then
+              echo "Trivy report is invalid JSON." >> release-notes.md
+              echo >> release-notes.md
+              continue
+            fi
+
+            high_critical_count="$(jq -r '[.Results[]? | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?) | select(.Severity == "CRITICAL" or .Severity == "HIGH")] | length' "${report}")"
             if [[ "${high_critical_count}" == "0" ]]; then
               echo "No HIGH/CRITICAL vulnerabilities found." >> release-notes.md
               echo >> release-notes.md
@@ -272,11 +305,12 @@ jobs:
             } >> release-notes.md
 
             jq -r '
-              .Results[]?.Vulnerabilities[]?
+              .Results[]?
+              | (.Vulnerabilities[]?, .Packages[]?.Vulnerabilities[]?)
               | select(.Severity == "CRITICAL" or .Severity == "HIGH")
               | [.Severity, .VulnerabilityID, .PkgName, .InstalledVersion, (.FixedVersion // "n/a")]
               | @tsv
-            ' "${report}" | head -n 20 | while IFS=$'\t' read -r severity vuln_id pkg installed fixed; do
+            ' "${report}" | awk 'NR<=20' | while IFS=$'\t' read -r severity vuln_id pkg installed fixed; do
               echo "| ${severity} | ${vuln_id} | ${pkg} | ${installed} | ${fixed} |" >> release-notes.md
             done
 
