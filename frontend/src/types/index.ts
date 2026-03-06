@@ -170,6 +170,7 @@ export interface User {
   email: string
   role: UserRole
   is_sec_team: boolean
+  onboarding_completed: boolean
   namespaces: UserNamespace[]
 }
 

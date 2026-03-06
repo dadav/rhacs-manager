@@ -235,6 +235,16 @@
     "entity": "Entität",
     "details": "Details"
   },
+  "onboarding": {
+    "title": "Willkommen beim RHACS CVE Manager",
+    "description": "Ihr zentrales Werkzeug zur Verwaltung und Priorisierung von Container-Schwachstellen.",
+    "featureDashboard": "Dashboard mit EPSS-Risikomatrix, Cluster-Heatmap und Schwachstellen-Trends",
+    "featureCves": "Schwachstellen durchsuchen, filtern und nach EPSS-Wahrscheinlichkeit priorisieren",
+    "featureRisk": "Risikoakzeptanzen beantragen und verwalten mit geltungsbereichsbezogener Kontrolle",
+    "featureEscalations": "Automatische Eskalationen bei überfälligen kritischen Schwachstellen",
+    "featureBadges": "SVG-Badges für Repository-READMEs generieren",
+    "button": "Los geht's"
+  },
   "notifications": {
     "title": "Benachrichtigungen",
     "markAllRead": "Alle als gelesen markieren",

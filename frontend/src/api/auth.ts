@@ -13,3 +13,7 @@ export function useCurrentUser() {
     staleTime: 5 * 60 * 1000,
   })
 }
+
+export function completeOnboarding() {
+  return api.patch<{ ok: boolean }>('/auth/onboarding')
+}

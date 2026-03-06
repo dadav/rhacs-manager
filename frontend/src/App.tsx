@@ -35,6 +35,7 @@ import { Escalations } from "./pages/Escalations";
 import { Settings } from "./pages/Settings";
 import { AuditLog } from "./pages/AuditLog";
 import { Badges } from "./pages/Badges";
+import { OnboardingModal } from "./components/OnboardingModal";
 
 interface NavEntry {
   to: string;
@@ -228,6 +229,7 @@ export function App() {
 
   return (
     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
+      <OnboardingModal isOpen={!user.onboarding_completed} />
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />

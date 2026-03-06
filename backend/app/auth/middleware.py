@@ -74,12 +74,13 @@ async def _upsert_namespace_contacts(
 
 
 class CurrentUser:
-    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]]):
+    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]], onboarding_completed: bool = False):
         self.id = id
         self.username = username
         self.email = email
         self.role = role
         self.namespaces = namespaces
+        self.onboarding_completed = onboarding_completed
 
     @property
     def is_sec_team(self) -> bool:
@@ -133,6 +134,7 @@ def _to_current_user(user: User, namespaces: list[tuple[str, str]]) -> CurrentUs
         email=user.email,
         role=user.role,
         namespaces=namespaces,
+        onboarding_completed=user.onboarding_completed,
     )
 
 
