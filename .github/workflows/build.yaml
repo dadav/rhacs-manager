@@ -151,9 +151,9 @@ jobs:
       packages: read
     env:
       RELEASE_TAG: ${{ github.ref_name }}
-      BACKEND_IMAGE: ${{ env.IMAGE_PREFIX }}-backend:${{ github.ref_name }}
-      SPOKE_IMAGE: ${{ env.IMAGE_PREFIX }}-spoke:${{ github.ref_name }}
-      RESOLVER_IMAGE: ${{ env.IMAGE_PREFIX }}-namespace-resolver:${{ github.ref_name }}
+      BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-backend:${{ github.ref_name }}
+      SPOKE_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-spoke:${{ github.ref_name }}
+      RESOLVER_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-namespace-resolver:${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
