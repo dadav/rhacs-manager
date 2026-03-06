@@ -18,10 +18,14 @@ database:
     storage:
       size: 5Gi
 
+global:
+  imagePullSecrets: []
+
 backend:
   enabled: true
   deploymentName: rhacs-manager-backend
   serviceName: rhacs-manager-backend
+  serviceAccountName: rhacs-manager-backend
   replicaCount: 1
   image:
     repository: ghcr.io/dadav/rhacs-manager-backend

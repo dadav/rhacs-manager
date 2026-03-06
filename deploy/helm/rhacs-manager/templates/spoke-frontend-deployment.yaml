@@ -18,6 +18,10 @@ spec:
         {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.spoke.oauthProxy.serviceAccountName }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: oauth-proxy
           image: "{{ .Values.spoke.oauthProxy.image.repository }}:{{ .Values.spoke.oauthProxy.image.tag }}"

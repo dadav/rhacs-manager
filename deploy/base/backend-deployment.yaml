@@ -13,6 +13,7 @@ spec:
       labels:
         app: rhacs-manager-backend
     spec:
+      serviceAccountName: rhacs-manager-backend
       containers:
         - name: backend
           image: rhacs-manager-backend:latest
