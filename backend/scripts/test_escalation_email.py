@@ -94,6 +94,13 @@ async def main() -> None:
         await ensure_global_settings(session)
         await ensure_namespace_contact(session)
 
+        # Sample deployment data for email preview
+        sample_deployments = [
+            {"deployment_name": "frontend-app", "image_name": "registry.example.com/frontend:v1.2.3"},
+            {"deployment_name": "backend-api", "image_name": "registry.example.com/backend:v2.0.1"},
+            {"deployment_name": "worker", "image_name": "registry.example.com/worker:latest"},
+        ]
+
         # Send one escalation email per level (1, 2, 3)
         for level in (1, 2, 3):
             await create_escalation(session, level)
@@ -103,6 +110,10 @@ async def main() -> None:
                 namespace=TEST_NAMESPACE,
                 cluster_name=TEST_CLUSTER,
                 level=level,
+                severity=level + 1,
+                cvss=7.5 + level,
+                epss_probability=0.42,
+                deployments=sample_deployments,
             )
             logger.info("Sent escalation email level %d -> %s", level, TEST_EMAIL)
 
@@ -113,6 +124,10 @@ async def main() -> None:
             namespace=TEST_NAMESPACE,
             cluster_name=TEST_CLUSTER,
             level=3,
+            severity=4,
+            cvss=9.8,
+            epss_probability=0.94,
+            deployments=sample_deployments,
         )
         logger.info("Sent management fallback email -> %s", MANAGEMENT_EMAIL)
 

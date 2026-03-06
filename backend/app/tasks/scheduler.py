@@ -96,7 +96,7 @@ async def run_escalation_check() -> None:
         always_show |= {row[0] for row in active_ra_result}
 
         async with StackRoxSessionLocal() as sx_session:
-            from ..stackrox.queries import get_cves_by_namespace_detail, list_namespaces
+            from ..stackrox.queries import get_affected_deployments, get_cves_by_namespace_detail, list_namespaces
 
             # Get all namespaces from StackRox
             all_ns_rows = await list_namespaces(sx_session)
@@ -165,6 +165,22 @@ async def run_escalation_check() -> None:
                     )
                     esc.notified = True
 
+                    # Fetch affected deployments for email context
+                    deploy_rows = await get_affected_deployments(
+                        sx_session, row["cve_id"], [(ns_name, cluster)],
+                    )
+
+                    email_kwargs = dict(
+                        cve_id=row["cve_id"],
+                        namespace=ns_name,
+                        cluster_name=cluster,
+                        level=level,
+                        severity=row.get("severity"),
+                        cvss=row.get("cvss"),
+                        epss_probability=row.get("epss_probability"),
+                        deployments=deploy_rows,
+                    )
+
                     # Send escalation email to namespace contact (if configured)
                     contact_result = await app_session.execute(
                         select(NamespaceContact).where(
@@ -175,13 +191,11 @@ async def run_escalation_check() -> None:
                     contact = contact_result.scalar_one_or_none()
                     if contact:
                         await mail_svc.send_escalation_email(
-                            contact.escalation_email,
-                            row["cve_id"], ns_name, cluster, level,
+                            contact.escalation_email, **email_kwargs,
                         )
                     elif app_settings.management_email:
                         await mail_svc.send_escalation_email(
-                            app_settings.management_email,
-                            row["cve_id"], ns_name, cluster, level,
+                            app_settings.management_email, **email_kwargs,
                         )
 
                     break  # apply highest matching rule only
