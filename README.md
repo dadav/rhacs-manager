@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/PatternFly_6-004080?logo=redhat&logoColor=white" alt="PatternFly 6" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/OpenShift-EE0000?logo=redhatopenshift&logoColor=white" alt="OpenShift" />
-  <img src="https://img.shields.io/badge/license-proprietary-grey" alt="License" />
+  <img src="https://img.shields.io/badge/license-Apache License 2.0-blue" alt="License" />
 </p>
 
 <br />
@@ -72,14 +72,14 @@ just lint
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, Vite, PatternFly 6, TanStack Query 5, react-i18next |
-| Backend | FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic v2 |
-| Runtime | Python 3.12, uv |
-| Databases | PostgreSQL (app) + StackRox Central DB (read-only) |
-| Auth | OpenShift OAuth / OIDC JWT / Dev mode |
-| Deploy | Kustomize, OpenShift, multi-stage container builds |
+| Layer     | Technology                                                    |
+| --------- | ------------------------------------------------------------- |
+| Frontend  | React 19, Vite, PatternFly 6, TanStack Query 5, react-i18next |
+| Backend   | FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic v2           |
+| Runtime   | Python 3.12, uv                                               |
+| Databases | PostgreSQL (app) + StackRox Central DB (read-only)            |
+| Auth      | OpenShift OAuth / OIDC JWT / Dev mode                         |
+| Deploy    | Kustomize, OpenShift, multi-stage container builds            |
 
 ## Deployment
 
@@ -123,3 +123,7 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
 │   └── spoke/         Spoke overlay
 └── justfile           Dev workflow commands
 ```
+
+## LICENSE
+
+[APACHE 2](./LICENSE)
