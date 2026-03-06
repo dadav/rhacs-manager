@@ -140,6 +140,7 @@ frontend:
       pullPolicy: IfNotPresent
     namespaceAnnotation: rhacs-manager.io/users
     groupAnnotation: rhacs-manager.io/groups
+    emailAnnotation: rhacs-manager.io/escalation-email
     cacheTtlSeconds: "300"
     groupCacheTtlSeconds: "60"
     clusterRoleName: rhacs-manager-namespace-reader
@@ -208,6 +209,7 @@ spoke:
       pullPolicy: IfNotPresent
     namespaceAnnotation: rhacs-manager.io/users
     groupAnnotation: rhacs-manager.io/groups
+    emailAnnotation: rhacs-manager.io/escalation-email
     cacheTtlSeconds: "300"
     groupCacheTtlSeconds: "60"
     clusterRoleName: rhacs-manager-namespace-reader

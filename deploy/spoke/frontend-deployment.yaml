@@ -59,6 +59,8 @@ spec:
               value: "rhacs-manager.io/users"
             - name: GROUP_ANNOTATION
               value: "rhacs-manager.io/groups"
+            - name: EMAIL_ANNOTATION
+              value: "rhacs-manager.io/escalation-email"
             - name: CACHE_TTL_SECONDS
               value: "300"
           resources:
