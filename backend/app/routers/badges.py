@@ -120,9 +120,12 @@ async def create_badge(
 
     # Validate namespace is in user's accessible namespaces
     if body.namespace:
-        user_ns = set(current_user.namespaces)
-        if (body.namespace, body.cluster_name or "") not in user_ns:
-            raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+        if body.cluster_name:
+            if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
+                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+        else:
+            if not any(ns == body.namespace for ns, _ in current_user.namespaces):
+                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
 
     badge = BadgeToken(
         created_by=current_user.id,
