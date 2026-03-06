@@ -18,6 +18,16 @@ import { useEffect, useState } from 'react'
 import { useSendDigest, useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
 import type { EscalationRule } from '../types'
 
+function HelpButton({ header, body, label }: { header: string; body: string; label?: string }) {
+  return (
+    <Popover headerContent={header} bodyContent={body}>
+      <button type="button" aria-label={label || `Hilfe zu ${header}`} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
+        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
+      </button>
+    </Popover>
+  )
+}
+
 const SEVERITY_OPTIONS = [
   { value: 1, label: 'Gering' },
   { value: 2, label: 'Mittel' },
@@ -166,12 +176,13 @@ export function Settings() {
           {/* Threshold config */}
           <GridItem span={12}>
             <Card>
-              <CardTitle>CVE-Schwellenwerte</CardTitle>
+              <CardTitle>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  CVE-Schwellenwerte
+                  <HelpButton header="CVE-Schwellenwerte" body="CVEs, die beide Schwellenwerte (CVSS und EPSS) unterschreiten, werden für Nicht-Security-Nutzer ausgeblendet. Manuell priorisierte CVEs und CVEs mit aktiven Risikoakzeptanzen bleiben immer sichtbar." />
+                </span>
+              </CardTitle>
               <CardBody>
-                <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 16 }}>
-                  CVEs, die beide Schwellenwerte unterschreiten, werden für Nutzer ausgeblendet.
-                  Priorisierte CVEs und CVEs mit aktiven Risikoakzeptanzen sind immer sichtbar.
-                </p>
                 <Grid hasGutter>
                   <GridItem span={5}>
                     <label style={{ fontSize: 13, fontWeight: 600 }}>Minimaler CVSS-Score: {minCvss.toFixed(1)}</label>
@@ -207,14 +218,13 @@ export function Settings() {
           {/* Escalation rules */}
           <GridItem span={12}>
             <Card>
-              <CardTitle>Eskalationsregeln</CardTitle>
+              <CardTitle>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Eskalationsregeln
+                  <HelpButton header="Eskalationsregeln" body="Jede Regel definiert, ab welchem Schweregrad und EPSS-Wert eine CVE eskaliert wird. Bleibt eine CVE unbehandelt (keine Behebung oder Risikoakzeptanz), durchläuft sie die Stufen L1 → L2 → L3 nach den konfigurierten Tagen. Die Namespace-Verantwortlichen werden per E-Mail benachrichtigt; auf L3 zusätzlich die Management-E-Mail." />
+                </span>
+              </CardTitle>
               <CardBody>
-                <p style={{ fontSize: 13, color: '#6a6e73', marginBottom: 12 }}>
-                  Jede Regel definiert, ab welchem Schweregrad und EPSS-Wert eine CVE eskaliert wird.
-                  Bleibt eine CVE unbehandelt (keine Behebung oder Risikoakzeptanz), durchläuft sie
-                  die Stufen L1 → L2 → L3 nach den konfigurierten Tagen. Die Namespace-Verantwortlichen
-                  werden per E-Mail benachrichtigt; auf L3 zusätzlich die Management-E-Mail.
-                </p>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -241,12 +251,10 @@ export function Settings() {
                 </div>
                 <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>+ Regel hinzufügen</Button>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Vorwarnzeit (Tage)</label>
-                  <p style={{ fontSize: 12, color: '#6a6e73', margin: '4px 0 8px' }}>
-                    Betroffene Nutzer erhalten eine E-Mail-Benachrichtigung, wenn eine CVE-Eskalation
-                    innerhalb der konfigurierten Tage die nächste Stufe erreicht. So bleibt Zeit,
-                    die CVE zu beheben oder eine Risikoakzeptanz einzureichen, bevor eskaliert wird.
-                  </p>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Vorwarnzeit (Tage)
+                    <HelpButton header="Vorwarnzeit" body="Betroffene Nutzer erhalten eine E-Mail-Benachrichtigung, wenn eine CVE-Eskalation innerhalb der konfigurierten Tage die nächste Stufe erreicht. So bleibt Zeit, die CVE zu beheben oder eine Risikoakzeptanz einzureichen, bevor eskaliert wird." />
+                  </label>
                   <input
                     type="number" min={1} max={14} step={1}
                     value={escalationWarningDays}
@@ -266,14 +274,7 @@ export function Settings() {
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                     Wochentag für Digest-E-Mail
-                    <Popover
-                      headerContent="Digest-E-Mail"
-                      bodyContent="Am gewählten Wochentag wird automatisch eine Zusammenfassung aller offenen CVEs, ausstehenden Eskalationen und Risikoakzeptanzen per E-Mail an die betroffenen Namespace-Verantwortlichen versendet."
-                    >
-                      <button type="button" aria-label="Hilfe zu Digest-E-Mail" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
-                        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
-                      </button>
-                    </Popover>
+                    <HelpButton header="Digest-E-Mail" body="Am gewählten Wochentag wird automatisch eine Zusammenfassung aller offenen CVEs, ausstehenden Eskalationen und Risikoakzeptanzen per E-Mail an die betroffenen Namespace-Verantwortlichen versendet." />
                   </label>
                   <select
                     value={digestDay}
@@ -288,14 +289,7 @@ export function Settings() {
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                     Management-E-Mail (für Eskalationen)
-                    <Popover
-                      headerContent="Management-E-Mail"
-                      bodyContent="Empfänger der wöchentlichen Management-Übersicht sowie von Eskalations-Benachrichtigungen auf höchster Stufe (L3). Typischerweise die zentrale Security-Team-Adresse oder ein Verteiler, der bei kritischen, unbehobenen CVEs informiert werden soll."
-                    >
-                      <button type="button" aria-label="Hilfe zu Management-E-Mail" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
-                        <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
-                      </button>
-                    </Popover>
+                    <HelpButton header="Management-E-Mail" body="Empfänger der wöchentlichen Management-Übersicht sowie von Eskalations-Benachrichtigungen auf höchster Stufe (L3). Typischerweise die zentrale Security-Team-Adresse oder ein Verteiler, der bei kritischen, unbehobenen CVEs informiert werden soll." />
                   </label>
                   <TextInput
                     type="email"
@@ -306,10 +300,10 @@ export function Settings() {
                   />
                 </div>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Digest jetzt senden</label>
-                  <p style={{ fontSize: 12, color: '#6a6e73', margin: '4px 0 8px' }}>
-                    Sendet die Digest-E-Mail sofort, unabhängig vom konfigurierten Wochentag.
-                  </p>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    Digest jetzt senden
+                    <HelpButton header="Digest jetzt senden" body="Sendet die Digest-E-Mail sofort an alle Namespace-Verantwortlichen, unabhängig vom konfigurierten Wochentag." />
+                  </label>
                   {digestSent && <Alert variant="success" isInline title="Digest-E-Mail wurde gesendet." style={{ marginBottom: 8 }} />}
                   {sendDigest.isError && (
                     <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(sendDigest.error)}`} style={{ marginBottom: 8 }} />

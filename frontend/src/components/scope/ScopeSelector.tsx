@@ -59,6 +59,7 @@ export function ScopeSelector() {
         onOpenChange={setClusterOpen}
         onSelect={onClusterSelect}
         selected={cluster || ALLE}
+        isScrollable
         toggle={(toggleRef) => (
           <MenuToggle
             ref={toggleRef}
@@ -70,8 +71,9 @@ export function ScopeSelector() {
             {cluster || 'Alle Cluster'}
           </MenuToggle>
         )}
+        popperProps={{ maxWidth: '100%' }}
       >
-        <SelectList>
+        <SelectList style={{ maxHeight: 300, overflowY: 'auto' }}>
           <SelectOption value={ALLE}>Alle Cluster</SelectOption>
           {clusters.map(c => (
             <SelectOption key={c} value={c}>{c}</SelectOption>
@@ -83,6 +85,7 @@ export function ScopeSelector() {
         onOpenChange={setNsOpen}
         onSelect={onNsSelect}
         selected={namespace || ALLE}
+        isScrollable
         toggle={(toggleRef) => (
           <MenuToggle
             ref={toggleRef}
@@ -94,8 +97,9 @@ export function ScopeSelector() {
             {namespace || 'Alle Namespaces'}
           </MenuToggle>
         )}
+        popperProps={{ maxWidth: '100%' }}
       >
-        <SelectList>
+        <SelectList style={{ maxHeight: 300, overflowY: 'auto' }}>
           <SelectOption value={ALLE}>Alle Namespaces</SelectOption>
           {namespaces.map(ns => (
             <SelectOption key={ns} value={ns}>{ns}</SelectOption>
