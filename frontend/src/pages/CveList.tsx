@@ -238,15 +238,15 @@ export function CveList() {
         </PageSection>
       )}
 
-      <PageSection variant="default" padding={{ default: 'noPadding' }}>
-        <Toolbar>
+      <PageSection variant="default" style={{ paddingBottom: 0 }}>
+        <Toolbar style={{ paddingBottom: 0 }}>
           <ToolbarContent>
             <ToolbarItem>
               <TextInput
                 value={searchInput}
                 onChange={(_, v) => setSearchInput(v)}
                 placeholder={t('cves.searchPlaceholder')}
-                style={{ width: 220 }}
+                style={{ width: 220, height: 36 }}
               />
             </ToolbarItem>
             <ToolbarItem>
@@ -474,11 +474,10 @@ export function CveList() {
                         {cve.cvss.toFixed(1)}
                       </td>
                       <td style={{ padding: '8px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
-                      <td style={{ padding: '8px 12px', maxWidth: 200, fontSize: 11 }}>
+                      <td style={{ padding: '8px 12px', maxWidth: 200, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {cve.component_names.length > 0 ? (
                           <span title={cve.component_names.join(', ')}>
-                            {cve.component_names.slice(0, 3).join(', ')}
-                            {cve.component_names.length > 3 && ` (+${cve.component_names.length - 3})`}
+                            {cve.component_names.join(', ')}
                           </span>
                         ) : '–'}
                       </td>
@@ -487,7 +486,7 @@ export function CveList() {
                       <td style={{ padding: '8px 12px' }}>
                         {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
                       </td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cve.fixed_by ?? undefined}>{cve.fixed_by ?? '–'}</td>
                       <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
                         {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
                       </td>

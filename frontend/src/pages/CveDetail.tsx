@@ -424,9 +424,6 @@ export function CveDetail() {
                         value={cve.operating_system}
                       />
                     )}
-                    {cve.priority_level && (
-                      <DetailRow label="Priorität" value={cve.priority_level} />
-                    )}
                     {cve.priority_deadline && (
                       <DetailRow
                         label="Deadline"
