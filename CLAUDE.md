@@ -286,4 +286,9 @@ Always verify backend, frontend, and docs build before marking work done.
 - Spoke install example:
   - `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke --set spoke.oauthProxy.cookieSecret=<base64-32-byte-secret> --set spoke.secret.stringData.HUB_API_URL=<hub-api-url> --set spoke.secret.stringData.SPOKE_API_KEY=<spoke-key> --set spoke.secret.stringData.CLUSTER_NAME=<cluster-name>`
 - README and `docs/deployment/index.md` include short Helm usage snippets for hub and spoke installs.
+- Minimal values override examples are available in `examples/`:
+  - `examples/helm-values-hub-minimal.yaml`
+  - `examples/helm-values-spoke-minimal.yaml`
+  - Hub minimal example now includes a basic SMTP stub (`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_TLS`, `SMTP_STARTTLS`) in `backend.secret.stringData`.
+  - Hub minimal example also includes `SPOKE_API_KEYS` as a JSON array string (`["..."]`); each spoke's `SPOKE_API_KEY` must match one of these values.
 - CI build workflow now publishes Helm chart OCI artifacts to GHCR from `.github/workflows/build.yaml` (`build-helm-chart` job), packaging `deploy/helm/rhacs-manager` and pushing to `oci://ghcr.io/<owner>/charts`.
