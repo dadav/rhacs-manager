@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -29,10 +29,9 @@ async def list_escalations(
         if not current_user.has_namespaces:
             return []
         scoped = narrow_namespaces(current_user.namespaces, cluster, namespace)
-        ns_names = [ns for ns, _ in scoped]
-        query = query.where(Escalation.namespace.in_(ns_names))
-        if cluster:
-            query = query.where(Escalation.cluster_name == cluster)
+        query = query.where(
+            tuple_(Escalation.namespace, Escalation.cluster_name).in_(scoped)
+        )
     else:
         if cluster:
             query = query.where(Escalation.cluster_name == cluster)
