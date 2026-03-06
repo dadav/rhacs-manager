@@ -87,7 +87,10 @@
     "clusterHeatmap": "Cluster-Heatmap",
     "aging": "CVE-Alterungsverteilung",
     "pipeline": "Risikoakzeptanz-Pipeline",
-    "topVulnerableComponents": "Top 10 anfälligste Komponenten"
+    "topVulnerableComponents": "Top 10 anfälligste Komponenten",
+    "fixabilityBreakdown": "Behebbarkeitsanalyse",
+    "topAffectedDeployments": "Top 10 betroffene Deployments",
+    "fixableTrend": "Behebbarkeitstrend (30 Tage)"
   },
   "cves": {
     "title": "Schwachstellen",

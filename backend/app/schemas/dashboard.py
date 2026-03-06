@@ -52,6 +52,24 @@ class RiskAcceptancePipeline(BaseModel):
     expired: int
 
 
+class FixabilityCount(BaseModel):
+    fixable: int
+    unfixable: int
+
+
+class DeploymentCveCount(BaseModel):
+    deployment_name: str
+    namespace: str
+    cluster_name: str
+    cve_count: int
+
+
+class FixableTrendPoint(BaseModel):
+    date: str  # YYYY-MM-DD
+    fixable: int
+    unfixable: int
+
+
 class ThresholdPreview(BaseModel):
     total_cves: int
     visible_cves: int
@@ -74,3 +92,6 @@ class DashboardData(BaseModel):
     aging_distribution: list[AgingBucket]
     top_vulnerable_components: list[ComponentCveCount]
     risk_acceptance_pipeline: RiskAcceptancePipeline
+    fixability_breakdown: FixabilityCount
+    top_affected_deployments: list[DeploymentCveCount]
+    fixable_trend: list[FixableTrendPoint]

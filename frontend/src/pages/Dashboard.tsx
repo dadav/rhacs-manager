@@ -11,10 +11,15 @@ import {
   Title,
 } from "@patternfly/react-core";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -27,7 +32,6 @@ import { useDashboard } from "../api/dashboard";
 
 import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
-import { CvesPerNamespace } from "../components/charts/CvesPerNamespace";
 import { EpssRiskMatrix } from "../components/charts/EpssRiskMatrix";
 import { SeverityDonut } from "../components/charts/SeverityDonut";
 import { TrendLine } from "../components/charts/TrendLine";
@@ -318,7 +322,7 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          <GridItem span={isSecTeam && data.epss_matrix.length === 0 ? 8 : 6}>
+          <GridItem span={6}>
             <Card style={{ height: "100%" }}>
               <CardTitle>{t("dashboard.severityDistribution")}</CardTitle>
               <CardBody>
@@ -330,17 +334,57 @@ export function Dashboard() {
             </Card>
           </GridItem>
 
-          <GridItem span={isSecTeam && data.epss_matrix.length === 0 ? 12 : 6}>
-            <Card style={{ height: "100%" }}>
-              <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
-              <CardBody>
-                <CvesPerNamespace
-                  data={data.cves_per_namespace}
-                  onBarClick={(ns) => navigate(`/schwachstellen?namespace=${encodeURIComponent(ns)}`)}
-                />
-              </CardBody>
-            </Card>
-          </GridItem>
+          {/* Fixability Breakdown Donut — side by side with severity */}
+          {(data.fixability_breakdown.fixable > 0 || data.fixability_breakdown.unfixable > 0) && (
+            <GridItem span={6}>
+              <Card style={{ height: '100%' }}>
+                <CardTitle>{t('dashboard.fixabilityBreakdown')}</CardTitle>
+                <CardBody>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Behebbar', value: data.fixability_breakdown.fixable },
+                          { name: 'Nicht behebbar', value: data.fixability_breakdown.unfixable },
+                        ]}
+                        innerRadius={60}
+                        outerRadius={90}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        <Cell fill="#1e8f19" />
+                        <Cell fill="#c9190b" />
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
+
+          {/* Fixable Trend (Stacked Area) */}
+          {data.fixable_trend.length > 0 && (
+            <GridItem span={12}>
+              <Card>
+                <CardTitle>{t('dashboard.fixableTrend')}</CardTitle>
+                <CardBody>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={data.fixable_trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="fixable" name="Behebbar" stackId="1" fill="#1e8f19" stroke="#1e8f19" fillOpacity={0.6} />
+                      <Area type="monotone" dataKey="unfixable" name="Nicht behebbar" stackId="1" fill="#c9190b" stroke="#c9190b" fillOpacity={0.6} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
 
           {/* Cluster Heatmap */}
           {data.cluster_heatmap.length > 0 && (
@@ -407,7 +451,7 @@ export function Dashboard() {
               <Card>
                 <CardTitle>{t('dashboard.aging')}</CardTitle>
                 <CardBody>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={data.aging_distribution}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
@@ -433,6 +477,80 @@ export function Dashboard() {
               </CardBody>
             </Card>
           </GridItem>
+
+          {/* Bar charts at bottom */}
+
+          {/* CVEs per Namespace */}
+          {data.cves_per_namespace.length > 0 && (
+            <GridItem span={12}>
+              <Card>
+                <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
+                <CardBody>
+                  <ResponsiveContainer width="100%" height={data.cves_per_namespace.slice(0, 10).length * 40 + 20}>
+                    <BarChart
+                      data={data.cves_per_namespace.slice(0, 10)}
+                      layout="vertical"
+                      margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="namespace"
+                        tick={{ fontSize: 11 }}
+                        width={200}
+                        interval={0}
+                      />
+                      <Tooltip />
+                      <Bar
+                        dataKey="count"
+                        name="CVEs"
+                        fill="#0066cc"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}`)}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
+
+          {/* Top Affected Deployments */}
+          {data.top_affected_deployments.length > 0 && (
+            <GridItem span={12}>
+              <Card>
+                <CardTitle>{t('dashboard.topAffectedDeployments')}</CardTitle>
+                <CardBody>
+                  <ResponsiveContainer width="100%" height={data.top_affected_deployments.length * 40 + 20}>
+                    <BarChart
+                      data={data.top_affected_deployments}
+                      layout="vertical"
+                      margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="deployment_name"
+                        tick={{ fontSize: 11 }}
+                        width={200}
+                        interval={0}
+                      />
+                      <Tooltip
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(value: number, _name: string, props: any) => [
+                          `${value} CVEs (${props?.payload?.namespace ?? ''} / ${props?.payload?.cluster_name ?? ''})`,
+                          'CVEs',
+                        ]}
+                      />
+                      <Bar dataKey="cve_count" name="CVEs" fill="#0066cc" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
 
           {/* Top Vulnerable Components */}
           {data.top_vulnerable_components.length > 0 && (

@@ -238,6 +238,9 @@ export interface DashboardData {
   aging_distribution: AgingBucket[]
   top_vulnerable_components: ComponentCveCount[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
+  fixability_breakdown: FixabilityCount
+  top_affected_deployments: DeploymentCveCount[]
+  fixable_trend: FixableTrendPoint[]
 }
 
 export interface EpssMatrixPoint {
@@ -272,6 +275,24 @@ export interface RiskAcceptancePipeline {
   approved: number
   rejected: number
   expired: number
+}
+
+export interface FixabilityCount {
+  fixable: number
+  unfixable: number
+}
+
+export interface DeploymentCveCount {
+  deployment_name: string
+  namespace: string
+  cluster_name: string
+  cve_count: number
+}
+
+export interface FixableTrendPoint {
+  date: string
+  fixable: number
+  unfixable: number
 }
 
 export interface ThresholdInfo {

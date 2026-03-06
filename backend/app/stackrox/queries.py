@@ -548,6 +548,166 @@ async def get_fixability_stats(
     return {"fixable": fixable, "unfixable": unfixable}
 
 
+async def get_fixability_breakdown(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> dict:
+    """Fixable vs unfixable CVE counts with threshold/always-show filtering."""
+    if namespaces is not None and len(namespaces) == 0:
+        return {"fixable": 0, "unfixable": 0}
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        SELECT
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        {where_clause}
+        GROUP BY ic.cvebaseinfo_cve
+        HAVING (
+            (
+                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+            )
+            OR ic.cvebaseinfo_cve = ANY(:always_show)
+        )
+    """)
+    result = await session.execute(
+        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
+    rows = result.fetchall()
+    fixable = sum(1 for r in rows if r.any_fixable)
+    unfixable = sum(1 for r in rows if not r.any_fixable)
+    return {"fixable": fixable, "unfixable": unfixable}
+
+
+async def get_top_affected_deployments(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+    limit: int = 10,
+) -> list[dict]:
+    """Top N deployments by distinct visible CVE count."""
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT ic.cvebaseinfo_cve AS cve_id
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT
+            d.name AS deployment_name,
+            d.namespace,
+            d.clustername AS cluster_name,
+            COUNT(DISTINCT vc.cve_id) AS cve_count
+        FROM visible_cves vc
+        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN deployments_containers dc ON dc.image_id = ic.imageid
+        JOIN deployments d ON d.id = dc.deployments_id
+        {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+        GROUP BY d.name, d.namespace, d.clustername
+        ORDER BY cve_count DESC
+        LIMIT :limit
+    """)
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "limit": limit},
+    )
+    return [dict(row._mapping) for row in result]
+
+
+async def get_fixable_trend(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    days: int = 30,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> list[dict]:
+    """CVE first-seen trend per day, split into fixable/unfixable."""
+    since = datetime.utcnow() - timedelta(days=days)
+
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT
+                ic.cvebaseinfo_cve AS cve_id,
+                MIN(ic.firstimageoccurrence) AS first_seen,
+                BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            WHERE ic.firstimageoccurrence >= :since
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT
+            DATE(first_seen) AS date,
+            COUNT(*) FILTER (WHERE any_fixable) AS fixable,
+            COUNT(*) FILTER (WHERE NOT any_fixable) AS unfixable
+        FROM visible_cves
+        GROUP BY DATE(first_seen)
+        ORDER BY date
+    """)
+    result = await session.execute(
+        sql, {"since": since, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
+    return [{"date": str(row.date), "fixable": row.fixable, "unfixable": row.unfixable} for row in result]
+
+
 async def get_cve_aging(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
