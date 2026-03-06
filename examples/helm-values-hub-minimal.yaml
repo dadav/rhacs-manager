@@ -1,0 +1,33 @@
+# Minimal Helm values override for hub mode.
+# Usage:
+#   helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+#     -n rhacs-manager --create-namespace \
+#     -f examples/helm-values-hub-minimal.yaml
+#
+# Generate a cookie secret:
+#   openssl rand -base64 32
+
+mode: hub
+
+frontend:
+  oauthProxy:
+    cookieSecret: "REPLACE_WITH_BASE64_32_BYTE_SECRET"
+
+route:
+  frontend:
+    host: "rhacs-manager.apps.cluster.example.com"
+  backend:
+    host: "rhacs-manager-api.apps.cluster.example.com"
+
+backend:
+  secret:
+    stringData:
+      APP_BASE_URL: "https://rhacs-manager.apps.cluster.example.com"
+      BADGE_BASE_URL: "https://rhacs-manager-api.apps.cluster.example.com"
+      # JSON list of allowed spoke API keys. Spoke clusters must use one of these.
+      SPOKE_API_KEYS: "[\"REPLACE_WITH_SHARED_API_KEY\"]"
+      SMTP_HOST: "smtp.example.com"
+      SMTP_PORT: "587"
+      SMTP_FROM: "rhacs-manager@example.com"
+      SMTP_TLS: "false"
+      SMTP_STARTTLS: "true"
