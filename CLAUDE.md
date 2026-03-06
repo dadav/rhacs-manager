@@ -248,6 +248,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
 - Alembic DB URL resolution is sourced from `app.config.settings.effective_app_db_url` (not a hardcoded `APP_DB_URL` fallback), so deployments using split env vars (`APP_DB_HOST`, `APP_DB_USER`, `APP_DB_PASSWORD`, `APP_DB_NAME`) work for migrations and runtime consistently.
 - Tag pushes (`v*`) in `.github/workflows/build.yaml` now create a GitHub Release automatically after image/chart builds. Release notes are generated with `orhun/git-cliff-action@v4` using `cliff.toml` (`--current` for the checked-out tag), then append Trivy vulnerability summaries (severity totals + top HIGH/CRITICAL findings) for backend, spoke, and namespace-resolver images. Raw Trivy JSON reports are attached to the release.
+- `git-cliff` header templates do not expose `timestamp`; keep date rendering in `[changelog].body` (where `timestamp` is available) to avoid `Variable 'timestamp' not found in context while rendering 'header'`.
 - In GitHub Actions, avoid `${{ env.* }}` composition inside job-level `env` value definitions in this workflow; use direct `${{ github.* }}` expressions there to prevent workflow-parse errors.
 
 ## Tests

@@ -1,8 +1,13 @@
 [changelog]
 header = """
-# Release {{ version | default(value="Unreleased") }} - {{ timestamp | date(format="%Y-%m-%d") }}
+# Release Notes
 """
 body = """
+{% if version %}
+## Release {{ version }} - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}
+## Unreleased
+{% endif %}
 {% if previous.version %}
 ## Changes since {{ previous.version }}
 {% endif %}
