@@ -30,7 +30,8 @@ export function Badges() {
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
-  const toAbsoluteBadgeUrl = (url: string) => new URL(url, window.location.origin).toString()
+  const toAbsoluteBadgeUrl = (url: string) =>
+    url.startsWith('http') ? url : new URL(url, window.location.origin).toString()
 
   async function handleCreate() {
     try {

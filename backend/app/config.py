@@ -70,6 +70,7 @@ class Settings(BaseSettings):
 
     # App
     app_base_url: str = Field(default="http://localhost:5173")
+    badge_base_url: str = Field(default="")  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
     secret_key: str = Field(default="dev-secret-key-change-in-production")
     management_email: str = Field(default="")  # org-wide digest recipient
 

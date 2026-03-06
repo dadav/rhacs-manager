@@ -164,6 +164,7 @@ The spoke proxy is responsible for querying namespace annotations and populating
 - `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
 - `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2`)
 - `MANAGEMENT_EMAIL`: org-wide weekly digest recipient
+- `BADGE_BASE_URL`: public base URL for badge SVGs (e.g. API route URL `https://rhacs-manager-api.apps.example.com`); empty = relative paths
 - SMTP transport toggles:
   - `SMTP_TLS`: implicit TLS/SMTPS (usually port 465)
   - `SMTP_STARTTLS`: STARTTLS upgrade (usually port 587)
@@ -230,7 +231,7 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Risk acceptance list route (`/risikoakzeptanzen`) accepts a `status` query parameter and keeps filter state synced with the URL.
 - Escalations are namespace-scoped (`cve_id`, `namespace`, `cluster_name`, `level`).
 - Badges are scoped by `created_by` (user) + optional `namespace`/`cluster_name`.
-- Badge API responses intentionally return relative badge paths (`/api/badges/{token}/status.svg`); frontend must resolve them against `window.location.origin` so spoke users get spoke-local embeddable URLs instead of hub URLs.
+- Badge API responses return relative paths by default (`/api/badges/{token}/status.svg`), but when `BADGE_BASE_URL` is set (e.g. to the API route URL), returns fully qualified URLs. This is required on OpenShift where the frontend route goes through oauth-proxy — external badge consumers need to hit the API route directly (no auth). Frontend handles both absolute and relative badge URLs.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
 - `users.role`: `team_member | sec_team`
 
