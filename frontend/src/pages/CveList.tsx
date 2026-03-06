@@ -19,7 +19,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
 import { useThresholds } from '../api/settings'
 
-import { useScope } from '../hooks/useScope'
+import { useScope, type ScopeParams } from '../hooks/useScope'
 import { useAuth } from '../hooks/useAuth'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
@@ -65,6 +65,8 @@ export function CveList() {
   const urlEpssMin    = Number(searchParams.get('epss_min')) || 0
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
+  const urlCluster    = searchParams.get('cluster') || ''
+  const urlNamespace  = searchParams.get('namespace') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
@@ -166,7 +168,11 @@ export function CveList() {
   }
 
   const { scopeParams } = useScope()
-  const { data, isLoading, error } = useCves(params, scopeParams)
+  const scopeOverrides: ScopeParams = {
+    cluster: urlCluster || scopeParams.cluster,
+    namespace: urlNamespace || scopeParams.namespace,
+  }
+  const { data, isLoading, error } = useCves(params, scopeOverrides)
   const { isSecTeam } = useAuth()
   const { data: thresholds } = useThresholds()
 
@@ -291,6 +297,39 @@ export function CveList() {
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
+
+        {(urlCluster || urlNamespace) && (
+          <div style={{
+            padding: '8px 20px',
+            background: 'rgba(0,102,204,0.06)',
+            borderTop: '1px solid #d2d2d2',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            fontSize: 13,
+          }}>
+            <FilterIcon style={{ color: '#0066cc' }} />
+            {urlCluster && (
+              <span>
+                <strong>Cluster:</strong> {urlCluster}
+              </span>
+            )}
+            {urlNamespace && (
+              <span>
+                <strong>Namespace:</strong> {urlNamespace}
+              </span>
+            )}
+            <button
+              onClick={() => updateParams({ cluster: null, namespace: null })}
+              style={{
+                background: 'none', border: 'none', color: '#0066cc',
+                cursor: 'pointer', fontSize: 13, padding: '2px 0', fontFamily: 'inherit',
+              }}
+            >
+              Filter entfernen
+            </button>
+          </div>
+        )}
 
         {urlAdvanced && (
           <div style={{

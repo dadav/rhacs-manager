@@ -2,9 +2,10 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 
 interface Props {
   data: { namespace: string; count: number }[]
+  onBarClick?: (namespace: string) => void
 }
 
-export function CvesPerNamespace({ data }: Props) {
+export function CvesPerNamespace({ data, onBarClick }: Props) {
   const top = data.slice(0, 10)
 
   if (!top.length) {
@@ -24,7 +25,16 @@ export function CvesPerNamespace({ data }: Props) {
         <XAxis type="number" tick={{ fontSize: 11 }} />
         <YAxis type="category" dataKey="namespace" width={120} tick={{ fontSize: 10 }} interval={0} />
         <Tooltip />
-        <Bar dataKey="count" name="CVEs" fill="#0066cc" radius={[0, 2, 2, 0]} />
+        <Bar
+          dataKey="count"
+          name="CVEs"
+          fill="#0066cc"
+          radius={[0, 2, 2, 0]}
+          style={onBarClick ? { cursor: 'pointer' } : undefined}
+          onClick={onBarClick ? (entry) => {
+            onBarClick(entry.namespace)
+          } : undefined}
+        />
       </BarChart>
     </ResponsiveContainer>
   )

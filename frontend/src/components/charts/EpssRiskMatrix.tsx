@@ -36,6 +36,7 @@ interface Point {
 
 interface Props {
   data: Point[]
+  onDotClick?: (cveId: string) => void
 }
 
 interface TooltipPayload {
@@ -61,7 +62,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   )
 }
 
-export function EpssRiskMatrix({ data }: Props) {
+export function EpssRiskMatrix({ data, onDotClick }: Props) {
   const bySeverity = data.reduce<Record<number, Point[]>>((acc, p) => {
     if (!acc[p.severity]) acc[p.severity] = []
     acc[p.severity].push(p)
@@ -122,6 +123,10 @@ export function EpssRiskMatrix({ data }: Props) {
               data={points}
               fill={DOT_COLORS[Number(sev)] ?? '#8a8d90'}
               fillOpacity={0.85}
+              style={onDotClick ? { cursor: 'pointer' } : undefined}
+              onClick={onDotClick ? (point) => {
+                onDotClick(point.cve_id)
+              } : undefined}
             />
           ))}
         </ScatterChart>

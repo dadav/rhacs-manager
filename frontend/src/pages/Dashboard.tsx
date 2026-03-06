@@ -22,7 +22,7 @@ import {
 } from 'recharts'
 import { getErrorMessage } from "../utils/errors";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDashboard } from "../api/dashboard";
 
 import { useAuth } from "../hooks/useAuth";
@@ -88,6 +88,7 @@ function StatCard({
 export function Dashboard() {
   const { t } = useTranslation();
   const { isSecTeam } = useAuth();
+  const navigate = useNavigate();
   const { scopeParams } = useScope();
   const { data, isLoading, error } = useDashboard(scopeParams);
 
@@ -106,6 +107,9 @@ export function Dashboard() {
   if (!data) return null;
 
   const heatmapCols = ['unknown', 'low', 'moderate', 'important', 'critical'] as const
+  const heatmapSeverityIndex: Record<typeof heatmapCols[number], number> = {
+    unknown: 0, low: 1, moderate: 2, important: 3, critical: 4,
+  }
   const heatmapRgb: Record<typeof heatmapCols[number], string> = {
     unknown:   '210,210,210',
     low:       '190,225,244',
@@ -126,17 +130,21 @@ export function Dashboard() {
         <Grid hasGutter>
           {/* Stat cards */}
           <GridItem span={3}>
-            <StatCard
-              label={t("dashboard.totalCves")}
-              value={data.stat_total_cves}
-            />
+            <Link to="/schwachstellen" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+              <StatCard
+                label={t("dashboard.totalCves")}
+                value={data.stat_total_cves}
+              />
+            </Link>
           </GridItem>
           <GridItem span={3}>
-            <StatCard
-              label={t("dashboard.fixableCriticalCves")}
-              value={data.stat_fixable_critical_cves}
-              color="#c9190b"
-            />
+            <Link to="/schwachstellen?severity=4&fixable=true" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+              <StatCard
+                label={t("dashboard.fixableCriticalCves")}
+                value={data.stat_fixable_critical_cves}
+                color="#c9190b"
+              />
+            </Link>
           </GridItem>
           <GridItem span={3}>
             <Link to="/eskalationen" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
@@ -151,13 +159,15 @@ export function Dashboard() {
             </Link>
           </GridItem>
           <GridItem span={3}>
-            <StatCard
-              label={t("dashboard.openRiskAcceptances")}
-              value={data.stat_open_risk_acceptances}
-              color={
-                data.stat_open_risk_acceptances > 0 ? "#ec7a08" : undefined
-              }
-            />
+            <Link to="/risikoakzeptanzen?status=requested" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+              <StatCard
+                label={t("dashboard.openRiskAcceptances")}
+                value={data.stat_open_risk_acceptances}
+                color={
+                  data.stat_open_risk_acceptances > 0 ? "#ec7a08" : undefined
+                }
+              />
+            </Link>
           </GridItem>
 
           {/* EPSS Highlight Zone */}
@@ -256,7 +266,10 @@ export function Dashboard() {
                   <p style={{ fontSize: 12, color: 'var(--pf-v6-global--Color--200)', marginBottom: 8 }}>
                     {t('dashboard.epssMatrixDescription')}
                   </p>
-                  <EpssRiskMatrix data={data.epss_matrix} />
+                  <EpssRiskMatrix
+                    data={data.epss_matrix}
+                    onDotClick={(cveId) => navigate(`/schwachstellen/${cveId}`)}
+                  />
                 </CardBody>
               </Card>
             </GridItem>
@@ -309,7 +322,10 @@ export function Dashboard() {
             <Card style={{ height: "100%" }}>
               <CardTitle>{t("dashboard.severityDistribution")}</CardTitle>
               <CardBody>
-                <SeverityDonut data={data.severity_distribution} />
+                <SeverityDonut
+                  data={data.severity_distribution}
+                  onSegmentClick={(severity) => navigate(`/schwachstellen?severity=${severity}`)}
+                />
               </CardBody>
             </Card>
           </GridItem>
@@ -318,7 +334,10 @@ export function Dashboard() {
             <Card style={{ height: "100%" }}>
               <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
               <CardBody>
-                <CvesPerNamespace data={data.cves_per_namespace} />
+                <CvesPerNamespace
+                  data={data.cves_per_namespace}
+                  onBarClick={(ns) => navigate(`/schwachstellen?namespace=${encodeURIComponent(ns)}`)}
+                />
               </CardBody>
             </Card>
           </GridItem>
@@ -341,22 +360,37 @@ export function Dashboard() {
                       <tbody>
                         {data.cluster_heatmap.map(row => (
                           <tr key={row.cluster} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{row.cluster}</td>
+                            <td
+                              style={{ padding: '8px 12px', fontFamily: 'monospace', cursor: 'pointer' }}
+                              onClick={() => navigate(`/schwachstellen?cluster=${encodeURIComponent(row.cluster)}`)}
+                            >
+                              {row.cluster}
+                            </td>
                             {heatmapCols.map(col => {
                               const val = row[col]
                               const bgAlpha = val > 0 ? Math.min(0.3 + val / 50, 1) : 0
                               return (
-                                <td key={col} style={{
-                                  padding: '8px 12px',
-                                  textAlign: 'right',
-                                  background: val > 0 ? `rgba(${heatmapRgb[col]},${bgAlpha})` : 'transparent',
-                                  color: val > 0 ? '#151515' : 'inherit',
-                                }}>
+                                <td
+                                  key={col}
+                                  style={{
+                                    padding: '8px 12px',
+                                    textAlign: 'right',
+                                    background: val > 0 ? `rgba(${heatmapRgb[col]},${bgAlpha})` : 'transparent',
+                                    color: val > 0 ? '#151515' : 'inherit',
+                                    cursor: val > 0 ? 'pointer' : 'default',
+                                  }}
+                                  onClick={val > 0 ? () => navigate(`/schwachstellen?severity=${heatmapSeverityIndex[col]}&cluster=${encodeURIComponent(row.cluster)}`) : undefined}
+                                >
                                   {val > 0 ? val : '–'}
                                 </td>
                               )
                             })}
-                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{row.total}</td>
+                            <td
+                              style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, cursor: 'pointer' }}
+                              onClick={() => navigate(`/schwachstellen?cluster=${encodeURIComponent(row.cluster)}`)}
+                            >
+                              {row.total}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -422,7 +456,13 @@ export function Dashboard() {
                         interval={0}
                       />
                       <Tooltip />
-                      <Bar dataKey="cve_count" name="CVEs" fill="#0066cc" />
+                      <Bar
+                        dataKey="cve_count"
+                        name="CVEs"
+                        fill="#0066cc"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?component=${encodeURIComponent(entry.component_name)}&advanced=1`)}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardBody>

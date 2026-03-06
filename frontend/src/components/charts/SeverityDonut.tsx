@@ -19,15 +19,17 @@ const LABELS: Record<number, string> = {
 
 interface Props {
   data: { severity: Severity; count: number }[]
+  onSegmentClick?: (severity: Severity) => void
 }
 
-export function SeverityDonut({ data }: Props) {
+export function SeverityDonut({ data, onSegmentClick }: Props) {
   const chartData = data
     .filter(d => d.count > 0)
     .map(d => ({
       name: LABELS[d.severity] ?? 'Unbekannt',
       value: d.count,
       color: COLORS[d.severity] ?? '#8a8d90',
+      severity: d.severity,
     }))
 
   if (!chartData.length) {
@@ -49,6 +51,10 @@ export function SeverityDonut({ data }: Props) {
           outerRadius={90}
           paddingAngle={2}
           dataKey="value"
+          style={onSegmentClick ? { cursor: 'pointer' } : undefined}
+          onClick={onSegmentClick ? (_data, index) => {
+            onSegmentClick(chartData[index].severity)
+          } : undefined}
         >
           {chartData.map((entry, i) => (
             <Cell key={i} fill={entry.color} />
