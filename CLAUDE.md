@@ -262,7 +262,7 @@ just docs-build
 ```
 
 Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[tool.pytest.ini_options] testpaths = ["tests"]`) so operational scripts in `backend/scripts/` are not collected as tests in CI.
-- CI now includes image CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-image-scan` matrix job, `aquasecurity/trivy-action@0.33.1`). It builds local backend/spoke/namespace-resolver images in CI and fails on `HIGH` or `CRITICAL` vulnerabilities (`ignore-unfixed: true`).
+- CI now includes image CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-image-scan` matrix job, `aquasecurity/trivy-action@0.33.1`). It builds local backend/spoke/namespace-resolver images in CI, emits a JSON report artifact (`trivy-report-<image>`), and prints a `HIGH/CRITICAL` summary to logs (report-only, no fail gate).
 
 Always verify backend, frontend, and docs build before marking work done.
 

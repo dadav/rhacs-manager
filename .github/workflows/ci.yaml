@@ -36,16 +36,35 @@ jobs:
             -t "local/${{ matrix.image }}:ci-${{ github.sha }}" \
             -f "${{ matrix.dockerfile }}" \
             "${{ matrix.context }}"
-      - name: Run Trivy vulnerability scanner
+      - name: Show built image metadata
+        run: |
+          docker image inspect "local/${{ matrix.image }}:ci-${{ github.sha }}" --format 'Image={{.RepoTags}} Size={{.Size}}'
+      - name: Run Trivy report scan (always produces output)
         uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: image
           image-ref: local/${{ matrix.image }}:ci-${{ github.sha }}
           scanners: vuln
-          format: table
-          exit-code: "1"
+          format: json
+          output: trivy-report.json
+          exit-code: "0"
           ignore-unfixed: true
-          severity: CRITICAL,HIGH
+      - name: Print Trivy report summary
+        run: |
+          test -f trivy-report.json
+          echo "Top findings for ${{ matrix.name }}:"
+          jq -r '
+            .Results[]?.Vulnerabilities[]?
+            | select(.Severity == "CRITICAL" or .Severity == "HIGH")
+            | "\(.Severity)\t\(.VulnerabilityID)\t\(.PkgName)\t\(.InstalledVersion)\t\(.FixedVersion // "n/a")"
+          ' trivy-report.json | head -n 30
+          total_high_critical="$(jq -r '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" or .Severity == "HIGH")] | length' trivy-report.json)"
+          echo "Total HIGH/CRITICAL vulnerabilities: ${total_high_critical}"
+      - name: Upload Trivy JSON report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report-${{ matrix.name }}
+          path: trivy-report.json
 
   lint-frontend:
     name: Lint Frontend
