@@ -4,14 +4,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY main.go .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /namespace-resolver .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /auth-header-injector .
 
 FROM gcr.io/distroless/static:nonroot
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
-      org.opencontainers.image.description="RHACS CVE Manager Namespace Resolver" \
+      org.opencontainers.image.description="RHACS CVE Manager Auth Header Injector" \
       org.opencontainers.image.licenses="MIT"
 
-COPY --from=builder /namespace-resolver /namespace-resolver
+COPY --from=builder /auth-header-injector /auth-header-injector
 USER nonroot:nonroot
-ENTRYPOINT ["/namespace-resolver"]
+ENTRYPOINT ["/auth-header-injector"]

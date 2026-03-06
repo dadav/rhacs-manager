@@ -7,10 +7,10 @@ Spoke clusters run authenticated frontend access and proxy API traffic to the hu
 The spoke frontend deployment contains three containers:
 
 1. `oauth-proxy` (`:8443`) for OpenShift OAuth login
-2. `namespace-resolver` (`:8081`) to resolve namespace access into forwarded scope headers
+2. `auth-header-injector` (`:8081`) to resolve namespace access into forwarded scope headers
 3. `frontend` (`:8080`) nginx SPA with `/api/*` proxy to hub
 
-## Namespace Resolver Behavior
+## Auth Header Injector Behavior
 
 - Reads `X-Forwarded-User`
 - Resolves namespace permissions from Kubernetes namespace annotations:
@@ -68,9 +68,9 @@ openssl rand -base64 32
 
 ```bash
 just build-spoke-image tag=registry.example.com/rhacs-manager-spoke:latest
-podman build -t registry.example.com/rhacs-manager-namespace-resolver:latest namespace-resolver/
+podman build -t registry.example.com/rhacs-manager-auth-header-injector:latest auth-header-injector/
 podman push registry.example.com/rhacs-manager-spoke:latest
-podman push registry.example.com/rhacs-manager-namespace-resolver:latest
+podman push registry.example.com/rhacs-manager-auth-header-injector:latest
 ```
 
 Update image references in `deploy/spoke/frontend-deployment.yaml`, then apply:

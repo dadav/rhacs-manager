@@ -44,9 +44,9 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 | `SPOKE_API_KEYS` | `[]` | JSON list of accepted spoke keys |
 | `SEC_TEAM_GROUP` | `rhacs-sec-team` | Group mapped to `sec_team` |
 
-### Namespace Resolver (Spoke Sidecar)
+### Auth Header Injector (Spoke Sidecar)
 
-The spoke `namespace-resolver` reads Kubernetes namespace annotations and forwards namespace scope/email metadata to the hub backend.
+The spoke `auth-header-injector` reads Kubernetes namespace annotations and forwards namespace scope/email metadata to the hub backend.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

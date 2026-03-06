@@ -264,7 +264,7 @@ func fetchAndUpdate(ctx context.Context, client kubernetes.Interface, cache *nsC
 func main() {
 	cfg := loadConfig()
 
-	slog.Info("starting namespace-resolver",
+	slog.Info("starting auth-header-injector",
 		"listen", cfg.ListenAddr,
 		"upstream", cfg.UpstreamAddr,
 		"cluster", cfg.ClusterName,

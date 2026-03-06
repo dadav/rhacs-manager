@@ -1,8 +1,8 @@
-{{- if and (eq (default "hub" .Values.mode) "hub") .Values.frontend.enabled }}
+{{- if eq (default "hub" .Values.mode) "spoke" }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.frontend.namespaceResolver.clusterRoleName }}
+  name: {{ .Values.spoke.authHeaderInjector.clusterRoleName }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 rules:
@@ -13,15 +13,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Values.frontend.namespaceResolver.clusterRoleBindingName }}
+  name: {{ .Values.spoke.authHeaderInjector.clusterRoleBindingName }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Values.frontend.namespaceResolver.clusterRoleName }}
+  name: {{ .Values.spoke.authHeaderInjector.clusterRoleName }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.frontend.oauthProxy.serviceAccountName }}
+    name: {{ .Values.spoke.oauthProxy.serviceAccountName }}
     namespace: {{ include "rhacs-manager.namespace" . }}
 {{- end }}

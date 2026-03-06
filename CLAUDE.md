@@ -17,7 +17,7 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 - **Two databases**: StackRox Central (`central_active`, read-only) + own app DB (read-write)
 - **Dev mode**: `DEV_MODE=true` bypasses OIDC; user is synced to DB from `DEV_USER_*` env vars
 - **No teams**: Namespace access is derived from K8s namespace annotations via `X-Forwarded-Namespaces` header
-- **Namespace resolver**: `namespace-resolver/` — Go sidecar that reads namespace annotations and sets `X-Forwarded-Namespaces`
+- **Auth header injector**: `auth-header-injector/` — Go sidecar that reads namespace annotations and sets `X-Forwarded-Namespaces`
 
 ## Key Files
 
@@ -39,12 +39,12 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `frontend/src/pages/`             | One file per page/route                                                                                                         |
 | `frontend/src/components/`        | Reusable UI components                                                                                                          |
 | `frontend/src/i18n/`              | German translations                                                                                                             |
-| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes, oauth-proxy, namespace-resolver)                               |
+| `deploy/base/`                    | Kustomize base manifests (namespace, secret, deployments, routes, oauth-proxy, auth-header-injector)                               |
 | `deploy/hub/`                     | Hub overlay (= base: backend + spoke-style frontend with oauth-proxy)                                                           |
-| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy + namespace-resolver, no backend)                                                         |
-| `namespace-resolver/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
-| `namespace-resolver/Containerfile` | Multi-stage build for namespace-resolver (distroless runtime)                                                                   |
-| `deploy/spoke/namespace-resolver-rbac.yaml` | ClusterRole/Binding for namespace list permission                                                                      |
+| `deploy/spoke/`                   | Spoke overlay (frontend + oauth-proxy + auth-header-injector, no backend)                                                         |
+| `auth-header-injector/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
+| `auth-header-injector/Containerfile` | Multi-stage build for auth-header-injector (distroless runtime)                                                                   |
+| `deploy/spoke/auth-header-injector-rbac.yaml` | ClusterRole/Binding for namespace list permission                                                                      |
 | `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
 | `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
 | `docs/`                           | MkDocs Material documentation site                                                                                               |
@@ -176,22 +176,22 @@ RHACS runs on a hub cluster (admin-only) with spoke clusters per user group. Spo
 
 ```
 SPOKE CLUSTER                                      HUB CLUSTER
-Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAPI backend
+Route → oauth-proxy → auth-header-injector → nginx  →→  Route → FastAPI backend
        (OpenShift OAuth)  :8081 (Go sidecar)  :8080    (X-Api-Key + X-Forwarded-*)
                           sets X-Forwarded-Namespaces
 ```
 
 **Auth flow (spoke proxy mode):**
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups/Access-Token` headers
-2. namespace-resolver sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations, plus namespace escalation contact annotation (`rhacs-manager.io/escalation-email`)
-3. If `X-Forwarded-Access-Token` is present, namespace-resolver calls OpenShift user API (`/apis/user.openshift.io/v1/users/~`) to resolve the user's groups, then merges group-based namespaces with user-based namespaces
-4. namespace-resolver sets `X-Forwarded-Namespaces` (merged, deduplicated), `X-Forwarded-Namespace-Emails` (`ns:cluster=email`), and `X-Forwarded-Groups` (from OpenShift user API)
+2. auth-header-injector sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations, plus namespace escalation contact annotation (`rhacs-manager.io/escalation-email`)
+3. If `X-Forwarded-Access-Token` is present, auth-header-injector calls OpenShift user API (`/apis/user.openshift.io/v1/users/~`) to resolve the user's groups, then merges group-based namespaces with user-based namespaces
+4. auth-header-injector sets `X-Forwarded-Namespaces` (merged, deduplicated), `X-Forwarded-Namespace-Emails` (`ns:cluster=email`), and `X-Forwarded-Groups` (from OpenShift user API)
 5. Spoke nginx serves SPA, proxies `/api/*` to hub route with `X-Api-Key` + forwarded headers
 6. Hub backend validates API key (`settings.spoke_api_keys`), reads identity + namespaces + groups from headers
 7. `sec_team_group` in groups grants sec_team role
 8. Users auto-provisioned with ID `spoke:<username>`
 
-**Namespace resolver** (`namespace-resolver/`):
+**Auth header injector** (`auth-header-injector/`):
 - Go sidecar sitting between oauth-proxy (:8443) and nginx (:8080) on port :8081
 - Caches `namespace → []username` and `namespace → []group` maps from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
 - User annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
@@ -199,11 +199,11 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Escalation contact annotation format: `rhacs-manager.io/escalation-email: team@example.com` on any namespace
 - Groups are resolved by calling the OpenShift user API with the forwarded access token (cached per token for `GROUP_CACHE_TTL_SECONDS`, default 60)
 - Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `EMAIL_ANNOTATION` (default: `rhacs-manager.io/escalation-email`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
-- Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/namespace-resolver-rbac.yaml`)
+- Requires ClusterRole with `list` on `namespaces` (see `deploy/spoke/auth-header-injector-rbac.yaml`)
 
 **Deploy:**
 - Hub: `kubectl kustomize deploy/hub/` (= base, backend + frontend + DBs)
-- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy + namespace-resolver)
+- Spoke: `kubectl kustomize deploy/spoke/` (frontend + oauth-proxy + auth-header-injector)
 - Spoke secret: `deploy/spoke/spoke-secret.yaml` (HUB_API_URL, SPOKE_API_KEY, CLUSTER_NAME)
 
 ## Data Model Highlights
@@ -244,13 +244,13 @@ Route → oauth-proxy → namespace-resolver → nginx  →→  Route → FastAP
 - Kustomize hub: `deploy/hub/` — references base (backend + spoke-style frontend with oauth-proxy)
 - Kustomize spoke: `deploy/spoke/` — frontend + oauth-proxy sidecar, no backend
 - Hub deployment prerequisite: copy `central-db-password` secret from `stackrox` namespace into `rhacs-manager` namespace before applying `deploy/hub/` (backend reads `STACKROX_DB_PASSWORD` from this secret)
-- Hub frontend uses the same 3-container pod as spoke (oauth-proxy + namespace-resolver + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
+- Hub frontend uses the same 3-container pod as spoke (oauth-proxy + auth-header-injector + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
 - All dependencies bundled at build time; no internet access at runtime
 - Backend `uv` config sets `[tool.uv] package = false` to avoid packaging the local app in runtime images. This prevents offline runtime resolution errors for build backends like `hatchling` when starting with `uv run --offline`.
 - Alembic DB URL resolution is sourced from `app.config.settings.effective_app_db_url` (not a hardcoded `APP_DB_URL` fallback), so deployments using split env vars (`APP_DB_HOST`, `APP_DB_USER`, `APP_DB_PASSWORD`, `APP_DB_NAME`) work for migrations and runtime consistently.
-- Tag pushes (`v*`) in `.github/workflows/build.yaml` now create a GitHub Release automatically after image/chart builds. Release notes are generated with `orhun/git-cliff-action@v4` using `cliff.toml` (`--current` for the checked-out tag), then append Trivy vulnerability summaries (severity totals + top HIGH/CRITICAL findings) for backend, spoke, and namespace-resolver images. Raw Trivy JSON reports are attached to the release.
+- Tag pushes (`v*`) in `.github/workflows/build.yaml` now create a GitHub Release automatically after image/chart builds. Release notes are generated with `orhun/git-cliff-action@v4` using `cliff.toml` (`--current` for the checked-out tag), then append Trivy vulnerability summaries (severity totals + top HIGH/CRITICAL findings) for backend, spoke, and auth-header-injector images. Raw Trivy JSON reports are attached to the release.
 - Build image tagging in `.github/workflows/build.yaml` publishes both semver tag forms on release tags (e.g. `0.4.3` and `v0.4.3`, plus matching minor tags) to avoid release-time tag lookup mismatches.
-- Release-time Trivy scans use direct image refs derived from `${{ github.ref_name }}` (`BACKEND_IMAGE`/`SPOKE_IMAGE`/`RESOLVER_IMAGE`) in the create-release job; dual semver tagging keeps these refs resolvable.
+- Release-time Trivy scans use direct image refs derived from `${{ github.ref_name }}` (`BACKEND_IMAGE`/`SPOKE_IMAGE`/`AUTH_HEADER_INJECTOR_IMAGE`) in the create-release job; dual semver tagging keeps these refs resolvable.
 - `git-cliff` header templates do not expose `timestamp`; keep date rendering in `[changelog].body` (where `timestamp` is available) to avoid `Variable 'timestamp' not found in context while rendering 'header'`.
 - In GitHub Actions, avoid `${{ env.* }}` composition inside job-level `env` value definitions in this workflow; use direct `${{ github.* }}` expressions there to prevent workflow-parse errors.
 
@@ -268,21 +268,21 @@ just docs-build
 ```
 
 Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[tool.pytest.ini_options] testpaths = ["tests"]`) so operational scripts in `backend/scripts/` are not collected as tests in CI.
-- CI now includes image CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-image-scan` matrix job, `aquasecurity/trivy-action@0.34.2`). It builds local backend/spoke/namespace-resolver images in CI, emits a JSON report artifact (`trivy-report-<image>`), and prints both severity distribution and `HIGH/CRITICAL` summary to logs (report-only, no fail gate). The Trivy step is non-blocking (`continue-on-error`), configured with Docker socket access (`docker-host: unix:///var/run/docker.sock`), and scans include unfixed vulnerabilities (`ignore-unfixed: false`).
+- CI now includes image CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-image-scan` matrix job, `aquasecurity/trivy-action@0.34.2`). It builds local backend/spoke/auth-header-injector images in CI, emits a JSON report artifact (`trivy-report-<image>`), and prints both severity distribution and `HIGH/CRITICAL` summary to logs (report-only, no fail gate). The Trivy step is non-blocking (`continue-on-error`), configured with Docker socket access (`docker-host: unix:///var/run/docker.sock`), and scans include unfixed vulnerabilities (`ignore-unfixed: false`).
 
 Always verify backend, frontend, and docs build before marking work done.
 
 ## Helm Deployment (Hub Alternative)
 
 - A functional Helm chart now exists at `deploy/helm/rhacs-manager` as an alternative to `deploy/base`/`deploy/hub` kustomize deployment.
-- Default chart output includes: Namespace, backend secret, hub-spoke-secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend + spoke-style frontend Deployments + Services, oauth-proxy SA/CRB, namespace-resolver RBAC, and two OpenShift Routes.
+- Default chart output includes: Namespace, backend secret, hub-spoke-secret, CNPG `Cluster` (`postgresql.cnpg.io/v1`), backend + spoke-style frontend Deployments + Services, oauth-proxy SA/CRB, auth-header-injector RBAC, and two OpenShift Routes.
 - Hub install command:
   - `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set frontend.oauthProxy.cookieSecret=<base64-32-byte-secret>`
 - Critical pre-reqs remain the same as kustomize:
   - CNPG operator installed in cluster
   - `central-db-password` secret present in `rhacs-manager` namespace for StackRox DB access
   - Route hosts and secret values overridden from defaults before production use
-- Helm chart now supports **spoke mode** via `--set mode=spoke`, which renders spoke resources (spoke secret, oauth-proxy SA+CRB, namespace-resolver RBAC, spoke frontend deployment/service, spoke route) instead of hub resources.
+- Helm chart now supports **spoke mode** via `--set mode=spoke`, which renders spoke resources (spoke secret, oauth-proxy SA+CRB, auth-header-injector RBAC, spoke frontend deployment/service, spoke route) instead of hub resources.
 - Spoke install example:
   - `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke --set spoke.oauthProxy.cookieSecret=<base64-32-byte-secret> --set spoke.secret.stringData.HUB_API_URL=<hub-api-url> --set spoke.secret.stringData.SPOKE_API_KEY=<spoke-key> --set spoke.secret.stringData.CLUSTER_NAME=<cluster-name>`
 - README and `docs/deployment/index.md` include short Helm usage snippets for hub and spoke installs.

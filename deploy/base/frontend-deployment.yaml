@@ -44,9 +44,9 @@ spec:
               cpu: 100m
               memory: 64Mi
 
-        # Namespace resolver — resolves X-Forwarded-User to X-Forwarded-Namespaces
-        - name: namespace-resolver
-          image: rhacs-manager-namespace-resolver:latest
+        # Auth header injector — resolves X-Forwarded-User to X-Forwarded-Namespaces
+        - name: auth-header-injector
+          image: rhacs-manager-auth-header-injector:latest
           ports:
             - containerPort: 8081
           env:

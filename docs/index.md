@@ -71,7 +71,7 @@ graph TB
 
     subgraph "Spoke Cluster"
         OAUTH["oauth-proxy"]
-        NR["namespace-resolver"]
+        NR["auth-header-injector"]
         FE_SPOKE["Spoke Frontend\nnginx + SPA"]
     end
 

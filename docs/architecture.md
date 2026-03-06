@@ -15,13 +15,13 @@ graph LR
 
     subgraph "Spoke Cluster A"
         OP_A["oauth-proxy"]
-        NR_A["namespace-resolver"]
+        NR_A["auth-header-injector"]
         FE_A["Spoke Frontend"]
     end
 
     subgraph "Spoke Cluster B"
         OP_B["oauth-proxy"]
-        NR_B["namespace-resolver"]
+        NR_B["auth-header-injector"]
         FE_B["Spoke Frontend"]
     end
 
@@ -40,7 +40,7 @@ graph LR
 
 **Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly.
 
-**Spoke clusters** run a frontend (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and a namespace-resolver sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key.
+**Spoke clusters** run a frontend (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key.
 
 ## Dual Database Design
 
@@ -112,15 +112,15 @@ When `DEV_MODE=true`, the user is created/synced from environment variables on e
 
 ### 2. Spoke Proxy Mode
 
-Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE_API_KEYS`. The backend reads identity from headers injected by the oauth-proxy and namespace-resolver:
+Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE_API_KEYS`. The backend reads identity from headers injected by the oauth-proxy and auth-header-injector:
 
 | Header | Purpose |
 |--------|---------|
 | `X-Forwarded-User` | Username (required) |
 | `X-Forwarded-Email` | Email address |
 | `X-Forwarded-Groups` | Comma-separated group list |
-| `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs (set by namespace-resolver) |
-| `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by namespace-resolver) |
+| `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs (set by auth-header-injector) |
+| `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by auth-header-injector) |
 
 If the user belongs to the group specified by `SEC_TEAM_GROUP`, they get the `sec_team` role; otherwise they are a `team_member`. Users are auto-provisioned with ID `spoke:<username>`.
 
@@ -134,7 +134,7 @@ For direct hub access in production. The `Authorization: Bearer <token>` header 
 sequenceDiagram
     participant User
     participant OAuth as oauth-proxy
-    participant NR as namespace-resolver<br/>(:8081)
+    participant NR as auth-header-injector<br/>(:8081)
     participant Nginx as Spoke nginx<br/>(:8080)
     participant Hub as Hub Backend
 
@@ -154,13 +154,13 @@ sequenceDiagram
 
 ## Namespace-Based Access
 
-Namespace access is derived from Kubernetes RBAC, not from an application-managed team model. The namespace-resolver sidecar on each spoke cluster reads namespace annotations and populates forwarded headers:
+Namespace access is derived from Kubernetes RBAC, not from an application-managed team model. The auth-header-injector sidecar on each spoke cluster reads namespace annotations and populates forwarded headers:
 
 - `rhacs-manager.io/users`: comma-separated usernames
 - `rhacs-manager.io/groups`: comma-separated group names
 - `rhacs-manager.io/escalation-email`: escalation contact email for the namespace
 
-The resolver emits:
+The auth-header-injector emits:
 
 - `X-Forwarded-Namespaces`: `namespace:cluster` pairs
 - `X-Forwarded-Namespace-Emails`: `namespace:cluster=email` pairs

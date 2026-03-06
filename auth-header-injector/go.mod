@@ -1,4 +1,4 @@
-module github.com/dadav/rhacs-manager/namespace-resolver
+module github.com/dadav/rhacs-manager/auth-header-injector
 
 go 1.25.0
 

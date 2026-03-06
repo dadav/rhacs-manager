@@ -1,3 +1,0 @@
-- [ ] ServiceAccounts per deployment
-- [ ] Pull-Secret
-- [ ] No internet durring runtime

@@ -47,7 +47,7 @@ RHACS Manager provides namespace-scoped CVE visibility derived from Kubernetes R
 Spoke Cluster                                    Hub Cluster
 ┌──────────────────────────────────────┐        ┌──────────────────────┐
 │ Route → OAuth Proxy → Namespace     │        │ Route → FastAPI      │
-│          (OIDC)       Resolver (Go) │───────▶│        ├─ StackRox DB│
+│          (OIDC)       Auth Header Injector (Go) │───────▶│        ├─ StackRox DB│
 │                       → Nginx (SPA) │ API    │        └─ App DB     │
 └──────────────────────────────────────┘        └──────────────────────┘
 ```
@@ -92,7 +92,7 @@ kubectl get secret central-db-password -n stackrox -o json \
 # Hub (backend + frontend + databases)
 kubectl apply -k deploy/hub/
 
-# Spoke (frontend + oauth-proxy + namespace-resolver)
+# Spoke (frontend + oauth-proxy + auth-header-injector)
 kubectl apply -k deploy/spoke/
 
 # Hub via Helm
@@ -121,7 +121,7 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
 │       ├── pages/     One file per route
 │       ├── components/Reusable UI
 │       └── i18n/      German translations
-├── namespace-resolver/Go sidecar for K8s RBAC
+├── auth-header-injector/Go sidecar for K8s RBAC
 ├── deploy/            Kustomize manifests
 │   ├── base/          Shared resources
 │   ├── hub/           Hub overlay

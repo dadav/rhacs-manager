@@ -86,7 +86,7 @@ backend:
     initialDelaySeconds: 30
     periodSeconds: 30
 
-# Hub frontend — spoke-style 3-container pod (oauth-proxy + namespace-resolver + spoke-nginx)
+# Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx)
 frontend:
   enabled: true
   deploymentName: rhacs-manager-frontend
@@ -133,9 +133,9 @@ frontend:
         cpu: 100m
         memory: 64Mi
     authDelegatorClusterRoleBindingName: rhacs-manager-oauth-proxy-review
-  namespaceResolver:
+  authHeaderInjector:
     image:
-      repository: ghcr.io/dadav/rhacs-manager-namespace-resolver
+      repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
       tag: latest
       pullPolicy: IfNotPresent
     namespaceAnnotation: rhacs-manager.io/users
@@ -201,9 +201,9 @@ spoke:
         memory: 64Mi
     authDelegatorClusterRoleBindingName: rhacs-manager-oauth-proxy-review
 
-  namespaceResolver:
+  authHeaderInjector:
     image:
-      repository: ghcr.io/dadav/rhacs-manager-namespace-resolver
+      repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
       tag: latest
       pullPolicy: IfNotPresent
     namespaceAnnotation: rhacs-manager.io/users

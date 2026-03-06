@@ -22,10 +22,10 @@ jobs:
             context: frontend
             dockerfile: frontend/Containerfile.spoke
             image: rhacs-manager-spoke
-          - name: namespace-resolver
-            context: namespace-resolver
-            dockerfile: namespace-resolver/Containerfile
-            image: rhacs-manager-namespace-resolver
+          - name: auth-header-injector
+            context: auth-header-injector
+            dockerfile: auth-header-injector/Containerfile
+            image: rhacs-manager-auth-header-injector
     permissions:
       contents: read
     steps:

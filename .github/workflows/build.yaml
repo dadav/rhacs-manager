@@ -77,8 +77,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  build-namespace-resolver:
-    name: Namespace Resolver Image
+  build-auth-header-injector:
+    name: Auth Header Injector Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,7 +94,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ${{ env.IMAGE_PREFIX }}-namespace-resolver
+          images: ${{ env.IMAGE_PREFIX }}-auth-header-injector
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -104,8 +104,8 @@ jobs:
             type=sha
       - uses: docker/build-push-action@v6
         with:
-          context: namespace-resolver
-          file: namespace-resolver/Containerfile
+          context: auth-header-injector
+          file: auth-header-injector/Containerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -149,7 +149,7 @@ jobs:
     needs:
       - build-backend
       - build-spoke
-      - build-namespace-resolver
+      - build-auth-header-injector
       - build-helm-chart
     runs-on: ubuntu-latest
     permissions:
@@ -159,7 +159,7 @@ jobs:
       RELEASE_TAG: ${{ github.ref_name }}
       BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-backend:${{ github.ref_name }}
       SPOKE_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-spoke:${{ github.ref_name }}
-      RESOLVER_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-namespace-resolver:${{ github.ref_name }}
+      AUTH_HEADER_INJECTOR_IMAGE: ghcr.io/${{ github.repository_owner }}/rhacs-manager-auth-header-injector:${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -206,7 +206,7 @@ jobs:
           output: trivy-report-spoke.json
           exit-code: "0"
           ignore-unfixed: false
-      - name: Scan namespace-resolver image with Trivy
+      - name: Scan auth-header-injector image with Trivy
         continue-on-error: true
         uses: aquasecurity/trivy-action@0.34.2
         env:
@@ -214,10 +214,10 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           scan-type: image
-          image-ref: ${{ env.RESOLVER_IMAGE }}
+          image-ref: ${{ env.AUTH_HEADER_INJECTOR_IMAGE }}
           scanners: vuln
           format: json
-          output: trivy-report-namespace-resolver.json
+          output: trivy-report-auth-header-injector.json
           exit-code: "0"
           ignore-unfixed: false
       - name: Build vulnerability summary for release notes

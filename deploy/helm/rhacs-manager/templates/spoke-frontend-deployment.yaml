@@ -47,9 +47,9 @@ spec:
           resources:
             {{- toYaml .Values.spoke.oauthProxy.resources | nindent 12 }}
 
-        - name: namespace-resolver
-          image: "{{ .Values.spoke.namespaceResolver.image.repository }}:{{ .Values.spoke.namespaceResolver.image.tag }}"
-          imagePullPolicy: {{ .Values.spoke.namespaceResolver.image.pullPolicy }}
+        - name: auth-header-injector
+          image: "{{ .Values.spoke.authHeaderInjector.image.repository }}:{{ .Values.spoke.authHeaderInjector.image.tag }}"
+          imagePullPolicy: {{ .Values.spoke.authHeaderInjector.image.pullPolicy }}
           ports:
             - containerPort: 8081
           env:
@@ -59,15 +59,15 @@ spec:
                   name: {{ .Values.spoke.secret.name }}
                   key: CLUSTER_NAME
             - name: NAMESPACE_ANNOTATION
-              value: {{ .Values.spoke.namespaceResolver.namespaceAnnotation | quote }}
+              value: {{ .Values.spoke.authHeaderInjector.namespaceAnnotation | quote }}
             - name: GROUP_ANNOTATION
-              value: {{ .Values.spoke.namespaceResolver.groupAnnotation | quote }}
+              value: {{ .Values.spoke.authHeaderInjector.groupAnnotation | quote }}
             - name: CACHE_TTL_SECONDS
-              value: {{ .Values.spoke.namespaceResolver.cacheTtlSeconds | quote }}
+              value: {{ .Values.spoke.authHeaderInjector.cacheTtlSeconds | quote }}
             - name: GROUP_CACHE_TTL_SECONDS
-              value: {{ .Values.spoke.namespaceResolver.groupCacheTtlSeconds | quote }}
+              value: {{ .Values.spoke.authHeaderInjector.groupCacheTtlSeconds | quote }}
           resources:
-            {{- toYaml .Values.spoke.namespaceResolver.resources | nindent 12 }}
+            {{- toYaml .Values.spoke.authHeaderInjector.resources | nindent 12 }}
           readinessProbe:
             httpGet:
               path: /healthz
