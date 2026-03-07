@@ -113,8 +113,25 @@ async def export_pdf(
             "risk_acceptance_status": item.risk_acceptance_status,
         })
 
-    pdf_bytes = generate_cve_pdf(cve_dicts)
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    now = datetime.utcnow()
+    pdf_metadata = {
+        "username": current_user.username or current_user.email or current_user.id,
+        "created_at": now,
+        "filters": {
+            "search": search,
+            "severity": severity,
+            "fixable": fixable,
+            "prioritized_only": prioritized_only,
+            "cvss_min": cvss_min,
+            "epss_min": epss_min,
+            "component": component,
+            "risk_status": risk_status,
+            "cluster": cluster,
+            "namespace": namespace,
+        },
+    }
+    pdf_bytes = generate_cve_pdf(cve_dicts, metadata=pdf_metadata)
+    today = now.strftime("%Y-%m-%d")
 
     return Response(
         content=pdf_bytes,

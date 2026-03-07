@@ -40,8 +40,8 @@ DATA_COLUMNS = [
     ("Veröffentlicht", 16),
     ("Priorität", 12),
     ("RA-Status", 14),
-    ("Begründung", 40),
-    ("Ablaufdatum", 16),
+    ("RA-Begründung (ausfüllen)", 44),
+    ("RA-Ablaufdatum (optional, JJJJ-MM-TT)", 34),
 ]
 
 INSTRUCTIONS_TEXT = """ANLEITUNG — CVE-Risikoakzeptanz per Excel-Import
@@ -49,12 +49,12 @@ INSTRUCTIONS_TEXT = """ANLEITUNG — CVE-Risikoakzeptanz per Excel-Import
 So erstellen Sie Risikoakzeptanzen über diesen Excel-Import:
 
 1. BEGRÜNDUNG AUSFÜLLEN
-   Tragen Sie in der Spalte "Begründung" (Spalte Q) Ihre Begründung ein.
+   Tragen Sie in der Spalte "RA-Begründung (ausfüllen)" (Spalte Q) Ihre Begründung für die Risikoakzeptanz ein.
    - Mindestens 10 Zeichen, maximal 5000 Zeichen.
    - Nur Zeilen mit ausgefüllter Begründung werden importiert.
 
 2. ABLAUFDATUM (OPTIONAL)
-   Tragen Sie in der Spalte "Ablaufdatum" (Spalte R) ein optionales Ablaufdatum ein.
+   Tragen Sie in der Spalte "RA-Ablaufdatum (optional, JJJJ-MM-TT)" (Spalte R) ein optionales Ablaufdatum ein.
    - Format: JJJJ-MM-TT (z.B. 2025-12-31)
    - Wenn leer, wird kein Ablaufdatum gesetzt.
 
@@ -178,7 +178,7 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
 
     results: list[dict] = []
     for row in ws.iter_rows(min_row=2, values_only=True):
-        justification_idx = col_map.get("Begründung")
+        justification_idx = col_map.get("RA-Begründung (ausfüllen)")
         if justification_idx is None:
             continue
         justification = row[justification_idx]
@@ -188,7 +188,7 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
         justification = str(justification).strip()
 
         # Parse expires_at
-        expires_at_idx = col_map.get("Ablaufdatum")
+        expires_at_idx = col_map.get("RA-Ablaufdatum (optional, JJJJ-MM-TT)")
         expires_at = None
         if expires_at_idx is not None:
             raw_date = row[expires_at_idx]
