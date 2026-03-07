@@ -248,6 +248,25 @@
     "featureBadges": "SVG-Badges für Repository-READMEs generieren",
     "button": "Los geht's"
   },
+  "exports": {
+    "export": "Exportieren",
+    "exportPdf": "PDF exportieren",
+    "exportExcel": "Excel exportieren",
+    "import": "Excel importieren",
+    "importTitle": "Excel-Import — Risikoakzeptanzen",
+    "importFilePlaceholder": "Excel-Datei (.xlsx) auswählen...",
+    "importBrowse": "Datei auswählen",
+    "importValid": "gültig",
+    "importInvalid": "ungültig",
+    "importJustification": "Begründung",
+    "importScope": "Geltungsbereich",
+    "importRows": "Zeilen",
+    "importStatus": "Status",
+    "importStatusValid": "Gültig",
+    "importConfirm": "Importieren",
+    "importSuccess": "{{count}} Risikoakzeptanz(en) erfolgreich erstellt",
+    "importFailed": "{{count}} Einträge fehlgeschlagen"
+  },
   "notifications": {
     "title": "Benachrichtigungen",
     "markAllRead": "Alle als gelesen markieren",

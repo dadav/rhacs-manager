@@ -12,6 +12,7 @@ from .routers import (
     cves,
     dashboard,
     escalations,
+    exports,
     namespaces,
     notifications,
     priorities,
@@ -67,6 +68,7 @@ for router_module in [
     badges,
     settings,
     audit,
+    exports,
 ]:
     app.include_router(router_module.router, prefix="/api")
 

@@ -1,6 +1,10 @@
 import {
   Alert,
   Checkbox,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
   PageSection,
   Pagination,
   Spinner,
@@ -11,17 +15,19 @@ import {
   ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core'
-import { FilterIcon, InfoCircleIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, ShieldAltIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCves } from '../api/cves'
+import { exportPdf, exportExcel } from '../api/exports'
 import { useThresholds } from '../api/settings'
 
 import { useScope, type ScopeParams } from '../hooks/useScope'
 import { useAuth } from '../hooks/useAuth'
 import { EpssBadge } from '../components/common/EpssBadge'
+import { ExcelImportModal } from '../components/ExcelImportModal'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { Severity } from '../types'
 
@@ -176,6 +182,36 @@ export function CveList() {
   const { isSecTeam } = useAuth()
   const { data: thresholds } = useThresholds()
 
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
+
+  const exportFilters = {
+    search: debouncedSearch || undefined,
+    severity: urlSeverity ? Number(urlSeverity) : undefined,
+    fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
+    prioritized_only: urlPrioOnly || undefined,
+    sort_by: urlSortBy,
+    sort_desc: urlSortDesc,
+    cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
+    epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
+    component: debouncedComponent || undefined,
+    risk_status: urlRiskStatus || undefined,
+  }
+
+  async function handleExport(type: 'pdf' | 'excel') {
+    setExportDropdownOpen(false)
+    setExporting(true)
+    try {
+      const fn = type === 'pdf' ? exportPdf : exportExcel
+      await fn(exportFilters, scopeOverrides)
+    } catch (e) {
+      alert(getErrorMessage(e))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const hasActiveThresholds = thresholds && !isSecTeam &&
     (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
@@ -295,6 +331,51 @@ export function CveList() {
                 )}
               </button>
             </ToolbarItem>
+            <ToolbarItem>
+              <Dropdown
+                isOpen={exportDropdownOpen}
+                onSelect={() => setExportDropdownOpen(false)}
+                onOpenChange={setExportDropdownOpen}
+                toggle={(toggleRef) => (
+                  <MenuToggle
+                    ref={toggleRef}
+                    onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                    isDisabled={exporting}
+                    variant="secondary"
+                  >
+                    {exporting ? <Spinner size="sm" aria-label="Exportieren" /> : <ExportIcon />}
+                    {' '}{t('exports.export')}
+                  </MenuToggle>
+                )}
+                popperProps={{ position: 'right' }}
+              >
+                <DropdownList>
+                  <DropdownItem key="pdf" onClick={() => handleExport('pdf')}>
+                    {t('exports.exportPdf')}
+                  </DropdownItem>
+                  <DropdownItem key="excel" onClick={() => handleExport('excel')}>
+                    {t('exports.exportExcel')}
+                  </DropdownItem>
+                </DropdownList>
+              </Dropdown>
+            </ToolbarItem>
+            {!isSecTeam && (
+              <ToolbarItem>
+                <button
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    height: 36, padding: '0 12px',
+                    border: '1px solid #d2d2d2', borderRadius: 4,
+                    background: 'transparent', cursor: 'pointer',
+                    fontSize: 14, fontFamily: 'inherit',
+                    color: 'var(--pf-v6-global--Color--100)',
+                  }}
+                  onClick={() => setImportModalOpen(true)}
+                >
+                  <ImportIcon /> {t('exports.import')}
+                </button>
+              </ToolbarItem>
+            )}
           </ToolbarContent>
         </Toolbar>
 
@@ -522,6 +603,11 @@ export function CveList() {
           </>
         )}
       </PageSection>
+
+      <ExcelImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+      />
     </>
   )
 }
