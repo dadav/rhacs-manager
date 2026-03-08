@@ -177,3 +177,41 @@ docs:
 # Build docs to site/ directory
 docs-build:
   uv run --with mkdocs-material mkdocs build
+
+# Prepare a release: update Chart.yaml appVersion, commit, and tag (e.g. just release v0.11.0)
+release version:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  version="{{version}}"
+  # Strip leading 'v' for appVersion
+  app_version="${version#v}"
+  # Ensure version starts with 'v' for the tag
+  tag="v${app_version}"
+
+  # Validate semver format
+  if ! [[ "${app_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: '${version}' is not a valid semver version (expected: v1.2.3 or 1.2.3)"
+    exit 1
+  fi
+
+  # Check for clean working tree
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "Error: working tree is not clean. Commit or stash changes first."
+    exit 1
+  fi
+
+  # Check tag doesn't already exist
+  if git rev-parse "${tag}" >/dev/null 2>&1; then
+    echo "Error: tag '${tag}' already exists."
+    exit 1
+  fi
+
+  # Update appVersion in Chart.yaml
+  sed -i "s/^appVersion: .*/appVersion: \"${app_version}\"/" deploy/helm/rhacs-manager/Chart.yaml
+  echo "Updated Chart.yaml appVersion to ${app_version}"
+
+  # Commit and tag
+  git add deploy/helm/rhacs-manager/Chart.yaml
+  git commit -m "release: ${tag}"
+  git tag "${tag}"
+  echo "Created commit and tag ${tag}"
