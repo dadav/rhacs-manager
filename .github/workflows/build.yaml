@@ -188,8 +188,8 @@ jobs:
               .. | select(has("app.kubernetes.io/version")).["app.kubernetes.io/version"],
               .. | select(has("app.kubernetes.io/managed-by")).["app.kubernetes.io/managed-by"]
             )' "$f"
-            yq -i 'del(select(.metadata.labels == {}).metadata.labels)' "$f"
-            yq -i 'del(select(.spec.template.metadata.labels == {}).spec.template.metadata.labels)' "$f"
+            yq -i 'del(.metadata.labels | select(length == 0))' "$f"
+            yq -i 'del(.spec.template.metadata.labels | select(length == 0))' "$f"
           done
       - uses: docker/login-action@v3
         with:
