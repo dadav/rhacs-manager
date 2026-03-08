@@ -179,6 +179,18 @@ jobs:
             --set mode=spoke \
             --set spoke.oauthProxy.cookieSecret=CHANGE_ME \
             > .artifacts/manifests/rhacs-manager-spoke.yaml
+          # Strip Helm-injected labels from rendered plain YAML manifests
+          for f in .artifacts/manifests/*.yaml; do
+            yq -i 'del(
+              .. | select(has("helm.sh/chart")).["helm.sh/chart"],
+              .. | select(has("app.kubernetes.io/name")).["app.kubernetes.io/name"],
+              .. | select(has("app.kubernetes.io/instance")).["app.kubernetes.io/instance"],
+              .. | select(has("app.kubernetes.io/version")).["app.kubernetes.io/version"],
+              .. | select(has("app.kubernetes.io/managed-by")).["app.kubernetes.io/managed-by"]
+            )' "$f"
+            yq -i 'del(select(.metadata.labels == {}).metadata.labels)' "$f"
+            yq -i 'del(select(.spec.template.metadata.labels == {}).spec.template.metadata.labels)' "$f"
+          done
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
