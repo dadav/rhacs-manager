@@ -53,8 +53,6 @@ RA_STATUS_LABELS = {
 PAGE_WIDTH = 190
 
 HEADER_STYLE = FontFace(emphasis="BOLD", color=(255, 255, 255), fill_color=(50, 50, 50), size_pt=7)
-EVEN_ROW_COLOR = (248, 248, 248)
-ODD_ROW_COLOR = (255, 255, 255)
 
 
 class CvePdf(FPDF):
@@ -103,8 +101,8 @@ def _draw_priority_badge(pdf: CvePdf, priority_level: str, deadline: str | datet
         label += f"  |  Frist: {deadline}"
 
     badge_w = pdf.get_string_width(label) + 10
-    pdf.cell(badge_w, 8, _sanitize_text(label), new_x="END", fill=True)
-    pdf.ln(4)
+    pdf.cell(badge_w, 8, _sanitize_text(label), new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.ln(2)
 
 
 def _draw_ra_badge(pdf: CvePdf, ra_status: str):
@@ -123,8 +121,8 @@ def _draw_ra_badge(pdf: CvePdf, ra_status: str):
 
     text = f"RISIKOAKZEPTANZ: {label.upper()}"
     badge_w = pdf.get_string_width(text) + 10
-    pdf.cell(badge_w, 8, _sanitize_text(text), new_x="END", fill=True)
-    pdf.ln(4)
+    pdf.cell(badge_w, 8, _sanitize_text(text), new_x="LMARGIN", new_y="NEXT", fill=True)
+    pdf.ln(2)
 
 
 def _draw_info_row(pdf: CvePdf, label: str, value: str, description: str = ""):
@@ -148,15 +146,16 @@ def _draw_table(pdf: CvePdf, headers: list[str], rows: list[list[str]], col_widt
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(30, 30, 30)
     pdf.set_draw_color(200, 200, 200)
+    pdf.set_fill_color(255, 255, 255)
 
     with pdf.table(
         col_widths=col_widths,
         headings_style=HEADER_STYLE,
-        cell_fill_color=EVEN_ROW_COLOR,
-        cell_fill_mode="ROWS",
+        cell_fill_color=None,
+        cell_fill_mode="NONE",
         line_height=pdf.font_size * 2.5,
         text_align="LEFT",
-        borders_layout="ALL",
+        borders_layout="HORIZONTAL_LINES",
         first_row_as_headings=True,
         padding=1,
     ) as table:
@@ -230,19 +229,23 @@ def _draw_severity_legend_row(pdf: CvePdf, x: float, y: float, severity: int,
     pdf.set_fill_color(*color)
     pdf.circle(x + 2, y + 3, 2.5, style="F")
 
-    # Label
+    # Label (fixed position)
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(60, 60, 60)
     pdf.set_xy(x + 8, y)
-    pdf.cell(40, 7, _sanitize_text(SEVERITY_LABELS.get(severity, "?")), new_x="END")
+    pdf.cell(28, 7, _sanitize_text(SEVERITY_LABELS.get(severity, "?")))
 
-    # Count + percentage
+    # Count (fixed position)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(30, 30, 30)
-    pdf.cell(15, 7, str(count), align="R", new_x="END")
+    pdf.set_xy(x + 36, y)
+    pdf.cell(10, 7, str(count), align="R")
+
+    # Percentage (fixed position)
     pdf.set_font("Helvetica", "", 8)
     pdf.set_text_color(140, 140, 140)
-    pdf.cell(15, 7, pct, align="R", new_x="LEFT")
+    pdf.set_xy(x + 50, y)
+    pdf.cell(12, 7, pct, align="R")
 
 
 def _draw_metadata_row(pdf: CvePdf, icon_char: str, label: str, value: str):
@@ -318,7 +321,7 @@ def _draw_summary_page(pdf: CvePdf, cves: list[dict], metadata: dict):
     prioritized_count = 0
     ra_count = 0
     total_deployments: set[str] = set()
-    total_namespaces: set[tuple[str, str]] = set()
+    total_clusters: set[str] = set()
 
     for cve in cves:
         sev = cve.get("severity", 0)
@@ -331,10 +334,9 @@ def _draw_summary_page(pdf: CvePdf, cves: list[dict], metadata: dict):
             ra_count += 1
         for d in cve.get("deployments", []):
             total_deployments.add(d.get("deployment_name", ""))
-            ns = d.get("namespace", "")
             cl = d.get("cluster_name", "")
-            if ns and cl:
-                total_namespaces.add((ns, cl))
+            if cl:
+                total_clusters.add(cl)
 
     critical_count = severity_counts.get(4, 0) + severity_counts.get(3, 0)
 
@@ -351,7 +353,7 @@ def _draw_summary_page(pdf: CvePdf, cves: list[dict], metadata: dict):
     _draw_stat_card(pdf, 10 + 2 * (card_w + gap), card_y, card_w, card_h,
                     str(fixable_count), "Behebbar", (59, 150, 61))
     _draw_stat_card(pdf, 10 + 3 * (card_w + gap), card_y, card_w, card_h,
-                    str(len(total_namespaces)), "Namespaces", (120, 80, 180))
+                    str(len(total_clusters)), "Cluster", (120, 80, 180))
 
     pdf.set_y(card_y + card_h + 10)
 
