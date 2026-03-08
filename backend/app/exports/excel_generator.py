@@ -5,6 +5,7 @@ from io import BytesIO
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 
 SEVERITY_LABELS = {0: "Unbekannt", 1: "Gering", 2: "Mittel", 3: "Hoch", 4: "Kritisch"}
@@ -27,14 +28,11 @@ DATA_COLUMNS = [
     ("CVE-ID", 18),
     ("Schweregrad", 14),
     ("CVSS", 8),
-    ("EPSS", 8),
+    ("EPSS", 10),
     ("Komponente", 22),
     ("Version", 14),
     ("Behebbar", 10),
     ("Fix-Version", 16),
-    ("Deployment", 22),
-    ("Namespace", 18),
-    ("Cluster", 16),
     ("Image", 40),
     ("Erstmals gesehen", 16),
     ("Veröffentlicht", 16),
@@ -49,20 +47,18 @@ INSTRUCTIONS_TEXT = """ANLEITUNG — CVE-Risikoakzeptanz per Excel-Import
 So erstellen Sie Risikoakzeptanzen über diesen Excel-Import:
 
 1. BEGRÜNDUNG AUSFÜLLEN
-   Tragen Sie in der Spalte "RA-Begründung (ausfüllen)" (Spalte Q) Ihre Begründung für die Risikoakzeptanz ein.
+   Tragen Sie in der Spalte "RA-Begründung (ausfüllen)" (Spalte N) Ihre Begründung für die Risikoakzeptanz ein.
    - Mindestens 10 Zeichen, maximal 5000 Zeichen.
    - Nur Zeilen mit ausgefüllter Begründung werden importiert.
 
 2. ABLAUFDATUM (OPTIONAL)
-   Tragen Sie in der Spalte "RA-Ablaufdatum (optional, JJJJ-MM-TT)" (Spalte R) ein optionales Ablaufdatum ein.
+   Tragen Sie in der Spalte "RA-Ablaufdatum (optional, JJJJ-MM-TT)" (Spalte O) ein optionales Ablaufdatum ein.
    - Format: JJJJ-MM-TT (z.B. 2025-12-31)
    - Wenn leer, wird kein Ablaufdatum gesetzt.
 
-3. GRUPPIERUNG
-   Zeilen mit derselben CVE-ID und derselben Begründung werden automatisch gruppiert.
-   Der Geltungsbereich wird aus den Images der gruppierten Zeilen abgeleitet:
-   - Wenn alle betroffenen Images einer CVE ausgewählt sind → Namespace-Scope
-   - Andernfalls → Image-Scope (nur die ausgewählten Images)
+3. GELTUNGSBEREICH
+   Beim Import wird der Geltungsbereich automatisch ermittelt:
+   - Alle betroffenen Namespaces des Benutzers werden für die CVE berücksichtigt (Namespace-Scope).
 
 4. IMPORT
    Laden Sie die ausgefüllte Datei im CVE-Manager hoch:
@@ -81,8 +77,8 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
 
     Each dict in `rows` should contain:
       cve_id, severity, cvss, epss_probability, component_name, component_version,
-      fixable, fixed_by, deployment_name, namespace, cluster_name, image_name,
-      first_seen, published_on, priority_level, risk_acceptance_status
+      fixable, fixed_by, image_name, first_seen, published_on, priority_level,
+      risk_acceptance_status
     """
     wb = Workbook()
 
@@ -93,6 +89,13 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
 
+    # Find indices for editable columns (Begründung, Ablaufdatum) and EPSS
+    col_names = [name for name, _ in DATA_COLUMNS]
+    begr_col = col_names.index("RA-Begründung (ausfüllen)") + 1
+    ablauf_col = col_names.index("RA-Ablaufdatum (optional, JJJJ-MM-TT)") + 1
+    epss_col = col_names.index("EPSS") + 1
+    editable_cols = [begr_col, ablauf_col]
+
     for col_idx, (col_name, col_width) in enumerate(DATA_COLUMNS, start=1):
         cell = ws.cell(row=1, column=col_idx, value=col_name)
         cell.font = header_font
@@ -100,9 +103,9 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
         cell.alignment = Alignment(horizontal="center", vertical="center")
         ws.column_dimensions[cell.column_letter].width = col_width
 
-    # Highlight editable columns (Begründung, Ablaufdatum)
+    # Highlight editable column headers
     editable_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
-    for col_idx in [17, 18]:  # Q, R
+    for col_idx in editable_cols:
         cell = ws.cell(row=1, column=col_idx)
         cell.fill = PatternFill(start_color="EC7A08", end_color="EC7A08", fill_type="solid")
 
@@ -115,14 +118,11 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
             row_data.get("cve_id", ""),
             SEVERITY_LABELS.get(severity, "Unbekannt"),
             round(row_data.get("cvss", 0), 1),
-            round(row_data.get("epss_probability", 0) * 100, 1),
+            row_data.get("epss_probability", 0),  # raw 0-1 value, formatted as percentage
             row_data.get("component_name", ""),
             row_data.get("component_version", ""),
             "Ja" if row_data.get("fixable") else "Nein",
             row_data.get("fixed_by", "") or "",
-            row_data.get("deployment_name", ""),
-            row_data.get("namespace", ""),
-            row_data.get("cluster_name", ""),
             row_data.get("image_name", ""),
             first_seen.strftime("%Y-%m-%d") if isinstance(first_seen, datetime) else str(first_seen or ""),
             published_on.strftime("%Y-%m-%d") if isinstance(published_on, datetime) else str(published_on or ""),
@@ -134,11 +134,15 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
 
         for col_idx, val in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            # Apply percentage format to EPSS column
+            if col_idx == epss_col:
+                cell.number_format = '0.00%'
             # Highlight editable cells
-            if col_idx in [17, 18]:
+            if col_idx in editable_cols:
                 cell.fill = editable_fill
 
-    ws.auto_filter.ref = f"A1:R{len(rows) + 1}"
+    last_col = get_column_letter(len(DATA_COLUMNS))
+    ws.auto_filter.ref = f"A1:{last_col}{len(rows) + 1}"
     ws.freeze_panes = "A2"
 
     # Sheet 2: Anleitung
@@ -157,7 +161,7 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
     """Parse an uploaded Excel file and extract rows with non-empty Begründung.
 
     Returns a list of dicts with keys:
-      cve_id, justification, expires_at, namespace, cluster_name, image_name
+      cve_id, justification, expires_at
     """
     wb = load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
 
@@ -198,24 +202,15 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
                     try:
                         expires_at = datetime.strptime(raw_str[:10], "%Y-%m-%d")
                     except ValueError:
-                        # Also try datetime objects from Excel
                         if isinstance(raw_date, datetime):
                             expires_at = raw_date
-                        else:
-                            pass  # Will be reported as validation error
 
         cve_id = str(row[col_map["CVE-ID"]] or "").strip()
-        namespace = str(row[col_map.get("Namespace", 9)] or "").strip()
-        cluster_name = str(row[col_map.get("Cluster", 10)] or "").strip()
-        image_name = str(row[col_map.get("Image", 11)] or "").strip()
 
         results.append({
             "cve_id": cve_id,
             "justification": justification,
             "expires_at": expires_at,
-            "namespace": namespace,
-            "cluster_name": cluster_name,
-            "image_name": image_name,
         })
 
     wb.close()

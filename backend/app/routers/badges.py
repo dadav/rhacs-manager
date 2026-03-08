@@ -57,11 +57,12 @@ async def get_badge_svg(
     min_cvss = float(gs.min_cvss_score) if gs else 0.0
     min_epss = float(gs.min_epss_score) if gs else 0.0
 
-    # Badge always scoped by its namespace/cluster
+    # Badge scoped by its namespace/cluster, or stored scope_namespaces
     if badge.namespace:
         ns = [(badge.namespace, badge.cluster_name or "")]
+    elif badge.scope_namespaces:
+        ns = [(entry[0], entry[1]) for entry in badge.scope_namespaces]
     else:
-        # No namespace specified — show empty
         ns = []
 
     if not ns:
@@ -131,11 +132,18 @@ async def create_badge(
             if not any(ns == body.namespace for ns, _ in current_user.namespaces):
                 raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
 
+    # When no namespace filter specified, store all user's namespaces
+    # so the public SVG endpoint can query the right scope
+    scope_ns = None
+    if not body.namespace:
+        scope_ns = [[ns, cluster] for ns, cluster in current_user.namespaces]
+
     badge = BadgeToken(
         created_by=current_user.id,
         namespace=body.namespace,
         cluster_name=body.cluster_name,
         label=body.label,
+        scope_namespaces=scope_ns,
     )
     db.add(badge)
     await db.commit()

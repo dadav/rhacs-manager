@@ -1,5 +1,7 @@
 """Shared CVE list fetching and filtering logic used by cves.py and exports.py."""
 
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,6 +67,9 @@ async def fetch_filtered_cves(
     risk_status: str | None = None,
     cluster: str | None = None,
     namespace: str | None = None,
+    age_min: int | None = None,
+    age_max: int | None = None,
+    deployment: str | None = None,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -148,6 +153,40 @@ async def fetch_filtered_cves(
             ns_list = current_user.namespaces
         comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
         items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
+
+    # Age filter (days since first_seen)
+    if age_min is not None or age_max is not None:
+        now = datetime.now(timezone.utc)
+        def _age_days(item: CveListItem) -> int | None:
+            if not item.first_seen:
+                return None
+            fs = item.first_seen if item.first_seen.tzinfo else item.first_seen.replace(tzinfo=timezone.utc)
+            return (now - fs).days
+
+        filtered = []
+        for i in items:
+            days = _age_days(i)
+            if days is None:
+                continue
+            if age_min is not None and days < age_min:
+                continue
+            if age_max is not None and days > age_max:
+                continue
+            filtered.append(i)
+        items = filtered
+
+    # Deployment filter
+    if deployment and items:
+        cve_ids = [i.cve_id for i in items]
+        if current_user.is_sec_team:
+            all_ns = await sx.list_namespaces(sx_db)
+            dep_ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
+        else:
+            dep_ns = current_user.namespaces
+        dep_ns = narrow_namespaces(dep_ns, cluster, namespace)
+        dep_cve_ids = await sx.get_cve_ids_for_deployment(sx_db, deployment, dep_ns)
+        dep_set = set(dep_cve_ids)
+        items = [i for i in items if i.cve_id in dep_set]
 
     # Sort
     sort_key_map = {

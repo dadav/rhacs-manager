@@ -344,13 +344,15 @@ export function Dashboard() {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: 'Behebbar', value: data.fixability_breakdown.fixable },
-                          { name: 'Nicht behebbar', value: data.fixability_breakdown.unfixable },
+                          { name: 'Behebbar', value: data.fixability_breakdown.fixable, fixable: 'true' },
+                          { name: 'Nicht behebbar', value: data.fixability_breakdown.unfixable, fixable: 'false' },
                         ]}
                         innerRadius={60}
                         outerRadius={90}
                         dataKey="value"
                         nameKey="name"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?fixable=${entry.fixable}`)}
                       >
                         <Cell fill="#1e8f19" />
                         <Cell fill="#c9190b" />
@@ -457,7 +459,28 @@ export function Dashboard() {
                       <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip />
-                      <Bar dataKey="count" name="CVEs" fill="#0066cc">
+                      <Bar
+                        dataKey="count"
+                        name="CVEs"
+                        fill="#0066cc"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => {
+                          const bucket = entry.bucket as string
+                          const ranges: Record<string, [number, number | undefined]> = {
+                            '0-7 Tage': [0, 7],
+                            '8-30 Tage': [8, 30],
+                            '31-90 Tage': [31, 90],
+                            '91-180 Tage': [91, 180],
+                            '>180 Tage': [181, undefined],
+                          }
+                          const range = ranges[bucket]
+                          if (!range) return
+                          const params = new URLSearchParams()
+                          params.set('age_min', String(range[0]))
+                          if (range[1] !== undefined) params.set('age_max', String(range[1]))
+                          navigate(`/schwachstellen?${params.toString()}`)
+                        }}
+                      >
                         {data.aging_distribution.map((_, i) => (
                           <Cell key={i} fill={i >= 3 ? '#c9190b' : i >= 2 ? '#ec7a08' : '#0066cc'} />
                         ))}
@@ -544,7 +567,19 @@ export function Dashboard() {
                           'CVEs',
                         ]}
                       />
-                      <Bar dataKey="cve_count" name="CVEs" fill="#0066cc" />
+                      <Bar
+                        dataKey="cve_count"
+                        name="CVEs"
+                        fill="#0066cc"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => {
+                          const params = new URLSearchParams()
+                          params.set('deployment', entry.deployment_name)
+                          if (entry.namespace) params.set('namespace', entry.namespace)
+                          if (entry.cluster_name) params.set('cluster', entry.cluster_name)
+                          navigate(`/schwachstellen?${params.toString()}`)
+                        }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardBody>

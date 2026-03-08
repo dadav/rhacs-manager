@@ -43,6 +43,9 @@ async def list_cves(
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    age_min: int | None = Query(None, ge=0),
+    age_max: int | None = Query(None, ge=0),
+    deployment: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -53,6 +56,7 @@ async def list_cves(
         prioritized_only=prioritized_only, sort_by=sort_by, sort_desc=sort_desc,
         cvss_min=cvss_min, epss_min=epss_min, component=component,
         risk_status=risk_status, cluster=cluster, namespace=namespace,
+        age_min=age_min, age_max=age_max, deployment=deployment,
     )
 
     total = len(items)
@@ -82,9 +86,13 @@ async def get_cve(
     ra_query = select(RiskAcceptance).where(
         RiskAcceptance.cve_id == cve_id,
         RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+    ).order_by(
+        # Prefer approved over requested, then most recent
+        RiskAcceptance.status.asc(),
+        RiskAcceptance.created_at.desc(),
     )
     ra_result = await app_db.execute(ra_query)
-    acceptance = ra_result.scalar_one_or_none()
+    acceptance = ra_result.scalars().first()
 
     esc_result = await app_db.execute(
         select(Escalation).where(Escalation.cve_id == cve_id)

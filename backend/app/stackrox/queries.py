@@ -651,6 +651,30 @@ async def get_top_affected_deployments(
     return [dict(row._mapping) for row in result]
 
 
+async def get_cve_ids_for_deployment(
+    session: AsyncSession,
+    deployment_name: str,
+    namespaces: list[tuple[str, str]],
+) -> list[str]:
+    """Return CVE IDs affecting a specific deployment in the given namespaces."""
+    if not namespaces:
+        return []
+
+    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+    ns_values = ", ".join(ns_pairs)
+
+    sql = text(f"""
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE d.name = :deployment_name
+          AND (d.namespace, d.clustername) IN ({ns_values})
+    """)
+    result = await session.execute(sql, {"deployment_name": deployment_name})
+    return [row.cve_id for row in result]
+
+
 async def get_fixable_trend(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,

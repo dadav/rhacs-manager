@@ -73,6 +73,9 @@ export function CveList() {
   const urlRiskStatus = searchParams.get('risk_status') || ''
   const urlCluster    = searchParams.get('cluster') || ''
   const urlNamespace  = searchParams.get('namespace') || ''
+  const urlAgeMin     = searchParams.get('age_min') || ''
+  const urlAgeMax     = searchParams.get('age_max') || ''
+  const urlDeployment = searchParams.get('deployment') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
@@ -171,6 +174,9 @@ export function CveList() {
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
     risk_status: urlRiskStatus || undefined,
+    age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
+    age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
+    deployment: urlDeployment || undefined,
   }
 
   const { scopeParams } = useScope()
@@ -379,7 +385,7 @@ export function CveList() {
           </ToolbarContent>
         </Toolbar>
 
-        {(urlCluster || urlNamespace) && (
+        {(urlCluster || urlNamespace || urlDeployment || urlAgeMin || urlAgeMax) && (
           <div style={{
             padding: '8px 20px',
             background: 'rgba(0,102,204,0.06)',
@@ -400,8 +406,23 @@ export function CveList() {
                 <strong>Namespace:</strong> {urlNamespace}
               </span>
             )}
+            {urlDeployment && (
+              <span>
+                <strong>Deployment:</strong> {urlDeployment}
+              </span>
+            )}
+            {(urlAgeMin || urlAgeMax) && (
+              <span>
+                <strong>Alter:</strong>{' '}
+                {urlAgeMin && urlAgeMax
+                  ? `${urlAgeMin}–${urlAgeMax} Tage`
+                  : urlAgeMin
+                    ? `≥ ${urlAgeMin} Tage`
+                    : `≤ ${urlAgeMax} Tage`}
+              </span>
+            )}
             <button
-              onClick={() => updateParams({ cluster: null, namespace: null })}
+              onClick={() => updateParams({ cluster: null, namespace: null, deployment: null, age_min: null, age_max: null })}
               style={{
                 background: 'none', border: 'none', color: '#0066cc',
                 cursor: 'pointer', fontSize: 13, padding: '2px 0', fontFamily: 'inherit',

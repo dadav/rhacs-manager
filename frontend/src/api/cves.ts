@@ -25,6 +25,9 @@ interface CveListParams {
   risk_status?: string
   cluster?: string
   namespace?: string
+  age_min?: number
+  age_max?: number
+  deployment?: string
 }
 
 function buildQuery(params: CveListParams): string {

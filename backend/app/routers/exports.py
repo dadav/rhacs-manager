@@ -168,59 +168,37 @@ async def export_excel(
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
 
-    # Build one row per (CVE, deployment/image) combination
+    # Build one row per CVE (no deployment/namespace/cluster duplication)
     excel_rows: list[dict] = []
     for item in items:
-        deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
         components = await sx.get_affected_components(sx_db, item.cve_id, ns_list)
+        deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
 
-        # Build component lookup for the first (most relevant) component
         comp_name = ""
         comp_version = ""
         if components:
             comp_name = components[0].get("component_name", "")
             comp_version = components[0].get("component_version", "")
 
-        if deployments:
-            for d in deployments:
-                excel_rows.append({
-                    "cve_id": item.cve_id,
-                    "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-                    "cvss": item.cvss,
-                    "epss_probability": item.epss_probability,
-                    "component_name": comp_name,
-                    "component_version": comp_version,
-                    "fixable": item.fixable,
-                    "fixed_by": item.fixed_by,
-                    "deployment_name": d.get("deployment_name", ""),
-                    "namespace": d.get("namespace", ""),
-                    "cluster_name": d.get("cluster_name", ""),
-                    "image_name": d.get("image_name", ""),
-                    "first_seen": item.first_seen,
-                    "published_on": item.published_on,
-                    "priority_level": item.priority_level or "",
-                    "risk_acceptance_status": item.risk_acceptance_status or "",
-                })
-        else:
-            # CVE without deployments — still include one row
-            excel_rows.append({
-                "cve_id": item.cve_id,
-                "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-                "cvss": item.cvss,
-                "epss_probability": item.epss_probability,
-                "component_name": comp_name,
-                "component_version": comp_version,
-                "fixable": item.fixable,
-                "fixed_by": item.fixed_by,
-                "deployment_name": "",
-                "namespace": "",
-                "cluster_name": "",
-                "image_name": "",
-                "first_seen": item.first_seen,
-                "published_on": item.published_on,
-                "priority_level": item.priority_level or "",
-                "risk_acceptance_status": item.risk_acceptance_status or "",
-            })
+        # Collect unique image names for summary
+        image_names = sorted({d.get("image_name", "") for d in deployments if d.get("image_name")})
+        image_summary = image_names[0] if len(image_names) == 1 else f"{image_names[0]} (+{len(image_names) - 1})" if image_names else ""
+
+        excel_rows.append({
+            "cve_id": item.cve_id,
+            "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
+            "cvss": item.cvss,
+            "epss_probability": item.epss_probability,
+            "component_name": comp_name,
+            "component_version": comp_version,
+            "fixable": item.fixable,
+            "fixed_by": item.fixed_by,
+            "image_name": image_summary,
+            "first_seen": item.first_seen,
+            "published_on": item.published_on,
+            "priority_level": item.priority_level or "",
+            "risk_acceptance_status": item.risk_acceptance_status or "",
+        })
 
     xlsx_bytes = generate_cve_excel(excel_rows)
     today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -284,73 +262,31 @@ async def import_excel(
         # Get expires_at from first row (all rows in group should have same)
         expires_at = group_rows[0].get("expires_at")
 
-        # Collect image targets from group
-        image_targets: list[dict] = []
-        for r in group_rows:
-            if r.get("image_name") and r.get("namespace") and r.get("cluster_name"):
-                image_targets.append({
-                    "cluster_name": r["cluster_name"],
-                    "namespace": r["namespace"],
-                    "image_name": r["image_name"],
-                })
-
-        # Determine scope
-        scope_mode = "image"
+        # Determine scope: namespace scope from user's affected namespaces
         scope_summary = ""
         resolved_scope = None
 
         if not errors:
-            # Check if all images for this CVE are selected → namespace scope
             try:
                 deployments = await sx.get_affected_deployments(sx_db, cve_id, current_user.namespaces)
                 if not deployments:
                     errors.append("CVE in Ihren Namespaces nicht gefunden")
                 else:
-                    all_images = {
-                        (d["cluster_name"], d["namespace"], d.get("image_name", ""))
-                        for d in deployments
-                    }
-                    selected_images = {
-                        (t["cluster_name"], t["namespace"], t["image_name"])
-                        for t in image_targets
-                    }
-
-                    if selected_images >= all_images and all_images:
-                        # All images selected → namespace scope
-                        ns_set = {(d["cluster_name"], d["namespace"]) for d in deployments}
-                        scope_targets = [
-                            RiskScopeTarget(cluster_name=cl, namespace=ns)
-                            for cl, ns in sorted(ns_set)
-                        ]
-                        resolved_scope = RiskScope(mode="namespace", targets=scope_targets)
-                        scope_summary = f"namespace ({len(ns_set)} Namespace(s))"
-                    elif image_targets:
-                        # Image scope
-                        unique_images: set[tuple[str, str, str]] = set()
-                        scope_targets_img = []
-                        for t in image_targets:
-                            img_key = (t["cluster_name"], t["namespace"], t["image_name"])
-                            if img_key not in unique_images:
-                                unique_images.add(img_key)
-                                scope_targets_img.append(
-                                    RiskScopeTarget(
-                                        cluster_name=t["cluster_name"],
-                                        namespace=t["namespace"],
-                                        image_name=t["image_name"],
-                                    )
-                                )
-                        resolved_scope = RiskScope(mode="image", targets=scope_targets_img)
-                        scope_summary = f"image ({len(unique_images)} Image(s))"
-                    else:
-                        errors.append("Keine gültigen Image-Targets gefunden")
+                    # Always use namespace scope covering all affected namespaces
+                    ns_set = {(d["cluster_name"], d["namespace"]) for d in deployments}
+                    scope_targets = [
+                        RiskScopeTarget(cluster_name=cl, namespace=ns)
+                        for cl, ns in sorted(ns_set)
+                    ]
+                    resolved_scope = RiskScope(mode="namespace", targets=scope_targets)
+                    scope_summary = f"namespace ({len(ns_set)} Namespace(s))"
 
                     # Validate scope against deployments
-                    if resolved_scope and not errors:
-                        try:
-                            resolved_scope = validate_and_resolve_scope(resolved_scope, deployments)
-                        except HTTPException as e:
-                            errors.append(str(e.detail))
-                            resolved_scope = None
+                    try:
+                        resolved_scope = validate_and_resolve_scope(resolved_scope, deployments)
+                    except HTTPException as e:
+                        errors.append(str(e.detail))
+                        resolved_scope = None
 
             except Exception as e:
                 errors.append(f"Fehler: {str(e)}")
