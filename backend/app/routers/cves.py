@@ -14,7 +14,7 @@ from ..models.escalation import Escalation
 from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
-from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, SeverityLevel
+from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, ImageCveDetail, ImageCveGroup, SeverityLevel
 from ..schemas.common import PaginatedResponse
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..stackrox import queries as sx
@@ -67,6 +67,142 @@ async def list_cves(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/by-image", response_model=list[ImageCveGroup])
+async def list_cves_by_image(
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
+    search: str | None = Query(None),
+    severity: int | None = Query(None),
+    fixable: bool | None = Query(None),
+    cvss_min: float | None = Query(None, ge=0, le=10),
+    epss_min: float | None = Query(None, ge=0, le=1),
+    component: str | None = Query(None),
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> list[ImageCveGroup]:
+    """CVEs grouped by container image — shows which images have the most CVEs."""
+    settings = await _get_settings(app_db)
+    if current_user.is_sec_team:
+        min_cvss = 0.0
+        min_epss = 0.0
+    else:
+        min_cvss = float(settings.min_cvss_score) if settings else 0.0
+        min_epss = float(settings.min_epss_score) if settings else 0.0
+
+    from ._scope import narrow_namespaces
+
+    has_scope = cluster is not None or namespace is not None
+    if current_user.is_sec_team:
+        if has_scope:
+            all_ns = await sx.list_namespaces(sx_db)
+            namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
+                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+            )
+        else:
+            namespaces_list = None
+    else:
+        if not current_user.has_namespaces:
+            return []
+        namespaces_list = narrow_namespaces(current_user.namespaces, cluster, namespace)
+
+    prio_result = await app_db.execute(select(CvePriority.cve_id))
+    always_show: set[str] = {row[0] for row in prio_result}
+    ra_result = await app_db.execute(
+        select(RiskAcceptance.cve_id).where(
+            RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+        )
+    )
+    always_show |= {row[0] for row in ra_result}
+
+    rows = await sx.get_cves_grouped_by_image(
+        sx_db, namespaces_list, min_cvss, min_epss, always_show,
+        search=search, severity=severity, fixable=fixable,
+        cvss_min=cvss_min, epss_min=epss_min, component=component,
+    )
+    return [
+        ImageCveGroup(
+            image_name=r["image_name"] or "unknown",
+            image_id=r["image_id"] or "",
+            total_cves=r["total_cves"],
+            critical_cves=r["critical_cves"],
+            high_cves=r["high_cves"],
+            medium_cves=r["medium_cves"],
+            low_cves=r["low_cves"],
+            max_cvss=float(r["max_cvss"]),
+            max_epss=float(r["max_epss"]),
+            fixable_cves=r["fixable_cves"],
+            affected_deployments=r["affected_deployments"],
+            namespaces=list(r["namespaces"]) if r["namespaces"] else [],
+            clusters=list(r["clusters"]) if r["clusters"] else [],
+        )
+        for r in rows
+    ]
+
+
+@router.get("/by-image/{image_id:path}/cves", response_model=list[ImageCveDetail])
+async def list_cves_for_image(
+    image_id: str,
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> list[ImageCveDetail]:
+    """Get all visible CVEs for a specific image."""
+    settings = await _get_settings(app_db)
+    if current_user.is_sec_team:
+        min_cvss = 0.0
+        min_epss = 0.0
+    else:
+        min_cvss = float(settings.min_cvss_score) if settings else 0.0
+        min_epss = float(settings.min_epss_score) if settings else 0.0
+
+    from ._scope import narrow_namespaces
+
+    has_scope = cluster is not None or namespace is not None
+    if current_user.is_sec_team:
+        if has_scope:
+            all_ns = await sx.list_namespaces(sx_db)
+            namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
+                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+            )
+        else:
+            namespaces_list = None
+    else:
+        if not current_user.has_namespaces:
+            return []
+        namespaces_list = narrow_namespaces(current_user.namespaces, cluster, namespace)
+
+    prio_result = await app_db.execute(select(CvePriority.cve_id))
+    always_show: set[str] = {row[0] for row in prio_result}
+    ra_result = await app_db.execute(
+        select(RiskAcceptance.cve_id).where(
+            RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+        )
+    )
+    always_show |= {row[0] for row in ra_result}
+
+    rows = await sx.get_cves_for_image(
+        sx_db, image_id, namespaces_list, min_cvss, min_epss, always_show,
+    )
+    return [
+        ImageCveDetail(
+            cve_id=r["cve_id"],
+            severity=SeverityLevel(r["severity"]),
+            cvss=float(r["cvss"]),
+            epss_probability=float(r["epss_probability"]),
+            impact_score=float(r["impact_score"]),
+            fixable=bool(r["fixable"]),
+            fixed_by=r.get("fixed_by"),
+            affected_deployments=int(r["affected_deployments"]),
+            first_seen=r.get("first_seen"),
+            published_on=r.get("published_on"),
+        )
+        for r in rows
+    ]
 
 
 @router.get("/{cve_id}", response_model=CveDetail)

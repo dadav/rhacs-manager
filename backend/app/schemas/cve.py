@@ -67,6 +67,36 @@ class CveDetail(CveListItem):
     escalation_level3_expected: datetime | None = None
 
 
+class ImageCveGroup(BaseModel):
+    image_name: str
+    image_id: str
+    total_cves: int
+    critical_cves: int
+    high_cves: int
+    medium_cves: int
+    low_cves: int
+    max_cvss: float
+    max_epss: float
+    fixable_cves: int
+    affected_deployments: int
+    namespaces: list[str]
+    clusters: list[str]
+
+
+class ImageCveDetail(BaseModel):
+    """CVEs for a specific image — lighter than full CveListItem."""
+    cve_id: str
+    severity: SeverityLevel
+    cvss: float
+    epss_probability: float
+    impact_score: float
+    fixable: bool
+    fixed_by: str | None
+    affected_deployments: int
+    first_seen: datetime | None
+    published_on: datetime | None = None
+
+
 class CveListParams(BaseModel):
     page: int = 1
     page_size: int = 50

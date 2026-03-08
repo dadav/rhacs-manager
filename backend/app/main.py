@@ -16,6 +16,7 @@ from .routers import (
     namespaces,
     notifications,
     priorities,
+    remediations,
     risk_acceptances,
     settings,
 )
@@ -64,6 +65,7 @@ for router_module in [
     risk_acceptances,
     priorities,
     escalations,
+    remediations,
     notifications,
     badges,
     settings,

@@ -29,7 +29,7 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 | `backend/app/auth/middleware.py`     | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser` with `namespaces`                                           |
 | `backend/app/auth/group_mapping.py`  | Resolves sec_team role from Keycloak groups                                                                                       |
 | `backend/app/stackrox/queries.py`    | All read-only StackRox SQL queries                                                                                                |
-| `backend/app/routers/`               | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, audit, escalations, namespaces |
+| `backend/app/routers/`               | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, audit, escalations, remediations, namespaces |
 | `backend/app/models/`                | SQLAlchemy ORM models (app DB)                                                                                                    |
 | `backend/app/tasks/scheduler.py`     | APScheduler background jobs (escalation, digest)                                                                                  |
 | `backend/app/badges/generator.py`    | Pure Python SVG badge generator                                                                                                   |
@@ -107,6 +107,7 @@ import { getErrorMessage } from '../utils/errors'
 - CSS import: `@patternfly/react-core/dist/styles/base.css` (declare `*.css` in `vite-env.d.ts`)
 - CVE table priority indicator should use badge text `PRIO` and a theme-tolerant style (accent stripe + subtle tint) so it remains readable in dark mode and visible in light mode.
 - Notification dropdown panels rendered from masthead actions must set an explicit text color when using a light background, otherwise masthead foreground inheritance can cause white-on-white content.
+- `Button` uses `size="sm"` for small buttons (not `isSmall` — removed in PF6).
 - For PatternFly `NavItem` + `react-router-dom` `Link` children, do not set inline `color: inherit`; it can override PF nav-link color tokens and make sidebar text unreadable in light mode.
 - Sidebar nav colors must be mode-aware: keep dark-sidebar link colors for dark mode, but override link/title/active colors in light mode for readable contrast, especially in mobile overlay navigation.
 
@@ -236,6 +237,14 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - Badges are scoped by `created_by` (user) + optional `namespace`/`cluster_name`.
 - Badge API responses return relative paths by default (`/api/badges/{token}/status.svg`), but when `BADGE_BASE_URL` is set (e.g. to the API route URL), returns fully qualified URLs. This is required on OpenShift where the frontend route goes through oauth-proxy — external badge consumers need to hit the API route directly (no auth). Frontend handles both absolute and relative badge URLs.
 - `risk_acceptances.status`: `requested | approved | rejected | expired`
+- `remediations` track active CVE fix efforts, namespace-scoped: unique on `(cve_id, namespace, cluster_name)`.
+- `remediations.status`: `open | in_progress | resolved | verified | wont_fix`
+- Remediation workflow: `open → in_progress → resolved → verified` (sec team only verifies). `wont_fix` requires reason.
+- Remediation creation is CVE-contextual: users create from CVE detail page, selecting a namespace.
+- Scheduler auto-resolves remediations when StackRox no longer shows the CVE in the namespace's deployments.
+- Scheduler sends overdue notifications for remediations past their `target_date`.
+- `/behebungen` page lists all remediations with status/overdue filters and stat cards.
+- CVE detail page shows a "Behebungen" section with per-namespace remediation cards and inline status transitions.
 - `users.role`: `team_member | sec_team`
 
 ## Containers & Deploy

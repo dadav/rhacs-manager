@@ -6,6 +6,7 @@ from .escalation import Escalation
 from .global_settings import GlobalSettings
 from .namespace_contact import NamespaceContact
 from .notification import Notification, NotificationType
+from .remediation import Remediation, RemediationStatus
 from .risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from .user import User, UserRole
 
@@ -25,4 +26,6 @@ __all__ = [
     "NotificationType",
     "AuditLog",
     "NamespaceContact",
+    "Remediation",
+    "RemediationStatus",
 ]

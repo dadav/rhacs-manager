@@ -13,14 +13,13 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
-  Tooltip,
 } from '@patternfly/react-core'
-import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, ShieldAltIcon } from '@patternfly/react-icons'
+import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, AngleRightIcon, AngleDownIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useCves } from '../api/cves'
+import { useCves, useCvesByImage, useCvesForImage } from '../api/cves'
 import { exportPdf, exportExcel } from '../api/exports'
 import { useThresholds } from '../api/settings'
 
@@ -30,6 +29,115 @@ import { EpssBadge } from '../components/common/EpssBadge'
 import { ExcelImportModal } from '../components/ExcelImportModal'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { Severity } from '../types'
+import type { ImageCveGroup } from '../types'
+
+/* ── Image-grouped expandable row ── */
+
+function ImageRow({ group, scope }: { group: ImageCveGroup; scope: ScopeParams }) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope)
+
+  const imgThStyle: React.CSSProperties = {
+    padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap',
+    borderBottom: '2px solid #d2d2d2', color: 'var(--pf-v6-global--Color--100)',
+  }
+
+  return (
+    <>
+      <tr
+        style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <td style={{ padding: '8px 12px', width: 28 }}>
+          {expanded ? <AngleDownIcon /> : <AngleRightIcon />}
+        </td>
+        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.image_name}>
+          {group.image_name}
+        </td>
+        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{group.total_cves}</td>
+        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#a30000' }}>{group.critical_cves || '–'}</td>
+        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#c9190b' }}>{group.high_cves || '–'}</td>
+        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#f0ab00' }}>{group.medium_cves || '–'}</td>
+        <td style={{ padding: '8px 12px', textAlign: 'right', color: '#6a6e73' }}>{group.low_cves || '–'}</td>
+        <td style={{ padding: '8px 12px', fontWeight: group.max_cvss >= 9 ? 700 : 400, color: group.max_cvss >= 9 ? '#c9190b' : 'inherit' }}>
+          {group.max_cvss.toFixed(1)}
+        </td>
+        <td style={{ padding: '8px 12px' }}><EpssBadge value={group.max_epss} /></td>
+        <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+          {group.fixable_cves > 0 ? (
+            <span style={{ color: '#1e8f19' }}>{group.fixable_cves}</span>
+          ) : '–'}
+        </td>
+        <td style={{ padding: '8px 12px', textAlign: 'right' }}>{group.affected_deployments}</td>
+        <td style={{ padding: '8px 12px', fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.namespaces.join(', ')}>
+          {group.namespaces.join(', ')}
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={12} style={{ padding: 0 }}>
+            <div style={{ padding: '8px 16px 12px 40px', background: 'var(--pf-v6-global--BackgroundColor--200)' }}>
+              {group.fixable_cves > 0 && (
+                <div style={{
+                  padding: '6px 12px', marginBottom: 8, fontSize: 12, fontWeight: 600,
+                  background: 'rgba(30, 143, 25, 0.1)', color: '#1e8f19',
+                  borderRadius: 4, display: 'inline-block',
+                }}>
+                  {t('cves.imageGroupFixHint', { count: group.fixable_cves })}
+                </div>
+              )}
+              {isLoading ? (
+                <Spinner size="md" aria-label="Laden" />
+              ) : !cves?.length ? (
+                <div style={{ color: '#6a6e73', fontSize: 13 }}>{t('cves.imageGroupNoCves')}</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      <th style={imgThStyle}>{t('cves.cveId')}</th>
+                      <th style={imgThStyle}>{t('cves.severity')}</th>
+                      <th style={imgThStyle}>{t('cves.cvss')}</th>
+                      <th style={imgThStyle}>{t('cves.epss')}</th>
+                      <th style={imgThStyle}>{t('cves.fixable')}</th>
+                      <th style={imgThStyle}>{t('cves.fixVersion')}</th>
+                      <th style={imgThStyle}>{t('cves.affectedDeployments')}</th>
+                      <th style={imgThStyle}>{t('cves.firstSeen')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cves.map(cve => (
+                      <tr key={cve.cve_id} style={{ borderBottom: '1px solid #e0e0e0' }}>
+                        <td style={{ padding: '6px 12px' }}>
+                          <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
+                            {cve.cve_id}
+                          </Link>
+                        </td>
+                        <td style={{ padding: '6px 12px' }}><SeverityBadge severity={cve.severity} /></td>
+                        <td style={{ padding: '6px 12px', fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? '#c9190b' : 'inherit' }}>
+                          {cve.cvss.toFixed(1)}
+                        </td>
+                        <td style={{ padding: '6px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
+                        <td style={{ padding: '6px 12px' }}>
+                          {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
+                        </td>
+                        <td style={{ padding: '6px 12px', fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</td>
+                        <td style={{ padding: '6px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
+                        <td style={{ padding: '6px 12px', fontSize: 11, color: '#6a6e73' }}>
+                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
 
 const SEVERITY_OPTIONS = [
   { label: 'Alle', value: '' },
@@ -77,6 +185,7 @@ export function CveList() {
   const urlAgeMax     = searchParams.get('age_max') || ''
   const urlDeployment = searchParams.get('deployment') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
+  const urlViewMode   = searchParams.get('view') === 'image' ? 'image' : 'cve'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
   const [searchInput, setSearchInput]       = useState(urlSearch)
@@ -185,6 +294,15 @@ export function CveList() {
     namespace: urlNamespace || scopeParams.namespace,
   }
   const { data, isLoading, error } = useCves(params, scopeOverrides)
+  const imageFilters = {
+    search: debouncedSearch || undefined,
+    severity: urlSeverity ? Number(urlSeverity) : undefined,
+    fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
+    cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
+    epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
+    component: debouncedComponent || undefined,
+  }
+  const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(scopeOverrides, imageFilters)
   const { isSecTeam } = useAuth()
   const { data: thresholds } = useThresholds()
 
@@ -222,6 +340,11 @@ export function CveList() {
     (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
   // --- Styles ---
+  const imgThStyle: React.CSSProperties = {
+    padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap',
+    borderBottom: '2px solid #d2d2d2', color: 'var(--pf-v6-global--Color--100)',
+  }
+
   const thStyle = (col: string): React.CSSProperties => ({
     padding: '10px 12px',
     textAlign: 'left',
@@ -336,6 +459,32 @@ export function CveList() {
                   </span>
                 )}
               </button>
+            </ToolbarItem>
+            <ToolbarItem>
+              <div style={{ display: 'inline-flex', borderRadius: 4, border: '1px solid #d2d2d2', overflow: 'hidden' }}>
+                <button
+                  onClick={() => updateParams({ view: null }, false)}
+                  style={{
+                    height: 36, padding: '0 12px', border: 'none', cursor: 'pointer',
+                    fontSize: 13, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: urlViewMode === 'cve' ? '#0066cc' : 'transparent',
+                    color: urlViewMode === 'cve' ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                  }}
+                >
+                  {t('cves.viewByCve')}
+                </button>
+                <button
+                  onClick={() => updateParams({ view: 'image' }, false)}
+                  style={{
+                    height: 36, padding: '0 12px', border: 'none', borderLeft: '1px solid #d2d2d2', cursor: 'pointer',
+                    fontSize: 13, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: urlViewMode === 'image' ? '#0066cc' : 'transparent',
+                    color: urlViewMode === 'image' ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                  }}
+                >
+                  {t('cves.viewByImage')}
+                </button>
+              </div>
             </ToolbarItem>
             <ToolbarItem>
               <Dropdown
@@ -525,103 +674,116 @@ export function CveList() {
       </PageSection>
 
       <PageSection>
-        {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
-        ) : !data?.items.length ? (
-          <Alert variant="info" isInline title={t('cves.noResults')} />
-        ) : (
-          <>
+        {urlViewMode === 'image' ? (
+          /* ── Image-grouped view ── */
+          imageLoading ? <Spinner aria-label="Laden" /> : imageError ? (
+            <Alert variant="danger" title={`Fehler: ${getErrorMessage(imageError)}`} />
+          ) : !imageData?.length ? (
+            <Alert variant="info" isInline title={t('cves.imageGroupNoImages')} />
+          ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
-                    <th style={thStyle('cve_id')} onClick={() => handleSort('cve_id')}>{t('cves.cveId')}</th>
-                    <th style={thStyle('severity')} onClick={() => handleSort('severity')}>{t('cves.severity')}</th>
-                    <th style={thStyle('cvss')} onClick={() => handleSort('cvss')}>{t('cves.cvss')}</th>
-                    <th style={thStyle('epss_probability')} onClick={() => handleSort('epss_probability')}>{t('cves.epss')}</th>
-                    <th style={{ ...thStyle('component'), cursor: 'default' }}>{t('cves.componentName')}</th>
-                    <th style={thStyle('affected_images')} onClick={() => handleSort('affected_images')}>{t('cves.affectedImages')}</th>
-                    <th style={thStyle('affected_deployments')} onClick={() => handleSort('affected_deployments')}>{t('cves.affectedDeployments')}</th>
-                    <th style={thStyle('fixable')}>{t('cves.fixable')}</th>
-                    <th style={thStyle('fixed_by')}>{t('cves.fixVersion')}</th>
-                    <th style={thStyle('first_seen')} onClick={() => handleSort('first_seen')}>{t('cves.firstSeen')}</th>
-                    <th style={thStyle('published_on')} onClick={() => handleSort('published_on')}>{t('cves.publishedOn')}</th>
-                    <th style={thStyle('actions')}></th>
+                    <th style={{ ...imgThStyle, width: 28 }}></th>
+                    <th style={imgThStyle}>{t('cves.imageGroupImage')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupTotalCves')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupCritical')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupHigh')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupMedium')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupLow')}</th>
+                    <th style={imgThStyle}>{t('cves.imageGroupMaxCvss')}</th>
+                    <th style={imgThStyle}>{t('cves.imageGroupMaxEpss')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupFixable')}</th>
+                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupDeployments')}</th>
+                    <th style={imgThStyle}>{t('cves.imageGroupNamespaces')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.items.map(cve => (
-                    <tr key={cve.cve_id} style={getRowStyle(cve.has_priority)}>
-                      <td style={{ padding: '8px 12px' }}>
-                        <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
-                          {cve.cve_id}
-                        </Link>
-                        {cve.has_priority && (
-                          <span style={{
-                            marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                            background: 'rgba(236, 122, 8, 0.18)', color: '#ec7a08',
-                            border: '1px solid rgba(236, 122, 8, 0.45)', padding: '1px 5px', borderRadius: 3,
-                          }}>PRIO</span>
-                        )}
-                        {cve.has_risk_acceptance && cve.risk_acceptance_status === 'approved' && (
-                          <span style={{
-                            marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                            background: 'rgba(30, 143, 25, 0.18)', color: '#1e8f19',
-                            border: '1px solid rgba(30, 143, 25, 0.45)', padding: '1px 5px', borderRadius: 3,
-                          }}>ACK</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '8px 12px' }}><SeverityBadge severity={cve.severity} /></td>
-                      <td style={{ padding: '8px 12px', fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? '#c9190b' : 'inherit' }}>
-                        {cve.cvss.toFixed(1)}
-                      </td>
-                      <td style={{ padding: '8px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
-                      <td style={{ padding: '8px 12px', maxWidth: 200, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {cve.component_names.length > 0 ? (
-                          <span title={cve.component_names.join(', ')}>
-                            {cve.component_names.join(', ')}
-                          </span>
-                        ) : '–'}
-                      </td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_images}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
-                      <td style={{ padding: '8px 12px' }}>
-                        {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
-                      </td>
-                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cve.fixed_by ?? undefined}>{cve.fixed_by ?? '–'}</td>
-                      <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
-                        {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
-                      </td>
-                      <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
-                        {cve.published_on ? new Date(cve.published_on).toLocaleDateString('de-DE') : '–'}
-                      </td>
-                      <td style={{ padding: '8px 12px', textAlign: 'center', width: 40 }}>
-                        <Tooltip content={t('cves.requestRiskAcceptance')}>
-                          <Link to={`/risikoakzeptanzen/neu?cve=${cve.cve_id}`}>
-                            <button
-                              aria-label={t('cves.requestRiskAcceptance')}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6a6e73', padding: '2px 6px', lineHeight: 1 }}
-                            >
-                              <ShieldAltIcon />
-                            </button>
-                          </Link>
-                        </Tooltip>
-                      </td>
-                    </tr>
+                  {imageData.map(group => (
+                    <ImageRow key={group.image_id} group={group} scope={scopeOverrides} />
                   ))}
                 </tbody>
               </table>
             </div>
-            <div style={{ marginTop: 16 }}>
-              <Pagination
-                itemCount={data.total}
-                perPage={50}
-                page={urlPage}
-                onSetPage={(_, p) => setPage(p)}
-                variant="bottom"
-              />
-            </div>
-          </>
+          )
+        ) : (
+          /* ── Per-CVE view ── */
+          isLoading ? <Spinner aria-label="Laden" /> : error ? (
+            <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+          ) : !data?.items.length ? (
+            <Alert variant="info" isInline title={t('cves.noResults')} />
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle('cve_id')} onClick={() => handleSort('cve_id')}>{t('cves.cveId')}</th>
+                      <th style={thStyle('severity')} onClick={() => handleSort('severity')}>{t('cves.severity')}</th>
+                      <th style={thStyle('cvss')} onClick={() => handleSort('cvss')}>{t('cves.cvss')}</th>
+                      <th style={thStyle('epss_probability')} onClick={() => handleSort('epss_probability')}>{t('cves.epss')}</th>
+                      <th style={thStyle('affected_images')} onClick={() => handleSort('affected_images')}>{t('cves.affectedImages')}</th>
+                      <th style={thStyle('affected_deployments')} onClick={() => handleSort('affected_deployments')}>{t('cves.affectedDeployments')}</th>
+                      <th style={thStyle('fixable')}>{t('cves.fixable')}</th>
+                      <th style={thStyle('first_seen')} onClick={() => handleSort('first_seen')}>{t('cves.firstSeen')}</th>
+                      <th style={thStyle('published_on')} onClick={() => handleSort('published_on')}>{t('cves.publishedOn')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map(cve => (
+                      <tr key={cve.cve_id} style={getRowStyle(cve.has_priority)}>
+                        <td style={{ padding: '8px 12px' }}>
+                          <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
+                            {cve.cve_id}
+                          </Link>
+                          {cve.has_priority && (
+                            <span style={{
+                              marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                              background: 'rgba(236, 122, 8, 0.18)', color: '#ec7a08',
+                              border: '1px solid rgba(236, 122, 8, 0.45)', padding: '1px 5px', borderRadius: 3,
+                            }}>PRIO</span>
+                          )}
+                          {cve.has_risk_acceptance && cve.risk_acceptance_status === 'approved' && (
+                            <span style={{
+                              marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                              background: 'rgba(30, 143, 25, 0.18)', color: '#1e8f19',
+                              border: '1px solid rgba(30, 143, 25, 0.45)', padding: '1px 5px', borderRadius: 3,
+                            }}>ACK</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}><SeverityBadge severity={cve.severity} /></td>
+                        <td style={{ padding: '8px 12px', fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? '#c9190b' : 'inherit' }}>
+                          {cve.cvss.toFixed(1)}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}><EpssBadge value={cve.epss_probability} /></td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_images}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
+                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
+                          {cve.published_on ? new Date(cve.published_on).toLocaleDateString('de-DE') : '–'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <Pagination
+                  itemCount={data.total}
+                  perPage={50}
+                  page={urlPage}
+                  onSetPage={(_, p) => setPage(p)}
+                  variant="bottom"
+                />
+              </div>
+            </>
+          )
         )}
       </PageSection>
 

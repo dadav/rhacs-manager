@@ -16,6 +16,9 @@ class NotificationType(str, enum.Enum):
     new_priority = "new_priority"
     escalation = "escalation"
     new_critical_cve = "new_critical_cve"
+    remediation_created = "remediation_created"
+    remediation_status = "remediation_status"
+    remediation_overdue = "remediation_overdue"
 
 
 class Notification(Base):

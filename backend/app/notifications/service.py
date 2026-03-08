@@ -129,3 +129,89 @@ async def notify_escalation(
         await create_notification(
             session, user.id, NotificationType.escalation, title, msg, link
         )
+
+
+async def notify_remediation_created(
+    session: AsyncSession,
+    remediation: "Remediation",  # type: ignore[name-defined]
+    creator: "User",  # type: ignore[name-defined]
+) -> None:
+    """Notify sec team about a new remediation."""
+    link = f"/behebungen"
+    title = f"Neue Behebung: {remediation.cve_id}"
+    msg = f"{creator.username} hat eine Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} erstellt."
+
+    for user in await _get_sec_team_users(session):
+        if user.id != creator.id:
+            await create_notification(
+                session, user.id, NotificationType.remediation_created, title, msg, link
+            )
+
+
+async def notify_remediation_status_change(
+    session: AsyncSession,
+    remediation: "Remediation",  # type: ignore[name-defined]
+    actor: "User",  # type: ignore[name-defined]
+    old_status: str,
+    new_status: str,
+) -> None:
+    """Notify relevant users about remediation status changes."""
+    status_labels = {
+        "open": "Offen",
+        "in_progress": "In Bearbeitung",
+        "resolved": "Behoben",
+        "verified": "Verifiziert",
+        "wont_fix": "Wird nicht behoben",
+    }
+    link = f"/behebungen"
+    new_label = status_labels.get(new_status, new_status)
+    title = f"Behebung {new_label}: {remediation.cve_id}"
+    msg = f"Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name}: {new_label}"
+
+    recipients: set[str] = set()
+
+    if new_status in ("resolved", "in_progress"):
+        # Notify sec team for verification / awareness
+        for user in await _get_sec_team_users(session):
+            recipients.add(user.id)
+
+    if new_status == "verified":
+        # Notify creator and assignee
+        recipients.add(remediation.created_by)
+        if remediation.assigned_to:
+            recipients.add(remediation.assigned_to)
+
+    if new_status == "wont_fix":
+        # Notify sec team for awareness
+        for user in await _get_sec_team_users(session):
+            recipients.add(user.id)
+
+    # Don't notify the actor
+    recipients.discard(actor.id)
+
+    for user_id in recipients:
+        await create_notification(
+            session, user_id, NotificationType.remediation_status, title, msg, link
+        )
+
+
+async def notify_remediation_overdue(
+    session: AsyncSession,
+    remediation: "Remediation",  # type: ignore[name-defined]
+) -> None:
+    """Notify creator, assignee, and sec team about overdue remediation."""
+    link = f"/behebungen"
+    title = f"Behebung überfällig: {remediation.cve_id}"
+    msg = f"Die Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} ist überfällig."
+
+    recipients: set[str] = set()
+    recipients.add(remediation.created_by)
+    if remediation.assigned_to:
+        recipients.add(remediation.assigned_to)
+    for user in await _get_sec_team_users(session):
+        recipients.add(user.id)
+
+    for user_id in recipients:
+        await create_notification(
+            session, user_id, NotificationType.remediation_overdue, title, msg, link
+        )

@@ -838,6 +838,169 @@ async def get_threshold_preview(
     return {"total_cves": total, "visible_cves": visible, "hidden_cves": total - visible}
 
 
+async def get_cves_grouped_by_image(
+    session: AsyncSession,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+    *,
+    search: str | None = None,
+    severity: int | None = None,
+    fixable: bool | None = None,
+    cvss_min: float | None = None,
+    epss_min: float | None = None,
+    component: str | None = None,
+) -> list[dict]:
+    """Group CVEs by container image. Returns one row per image with CVE counts and severity breakdown.
+
+    Each row includes: image_name, image_id, total_cves, critical/high/medium/low counts,
+    max_cvss, max_epss, fixable_cves, affected_deployments, and the list of namespaces.
+    """
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    # Build additional CTE-level filters for user-facing filters
+    cte_extra_joins = ""
+    cte_extra_having = ""
+    params: dict = {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show}
+
+    if search:
+        cte_extra_having += "\n                AND ic.cvebaseinfo_cve ILIKE :search_pat"
+        params["search_pat"] = f"%{search}%"
+    if severity is not None:
+        cte_extra_having += "\n                AND MAX(ic.severity) = :filter_severity"
+        params["filter_severity"] = severity
+    if fixable is True:
+        cte_extra_having += "\n                AND BOOL_OR(COALESCE(ic.isfixable, false))"
+    elif fixable is False:
+        cte_extra_having += "\n                AND NOT BOOL_OR(COALESCE(ic.isfixable, false))"
+    if cvss_min is not None and cvss_min > 0:
+        cte_extra_having += "\n                AND MAX(COALESCE(ic.cvss, 0)) >= :user_cvss_min"
+        params["user_cvss_min"] = cvss_min
+    if epss_min is not None and epss_min > 0:
+        cte_extra_having += "\n                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :user_epss_min"
+        params["user_epss_min"] = epss_min
+    if component:
+        cte_extra_joins = "\n            LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid"
+        cte_extra_having += "\n                AND BOOL_OR(comp.name ILIKE :comp_pat)"
+        params["comp_pat"] = f"%{component}%"
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT ic.cvebaseinfo_cve AS cve_id
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id{cte_extra_joins}
+            {where_clause}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            ){cte_extra_having}
+        )
+        SELECT
+            dc.image_name_fullname              AS image_name,
+            dc.image_id                         AS image_id,
+            COUNT(DISTINCT vc.cve_id)           AS total_cves,
+            COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity = 4) AS critical_cves,
+            COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity = 3) AS high_cves,
+            COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity = 2) AS medium_cves,
+            COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity <= 1) AS low_cves,
+            MAX(COALESCE(ic.cvss, 0))           AS max_cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS max_epss,
+            COUNT(DISTINCT vc.cve_id) FILTER (WHERE COALESCE(ic.isfixable, false)) AS fixable_cves,
+            COUNT(DISTINCT d.id)                AS affected_deployments,
+            ARRAY_AGG(DISTINCT d.namespace)     AS namespaces,
+            ARRAY_AGG(DISTINCT d.clustername)    AS clusters
+        FROM visible_cves vc
+        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN deployments_containers dc ON dc.image_id = ic.imageid
+        JOIN deployments d ON d.id = dc.deployments_id
+        {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+        GROUP BY dc.image_name_fullname, dc.image_id
+        ORDER BY total_cves DESC
+    """)
+    result = await session.execute(sql, params)
+    return [dict(row._mapping) for row in result]
+
+
+async def get_cves_for_image(
+    session: AsyncSession,
+    image_id: str,
+    namespaces: list[tuple[str, str]] | None = None,
+    min_cvss: float = 0.0,
+    min_epss: float = 0.0,
+    always_show_cve_ids: set[str] | None = None,
+) -> list[dict]:
+    """Get all visible CVEs for a specific image."""
+    if namespaces is not None and len(namespaces) == 0:
+        return []
+
+    always_show = list(always_show_cve_ids or [])
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        where_clause = ""
+
+    sql = text(f"""
+        WITH visible_cves AS (
+            SELECT ic.cvebaseinfo_cve AS cve_id
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+            GROUP BY ic.cvebaseinfo_cve
+            HAVING (
+                (
+                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
+                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
+                )
+                OR ic.cvebaseinfo_cve = ANY(:always_show)
+            )
+        )
+        SELECT
+            ic.cvebaseinfo_cve              AS cve_id,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            MIN(ic.firstimageoccurrence)    AS first_seen,
+            MIN(ic.cvebaseinfo_publishedon) AS published_on,
+            COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
+            MAX(ic.fixedby)                 AS fixed_by
+        FROM visible_cves vc
+        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+            AND ic.imageid = :image_id
+        JOIN deployments_containers dc ON dc.image_id = ic.imageid
+        JOIN deployments d ON d.id = dc.deployments_id
+        WHERE 1=1 {where_clause}
+        GROUP BY ic.cvebaseinfo_cve
+        ORDER BY severity DESC, cvss DESC
+    """)
+    result = await session.execute(
+        sql,
+        {"image_id": image_id, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+    )
+    return [dict(row._mapping) for row in result]
+
+
 async def list_namespaces(session: AsyncSession) -> list[dict]:
     sql = text("""
         SELECT DISTINCT namespace, clustername AS cluster_name

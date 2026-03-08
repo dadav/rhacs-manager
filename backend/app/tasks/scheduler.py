@@ -12,6 +12,7 @@ from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
+from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
 from ..mail import service as mail_svc
@@ -221,6 +222,63 @@ async def run_escalation_check() -> None:
         logger.info("Escalation check complete")
 
 
+async def run_remediation_overdue_check() -> None:
+    """Notify users about overdue remediations (target_date passed, still open/in_progress)."""
+    logger.info("Running remediation overdue check")
+    async with AppSessionLocal() as session:
+        today = datetime.utcnow().date()
+        result = await session.execute(
+            select(Remediation).where(
+                Remediation.target_date != None,
+                Remediation.target_date < today,
+                Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
+            )
+        )
+        for remediation in result.scalars().all():
+            await notif_svc.notify_remediation_overdue(session, remediation)
+        await session.commit()
+    logger.info("Remediation overdue check complete")
+
+
+async def run_remediation_auto_resolve() -> None:
+    """Auto-resolve remediations when the CVE is no longer present in the namespace."""
+    logger.info("Running remediation auto-resolve")
+    async with AppSessionLocal() as app_session:
+        result = await app_session.execute(
+            select(Remediation).where(
+                Remediation.status.in_([
+                    RemediationStatus.open,
+                    RemediationStatus.in_progress,
+                ]),
+            )
+        )
+        active = result.scalars().all()
+        if not active:
+            return
+
+        async with StackRoxSessionLocal() as sx_session:
+            from ..stackrox.queries import get_affected_deployments
+
+            for remediation in active:
+                deployments = await get_affected_deployments(
+                    sx_session,
+                    remediation.cve_id,
+                    [(remediation.namespace, remediation.cluster_name)],
+                )
+                if not deployments:
+                    remediation.status = RemediationStatus.resolved
+                    remediation.resolved_at = datetime.utcnow()
+                    remediation.notes = (remediation.notes or "") + "\n[Automatisch behoben: CVE nicht mehr in Deployments gefunden]"
+                    logger.info(
+                        "Auto-resolved remediation %s for CVE %s in %s/%s",
+                        remediation.id, remediation.cve_id,
+                        remediation.namespace, remediation.cluster_name,
+                    )
+
+        await app_session.commit()
+    logger.info("Remediation auto-resolve complete")
+
+
 async def _send_digest() -> None:
     """Core digest logic: gather stats and send email. Called by scheduled and manual triggers."""
     if not app_settings.management_email:
@@ -314,5 +372,19 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=7,
         minute=0,
         id="weekly_digest",
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(run_remediation_overdue_check()),
+        "cron",
+        hour=8,
+        minute=30,
+        id="remediation_overdue_check",
+    )
+    scheduler.add_job(
+        lambda: asyncio.ensure_future(run_remediation_auto_resolve()),
+        "cron",
+        hour=9,
+        minute=0,
+        id="remediation_auto_resolve",
     )
     return scheduler

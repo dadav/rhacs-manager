@@ -35,6 +35,7 @@ import { Escalations } from "./pages/Escalations";
 import { Settings } from "./pages/Settings";
 import { AuditLog } from "./pages/AuditLog";
 import { Badges } from "./pages/Badges";
+import { Remediations } from "./pages/Remediations";
 import { OnboardingModal } from "./components/OnboardingModal";
 
 interface NavEntry {
@@ -45,6 +46,7 @@ interface NavEntry {
 const TEAM_NAV_ITEMS: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/schwachstellen", label: "Schwachstellen" },
+  { to: "/behebungen", label: "Behebungen" },
   { to: "/risikoakzeptanzen", label: "Risikoakzeptanzen" },
   { to: "/prioritaeten", label: "Prioritäten" },
   { to: "/eskalationen", label: "Eskalationen" },
@@ -235,6 +237,7 @@ export function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/schwachstellen" element={<CveList />} />
         <Route path="/schwachstellen/:cveId" element={<CveDetail />} />
+        <Route path="/behebungen" element={<Remediations />} />
         <Route path="/risikoakzeptanzen" element={<RiskAcceptances />} />
         <Route
           path="/risikoakzeptanzen/:id"

@@ -23,9 +23,13 @@ import { useState } from "react";
 import { getErrorMessage } from "../utils/errors";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
+import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
-import { CveDetail as CveDetailType, RiskStatus } from "../types";
+import { useAuth } from "../hooks/useAuth";
+import { useScope } from "../hooks/useScope";
+import { CveDetail as CveDetailType, RiskStatus, RemediationStatus } from "../types";
+import type { RemediationItem } from "../types";
 
 function DetailRow({
   label,
@@ -819,6 +823,11 @@ export function CveDetail() {
                 </GridItem>
               );
             })()}
+          {/* Remediations */}
+          <GridItem span={12}>
+            <CveRemediationSection cveId={cve.cve_id} deployments={cve.affected_deployments_list} />
+          </GridItem>
+
           {/* Comments */}
           <GridItem span={12}>
             <Card>
@@ -927,4 +936,263 @@ export function CveDetail() {
       </PageSection>
     </>
   );
+}
+
+const REM_STATUS_LABELS: Record<string, string> = {
+  open: 'Offen',
+  in_progress: 'In Bearbeitung',
+  resolved: 'Behoben',
+  verified: 'Verifiziert',
+  wont_fix: 'Wird nicht behoben',
+}
+
+const REM_STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
+  open: 'blue',
+  in_progress: 'orange',
+  resolved: 'green',
+  verified: 'teal',
+  wont_fix: 'grey',
+}
+
+function CveRemediationSection({
+  cveId,
+  deployments,
+}: {
+  cveId: string
+  deployments: { namespace: string; cluster_name: string }[]
+}) {
+  const { isSecTeam } = useAuth()
+  const { scopeParams } = useScope()
+  const { data: remediations, isLoading } = useRemediationsByCve(cveId, scopeParams)
+  const createMutation = useCreateRemediation()
+  const [showForm, setShowForm] = useState(false)
+  const [selectedNs, setSelectedNs] = useState('')
+  const [targetDate, setTargetDate] = useState('')
+  const [notes, setNotes] = useState('')
+
+  // Unique namespaces from deployments
+  const namespaces = Array.from(
+    new Map(
+      deployments.map(d => [`${d.namespace}:${d.cluster_name}`, d])
+    ).values()
+  )
+
+  // Filter to namespaces that don't already have a remediation
+  const existingKeys = new Set(
+    (remediations ?? []).map(r => `${r.namespace}:${r.cluster_name}`)
+  )
+  const availableNs = namespaces.filter(
+    d => !existingKeys.has(`${d.namespace}:${d.cluster_name}`)
+  )
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedNs) return
+    const [namespace, cluster_name] = selectedNs.split(':')
+    await createMutation.mutateAsync({
+      cve_id: cveId,
+      namespace,
+      cluster_name,
+      target_date: targetDate || null,
+      notes: notes || null,
+    })
+    setShowForm(false)
+    setSelectedNs('')
+    setTargetDate('')
+    setNotes('')
+  }
+
+  return (
+    <Card>
+      <CardTitle>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Behebungen ({remediations?.length ?? 0})</span>
+          {!isSecTeam && availableNs.length > 0 && !showForm && (
+            <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+              Behebung starten
+            </Button>
+          )}
+        </div>
+      </CardTitle>
+      <CardBody>
+        {isLoading ? (
+          <Spinner size="md" aria-label="Laden" />
+        ) : remediations && remediations.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {remediations.map(r => (
+              <RemediationCard key={r.id} item={r} isSecTeam={isSecTeam} />
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}>
+            Keine Behebungen für diese CVE.
+          </p>
+        )}
+
+        {showForm && (
+          <form onSubmit={handleCreate} style={{ marginTop: 16, padding: 12, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Namespace *</label>
+                <select
+                  value={selectedNs}
+                  onChange={e => setSelectedNs(e.target.value)}
+                  style={{
+                    display: 'block', width: '100%', marginTop: 4, height: 36, padding: '0 8px',
+                    border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4,
+                    background: 'var(--pf-t--global--background--color--primary--default)',
+                    color: 'var(--pf-t--global--text--color--regular)', fontSize: 13,
+                  }}
+                >
+                  <option value="">Namespace wählen...</option>
+                  {availableNs.map(d => (
+                    <option key={`${d.namespace}:${d.cluster_name}`} value={`${d.namespace}:${d.cluster_name}`}>
+                      {d.cluster_name}/{d.namespace}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Zieldatum</label>
+                <TextInput
+                  type="date"
+                  value={targetDate}
+                  onChange={(_, v) => setTargetDate(v)}
+                  style={{ marginTop: 4 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>Notizen</label>
+                <TextArea
+                  value={notes}
+                  onChange={(_, v) => setNotes(v)}
+                  rows={2}
+                  placeholder="Optionale Notizen..."
+                  style={{ marginTop: 4 }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button type="submit" variant="primary" size="sm" isLoading={createMutation.isPending} isDisabled={!selectedNs}>
+                  Erstellen
+                </Button>
+                <Button variant="link" size="sm" onClick={() => setShowForm(false)}>
+                  Abbrechen
+                </Button>
+              </div>
+              {createMutation.isError && (
+                <Alert variant="danger" isInline title={getErrorMessage(createMutation.error)} />
+              )}
+            </div>
+          </form>
+        )}
+      </CardBody>
+    </Card>
+  )
+}
+
+function RemediationCard({ item, isSecTeam }: { item: RemediationItem; isSecTeam: boolean }) {
+  const updateMutation = useUpdateRemediation(item.id)
+  const [showWontFix, setShowWontFix] = useState(false)
+  const [wontFixReason, setWontFixReason] = useState('')
+
+  const canVerify = isSecTeam && item.status === RemediationStatus.resolved
+  const canProgress = item.status === RemediationStatus.open
+  const canResolve = item.status === RemediationStatus.in_progress
+  const canWontFix = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
+  const canReopen = item.status === RemediationStatus.wont_fix
+
+  function handleWontFix() {
+    if (!wontFixReason.trim()) return
+    updateMutation.mutate(
+      { status: 'wont_fix', wont_fix_reason: wontFixReason },
+      { onSuccess: () => { setShowWontFix(false); setWontFixReason('') } },
+    )
+  }
+
+  return (
+    <div style={{
+      padding: 12,
+      border: '1px solid var(--pf-t--global--border--color--default)',
+      borderRadius: 4,
+      borderLeft: `3px solid ${
+        item.is_overdue ? '#c9190b'
+        : item.status === RemediationStatus.verified ? '#009596'
+        : item.status === RemediationStatus.resolved ? '#1e8f19'
+        : item.status === RemediationStatus.in_progress ? '#ec7a08'
+        : item.status === RemediationStatus.wont_fix ? '#8a8d90'
+        : 'var(--pf-t--global--color--brand--default)'
+      }`,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>
+          {item.cluster_name}/{item.namespace}
+        </span>
+        <Label color={REM_STATUS_COLORS[item.status] ?? 'grey'}>
+          {REM_STATUS_LABELS[item.status] ?? item.status}
+        </Label>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {item.assigned_to_name && <span>Zugewiesen: {item.assigned_to_name}</span>}
+        {item.target_date && (
+          <span style={{ color: item.is_overdue ? '#c9190b' : undefined, fontWeight: item.is_overdue ? 600 : 400 }}>
+            Fällig: {new Date(item.target_date).toLocaleDateString('de-DE')}
+            {item.is_overdue && ' (überfällig)'}
+          </span>
+        )}
+        <span>Erstellt: {new Date(item.created_at).toLocaleDateString('de-DE')} von {item.created_by_name}</span>
+      </div>
+      {item.notes && (
+        <p style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--pf-t--global--text--color--regular)', whiteSpace: 'pre-wrap' }}>
+          {item.notes}
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        {canProgress && (
+          <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
+            Starten
+          </Button>
+        )}
+        {canResolve && (
+          <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
+            Als behoben markieren
+          </Button>
+        )}
+        {canVerify && (
+          <Button variant="primary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
+            Verifizieren
+          </Button>
+        )}
+        {canWontFix && !showWontFix && (
+          <Button variant="link" size="sm" isDanger onClick={() => setShowWontFix(true)}>
+            Wird nicht behoben
+          </Button>
+        )}
+        {canReopen && (
+          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
+            Wiedereröffnen
+          </Button>
+        )}
+      </div>
+      {showWontFix && (
+        <div style={{ marginTop: 8, padding: 10, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
+          <label style={{ fontSize: 12, fontWeight: 600 }}>Begründung *</label>
+          <TextArea
+            value={wontFixReason}
+            onChange={(_, v) => setWontFixReason(v)}
+            rows={2}
+            placeholder="Warum wird diese CVE nicht behoben?"
+            style={{ marginTop: 4 }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <Button variant="danger" size="sm" isLoading={updateMutation.isPending} isDisabled={!wontFixReason.trim()} onClick={handleWontFix}>
+              Bestätigen
+            </Button>
+            <Button variant="link" size="sm" onClick={() => { setShowWontFix(false); setWontFixReason('') }}>
+              Abbrechen
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }

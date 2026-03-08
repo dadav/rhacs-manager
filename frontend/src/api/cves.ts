@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment } from '../types'
+import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, ImageCveGroup, ImageCveDetail } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
@@ -74,6 +74,37 @@ export function useCveComments(cveId: string) {
     queryFn: () => api.get<CveComment[]>(`/cves/${encodeURIComponent(cveId)}/comments`),
     enabled: !!cveId,
     refetchInterval: 30000,
+  })
+}
+
+interface ImageFilterParams {
+  search?: string
+  severity?: number
+  fixable?: boolean
+  cvss_min?: number
+  epss_min?: number
+  component?: string
+}
+
+export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterParams = {}) {
+  const merged = { ...filters, cluster: scope.cluster, namespace: scope.namespace }
+  return useQuery({
+    queryKey: ['cves', 'by-image', merged],
+    queryFn: () => api.get<ImageCveGroup[]>(`/cves/by-image${buildQuery(merged)}`),
+  })
+}
+
+export function useCvesForImage(imageId: string, scope: ScopeParams = {}) {
+  return useQuery({
+    queryKey: ['cves', 'by-image', imageId, scope],
+    queryFn: () => {
+      const q = new URLSearchParams()
+      if (scope.cluster) q.set('cluster', scope.cluster)
+      if (scope.namespace) q.set('namespace', scope.namespace)
+      const s = q.toString()
+      return api.get<ImageCveDetail[]>(`/cves/by-image/${encodeURIComponent(imageId)}/cves${s ? `?${s}` : ''}`)
+    },
+    enabled: !!imageId,
   })
 }
 

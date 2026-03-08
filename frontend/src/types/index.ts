@@ -28,6 +28,9 @@ export enum NotificationType {
   new_priority = 'new_priority',
   escalation = 'escalation',
   new_critical_cve = 'new_critical_cve',
+  remediation_created = 'remediation_created',
+  remediation_status = 'remediation_status',
+  remediation_overdue = 'remediation_overdue',
 }
 
 export enum UserRole {
@@ -335,6 +338,73 @@ export interface AuditEntry {
   entity_id: string | null
   details: Record<string, unknown>
   created_at: string
+}
+
+export enum RemediationStatus {
+  open = 'open',
+  in_progress = 'in_progress',
+  resolved = 'resolved',
+  verified = 'verified',
+  wont_fix = 'wont_fix',
+}
+
+export interface RemediationItem {
+  id: string
+  cve_id: string
+  namespace: string
+  cluster_name: string
+  status: RemediationStatus
+  assigned_to: string | null
+  assigned_to_name: string | null
+  created_by: string
+  created_by_name: string
+  resolved_by: string | null
+  resolved_by_name: string | null
+  target_date: string | null
+  notes: string | null
+  resolved_at: string | null
+  verified_at: string | null
+  created_at: string
+  updated_at: string
+  is_overdue: boolean
+}
+
+export interface RemediationStats {
+  open: number
+  in_progress: number
+  resolved: number
+  verified: number
+  wont_fix: number
+  overdue: number
+}
+
+export interface ImageCveGroup {
+  image_name: string
+  image_id: string
+  total_cves: number
+  critical_cves: number
+  high_cves: number
+  medium_cves: number
+  low_cves: number
+  max_cvss: number
+  max_epss: number
+  fixable_cves: number
+  affected_deployments: number
+  namespaces: string[]
+  clusters: string[]
+}
+
+export interface ImageCveDetail {
+  cve_id: string
+  severity: Severity
+  cvss: number
+  epss_probability: number
+  impact_score: number
+  fixable: boolean
+  fixed_by: string | null
+  affected_deployments: number
+  first_seen: string | null
+  published_on: string | null
 }
 
 export interface Paginated<T> {
