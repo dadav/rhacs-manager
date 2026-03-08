@@ -91,7 +91,8 @@ kubectl get secret central-db-password -n stackrox -o json \
 
 # Hub
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
-  -n rhacs-manager --create-namespace
+  -n rhacs-manager --create-namespace \
+  --set frontend.oauthProxy.cookieSecret='<base64-32-byte-secret>'
 
 # Spoke
 helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
