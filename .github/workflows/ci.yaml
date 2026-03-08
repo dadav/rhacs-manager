@@ -20,7 +20,7 @@ jobs:
             image: rhacs-manager-backend
           - name: frontend-spoke
             context: frontend
-            dockerfile: frontend/Containerfile.spoke
+            dockerfile: frontend/Containerfile
             image: rhacs-manager-spoke
           - name: auth-header-injector
             context: auth-header-injector

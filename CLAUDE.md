@@ -21,33 +21,33 @@ React/Vite (SPA, German) → FastAPI (Python 3.12) → StackRox Central DB (read
 
 ## Key Files
 
-| Path                              | Purpose                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `backend/app/main.py`             | FastAPI app + lifespan                                                                                                          |
-| `backend/app/config.py`           | Pydantic Settings (env-driven)                                                                                                  |
-| `backend/app/database.py`         | Dual SQLAlchemy engine setup                                                                                                    |
-| `backend/app/auth/middleware.py`  | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser` with `namespaces`                                         |
-| `backend/app/auth/group_mapping.py` | Resolves sec_team role from Keycloak groups                                                                                   |
-| `backend/app/stackrox/queries.py` | All read-only StackRox SQL queries                                                                                              |
-| `backend/app/routers/`            | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, audit, escalations, namespaces |
-| `backend/app/models/`             | SQLAlchemy ORM models (app DB)                                                                                                  |
-| `backend/app/tasks/scheduler.py`  | APScheduler background jobs (escalation, digest)                                                                                |
-| `backend/app/badges/generator.py` | Pure Python SVG badge generator                                                                                                 |
-| `backend/alembic/versions/`       | DB migrations                                                                                                                   |
-| `frontend/src/api/client.ts`      | Base API fetch; use `getErrorMessage` for errors                                                                                |
-| `frontend/src/utils/errors.ts`    | `getErrorMessage(error)` — always use this for user-visible errors                                                              |
-| `frontend/src/pages/`             | One file per page/route                                                                                                         |
-| `frontend/src/components/`        | Reusable UI components                                                                                                          |
-| `frontend/src/i18n/`              | German translations                                                                                                             |
-| `deploy/helm/rhacs-manager/`      | Helm chart for hub and spoke deployment (`--set mode=spoke`)                                                                     |
-| `auth-header-injector/main.go`      | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                   |
+| Path                                 | Purpose                                                                                                                           |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/app/main.py`                | FastAPI app + lifespan                                                                                                            |
+| `backend/app/config.py`              | Pydantic Settings (env-driven)                                                                                                    |
+| `backend/app/database.py`            | Dual SQLAlchemy engine setup                                                                                                      |
+| `backend/app/auth/middleware.py`     | Three-mode auth (dev / spoke-proxy / OIDC JWT); returns `CurrentUser` with `namespaces`                                           |
+| `backend/app/auth/group_mapping.py`  | Resolves sec_team role from Keycloak groups                                                                                       |
+| `backend/app/stackrox/queries.py`    | All read-only StackRox SQL queries                                                                                                |
+| `backend/app/routers/`               | API routers: auth, cves, dashboard, risk_acceptances, priorities, notifications, badges, settings, audit, escalations, namespaces |
+| `backend/app/models/`                | SQLAlchemy ORM models (app DB)                                                                                                    |
+| `backend/app/tasks/scheduler.py`     | APScheduler background jobs (escalation, digest)                                                                                  |
+| `backend/app/badges/generator.py`    | Pure Python SVG badge generator                                                                                                   |
+| `backend/alembic/versions/`          | DB migrations                                                                                                                     |
+| `frontend/src/api/client.ts`         | Base API fetch; use `getErrorMessage` for errors                                                                                  |
+| `frontend/src/utils/errors.ts`       | `getErrorMessage(error)` — always use this for user-visible errors                                                                |
+| `frontend/src/pages/`                | One file per page/route                                                                                                           |
+| `frontend/src/components/`           | Reusable UI components                                                                                                            |
+| `frontend/src/i18n/`                 | German translations                                                                                                               |
+| `deploy/helm/rhacs-manager/`         | Helm chart for hub and spoke deployment (`--set mode=spoke`)                                                                      |
+| `auth-header-injector/main.go`       | Go sidecar: resolves namespace annotations to `X-Forwarded-Namespaces` header                                                     |
 | `auth-header-injector/Containerfile` | Multi-stage build for auth-header-injector (distroless runtime)                                                                   |
-| `frontend/Containerfile.spoke`    | Spoke frontend image (nginx with API proxy to hub)                                                                              |
-| `frontend/nginx.conf.spoke`       | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                 |
-| `docs/`                           | MkDocs Material documentation site                                                                                               |
-| `docs/stylesheets/extra.css`      | Custom docs theming for homepage/visual polish                                                                                  |
-| `mkdocs.yml`                      | Docs site config (Material theme features, markdown extensions, nav)                                                            |
-| `justfile`                        | Dev workflow commands                                                                                                           |
+| `frontend/Containerfile`             | Spoke frontend image (nginx with API proxy to hub)                                                                                |
+| `frontend/nginx.conf.spoke`          | Spoke nginx template (envsubst for HUB_API_URL, SPOKE_API_KEY)                                                                    |
+| `docs/`                              | MkDocs Material documentation site                                                                                                |
+| `docs/stylesheets/extra.css`         | Custom docs theming for homepage/visual polish                                                                                    |
+| `mkdocs.yml`                         | Docs site config (Material theme features, markdown extensions, nav)                                                              |
+| `justfile`                           | Dev workflow commands                                                                                                             |
 
 ## Documentation Stack
 
@@ -84,7 +84,6 @@ The old join chain (`image_cve_edges → image_cves → image_component_edges �
 For dashboard severity aggregation, querying `image_cves` via `image_cve_edges` can return empty/missing data in this project. Use `image_cves_v2` for `get_severity_distribution` as well, consistent with the other dashboard queries.
 
 When building CVE list/detail aggregations, group by `ic.cvebaseinfo_cve` (CVE ID), not by `ic.id`. Grouping by `ic.id` creates duplicate rows for the same CVE and can make one prioritized CVE appear across many table rows.
-
 
 ## Frontend Error Handling
 
@@ -140,16 +139,19 @@ Dev environment uses local Postgres. Set `APP_DB_URL` and `STACKROX_DB_URL` or r
 The spoke proxy is responsible for querying namespace annotations and populating this header.
 
 **`CurrentUser` carries:**
+
 - `id`, `username`, `email`, `role` (persisted in DB)
 - `namespaces: list[tuple[str, str]]` (from header, NOT persisted)
 - `is_sec_team` (from `sec_team_group` config via `X-Forwarded-Groups`)
 
 **Auth modes:**
+
 1. **Dev mode** (`DEV_MODE=true`): namespaces from `DEV_USER_NAMESPACES` env var (format: `ns1:cluster1,ns2:cluster2`)
 2. **Spoke proxy** (`X-Api-Key`): namespaces from `X-Forwarded-Namespaces` header, role from `X-Forwarded-Groups`
 3. **OIDC JWT**: namespaces from JWT `namespaces` claim (if available)
 
 **Access control:**
+
 - Sec team sees all CVEs, escalations, risk acceptances (org-wide)
 - Non-sec users see only CVEs in their namespaces
 - Risk acceptances: accessible if user's namespaces overlap with RA's scope targets, or user is the RA creator
@@ -157,6 +159,7 @@ The spoke proxy is responsible for querying namespace annotations and populating
 - Badges: scoped by creator (user) and specific namespace/cluster
 
 **Config (hub backend env vars):**
+
 - `SPOKE_API_KEYS`: JSON list of allowed API keys, e.g. `'["key1","key2"]'`
 - `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
 - `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2`)
@@ -179,6 +182,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 ```
 
 **Auth flow (spoke proxy mode):**
+
 1. oauth-proxy handles OpenShift OAuth login, injects `X-Forwarded-User/Email/Groups/Access-Token` headers
 2. auth-header-injector sidecar reads `X-Forwarded-User`, looks up user-based (`rhacs-manager.io/users`) and group-based (`rhacs-manager.io/groups`) namespace annotations, plus namespace escalation contact annotation (`rhacs-manager.io/escalation-email`)
 3. If `X-Forwarded-Access-Token` is present, auth-header-injector calls OpenShift user API (`/apis/user.openshift.io/v1/users/~`) to resolve the user's groups, then merges group-based namespaces with user-based namespaces
@@ -189,6 +193,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 8. Users auto-provisioned with ID `spoke:<username>`
 
 **Auth header injector** (`auth-header-injector/`):
+
 - Go sidecar sitting between oauth-proxy (:8443) and nginx (:8080) on port :8081
 - Caches `namespace → []username` and `namespace → []group` maps from K8s namespace annotations (refreshed every `CACHE_TTL_SECONDS`, default 300)
 - User annotation format: `rhacs-manager.io/users: user1,user2,user3` on any namespace
@@ -199,6 +204,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - Requires ClusterRole with `list` on `namespaces` (included in Helm chart)
 
 **Deploy:**
+
 - Hub: `helm upgrade --install rhacs-manager deploy/helm/rhacs-manager -n rhacs-manager --create-namespace`
 - Spoke: `helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager -n rhacs-manager --create-namespace --set mode=spoke`
 - Plain YAML: `just render-hub` / `just render-spoke` for `helm template` output
@@ -235,8 +241,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 ## Containers & Deploy
 
 - Backend: `backend/Containerfile` (multi-stage, `uv sync --frozen`) — hub only
-- Frontend spoke: `frontend/Containerfile.spoke` (adds envsubst + API proxy nginx) — used for both hub and spoke deployments
-- Frontend (legacy): `frontend/Containerfile` — dev/build-check only; not used in production (spoke image used everywhere)
+- Frontend spoke: `frontend/Containerfile` (adds envsubst + API proxy nginx) — used for both hub and spoke deployments
 - Helm chart: `deploy/helm/rhacs-manager/` — supports hub (default) and spoke (`--set mode=spoke`) modes
 - Hub deployment prerequisite: copy `central-db-password` secret from `stackrox` namespace into `rhacs-manager` namespace (backend reads `STACKROX_DB_PASSWORD` from this secret)
 - Hub frontend uses the same 3-container pod as spoke (oauth-proxy + auth-header-injector + spoke-nginx), with `HUB_API_URL=http://rhacs-manager-backend:8000` pointing to the local backend service
@@ -263,6 +268,7 @@ just docs-build
 ```
 
 Pytest discovery is intentionally constrained via `backend/pyproject.toml` (`[tool.pytest.ini_options] testpaths = ["tests"]`) so operational scripts in `backend/scripts/` are not collected as tests in CI.
+
 - CI now includes image CVE scanning via Trivy in `.github/workflows/ci.yaml` (`trivy-image-scan` matrix job, `aquasecurity/trivy-action@0.34.2`). It builds local backend/spoke/auth-header-injector images in CI, emits a JSON report artifact (`trivy-report-<image>`), and prints both severity distribution and `HIGH/CRITICAL` summary to logs (report-only, no fail gate). The Trivy step is non-blocking (`continue-on-error`), configured with Docker socket access (`docker-host: unix:///var/run/docker.sock`), and scans include unfixed vulnerabilities (`ignore-unfixed: false`).
 
 Always verify backend, frontend, and docs build before marking work done.

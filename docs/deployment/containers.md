@@ -23,64 +23,51 @@ Build steps:
 4. Copies application code and Alembic migrations
 5. On startup: runs `alembic upgrade head` then starts uvicorn on port 8000
 
-| Property | Value |
-|----------|-------|
-| Base image | `python:3.12-slim` |
-| Port | 8000 |
+| Property   | Value                     |
+| ---------- | ------------------------- |
+| Base image | `python:3.12-slim`        |
+| Port       | 8000                      |
 | Entrypoint | Alembic migrate + uvicorn |
 
-## Frontend Hub Image
+## Frontend Spoke Image
 
 **File**: `frontend/Containerfile`
 
 Two-stage build: Node.js build stage + nginx serve stage.
-
-```bash
-just build-frontend-image tag=rhacs-manager-frontend:latest
-
-# Or manually:
-podman build -t rhacs-manager-frontend:latest frontend/
-```
 
 Build steps:
 
 1. **Builder stage** (`node:22-slim`): `npm ci` + `npm run build` (TypeScript + Vite)
 2. **Serve stage** (`nginxinc/nginx-unprivileged:alpine`): copies built SPA to nginx html directory
 
-| Property | Value |
-|----------|-------|
-| Base image | `nginxinc/nginx-unprivileged:alpine` |
-| Port | 8080 |
+| Property    | Value                                             |
+| ----------- | ------------------------------------------------- |
+| Base image  | `nginxinc/nginx-unprivileged:alpine`              |
+| Port        | 8080                                              |
 | SPA routing | Custom `nginx.conf` with fallback to `index.html` |
-
-## Frontend Spoke Image
-
-**File**: `frontend/Containerfile.spoke`
-
-Two-stage build similar to hub, but with additional API proxy configuration.
 
 ```bash
 just build-spoke-image tag=rhacs-manager-spoke:latest
 
 # Or manually:
-podman build -t rhacs-manager-spoke:latest -f frontend/Containerfile.spoke frontend/
+podman build -t rhacs-manager-spoke:latest -f frontend/Containerfile frontend/
 ```
 
 Build steps:
 
 1. **Builder stage** (`node:22-slim`): `npm ci` + `npm run build`
 2. **Serve stage** (`nginxinc/nginx-unprivileged:alpine`):
-    - Installs `gettext` for `envsubst`
-    - Copies built SPA
-    - Copies `nginx.conf.spoke` as a template (processed at startup)
-    - Copies `docker-entrypoint-spoke.sh`
+   - Installs `gettext` for `envsubst`
+   - Copies built SPA
+   - Copies `nginx.conf.spoke` as a template (processed at startup)
+   - Copies `docker-entrypoint-spoke.sh`
 
-| Property | Value |
-|----------|-------|
-| Base image | `nginxinc/nginx-unprivileged:alpine` |
-| Port | 8080 |
+| Property    | Value                                                          |
+| ----------- | -------------------------------------------------------------- |
+| Base image  | `nginxinc/nginx-unprivileged:alpine`                           |
+| Port        | 8080                                                           |
 | Runtime env | `HUB_API_URL`, `SPOKE_API_KEY` (substituted into nginx config) |
-| User | `101` (nginx unprivileged) |
+| User        | `101` (nginx unprivileged)                                     |
 
 The spoke image differs from the hub image in that it:
 
@@ -90,8 +77,8 @@ The spoke image differs from the hub image in that it:
 
 ## Build Summary
 
-| Image | Build command | Base | Port |
-|-------|--------------|------|------|
-| Backend | `just build-backend-image` | `python:3.12-slim` | 8000 |
-| Frontend (hub) | `just build-frontend-image` | `nginx-unprivileged:alpine` | 8080 |
-| Frontend (spoke) | `just build-spoke-image` | `nginx-unprivileged:alpine` | 8080 |
+| Image            | Build command               | Base                        | Port |
+| ---------------- | --------------------------- | --------------------------- | ---- |
+| Backend          | `just build-backend-image`  | `python:3.12-slim`          | 8000 |
+| Frontend (hub)   | `just build-frontend-image` | `nginx-unprivileged:alpine` | 8080 |
+| Frontend (spoke) | `just build-spoke-image`    | `nginx-unprivileged:alpine` | 8080 |
