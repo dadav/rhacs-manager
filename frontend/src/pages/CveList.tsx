@@ -339,11 +339,49 @@ export function CveList() {
   const hasActiveThresholds = thresholds && !isSecTeam &&
     (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
+  // --- Image view sort (client-side) ---
+  const IMAGE_SORT_KEYS: Record<string, (g: ImageCveGroup) => string | number> = {
+    image_name: g => g.image_name.toLowerCase(),
+    total_cves: g => g.total_cves,
+    critical_cves: g => g.critical_cves,
+    high_cves: g => g.high_cves,
+    medium_cves: g => g.medium_cves,
+    low_cves: g => g.low_cves,
+    max_cvss: g => g.max_cvss,
+    max_epss: g => g.max_epss,
+    fixable_cves: g => g.fixable_cves,
+    affected_deployments: g => g.affected_deployments,
+  }
+
+  const sortedImageData = (() => {
+    if (!imageData?.length) return imageData
+    const keyFn = IMAGE_SORT_KEYS[urlSortBy]
+    if (!keyFn) return imageData
+    const sorted = [...imageData].sort((a, b) => {
+      const av = keyFn(a)
+      const bv = keyFn(b)
+      if (av < bv) return urlSortDesc ? 1 : -1
+      if (av > bv) return urlSortDesc ? -1 : 1
+      return 0
+    })
+    return sorted
+  })()
+
   // --- Styles ---
   const imgThStyle: React.CSSProperties = {
     padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap',
     borderBottom: '2px solid #d2d2d2', color: 'var(--pf-v6-global--Color--100)',
   }
+
+  const imgThSortStyle = (col: string, align?: string): React.CSSProperties => ({
+    padding: '10px 12px',
+    textAlign: (align || 'left') as 'left' | 'right',
+    whiteSpace: 'nowrap',
+    borderBottom: '2px solid #d2d2d2',
+    cursor: 'pointer',
+    userSelect: 'none',
+    color: urlSortBy === col ? '#0066cc' : 'var(--pf-v6-global--Color--100)',
+  })
 
   const thStyle = (col: string): React.CSSProperties => ({
     padding: '10px 12px',
@@ -693,21 +731,21 @@ export function CveList() {
                 <thead>
                   <tr>
                     <th style={{ ...imgThStyle, width: 28 }}></th>
-                    <th style={imgThStyle}>{t('cves.imageGroupImage')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupTotalCves')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupCritical')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupHigh')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupMedium')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupLow')}</th>
-                    <th style={imgThStyle}>{t('cves.imageGroupMaxCvss')}</th>
-                    <th style={imgThStyle}>{t('cves.imageGroupMaxEpss')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupFixable')}</th>
-                    <th style={{ ...imgThStyle, textAlign: 'right' }}>{t('cves.imageGroupDeployments')}</th>
+                    <th style={imgThSortStyle('image_name')} onClick={() => handleSort('image_name')}>{t('cves.imageGroupImage')}</th>
+                    <th style={imgThSortStyle('total_cves', 'right')} onClick={() => handleSort('total_cves')}>{t('cves.imageGroupTotalCves')}</th>
+                    <th style={imgThSortStyle('critical_cves', 'right')} onClick={() => handleSort('critical_cves')}>{t('cves.imageGroupCritical')}</th>
+                    <th style={imgThSortStyle('high_cves', 'right')} onClick={() => handleSort('high_cves')}>{t('cves.imageGroupHigh')}</th>
+                    <th style={imgThSortStyle('medium_cves', 'right')} onClick={() => handleSort('medium_cves')}>{t('cves.imageGroupMedium')}</th>
+                    <th style={imgThSortStyle('low_cves', 'right')} onClick={() => handleSort('low_cves')}>{t('cves.imageGroupLow')}</th>
+                    <th style={imgThSortStyle('max_cvss')} onClick={() => handleSort('max_cvss')}>{t('cves.imageGroupMaxCvss')}</th>
+                    <th style={imgThSortStyle('max_epss')} onClick={() => handleSort('max_epss')}>{t('cves.imageGroupMaxEpss')}</th>
+                    <th style={imgThSortStyle('fixable_cves', 'right')} onClick={() => handleSort('fixable_cves')}>{t('cves.imageGroupFixable')}</th>
+                    <th style={imgThSortStyle('affected_deployments', 'right')} onClick={() => handleSort('affected_deployments')}>{t('cves.imageGroupDeployments')}</th>
                     <th style={imgThStyle}>{t('cves.imageGroupNamespaces')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {imageData.map(group => (
+                  {sortedImageData?.map(group => (
                     <ImageRow key={group.image_id} group={group} scope={scopeOverrides} filters={imageFilters} />
                   ))}
                 </tbody>
