@@ -18,7 +18,7 @@ import {
   Tooltip,
   Button,
 } from "@patternfly/react-core";
-import { BarsIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
+import { BarsIcon, GithubIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
@@ -225,6 +225,30 @@ export function App() {
             )}
           </NavList>
         </Nav>
+      </PageSidebarBody>
+      <PageSidebarBody>
+        <div
+          style={{
+            padding: "12px 16px",
+            borderTop: "1px solid var(--pf-t--global--border--color--default)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: 12,
+            opacity: 0.7,
+          }}
+        >
+          <span>v{__APP_VERSION__}</span>
+          <a
+            href="https://github.com/dadav/rhacs-manager"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub"
+            style={{ color: "inherit", display: "flex", alignItems: "center" }}
+          >
+            <GithubIcon style={{ fontSize: 20 }} />
+          </a>
+        </div>
       </PageSidebarBody>
     </PageSidebar>
   );

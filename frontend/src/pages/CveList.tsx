@@ -33,10 +33,10 @@ import type { ImageCveGroup } from '../types'
 
 /* ── Image-grouped expandable row ── */
 
-function ImageRow({ group, scope }: { group: ImageCveGroup; scope: ScopeParams }) {
+function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
-  const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope)
+  const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
 
   const imgThStyle: React.CSSProperties = {
     padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap',
@@ -492,15 +492,22 @@ export function CveList() {
                 onSelect={() => setExportDropdownOpen(false)}
                 onOpenChange={setExportDropdownOpen}
                 toggle={(toggleRef) => (
-                  <MenuToggle
+                  <button
                     ref={toggleRef}
                     onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                    isDisabled={exporting}
-                    variant="secondary"
+                    disabled={exporting}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      height: 36, padding: '0 12px',
+                      border: '1px solid #d2d2d2', borderRadius: 4,
+                      background: 'transparent', cursor: exporting ? 'default' : 'pointer',
+                      fontSize: 14, fontFamily: 'inherit',
+                      color: 'var(--pf-v6-global--Color--100)',
+                    }}
                   >
                     {exporting ? <Spinner size="sm" aria-label="Exportieren" /> : <ExportIcon />}
-                    {' '}{t('exports.export')}
-                  </MenuToggle>
+                    {t('exports.export')}
+                  </button>
                 )}
                 popperProps={{ position: 'right' }}
               >
@@ -701,7 +708,7 @@ export function CveList() {
                 </thead>
                 <tbody>
                   {imageData.map(group => (
-                    <ImageRow key={group.image_id} group={group} scope={scopeOverrides} />
+                    <ImageRow key={group.image_id} group={group} scope={scopeOverrides} filters={imageFilters} />
                   ))}
                 </tbody>
               </table>

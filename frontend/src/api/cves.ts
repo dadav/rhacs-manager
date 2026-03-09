@@ -94,13 +94,16 @@ export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterPara
   })
 }
 
-export function useCvesForImage(imageId: string, scope: ScopeParams = {}) {
+export function useCvesForImage(imageId: string, scope: ScopeParams = {}, filters: Record<string, string | number | boolean | undefined> = {}) {
   return useQuery({
-    queryKey: ['cves', 'by-image', imageId, scope],
+    queryKey: ['cves', 'by-image', imageId, scope, filters],
     queryFn: () => {
       const q = new URLSearchParams()
       if (scope.cluster) q.set('cluster', scope.cluster)
       if (scope.namespace) q.set('namespace', scope.namespace)
+      for (const [k, v] of Object.entries(filters)) {
+        if (v !== undefined && v !== '') q.set(k, String(v))
+      }
       const s = q.toString()
       return api.get<ImageCveDetail[]>(`/cves/by-image/${encodeURIComponent(imageId)}/cves${s ? `?${s}` : ''}`)
     },

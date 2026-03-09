@@ -147,6 +147,12 @@ async def list_cves_for_image(
     image_id: str,
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    search: str | None = Query(None),
+    severity: int | None = Query(None),
+    fixable: bool | None = Query(None),
+    cvss_min: float | None = Query(None),
+    epss_min: float | None = Query(None),
+    component: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -187,6 +193,8 @@ async def list_cves_for_image(
 
     rows = await sx.get_cves_for_image(
         sx_db, image_id, namespaces_list, min_cvss, min_epss, always_show,
+        search=search, severity=severity, fixable=fixable,
+        filter_cvss_min=cvss_min, filter_epss_min=epss_min, component=component,
     )
     return [
         ImageCveDetail(

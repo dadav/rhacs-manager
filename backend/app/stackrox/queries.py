@@ -944,6 +944,13 @@ async def get_cves_for_image(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    *,
+    search: str | None = None,
+    severity: int | None = None,
+    fixable: bool | None = None,
+    filter_cvss_min: float | None = None,
+    filter_epss_min: float | None = None,
+    component: str | None = None,
 ) -> list[dict]:
     """Get all visible CVEs for a specific image."""
     if namespaces is not None and len(namespaces) == 0:
@@ -957,6 +964,44 @@ async def get_cves_for_image(
         where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
     else:
         where_clause = ""
+
+    # Build HAVING filters for user-applied filters
+    having_filters = []
+    bind_params: dict = {
+        "image_id": image_id, "min_cvss": min_cvss, "min_epss": min_epss,
+        "always_show": always_show,
+    }
+
+    if search:
+        having_filters.append("ic.cvebaseinfo_cve ILIKE :search")
+        bind_params["search"] = f"%{search}%"
+    if severity is not None:
+        having_filters.append("MAX(ic.severity) = :filter_severity")
+        bind_params["filter_severity"] = severity
+    if fixable is True:
+        having_filters.append("BOOL_OR(COALESCE(ic.isfixable, false)) = true")
+    elif fixable is False:
+        having_filters.append("BOOL_OR(COALESCE(ic.isfixable, false)) = false")
+    if filter_cvss_min is not None and filter_cvss_min > 0:
+        having_filters.append("MAX(COALESCE(ic.cvss, 0)) >= :filter_cvss_min")
+        bind_params["filter_cvss_min"] = filter_cvss_min
+    if filter_epss_min is not None and filter_epss_min > 0:
+        having_filters.append(
+            "MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :filter_epss_min"
+        )
+        bind_params["filter_epss_min"] = filter_epss_min
+
+    having_extra = ""
+    if having_filters:
+        having_extra = "AND " + " AND ".join(having_filters)
+
+    # Component join
+    component_join = ""
+    component_having = ""
+    if component:
+        component_join = "LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid"
+        component_having = "AND BOOL_OR(comp.name ILIKE :component)"
+        bind_params["component"] = f"%{component}%"
 
     sql = text(f"""
         WITH visible_cves AS (
@@ -988,16 +1033,15 @@ async def get_cves_for_image(
         FROM visible_cves vc
         JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
             AND ic.imageid = :image_id
+        {component_join}
         JOIN deployments_containers dc ON dc.image_id = ic.imageid
         JOIN deployments d ON d.id = dc.deployments_id
         WHERE 1=1 {where_clause}
         GROUP BY ic.cvebaseinfo_cve
+        HAVING 1=1 {having_extra} {component_having}
         ORDER BY severity DESC, cvss DESC
     """)
-    result = await session.execute(
-        sql,
-        {"image_id": image_id, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
-    )
+    result = await session.execute(sql, bind_params)
     return [dict(row._mapping) for row in result]
 
 
