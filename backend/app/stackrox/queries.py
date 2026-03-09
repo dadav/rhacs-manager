@@ -897,12 +897,12 @@ async def get_cves_grouped_by_image(
 
     sql = text(f"""
         WITH visible_cves AS (
-            SELECT ic.cvebaseinfo_cve AS cve_id
+            SELECT ic.cvebaseinfo_cve AS cve_id, ic.imageid
             FROM deployments d
             JOIN deployments_containers dc ON dc.deployments_id = d.id
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id{cte_extra_joins}
             {where_clause}
-            GROUP BY ic.cvebaseinfo_cve
+            GROUP BY ic.cvebaseinfo_cve, ic.imageid
             HAVING (
                 (
                     MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
@@ -927,6 +927,7 @@ async def get_cves_grouped_by_image(
             ARRAY_AGG(DISTINCT d.clustername)    AS clusters
         FROM visible_cves vc
         JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+            AND ic.imageid = vc.imageid
         JOIN deployments_containers dc ON dc.image_id = ic.imageid
         JOIN deployments d ON d.id = dc.deployments_id
         {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
