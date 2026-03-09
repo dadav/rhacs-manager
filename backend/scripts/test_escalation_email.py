@@ -1,4 +1,4 @@
-"""Send test escalation emails to Mailhog for visual verification.
+"""Send test emails (escalation + weekly digest) to Mailhog for visual verification.
 
 Usage:
     uv run python scripts/test_escalation_email.py
@@ -8,7 +8,11 @@ Expects Mailhog running on SMTP_HOST:SMTP_PORT (default localhost:1025).
 
 import asyncio
 import logging
+import sys
+from pathlib import Path
 from uuid import uuid4
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select
 
@@ -130,6 +134,21 @@ async def main() -> None:
             deployments=sample_deployments,
         )
         logger.info("Sent management fallback email -> %s", MANAGEMENT_EMAIL)
+
+        # Send weekly digest email
+        digest_stats = {
+            "total_cves": 142,
+            "critical_cves": 23,
+            "fixable_cves": 87,
+            "open_risk_acceptances": 5,
+            "avg_epss": 0.37,
+        }
+        await mail_svc.send_weekly_digest(
+            to_email=MANAGEMENT_EMAIL,
+            stats=digest_stats,
+            base_url="http://localhost:5173/dashboard",
+        )
+        logger.info("Sent weekly digest email -> %s", MANAGEMENT_EMAIL)
 
         await session.commit()
 
