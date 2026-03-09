@@ -1,5 +1,4 @@
 """APScheduler background jobs: escalation checks, expiry checks, weekly digest."""
-import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -346,42 +345,42 @@ async def run_digest_now() -> None:
 
 def setup_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_expiry_check()),
+        run_expiry_check,
         "cron",
         hour=1,
         minute=0,
         id="expiry_check",
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_expiry_warning()),
+        run_expiry_warning,
         "cron",
         hour=7,
         minute=30,
         id="expiry_warning",
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_escalation_check()),
+        run_escalation_check,
         "cron",
         hour=8,
         minute=0,
         id="escalation_check",
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_weekly_digest()),
+        run_weekly_digest,
         "cron",
         hour=7,
         minute=0,
         id="weekly_digest",
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_remediation_overdue_check()),
+        run_remediation_overdue_check,
         "cron",
         hour=8,
         minute=30,
         id="remediation_overdue_check",
     )
     scheduler.add_job(
-        lambda: asyncio.ensure_future(run_remediation_auto_resolve()),
+        run_remediation_auto_resolve,
         "cron",
         hour=9,
         minute=0,
