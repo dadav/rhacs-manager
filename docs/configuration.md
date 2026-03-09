@@ -6,7 +6,12 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_DB_URL` | `postgresql+asyncpg://postgres@localhost/rhacs_manager` | App DB URL (read-write) |
+| `APP_DB_URL` | `""` | Optional full app DB URL; overrides component fields |
+| `APP_DB_HOST` | `localhost` | App DB host |
+| `APP_DB_PORT` | `5432` | App DB port |
+| `APP_DB_USER` | `postgres` | App DB user |
+| `APP_DB_PASSWORD` | `""` | App DB password |
+| `APP_DB_NAME` | `rhacs_manager` | App DB name |
 | `STACKROX_DB_URL` | `""` | Optional full StackRox DB URL; overrides component fields |
 | `STACKROX_DB_HOST` | `localhost` | StackRox host |
 | `STACKROX_DB_PORT` | `5432` | StackRox port |
@@ -14,7 +19,7 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 | `STACKROX_DB_PASSWORD` | `""` | StackRox password |
 | `STACKROX_DB_NAME` | `central_active` | StackRox DB name |
 
-`STACKROX_DB_URL` is optional. If unset, the backend builds the effective URL from `STACKROX_DB_*` parts.
+`APP_DB_URL` and `STACKROX_DB_URL` are optional. If either is unset, the backend builds the effective URL from the corresponding split fields.
 
 ## Authentication
 
@@ -79,6 +84,7 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `APP_BASE_URL` | `http://localhost:5173` | Base URL used in links and badge URLs |
+| `BADGE_BASE_URL` | `""` | Public base URL prepended to badge SVG paths; empty means the API returns relative badge paths |
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
 | `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |

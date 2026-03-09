@@ -85,6 +85,9 @@ just docs-build
 
 ```text
 rhacs-manager/
+  auth-header-injector/
+    main.go
+    Containerfile
   backend/
     app/
       main.py
@@ -103,9 +106,8 @@ rhacs-manager/
       api/client.ts
       utils/errors.ts
   deploy/
-    base/
-    hub/
-    spoke/
+    helm/
+      rhacs-manager/
   docs/
   mkdocs.yml
   justfile

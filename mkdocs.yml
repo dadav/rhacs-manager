@@ -79,6 +79,8 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
+  - Security Model: security.md
+  - User Guide: user-guide.md
   - Configuration: configuration.md
   - Deployment:
       - Overview: deployment/index.md
@@ -89,3 +91,4 @@ nav:
       - Overview: api/index.md
       - Endpoints: api/endpoints.md
   - Development: development.md
+  - Troubleshooting: troubleshooting.md

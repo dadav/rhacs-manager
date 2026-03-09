@@ -122,7 +122,7 @@ All StackRox queries are centralized in `backend/app/stackrox/queries.py`. Alway
 FROM deployments d
 JOIN deployments_containers dc ON dc.deployments_id = d.id
 JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-LEFT JOIN image_components comp ON comp.id = ic.componentid
+LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 ```
 
 Key fields on `image_cves_v2`:

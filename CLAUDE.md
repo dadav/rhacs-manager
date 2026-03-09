@@ -231,6 +231,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
   - `targets`: `{ cluster_name, namespace, image_name?, deployment_id? }[]`
 - Scope selections must be validated against real affected deployments for the CVE in the user's namespaces.
 - Active acceptances are unique by `(cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
+- Excel RA import (`POST /api/exports/excel/import`) is team-member only, groups rows by `(cve_id, justification)`, derives namespace scope from the caller's currently affected namespaces, previews by default, and only creates records when `confirm=true`.
 - Dashboard (`/dashboard`) includes a dedicated `priority_cves` list in addition to `high_epss_cves`.
 - Dashboard stat cards are: `Gesamt CVEs`, `Eskalationen`, `Behebbare kritische CVEs`, and `Offene Risikoakzeptanzen`.
 - Dashboard chart datasets (`severity_distribution`, `cves_per_namespace`) must apply the same visibility logic as `stat_total_cves` (CVSS/EPSS thresholds plus always-show CVEs from priorities/active risk acceptances).
@@ -245,6 +246,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - `remediations.status`: `open | in_progress | resolved | verified | wont_fix`
 - Remediation workflow: `open → in_progress → resolved → verified` (sec team only verifies). `wont_fix` requires reason.
 - Remediation creation is CVE-contextual: users create from CVE detail page, selecting a namespace.
+- Remediations are unique per `(cve_id, namespace, cluster_name)` and can be deleted only by the creator or `sec_team`, and only while status is `open` or `wont_fix`.
 - Scheduler auto-resolves remediations when StackRox no longer shows the CVE in the namespace's deployments.
 - Scheduler sends overdue notifications for remediations past their `target_date`.
 - `/behebungen` page lists all remediations with status/overdue filters and stat cards.

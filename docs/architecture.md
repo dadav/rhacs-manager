@@ -80,14 +80,14 @@ Owned by RHACS. The application queries it for live CVE data. Key views and tabl
 - **`image_cves_v2`** -- primary view joining CVE data with component and fixability info
 - **`deployments`** -- active deployments
 - **`deployments_containers`** -- container-to-image mapping
-- **`image_components`** -- software components in images
+- **`image_component_v2`** -- software components in images
 
 ```sql
 -- Standard query pattern:
 FROM deployments d
 JOIN deployments_containers dc ON dc.deployments_id = d.id
 JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-LEFT JOIN image_components comp ON comp.id = ic.componentid
+LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 ```
 
 !!! warning "Always use `image_cves_v2`"
