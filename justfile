@@ -210,8 +210,12 @@ release version:
     sed -i "s/^appVersion: .*/appVersion: \"${app_version}\"/" deploy/helm/rhacs-manager/Chart.yaml
     echo "Updated Chart.yaml appVersion to ${app_version}"
 
+    # Update version in frontend/package.json
+    sed -i "s/\"version\": \".*\"/\"version\": \"${app_version}\"/" frontend/package.json
+    echo "Updated frontend/package.json version to ${app_version}"
+
     # Commit and tag
-    git add deploy/helm/rhacs-manager/Chart.yaml
+    git add deploy/helm/rhacs-manager/Chart.yaml frontend/package.json
     git commit -m "release: ${tag}"
     git tag "${tag}"
     echo "Created commit and tag ${tag}"
