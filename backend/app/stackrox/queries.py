@@ -275,7 +275,8 @@ async def get_cves_per_namespace(
         WITH visible_by_namespace AS (
             SELECT
                 d.namespace AS namespace,
-                ic.cvebaseinfo_cve AS cve_id
+                ic.cvebaseinfo_cve AS cve_id,
+                MAX(ic.severity) AS severity
             FROM deployments d
             JOIN deployments_containers dc ON dc.deployments_id = d.id
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
@@ -289,7 +290,14 @@ async def get_cves_per_namespace(
                 OR ic.cvebaseinfo_cve = ANY(:always_show)
             )
         )
-        SELECT namespace, COUNT(*) AS count
+        SELECT
+            namespace,
+            COUNT(*) AS count,
+            COUNT(*) FILTER (WHERE severity = 4) AS critical,
+            COUNT(*) FILTER (WHERE severity = 3) AS important,
+            COUNT(*) FILTER (WHERE severity = 2) AS moderate,
+            COUNT(*) FILTER (WHERE severity = 1) AS low,
+            COUNT(*) FILTER (WHERE severity = 0 OR severity IS NULL) AS unknown
         FROM visible_by_namespace
         GROUP BY namespace
         ORDER BY count DESC
@@ -1163,7 +1171,13 @@ async def get_top_vulnerable_components(
         )
         SELECT
             comp.name AS component_name,
-            COUNT(DISTINCT vc.cve_id) AS cve_count
+            COUNT(DISTINCT vc.cve_id) AS cve_count,
+            COUNT(DISTINCT vc.cve_id) FILTER (
+                WHERE ic.isfixable = true
+            ) AS fixable_count,
+            COUNT(DISTINCT vc.cve_id) FILTER (
+                WHERE ic.isfixable IS DISTINCT FROM true
+            ) AS unfixable_count
         FROM visible_cves vc
         JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
         JOIN image_component_v2 comp ON comp.id = ic.componentid

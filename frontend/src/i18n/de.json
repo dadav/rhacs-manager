@@ -75,7 +75,7 @@
     "openRiskAcceptances": "Offene Risikoakzeptanzen",
     "overduDeadlines": "Überfällige Fristen",
     "severityDistribution": "CVEs nach Schweregrad",
-    "cvesPerNamespace": "CVEs pro Namespace",
+    "cvesPerNamespace": "Top 10 betroffene Namespaces",
     "trend": "CVE-Verlauf (30 Tage)",
     "priorityCves": "Priorisierte CVEs",
     "priorityCvesDescription": "Diese CVEs wurden vom Security-Team priorisiert und sollten zuerst bearbeitet werden.",
@@ -89,7 +89,6 @@
     "pipeline": "Risikoakzeptanz-Pipeline",
     "topVulnerableComponents": "Top 10 anfälligste Komponenten",
     "fixabilityBreakdown": "Behebbarkeitsanalyse",
-    "topAffectedDeployments": "Top 10 betroffene Deployments",
     "fixableTrend": "Behebbarkeitstrend (30 Tage)"
   },
   "cves": {

@@ -18,7 +18,6 @@ from ..schemas.dashboard import (
     ClusterHeatmapRow,
     ComponentCveCount,
     CveTrendPoint,
-    DeploymentCveCount,
     EpssMatrixPoint,
     FixabilityCount,
     FixableTrendPoint,
@@ -155,16 +154,6 @@ async def _sx_fixability_breakdown(
         )
 
 
-async def _sx_top_affected_deployments(
-    ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
-) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
-        return await sx.get_top_affected_deployments(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
-        )
-
-
 async def _sx_fixable_trend(
     ns: list[tuple[str, str]] | None,
     min_cvss: float, min_epss: float, always_show: set[str],
@@ -238,7 +227,6 @@ async def dashboard(
                 top_vulnerable_components=[],
                 risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
                 fixability_breakdown=FixabilityCount(fixable=0, unfixable=0),
-                top_affected_deployments=[],
                 fixable_trend=[],
             )
         namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
@@ -310,7 +298,6 @@ async def dashboard(
         aging_rows,
         top_components_rows,
         fixability_data,
-        top_deployments_rows,
         fixable_trend_rows,
         upcoming_escalations,
         risk_acceptance_pipeline,
@@ -323,7 +310,6 @@ async def dashboard(
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_top_affected_deployments(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show),
         _upcoming_escalations(upcoming_ns, settings),
         _ra_pipeline(),
@@ -341,7 +327,12 @@ async def dashboard(
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
     aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
     top_vulnerable_components = [
-        ComponentCveCount(component_name=r["component_name"], cve_count=r["cve_count"])
+        ComponentCveCount(
+            component_name=r["component_name"],
+            cve_count=r["cve_count"],
+            fixable_count=r.get("fixable_count", 0),
+            unfixable_count=r.get("unfixable_count", 0),
+        )
         for r in top_components_rows
     ]
 
@@ -374,7 +365,15 @@ async def dashboard(
             for r in sev_dist
         ],
         cves_per_namespace=[
-            NamespaceCveCount(namespace=r["namespace"], count=r["count"])
+            NamespaceCveCount(
+                namespace=r["namespace"],
+                count=r["count"],
+                critical=r.get("critical", 0),
+                important=r.get("important", 0),
+                moderate=r.get("moderate", 0),
+                low=r.get("low", 0),
+                unknown=r.get("unknown", 0),
+            )
             for r in ns_counts
         ],
         priority_cves=top_priorities,
@@ -386,9 +385,6 @@ async def dashboard(
         top_vulnerable_components=top_vulnerable_components,
         risk_acceptance_pipeline=risk_acceptance_pipeline,
         fixability_breakdown=FixabilityCount(**fixability_data),
-        top_affected_deployments=[
-            DeploymentCveCount(**r) for r in top_deployments_rows
-        ],
         fixable_trend=[
             FixableTrendPoint(date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"])
             for r in fixable_trend_rows

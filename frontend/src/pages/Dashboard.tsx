@@ -501,9 +501,7 @@ export function Dashboard() {
             </Card>
           </GridItem>
 
-          {/* Bar charts at bottom */}
-
-          {/* CVEs per Namespace */}
+          {/* CVEs per Namespace — stacked by severity */}
           {data.cves_per_namespace.length > 0 && (
             <GridItem span={12}>
               <Card>
@@ -525,13 +523,22 @@ export function Dashboard() {
                         interval={0}
                       />
                       <Tooltip />
-                      <Bar
-                        dataKey="count"
-                        name="CVEs"
-                        fill="#0066cc"
+                      <Legend />
+                      <Bar dataKey="critical" name="Kritisch" stackId="sev" fill="#a30000"
                         style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}`)}
-                      />
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}&severity=4`)} />
+                      <Bar dataKey="important" name="Hoch" stackId="sev" fill="#c9190b"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}&severity=3`)} />
+                      <Bar dataKey="moderate" name="Mittel" stackId="sev" fill="#ec7a08"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}&severity=2`)} />
+                      <Bar dataKey="low" name="Gering" stackId="sev" fill="#2b9af3"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}&severity=1`)} />
+                      <Bar dataKey="unknown" name="Unbekannt" stackId="sev" fill="#d2d2d2"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?namespace=${encodeURIComponent(entry.namespace)}&severity=0`)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardBody>
@@ -539,55 +546,7 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* Top Affected Deployments */}
-          {data.top_affected_deployments.length > 0 && (
-            <GridItem span={12}>
-              <Card>
-                <CardTitle>{t('dashboard.topAffectedDeployments')}</CardTitle>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={data.top_affected_deployments.length * 40 + 20}>
-                    <BarChart
-                      data={data.top_affected_deployments}
-                      layout="vertical"
-                      margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <YAxis
-                        type="category"
-                        dataKey="deployment_name"
-                        tick={{ fontSize: 11 }}
-                        width={200}
-                        interval={0}
-                      />
-                      <Tooltip
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(value: number, _name: string, props: any) => [
-                          `${value} CVEs (${props?.payload?.namespace ?? ''} / ${props?.payload?.cluster_name ?? ''})`,
-                          'CVEs',
-                        ]}
-                      />
-                      <Bar
-                        dataKey="cve_count"
-                        name="CVEs"
-                        fill="#0066cc"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => {
-                          const params = new URLSearchParams()
-                          params.set('deployment', entry.deployment_name)
-                          if (entry.namespace) params.set('namespace', entry.namespace)
-                          if (entry.cluster_name) params.set('cluster', entry.cluster_name)
-                          navigate(`/schwachstellen?${params.toString()}`)
-                        }}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </GridItem>
-          )}
-
-          {/* Top Vulnerable Components */}
+          {/* Top Vulnerable Components — stacked by fixability */}
           {data.top_vulnerable_components.length > 0 && (
             <GridItem span={12}>
               <Card>
@@ -609,13 +568,13 @@ export function Dashboard() {
                         interval={0}
                       />
                       <Tooltip />
-                      <Bar
-                        dataKey="cve_count"
-                        name="CVEs"
-                        fill="#0066cc"
+                      <Legend />
+                      <Bar dataKey="fixable_count" name="Behebbar" stackId="fix" fill="#1e8f19"
                         style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/schwachstellen?component=${encodeURIComponent(entry.component_name)}&advanced=1`)}
-                      />
+                        onClick={(entry) => navigate(`/schwachstellen?component=${encodeURIComponent(entry.component_name)}&fixable=true&advanced=1`)} />
+                      <Bar dataKey="unfixable_count" name="Nicht behebbar" stackId="fix" fill="#c9190b"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => navigate(`/schwachstellen?component=${encodeURIComponent(entry.component_name)}&fixable=false&advanced=1`)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardBody>

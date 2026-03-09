@@ -218,6 +218,11 @@ export interface SeverityCount {
 export interface NamespaceCveCount {
   namespace: string
   count: number
+  critical: number
+  important: number
+  moderate: number
+  low: number
+  unknown: number
 }
 
 export interface CveTrendPoint {
@@ -242,7 +247,6 @@ export interface DashboardData {
   top_vulnerable_components: ComponentCveCount[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
   fixability_breakdown: FixabilityCount
-  top_affected_deployments: DeploymentCveCount[]
   fixable_trend: FixableTrendPoint[]
 }
 
@@ -271,6 +275,8 @@ export interface AgingBucket {
 export interface ComponentCveCount {
   component_name: string
   cve_count: number
+  fixable_count: number
+  unfixable_count: number
 }
 
 export interface RiskAcceptancePipeline {
@@ -283,13 +289,6 @@ export interface RiskAcceptancePipeline {
 export interface FixabilityCount {
   fixable: number
   unfixable: number
-}
-
-export interface DeploymentCveCount {
-  deployment_name: string
-  namespace: string
-  cluster_name: string
-  cve_count: number
 }
 
 export interface FixableTrendPoint {

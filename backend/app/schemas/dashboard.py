@@ -11,6 +11,11 @@ class SeverityCount(BaseModel):
 class NamespaceCveCount(BaseModel):
     namespace: str
     count: int
+    critical: int = 0
+    important: int = 0
+    moderate: int = 0
+    low: int = 0
+    unknown: int = 0
 
 
 class CveTrendPoint(BaseModel):
@@ -43,6 +48,8 @@ class AgingBucket(BaseModel):
 class ComponentCveCount(BaseModel):
     component_name: str
     cve_count: int
+    fixable_count: int = 0
+    unfixable_count: int = 0
 
 
 class RiskAcceptancePipeline(BaseModel):
@@ -55,13 +62,6 @@ class RiskAcceptancePipeline(BaseModel):
 class FixabilityCount(BaseModel):
     fixable: int
     unfixable: int
-
-
-class DeploymentCveCount(BaseModel):
-    deployment_name: str
-    namespace: str
-    cluster_name: str
-    cve_count: int
 
 
 class FixableTrendPoint(BaseModel):
@@ -93,5 +93,4 @@ class DashboardData(BaseModel):
     top_vulnerable_components: list[ComponentCveCount]
     risk_acceptance_pipeline: RiskAcceptancePipeline
     fixability_breakdown: FixabilityCount
-    top_affected_deployments: list[DeploymentCveCount]
     fixable_trend: list[FixableTrendPoint]
