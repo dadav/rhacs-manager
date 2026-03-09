@@ -33,7 +33,7 @@ _TRANSITIONS: dict[RemediationStatus, set[RemediationStatus]] = {
 
 
 def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
-    if user.is_sec_team:
+    if user.can_see_all_namespaces:
         return True
     return (r.namespace, r.cluster_name) in user.namespaces
 
@@ -90,7 +90,7 @@ async def create_remediation(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RemediationResponse:
     # Verify user has access to the namespace
-    if not current_user.is_sec_team:
+    if not current_user.can_see_all_namespaces:
         if (body.namespace, body.cluster_name) not in current_user.namespaces:
             raise HTTPException(403, "Kein Zugriff auf diesen Namespace")
 
@@ -151,7 +151,7 @@ async def list_remediations(
     query = select(Remediation).order_by(Remediation.created_at.desc())
 
     # Namespace scoping
-    if not current_user.is_sec_team:
+    if not current_user.can_see_all_namespaces:
         if not current_user.has_namespaces:
             return []
         scoped = narrow_namespaces(current_user.namespaces, cluster, namespace)
@@ -201,7 +201,7 @@ async def remediation_stats(
 ) -> RemediationStats:
     base_query = select(Remediation)
 
-    if not current_user.is_sec_team:
+    if not current_user.can_see_all_namespaces:
         if not current_user.has_namespaces:
             return RemediationStats()
         scoped = narrow_namespaces(current_user.namespaces, cluster, namespace)

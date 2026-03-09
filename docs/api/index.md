@@ -20,6 +20,7 @@ RHACS CVE Manager exposes a REST API under `/api`.
 
 - `team_member`: namespace-scoped CVE visibility, risk acceptance requests, badge management
 - `sec_team`: full administrative access (priorities, settings, audit, reviews)
+- wildcard all-namespace users: still `team_member`, but with `X-Forwarded-Namespaces: *` / `has_all_namespaces=true` so they can query all namespaces without gaining sec-team-only permissions
 
 ## Response Patterns
 

@@ -54,9 +54,10 @@ APP_DB_URL="postgresql+asyncpg://postgres@localhost/rhacs_manager" \
     just dev user
     just dev user payments:cluster-a
     just dev user payments:cluster-a inventory:cluster-a
+    just dev user '*'
     ```
 
-In user mode, namespace scopes are translated into `DEV_USER_NAMESPACES`.
+In user mode, namespace scopes are translated into `DEV_USER_NAMESPACES`. Use `*` to simulate a non-sec-team user who can see all namespaces.
 
 ## Verify Changes
 

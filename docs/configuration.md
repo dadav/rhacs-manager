@@ -27,7 +27,7 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 | `DEV_USER_NAME` | `Dev User` | Dev display name |
 | `DEV_USER_EMAIL` | `dev@example.com` | Dev email |
 | `DEV_USER_ROLE` | `sec_team` | `sec_team` or `team_member` |
-| `DEV_USER_NAMESPACES` | `""` | `ns1:cluster1,ns2:cluster2` |
+| `DEV_USER_NAMESPACES` | `""` | `ns1:cluster1,ns2:cluster2` or `*` for all namespaces |
 | `DEV_NAMESPACE_EMAILS` | `""` | `ns1:cluster1=email@company.com,...` mapping for notifications |
 
 ### OIDC (Production)
@@ -44,6 +44,8 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 | `SPOKE_API_KEYS` | `[]` | JSON list of accepted spoke keys |
 | `SEC_TEAM_GROUP` | `rhacs-sec-team` | Group mapped to `sec_team` |
 
+Users can also receive wildcard namespace access from the spoke by setting `X-Forwarded-Namespaces: *`. This keeps the user in the `team_member` role while granting full namespace visibility, so sec-team-only actions stay restricted and CVSS/EPSS thresholds still apply.
+
 ### Auth Header Injector (Spoke Sidecar)
 
 The spoke `auth-header-injector` reads Kubernetes namespace annotations and forwards namespace scope/email metadata to the hub backend.
@@ -57,6 +59,7 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `CACHE_TTL_SECONDS` | `300` | Namespace annotation cache refresh interval |
 | `GROUP_CACHE_TTL_SECONDS` | `60` | OpenShift user-group cache TTL |
 | `KUBE_API_URL` | `https://kubernetes.default.svc` | OpenShift/Kubernetes API base URL |
+| `ALL_NAMESPACES_GROUPS` | `""` | Comma-separated OpenShift groups that should receive wildcard `*` namespace access |
 
 ## SMTP
 
@@ -78,6 +81,7 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `APP_BASE_URL` | `http://localhost:5173` | Base URL used in links and badge URLs |
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
 | `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
+| `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
 
 ## Runtime Settings (`/api/settings`)
 

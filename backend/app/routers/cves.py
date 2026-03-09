@@ -95,7 +95,7 @@ async def list_cves_by_image(
     from ._scope import narrow_namespaces
 
     has_scope = cluster is not None or namespace is not None
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
@@ -169,7 +169,7 @@ async def list_cves_for_image(
     from ._scope import narrow_namespaces
 
     has_scope = cluster is not None or namespace is not None
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
@@ -248,7 +248,7 @@ async def get_cve(
         if cur is None or esc.triggered_at < cur:
             esc_dates[esc.level] = esc.triggered_at
 
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         cve_data = await sx.get_all_cves(sx_db)
@@ -282,22 +282,31 @@ async def get_cve(
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     components = await sx.get_affected_components(sx_db, cve_id, ns)
     contact_emails: list[str] = []
-    if current_user.is_sec_team and deployments:
+    if current_user.can_see_all_namespaces and deployments:
         ns_cluster_pairs = sorted({
             (d["namespace"], d["cluster_name"])
             for d in deployments
             if d.get("namespace") and d.get("cluster_name")
         })
         if ns_cluster_pairs:
+            from ..config import settings as app_settings
+
             contact_result = await app_db.execute(
-                select(NamespaceContact.escalation_email).where(
+                select(NamespaceContact).where(
                     tuple_(
                         NamespaceContact.namespace,
                         NamespaceContact.cluster_name,
                     ).in_(ns_cluster_pairs)
                 )
             )
-            contact_emails = sorted({row[0] for row in contact_result if row[0]})
+            contacts = contact_result.scalars().all()
+            covered_pairs = {(c.namespace, c.cluster_name) for c in contacts}
+            contact_emails = sorted({c.escalation_email for c in contacts if c.escalation_email})
+
+            # Add default escalation email for namespaces without explicit contacts
+            uncovered = set(ns_cluster_pairs) - covered_pairs
+            if uncovered and app_settings.default_escalation_email:
+                contact_emails = sorted(set(contact_emails) | {app_settings.default_escalation_email})
 
     return CveDetail(
         cve_id=cve_data["cve_id"],
@@ -417,7 +426,7 @@ async def get_cve_deployments(
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[AffectedDeployment]:
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         ns = [(r["namespace"], r["cluster_name"]) for r in all_ns]
     else:

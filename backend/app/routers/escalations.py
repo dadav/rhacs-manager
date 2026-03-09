@@ -25,7 +25,7 @@ async def list_escalations(
     db: AsyncSession = Depends(get_app_db),
 ) -> list[dict]:
     query = select(Escalation).order_by(Escalation.triggered_at.desc())
-    if not current_user.is_sec_team:
+    if not current_user.can_see_all_namespaces:
         if not current_user.has_namespaces:
             return []
         scoped = narrow_namespaces(current_user.namespaces, cluster, namespace)
@@ -67,7 +67,7 @@ async def list_upcoming_escalations(
     if not settings:
         return []
 
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         if cluster or namespace:
             from ..stackrox import queries as sx
             all_ns = await sx.list_namespaces(sx_db)
@@ -75,7 +75,7 @@ async def list_upcoming_escalations(
                 [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
             )
         else:
-            namespaces = []  # empty = all for sec team
+            namespaces = []  # empty = all for all-ns users
     else:
         if not current_user.has_namespaces:
             return []

@@ -135,7 +135,7 @@ Dev environment uses local Postgres. Set `APP_DB_URL` and `STACKROX_DB_URL` or r
 
 **No teams concept.** Namespace access is derived from Kubernetes RBAC and delivered via `X-Forwarded-Namespaces` header.
 
-**Header format:** `X-Forwarded-Namespaces: ns1:cluster1,ns2:cluster2,...`
+**Header format:** `X-Forwarded-Namespaces: ns1:cluster1,ns2:cluster2,...` or `*` (wildcard = all namespaces)
 
 The spoke proxy is responsible for querying namespace annotations and populating this header.
 
@@ -144,16 +144,19 @@ The spoke proxy is responsible for querying namespace annotations and populating
 - `id`, `username`, `email`, `role` (persisted in DB)
 - `namespaces: list[tuple[str, str]]` (from header, NOT persisted)
 - `is_sec_team` (from `sec_team_group` config via `X-Forwarded-Groups`)
+- `has_all_namespaces` (from wildcard `*` in `X-Forwarded-Namespaces`)
+- `can_see_all_namespaces` (property: `is_sec_team or has_all_namespaces`)
 
 **Auth modes:**
 
-1. **Dev mode** (`DEV_MODE=true`): namespaces from `DEV_USER_NAMESPACES` env var (format: `ns1:cluster1,ns2:cluster2`)
+1. **Dev mode** (`DEV_MODE=true`): namespaces from `DEV_USER_NAMESPACES` env var (format: `ns1:cluster1,ns2:cluster2` or `*` for all)
 2. **Spoke proxy** (`X-Api-Key`): namespaces from `X-Forwarded-Namespaces` header, role from `X-Forwarded-Groups`
 3. **OIDC JWT**: namespaces from JWT `namespaces` claim (if available)
 
 **Access control:**
 
 - Sec team sees all CVEs, escalations, risk acceptances (org-wide)
+- Users with `has_all_namespaces` (via `ALL_NAMESPACES_GROUPS`) see all namespaces but without sec_team authorization (cannot approve RAs, verify remediations) and still have CVSS/EPSS thresholds applied
 - Non-sec users see only CVEs in their namespaces
 - Risk acceptances: accessible if user's namespaces overlap with RA's scope targets, or user is the RA creator
 - Escalations: namespace-scoped (filter by user's namespace list)
@@ -163,8 +166,9 @@ The spoke proxy is responsible for querying namespace annotations and populating
 
 - `SPOKE_API_KEYS`: JSON list of allowed API keys, e.g. `'["key1","key2"]'`
 - `SEC_TEAM_GROUP`: group name granting sec_team role (default: `rhacs-sec-team`)
-- `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2`)
+- `DEV_USER_NAMESPACES`: dev mode namespace access (format: `ns1:cluster1,ns2:cluster2` or `*` for all)
 - `MANAGEMENT_EMAIL`: org-wide weekly digest recipient
+- `DEFAULT_ESCALATION_EMAIL`: fallback escalation email for namespaces without `rhacs-manager.io/escalation-email` annotation
 - `BADGE_BASE_URL`: public base URL for badge SVGs (e.g. API route URL `https://rhacs-manager-api.apps.example.com`); empty = relative paths
 - SMTP transport toggles:
   - `SMTP_TLS`: implicit TLS/SMTPS (usually port 465)
@@ -201,7 +205,7 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 - Group annotation format: `rhacs-manager.io/groups: group1,group2` on any namespace — all members of listed groups get access
 - Escalation contact annotation format: `rhacs-manager.io/escalation-email: team@example.com` on any namespace
 - Groups are resolved by calling the OpenShift user API with the forwarded access token (cached per token for `GROUP_CACHE_TTL_SECONDS`, default 60)
-- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `EMAIL_ANNOTATION` (default: `rhacs-manager.io/escalation-email`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`)
+- Config env vars: `CLUSTER_NAME` (required), `NAMESPACE_ANNOTATION` (default: `rhacs-manager.io/users`), `GROUP_ANNOTATION` (default: `rhacs-manager.io/groups`), `EMAIL_ANNOTATION` (default: `rhacs-manager.io/escalation-email`), `CACHE_TTL_SECONDS` (default: `300`), `GROUP_CACHE_TTL_SECONDS` (default: `60`), `KUBE_API_URL` (default: `https://kubernetes.default.svc`), `ALL_NAMESPACES_GROUPS` (comma-separated group names that receive wildcard `*` namespace access instead of enumerated namespaces)
 - Requires ClusterRole with `list` on `namespaces` (included in Helm chart)
 
 **Deploy:**
@@ -213,14 +217,14 @@ Route → oauth-proxy → auth-header-injector → nginx  →→  Route → Fast
 ## Data Model Highlights
 
 - CVE visibility is scoped by user's namespaces (from `X-Forwarded-Namespaces` header).
-- CVSS/EPSS thresholds in `global_settings` filter CVEs from non-sec views (sec team sees all).
+- CVSS/EPSS thresholds in `global_settings` filter CVEs from non-sec views (sec team sees all; `has_all_namespaces` users still have thresholds applied).
 - Threshold evaluation is conjunctive: CVEs must meet both `min_cvss_score` and `min_epss_score` unless bypassed by manual priority or active risk acceptance.
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
 - In `/cves`, prioritized CVEs must always be listed first regardless of selected sort column/direction.
 - CVE API payloads expose both timeline dates from StackRox: `first_seen` (`ic.firstimageoccurrence`) and `published_on` (`ic.cvebaseinfo_publishedon`).
 - CVE detail lifecycle timeline includes a dedicated "Veröffentlicht" step sourced from `published_on`, in addition to "Entdeckt" from `first_seen`.
 - CVE detail view includes external reference links for each CVE ID: Red Hat (`https://access.redhat.com/security/cve/<CVE-ID>`) and NVD (`https://nvd.nist.gov/vuln/detail/<CVE-ID>`).
-- CVE detail API now includes `contact_emails` (deduplicated `namespace_contacts.escalation_email` values) and the detail UI renders them as mailto links; values are populated for sec-team requests.
+- CVE detail API now includes `contact_emails` (deduplicated `namespace_contacts.escalation_email` values) and the detail UI renders them as mailto links; values are populated for users with `can_see_all_namespaces`. For namespaces without explicit contacts, `DEFAULT_ESCALATION_EMAIL` is included as fallback.
 - Risk acceptance creation is CVE-contextual only: users should start requests from CVE list/detail views; `/risikoakzeptanzen` is a list/review view and does not provide a standalone "new" action.
 - Risk acceptances are scope-aware. `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`

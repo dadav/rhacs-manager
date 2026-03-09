@@ -133,6 +133,10 @@ spec:
           value: {{ .authHeaderInjector.cacheTtlSeconds | quote }}
         - name: GROUP_CACHE_TTL_SECONDS
           value: {{ .authHeaderInjector.groupCacheTtlSeconds | quote }}
+        {{- if .authHeaderInjector.allNamespacesGroups }}
+        - name: ALL_NAMESPACES_GROUPS
+          value: {{ .authHeaderInjector.allNamespacesGroups | quote }}
+        {{- end }}
       {{- with .authHeaderInjector.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

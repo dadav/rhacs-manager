@@ -193,6 +193,10 @@ async def run_escalation_check() -> None:
                         await mail_svc.send_escalation_email(
                             contact.escalation_email, **email_kwargs,
                         )
+                    elif app_settings.default_escalation_email:
+                        await mail_svc.send_escalation_email(
+                            app_settings.default_escalation_email, **email_kwargs,
+                        )
                     elif app_settings.management_email:
                         await mail_svc.send_escalation_email(
                             app_settings.management_email, **email_kwargs,

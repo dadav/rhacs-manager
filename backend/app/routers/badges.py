@@ -1,3 +1,4 @@
+import time
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -14,6 +15,10 @@ from ..schemas.badge import BadgeCreate, BadgeResponse
 from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/badges", tags=["badges"])
+
+# Server-side SVG cache: token -> (svg_string, timestamp)
+_svg_cache: dict[str, tuple[str, float]] = {}
+_SVG_CACHE_TTL = 300  # 5 minutes, matches Cache-Control max-age
 
 
 def _badge_url(token: str) -> str:
@@ -43,6 +48,15 @@ async def get_badge_svg(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> Response:
     """Public endpoint — no auth required."""
+    # Check server-side cache first
+    cached = _svg_cache.get(token)
+    if cached and (time.monotonic() - cached[1]) < _SVG_CACHE_TTL:
+        return Response(
+            cached[0],
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "max-age=300"},
+        )
+
     result = await app_db.execute(select(BadgeToken).where(BadgeToken.token == token))
     badge = result.scalar_one_or_none()
     if not badge:
@@ -57,22 +71,23 @@ async def get_badge_svg(
     min_cvss = float(gs.min_cvss_score) if gs else 0.0
     min_epss = float(gs.min_epss_score) if gs else 0.0
 
-    # Badge scoped by its namespace/cluster, or stored scope_namespaces
+    # Badge scoped by its namespace/cluster, stored scope_namespaces, or all (None)
     if badge.namespace:
         ns = [(badge.namespace, badge.cluster_name or "")]
+        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
     elif badge.scope_namespaces:
         ns = [(entry[0], entry[1]) for entry in badge.scope_namespaces]
+        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
+    elif badge.scope_namespaces is None:
+        # All namespaces (has_all_namespaces user with no namespace filter)
+        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss)
     else:
-        ns = []
-
-    if not ns:
+        # Empty list — no scope
         return Response(
             generate_badge_svg(0, 0, 0, 0, badge.label),
             media_type="image/svg+xml",
             headers={"Cache-Control": "max-age=300"},
         )
-
-    cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
 
     critical = sum(1 for c in cves if c.get("severity") == 4)
     high = sum(1 for c in cves if c.get("severity") == 3)
@@ -80,6 +95,7 @@ async def get_badge_svg(
     low = sum(1 for c in cves if c.get("severity") <= 1)
 
     svg = generate_badge_svg(critical, high, moderate, low, badge.label)
+    _svg_cache[token] = (svg, time.monotonic())
     return Response(
         svg,
         media_type="image/svg+xml",
@@ -94,7 +110,7 @@ async def list_badges(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[BadgeResponse]:
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         query = select(BadgeToken).order_by(BadgeToken.created_at.desc())
     else:
         query = select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
@@ -124,7 +140,7 @@ async def create_badge(
         raise HTTPException(400, "Keine Namespaces zugeordnet")
 
     # Validate namespace is in user's accessible namespaces
-    if body.namespace:
+    if body.namespace and not current_user.has_all_namespaces:
         if body.cluster_name:
             if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
                 raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
@@ -133,9 +149,10 @@ async def create_badge(
                 raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
 
     # When no namespace filter specified, store all user's namespaces
-    # so the public SVG endpoint can query the right scope
+    # so the public SVG endpoint can query the right scope.
+    # For has_all_namespaces users, scope_ns stays None (= all namespaces).
     scope_ns = None
-    if not body.namespace:
+    if not body.namespace and not current_user.has_all_namespaces:
         scope_ns = [[ns, cluster] for ns, cluster in current_user.namespaces]
 
     badge = BadgeToken(
@@ -163,5 +180,6 @@ async def delete_badge(
         raise HTTPException(404, "Nicht gefunden")
     if not current_user.is_sec_team and badge.created_by != current_user.id:
         raise HTTPException(403, "Kein Zugriff")
+    _svg_cache.pop(badge.token, None)
     await db.delete(badge)
     await db.commit()

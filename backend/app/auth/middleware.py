@@ -74,21 +74,26 @@ async def _upsert_namespace_contacts(
 
 
 class CurrentUser:
-    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]], onboarding_completed: bool = False):
+    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]], onboarding_completed: bool = False, has_all_namespaces: bool = False):
         self.id = id
         self.username = username
         self.email = email
         self.role = role
         self.namespaces = namespaces
         self.onboarding_completed = onboarding_completed
+        self.has_all_namespaces = has_all_namespaces
 
     @property
     def is_sec_team(self) -> bool:
         return self.role == UserRole.sec_team
 
     @property
+    def can_see_all_namespaces(self) -> bool:
+        return self.is_sec_team or self.has_all_namespaces
+
+    @property
     def has_namespaces(self) -> bool:
-        return len(self.namespaces) > 0
+        return len(self.namespaces) > 0 or self.has_all_namespaces
 
 
 async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
@@ -127,7 +132,7 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     return user
 
 
-def _to_current_user(user: User, namespaces: list[tuple[str, str]]) -> CurrentUser:
+def _to_current_user(user: User, namespaces: list[tuple[str, str]], has_all_namespaces: bool = False) -> CurrentUser:
     return CurrentUser(
         id=user.id,
         username=user.username,
@@ -135,11 +140,13 @@ def _to_current_user(user: User, namespaces: list[tuple[str, str]]) -> CurrentUs
         role=user.role,
         namespaces=namespaces,
         onboarding_completed=user.onboarding_completed,
+        has_all_namespaces=has_all_namespaces,
     )
 
 
 async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
-    namespaces = _parse_namespaces_header(settings.dev_user_namespaces)
+    has_all_namespaces = settings.dev_user_namespaces.strip() == "*"
+    namespaces = [] if has_all_namespaces else _parse_namespaces_header(settings.dev_user_namespaces)
 
     # Upsert dev namespace email contacts
     ns_emails = _parse_namespace_emails_header(settings.dev_namespace_emails)
@@ -154,7 +161,7 @@ async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
     }
     user = await _get_or_create_user(session, user_data)
     user = await _sync_user_fields(session, user, user_data)
-    return _to_current_user(user, namespaces)
+    return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)
 
 
 async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> CurrentUser:
@@ -168,7 +175,8 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
         raise HTTPException(status_code=401, detail="X-Forwarded-User header fehlt")
 
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
-    namespaces = _parse_namespaces_header(forwarded_namespaces_raw)
+    has_all_namespaces = forwarded_namespaces_raw.strip() == "*"
+    namespaces = [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
 
     # Determine role from groups
     role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
@@ -191,8 +199,8 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     if ns_emails:
         await _upsert_namespace_contacts(session, ns_emails)
 
-    logger.info("Spoke proxy auth: user=%s, role=%s, namespaces=%d", user_id, role.value, len(namespaces))
-    return _to_current_user(user, namespaces)
+    logger.info("Spoke proxy auth: user=%s, role=%s, namespaces=%d, all_ns=%s", user_id, role.value, len(namespaces), has_all_namespaces)
+    return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)
 
 
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:

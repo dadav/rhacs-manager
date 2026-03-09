@@ -79,6 +79,7 @@ backend:
       APP_BASE_URL: "https://rhacs-manager.example.com"
       BADGE_BASE_URL: "https://rhacs-manager-api.example.com"
       MANAGEMENT_EMAIL: ""
+      DEFAULT_ESCALATION_EMAIL: ""
       SPOKE_API_KEYS: "[]"
       SEC_TEAM_GROUP: "rhacs-sec-team"
   env:
@@ -202,6 +203,7 @@ frontend:
     emailAnnotation: rhacs-manager.io/escalation-email
     cacheTtlSeconds: "300"
     groupCacheTtlSeconds: "60"
+    allNamespacesGroups: ""  # comma-separated groups that get wildcard (*) namespace access
     clusterRoleName: rhacs-manager-namespace-reader
     clusterRoleBindingName: rhacs-manager-namespace-reader
     resources:
@@ -287,6 +289,7 @@ spoke:
     emailAnnotation: rhacs-manager.io/escalation-email
     cacheTtlSeconds: "300"
     groupCacheTtlSeconds: "60"
+    allNamespacesGroups: ""  # comma-separated groups that get wildcard (*) namespace access
     clusterRoleName: rhacs-manager-namespace-reader
     clusterRoleBindingName: rhacs-manager-namespace-reader
     resources:

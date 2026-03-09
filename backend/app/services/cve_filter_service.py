@@ -98,7 +98,7 @@ async def fetch_filtered_cves(
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
     ns_for_components: list[tuple[str, str]] = []
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             scoped_ns = narrow_namespaces(
@@ -146,7 +146,7 @@ async def fetch_filtered_cves(
     if component and items:
         comp_lower = component.lower()
         cve_ids = [i.cve_id for i in items]
-        if current_user.is_sec_team:
+        if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
             ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
@@ -178,7 +178,7 @@ async def fetch_filtered_cves(
     # Deployment filter
     if deployment and items:
         cve_ids = [i.cve_id for i in items]
-        if current_user.is_sec_team:
+        if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
             dep_ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:

@@ -36,7 +36,7 @@ async def _resolve_namespaces(
     """Resolve the namespace list for the current user, optionally filtered."""
     from ._scope import narrow_namespaces
 
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         ns_list = [(r["namespace"], r["cluster_name"]) for r in all_ns]
     else:

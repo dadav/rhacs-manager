@@ -8,6 +8,8 @@ All endpoints are prefixed with `/api`.
 |--------|------|------|-------------|
 | GET | `/api/auth/me` | Any authenticated user | Current user profile |
 
+`GET /api/auth/me` includes `has_all_namespaces` so the frontend can distinguish wildcard visibility from `sec_team`.
+
 ## CVEs
 
 | Method | Path | Role | Description |
@@ -39,6 +41,8 @@ All endpoints are prefixed with `/api`.
 
 !!! note
     Prioritized CVEs are always placed first, regardless of selected sort column.
+
+Wildcard all-namespace users can query all namespaces through these endpoints, but non-sec-team CVSS/EPSS thresholds still apply to their results.
 
 ## Dashboard
 
@@ -92,6 +96,8 @@ Targets are validated against affected deployments for that CVE.
 
 Both endpoints accept optional `cluster` and `namespace` filters.
 
+Wildcard all-namespace users can list escalations across the full fleet, but this does not grant sec-team review privileges elsewhere in the API.
+
 ## Notifications
 
 | Method | Path | Role | Description |
@@ -105,10 +111,16 @@ Both endpoints accept optional `cluster` and `namespace` filters.
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| GET | `/api/badges` | Any | List own badge tokens |
+| GET | `/api/badges` | Any | List own badge tokens, or all badge tokens for users who can see all namespaces |
 | POST | `/api/badges` | `team_member` | Create badge token |
 | DELETE | `/api/badges/{id}` | Any | Delete own badge token |
 | GET | `/api/badges/{token}/status.svg` | Public | Render SVG status badge |
+
+Badge behavior:
+
+- For ordinary team members, a badge without an explicit namespace stores the user's current namespace list as its fixed scope.
+- For wildcard all-namespace users, a badge without an explicit namespace represents all namespaces dynamically.
+- Badge SVG responses are cached server-side for 5 minutes and return `Cache-Control: max-age=300`.
 
 ## Settings
 
@@ -144,6 +156,8 @@ Both endpoints accept optional `cluster` and `namespace` filters.
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/api/namespaces` | Any | Accessible namespaces |
+
+Wildcard all-namespace users receive the full namespace list from this endpoint.
 
 ## Audit
 

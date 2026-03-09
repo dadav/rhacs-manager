@@ -17,9 +17,10 @@ The spoke frontend deployment contains three containers:
   - `rhacs-manager.io/users` (comma-separated usernames)
   - `rhacs-manager.io/groups` (comma-separated group names)
   - `rhacs-manager.io/escalation-email` (single escalation contact email for the namespace)
-- Writes `X-Forwarded-Namespaces` as `namespace:cluster` pairs
+- Writes `X-Forwarded-Namespaces` as `namespace:cluster` pairs or `*` for wildcard access
 - Writes `X-Forwarded-Namespace-Emails` as `namespace:cluster=email@company.com` pairs
 - Writes `X-Forwarded-Groups` from the resolved OpenShift user groups
+- If the user belongs to a configured `ALL_NAMESPACES_GROUPS` group, the injector emits `X-Forwarded-Namespaces: *` instead of enumerating namespaces
 
 Configuration:
 
@@ -31,6 +32,9 @@ Configuration:
 | `EMAIL_ANNOTATION` | `rhacs-manager.io/escalation-email` | Namespace escalation contact annotation key |
 | `CACHE_TTL_SECONDS` | `300` | Cache refresh interval |
 | `GROUP_CACHE_TTL_SECONDS` | `60` | Group lookup cache interval |
+| `ALL_NAMESPACES_GROUPS` | `""` | Comma-separated groups that should receive wildcard namespace access |
+
+`*` namespace access is for users who need fleet-wide visibility without receiving backend `sec_team` privileges. The hub interprets this as full namespace scope, not as an administrative role change.
 
 Example namespace metadata:
 

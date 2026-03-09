@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     badge_base_url: str = Field(default="")  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
     secret_key: str = Field(default="dev-secret-key-change-in-production")
     management_email: str = Field(default="")  # org-wide digest recipient
+    default_escalation_email: str = Field(default="")  # fallback escalation email for unannotated namespaces
 
 
 settings = Settings()

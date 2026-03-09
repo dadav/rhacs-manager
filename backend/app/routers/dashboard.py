@@ -216,7 +216,7 @@ async def dashboard(
 
     has_scope = cluster is not None or namespace is not None
 
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces: list[tuple[str, str]] = narrow_namespaces(
@@ -256,7 +256,7 @@ async def dashboard(
 
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
-    if current_user.is_sec_team and not has_scope:
+    if current_user.can_see_all_namespaces and not has_scope:
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
         ns_list_for_queries = None
     else:
@@ -272,12 +272,12 @@ async def dashboard(
     )
 
     # Escalation count: filter by scope-narrowed namespaces
-    if current_user.is_sec_team and not has_scope:
+    if current_user.can_see_all_namespaces and not has_scope:
         escalations_result = await app_db.execute(
             select(func.count(Escalation.id))
         )
     else:
-        esc_ns = namespaces if has_scope or not current_user.is_sec_team else []
+        esc_ns = namespaces if has_scope or not current_user.can_see_all_namespaces else []
         if esc_ns:
             ns_pairs_esc = [(ns, cl) for ns, cl in esc_ns]
             esc_query = select(func.count(Escalation.id)).where(
@@ -300,7 +300,7 @@ async def dashboard(
     open_ra = open_ra_result.scalar() or 0
 
     # Run all chart queries + upcoming escalations + RA pipeline concurrently
-    upcoming_ns = namespaces if (has_scope or not current_user.is_sec_team) else []
+    upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
     (
         sev_dist,
         ns_counts,

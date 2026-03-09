@@ -13,7 +13,7 @@ async def list_namespaces(
     current_user: CurrentUser = Depends(get_current_user),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[dict]:
-    if current_user.is_sec_team:
+    if current_user.can_see_all_namespaces:
         return await sx.list_namespaces(sx_db)
 
     return [

@@ -44,7 +44,7 @@ def _get_scope_namespaces(scope: dict) -> set[tuple[str, str]]:
 
 def _user_can_access_ra(user: CurrentUser, ra: RiskAcceptance) -> bool:
     """Check if user can access a risk acceptance based on namespace overlap."""
-    if user.is_sec_team:
+    if user.can_see_all_namespaces:
         return True
     if ra.created_by == user.id:
         return True

@@ -108,7 +108,7 @@ flowchart TD
 
 ### 1. Dev Mode
 
-When `DEV_MODE=true`, the user is created/synced from environment variables on every request. No authentication headers are required. Namespace access is controlled via `DEV_USER_NAMESPACES` (format: `ns1:cluster1,ns2:cluster2`).
+When `DEV_MODE=true`, the user is created/synced from environment variables on every request. No authentication headers are required. Namespace access is controlled via `DEV_USER_NAMESPACES` (format: `ns1:cluster1,ns2:cluster2` or `*` for all namespaces).
 
 ### 2. Spoke Proxy Mode
 
@@ -119,10 +119,10 @@ Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE
 | `X-Forwarded-User` | Username (required) |
 | `X-Forwarded-Email` | Email address |
 | `X-Forwarded-Groups` | Comma-separated group list |
-| `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs (set by auth-header-injector) |
+| `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs or `*` (set by auth-header-injector) |
 | `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by auth-header-injector) |
 
-If the user belongs to the group specified by `SEC_TEAM_GROUP`, they get the `sec_team` role; otherwise they are a `team_member`. Users are auto-provisioned with ID `spoke:<username>`.
+If the user belongs to the group specified by `SEC_TEAM_GROUP`, they get the `sec_team` role; otherwise they are a `team_member`. Separately, users may receive wildcard namespace visibility via `X-Forwarded-Namespaces: *`. Users are auto-provisioned with ID `spoke:<username>`.
 
 ### 3. OIDC JWT
 
@@ -162,7 +162,7 @@ Namespace access is derived from Kubernetes RBAC, not from an application-manage
 
 The auth-header-injector emits:
 
-- `X-Forwarded-Namespaces`: `namespace:cluster` pairs
+- `X-Forwarded-Namespaces`: `namespace:cluster` pairs or `*` for wildcard all-namespace access
 - `X-Forwarded-Namespace-Emails`: `namespace:cluster=email` pairs
 
 **`CurrentUser` carries:**
@@ -170,6 +170,10 @@ The auth-header-injector emits:
 - `id`, `username`, `email`, `role` (persisted in DB)
 - `namespaces: list[tuple[str, str]]` (from `X-Forwarded-Namespaces` header, NOT persisted)
 - `is_sec_team` (derived from `sec_team_group` config via `X-Forwarded-Groups`)
+- `has_all_namespaces` (derived from wildcard `*` access)
+- `can_see_all_namespaces` (`is_sec_team or has_all_namespaces`)
+
+`ALL_NAMESPACES_GROUPS` on the spoke injector maps one or more OpenShift groups to wildcard namespace access. This does not grant sec-team-only permissions.
 
 ## Data Model
 
@@ -180,11 +184,13 @@ The auth-header-injector emits:
 | `team_member` | See CVEs in their namespaces (from `X-Forwarded-Namespaces`), create risk acceptances, create badges |
 | `sec_team` | See all CVEs, set priorities, review risk acceptances, configure settings |
 
+Users with `has_all_namespaces=true` keep the `team_member` role but can query all namespaces. They still follow non-sec-team threshold filtering and cannot perform sec-team-only actions.
+
 ### CVE Visibility Logic
 
 CVE visibility uses conjunctive threshold filtering:
 
-1. A CVE must meet **both** `min_cvss_score` **and** `min_epss_score` thresholds to appear in non-sec views
+1. A CVE must meet **both** `min_cvss_score` **and** `min_epss_score` thresholds to appear in non-sec views, including wildcard all-namespace users
 2. **Exception**: CVEs with a manual priority or active risk acceptance always appear regardless of thresholds
 3. The sec team sees all CVEs that pass the thresholds
 
@@ -216,6 +222,8 @@ Escalation rules are stored in `global_settings.escalation_rules` as a JSON arra
 ```
 
 The scheduler checks CVE ages against these rules and creates escalation records scoped by `(cve_id, namespace, cluster_name, level)`.
+
+When a namespace has no `rhacs-manager.io/escalation-email` annotation, escalation delivery falls back to `DEFAULT_ESCALATION_EMAIL` if configured, then to `MANAGEMENT_EMAIL`.
 
 ## Background Jobs
 

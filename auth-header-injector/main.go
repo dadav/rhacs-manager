@@ -22,15 +22,16 @@ import (
 )
 
 type config struct {
-	ListenAddr          string
-	UpstreamAddr        string
-	ClusterName         string
-	NamespaceAnnotation string
-	GroupAnnotation     string
-	EmailAnnotation     string
-	CacheTTLSeconds     int
-	KubeAPIURL          string
+	ListenAddr           string
+	UpstreamAddr         string
+	ClusterName          string
+	NamespaceAnnotation  string
+	GroupAnnotation      string
+	EmailAnnotation      string
+	CacheTTLSeconds      int
+	KubeAPIURL           string
 	GroupCacheTTLSeconds int
+	AllNamespacesGroups  []string // groups that get wildcard (*) namespace access
 }
 
 func loadConfig() config {
@@ -57,6 +58,14 @@ func loadConfig() config {
 	if v := os.Getenv("GROUP_CACHE_TTL_SECONDS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			c.GroupCacheTTLSeconds = n
+		}
+	}
+	if v := os.Getenv("ALL_NAMESPACES_GROUPS"); v != "" {
+		for _, g := range strings.Split(v, ",") {
+			g = strings.ToLower(strings.TrimSpace(g))
+			if g != "" {
+				c.AllNamespacesGroups = append(c.AllNamespacesGroups, g)
+			}
 		}
 	}
 	return c
@@ -273,6 +282,7 @@ func main() {
 		"email_annotation", cfg.EmailAnnotation,
 		"cache_ttl_seconds", cfg.CacheTTLSeconds,
 		"group_cache_ttl_seconds", cfg.GroupCacheTTLSeconds,
+		"all_namespaces_groups", cfg.AllNamespacesGroups,
 	)
 
 	// K8s client (in-cluster).
@@ -363,6 +373,29 @@ func main() {
 				g = strings.TrimSpace(g)
 				if g != "" {
 					userGroups = append(userGroups, g)
+				}
+			}
+		}
+
+		// Check if user belongs to an all-namespaces group.
+		if len(cfg.AllNamespacesGroups) > 0 {
+			allNSGroupSet := make(map[string]bool, len(cfg.AllNamespacesGroups))
+			for _, g := range cfg.AllNamespacesGroups {
+				allNSGroupSet[g] = true
+			}
+			for _, g := range userGroups {
+				if allNSGroupSet[strings.ToLower(strings.TrimSpace(g))] {
+					r.Header.Set("X-Forwarded-Namespaces", "*")
+					r.Header.Set("X-Forwarded-Namespace-Emails", "")
+					if len(userGroups) > 0 {
+						r.Header.Set("X-Forwarded-Groups", strings.Join(userGroups, ","))
+					}
+					slog.Debug("wildcard namespace access",
+						"user", user,
+						"group", g,
+					)
+					proxy.ServeHTTP(w, r)
+					return
 				}
 			}
 		}

@@ -64,11 +64,13 @@ dev session="sec" *namespaces:
     export DEV_USER_NAMESPACES=""
 
     namespaces_raw="{{ namespaces }}"
-    if [[ -n "${namespaces_raw}" ]]; then
+    if [[ "${namespaces_raw}" == "*" ]]; then
+      export DEV_USER_NAMESPACES="*"
+    elif [[ -n "${namespaces_raw}" ]]; then
       IFS=' ' read -r -a namespace_args <<< "${namespaces_raw}"
       for ns in "${namespace_args[@]}"; do
         if [[ "${ns}" != *:* ]]; then
-          echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster"
+          echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster or *"
           exit 1
         fi
       done
@@ -115,11 +117,13 @@ dev-backend session="sec" *namespaces:
     export DEV_USER_NAMESPACES=""
 
     namespaces_raw="{{ namespaces }}"
-    if [[ -n "${namespaces_raw}" ]]; then
+    if [[ "${namespaces_raw}" == "*" ]]; then
+      export DEV_USER_NAMESPACES="*"
+    elif [[ -n "${namespaces_raw}" ]]; then
       IFS=' ' read -r -a namespace_args <<< "${namespaces_raw}"
       for ns in "${namespace_args[@]}"; do
         if [[ "${ns}" != *:* ]]; then
-          echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster"
+          echo "Invalid namespace entry '${ns}'. Expected format: namespace:cluster or *"
           exit 1
         fi
       done
