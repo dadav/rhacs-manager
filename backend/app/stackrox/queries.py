@@ -272,16 +272,17 @@ async def get_cves_per_namespace(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_by_namespace AS (
+        WITH visible_by_ns_cluster AS (
             SELECT
                 d.namespace AS namespace,
+                d.clustername AS cluster,
                 ic.cvebaseinfo_cve AS cve_id,
                 MAX(ic.severity) AS severity
             FROM deployments d
             JOIN deployments_containers dc ON dc.deployments_id = d.id
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             {where_clause}
-            GROUP BY d.namespace, ic.cvebaseinfo_cve
+            GROUP BY d.namespace, d.clustername, ic.cvebaseinfo_cve
             HAVING (
                 (
                     MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
@@ -289,17 +290,23 @@ async def get_cves_per_namespace(
                 )
                 OR ic.cvebaseinfo_cve = ANY(:always_show)
             )
+        ),
+        deduped AS (
+            SELECT DISTINCT namespace, cve_id, MAX(severity) AS severity
+            FROM visible_by_ns_cluster
+            GROUP BY namespace, cve_id
         )
         SELECT
-            namespace,
+            d.namespace,
             COUNT(*) AS count,
-            COUNT(*) FILTER (WHERE severity = 4) AS critical,
-            COUNT(*) FILTER (WHERE severity = 3) AS important,
-            COUNT(*) FILTER (WHERE severity = 2) AS moderate,
-            COUNT(*) FILTER (WHERE severity = 1) AS low,
-            COUNT(*) FILTER (WHERE severity = 0 OR severity IS NULL) AS unknown
-        FROM visible_by_namespace
-        GROUP BY namespace
+            COUNT(*) FILTER (WHERE d.severity = 4) AS critical,
+            COUNT(*) FILTER (WHERE d.severity = 3) AS important,
+            COUNT(*) FILTER (WHERE d.severity = 2) AS moderate,
+            COUNT(*) FILTER (WHERE d.severity = 1) AS low,
+            COUNT(*) FILTER (WHERE d.severity = 0 OR d.severity IS NULL) AS unknown,
+            (SELECT COUNT(DISTINCT cluster) FROM visible_by_ns_cluster vc WHERE vc.namespace = d.namespace) AS cluster_count
+        FROM deduped d
+        GROUP BY d.namespace
         ORDER BY count DESC
     """)
     result = await session.execute(

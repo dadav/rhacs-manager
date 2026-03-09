@@ -16,6 +16,7 @@ class NamespaceCveCount(BaseModel):
     moderate: int = 0
     low: int = 0
     unknown: int = 0
+    cluster_count: int = 1
 
 
 class CveTrendPoint(BaseModel):

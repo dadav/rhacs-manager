@@ -223,6 +223,7 @@ export interface NamespaceCveCount {
   moderate: number
   low: number
   unknown: number
+  cluster_count: number
 }
 
 export interface CveTrendPoint {

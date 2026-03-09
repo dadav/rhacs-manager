@@ -502,25 +502,42 @@ export function Dashboard() {
           </GridItem>
 
           {/* CVEs per Namespace — stacked by severity */}
-          {data.cves_per_namespace.length > 0 && (
+          {data.cves_per_namespace.length > 0 && (() => {
+            const nsData = data.cves_per_namespace.slice(0, 10)
+            const hasMultiCluster = nsData.some(ns => ns.cluster_count > 1)
+            const barHeight = hasMultiCluster ? 48 : 40
+            return (
             <GridItem span={12}>
               <Card>
                 <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
                 <CardBody>
-                  <ResponsiveContainer width="100%" height={data.cves_per_namespace.slice(0, 10).length * 40 + 20}>
+                  <ResponsiveContainer width="100%" height={nsData.length * barHeight + 20}>
                     <BarChart
-                      data={data.cves_per_namespace.slice(0, 10)}
+                      data={nsData}
                       layout="vertical"
                       margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                      barSize={hasMultiCluster ? 20 : undefined}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
                       <YAxis
                         type="category"
                         dataKey="namespace"
-                        tick={{ fontSize: 11 }}
                         width={200}
                         interval={0}
+                        tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+                          const ns = nsData.find(n => n.namespace === payload.value)
+                          return (
+                            <text x={x} y={y} textAnchor="end" fontSize={11} fill="var(--pf-v6-global--Color--100)">
+                              <tspan x={x} dy={ns && ns.cluster_count > 1 ? -6 : 4}>{payload.value}</tspan>
+                              {ns && ns.cluster_count > 1 && (
+                                <tspan x={x} dy={14} fontSize={9} fill="var(--pf-v6-global--Color--200)">
+                                  {ns.cluster_count} Cluster
+                                </tspan>
+                              )}
+                            </text>
+                          )
+                        }}
                       />
                       <Tooltip />
                       <Legend />
@@ -544,7 +561,8 @@ export function Dashboard() {
                 </CardBody>
               </Card>
             </GridItem>
-          )}
+            )
+          })()}
 
           {/* Top Vulnerable Components — stacked by fixability */}
           {data.top_vulnerable_components.length > 0 && (

@@ -373,6 +373,7 @@ async def dashboard(
                 moderate=r.get("moderate", 0),
                 low=r.get("low", 0),
                 unknown=r.get("unknown", 0),
+                cluster_count=r.get("cluster_count", 1),
             )
             for r in ns_counts
         ],
