@@ -150,7 +150,7 @@ Access control rules:
 ### Risk acceptance rules
 
 - Risk acceptance creation is CVE-contextual only.
-- `/risikoakzeptanzen` is a list and review surface, not a standalone create form.
+- `/risk-acceptances` is a list and review surface, not a standalone create form.
 - `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`
   - `targets`: `{ cluster_name, namespace, image_name?, deployment_id? }[]`
