@@ -84,6 +84,26 @@ jobs:
           name: trivy-report-${{ matrix.name }}
           path: trivy-report.json
 
+  helm-schema:
+    name: Generate Helm Schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache: false
+      - name: Install helm-schema
+        run: go install github.com/dadav/helm-schema/cmd/helm-schema@latest
+      - name: Generate values.schema.json
+        run: helm-schema -r -c deploy/helm/rhacs-manager
+      - name: Check for uncommitted schema changes
+        run: |
+          if ! git diff --exit-code deploy/helm/rhacs-manager/values.schema.json; then
+            echo "::error::values.schema.json is out of date. Run 'helm-schema -r -c deploy/helm/rhacs-manager' and commit the result."
+            exit 1
+          fi
+
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-latest
