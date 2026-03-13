@@ -1427,7 +1427,6 @@
     },
     "nameOverride": {
       "default": "",
-      "description": "yaml-language-server: $schema=values.schema.json",
       "title": "nameOverride",
       "type": "string"
     },
