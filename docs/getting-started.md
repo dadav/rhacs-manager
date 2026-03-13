@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Python 3.12+ with [uv](https://docs.astral.sh/uv/)
-- Node.js 22+ with npm
+- Bun 1.3+ for frontend package management
 - PostgreSQL with:
   - `rhacs_manager` (application DB, read-write)
   - `central_active` (StackRox DB, read-only)
@@ -18,7 +18,7 @@ cd rhacs-manager
 just install
 # or manually:
 uv --directory backend sync
-npm --prefix frontend install
+cd frontend && bun install
 ```
 
 ## Create App Database

@@ -11,16 +11,27 @@ const PANEL_TEXT_COLOR = 'var(--pf-v6-global--Color--100, #151515)'
 const PANEL_MUTED_COLOR = 'var(--pf-v6-global--Color--200, #6a6e73)'
 const PANEL_BORDER_COLOR = 'var(--pf-v6-global--BorderColor--100, #d2d2d2)'
 
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60) return 'Gerade eben'
-  if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min.`
-  if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std.`
-  return `vor ${Math.floor(diff / 86400)} Tagen`
+function useTimeAgo() {
+  const { t } = useTranslation()
+  return (dateStr: string): string => {
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+    if (diff < 60) return t('notifications.justNow')
+    if (diff < 3600) {
+      const mins = Math.floor(diff / 60)
+      return t('notifications.minutesAgo', { count: mins })
+    }
+    if (diff < 86400) {
+      const hrs = Math.floor(diff / 3600)
+      return t('notifications.hoursAgo', { count: hrs })
+    }
+    const days = Math.floor(diff / 86400)
+    return t('notifications.daysAgo', { count: days })
+  }
 }
 
 export function NotificationBell() {
   const { t } = useTranslation()
+  const timeAgo = useTimeAgo()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
 

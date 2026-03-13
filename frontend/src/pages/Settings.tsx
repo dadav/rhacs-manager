@@ -16,6 +16,7 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
 import { useSendDigest, useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
+import { useTranslation } from 'react-i18next'
 import type { EscalationRule } from '../types'
 
 function HelpButton({ header, body, label }: { header: string; body: string; label?: string }) {
@@ -27,13 +28,6 @@ function HelpButton({ header, body, label }: { header: string; body: string; lab
     </Popover>
   )
 }
-
-const SEVERITY_OPTIONS = [
-  { value: 1, label: 'Gering' },
-  { value: 2, label: 'Mittel' },
-  { value: 3, label: 'Hoch' },
-  { value: 4, label: 'Kritisch' },
-]
 
 const EPSS_OPTIONS = [
   { value: 0.01, label: '1%' },
@@ -50,10 +44,12 @@ function EscalationRuleRow({
   rule,
   onChange,
   onDelete,
+  severityOptions,
 }: {
   rule: EscalationRule
   onChange: (r: EscalationRule) => void
   onDelete: () => void
+  severityOptions: { value: number; label: string }[]
 }) {
   return (
     <tr>
@@ -63,7 +59,7 @@ function EscalationRuleRow({
           onChange={e => onChange({ ...rule, severity_min: Number(e.target.value) })}
           style={{ width: 120, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         >
-          {SEVERITY_OPTIONS.map(o => (
+          {severityOptions.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
@@ -111,6 +107,7 @@ function EscalationRuleRow({
 }
 
 export function Settings() {
+  const { t, i18n } = useTranslation()
   const { data: settings, isLoading, error } = useSettings()
   const updateSettings = useUpdateSettings()
   const sendDigest = useSendDigest()
@@ -125,6 +122,17 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
 
   const preview = useThresholdPreview(minCvss, minEpss)
+
+  const SEVERITY_OPTIONS = [
+    { value: 1, label: t('severity.1') },
+    { value: 2, label: t('severity.2') },
+    { value: 3, label: t('severity.3') },
+    { value: 4, label: t('severity.4') },
+  ]
+
+  const DAYS = t('settings.digestDays', { returnObjects: true }) as string[]
+
+  const locale = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   useEffect(() => {
     if (settings) {
@@ -160,15 +168,13 @@ export function Settings() {
     }])
   }
 
-  if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
-
-  const DAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag']
+  if (isLoading) return <PageSection><Spinner aria-label={t('common.loading')} /></PageSection>
+  if (error) return <PageSection><Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} /></PageSection>
 
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">Einstellungen</Title>
+        <Title headingLevel="h1" size="xl">{t('settings.title')}</Title>
       </PageSection>
 
       <PageSection>
@@ -178,14 +184,14 @@ export function Settings() {
             <Card>
               <CardTitle>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  CVE-Schwellenwerte
-                  <HelpButton header="CVE-Schwellenwerte" body="CVEs, die beide Schwellenwerte (CVSS und EPSS) unterschreiten, werden für Nicht-Security-Nutzer ausgeblendet. Manuell priorisierte CVEs und CVEs mit aktiven Risikoakzeptanzen bleiben immer sichtbar." />
+                  {t('settings.thresholds')}
+                  <HelpButton header={t('settings.thresholds')} body={t('settings.thresholdHelpBody')} />
                 </span>
               </CardTitle>
               <CardBody>
                 <Grid hasGutter>
                   <GridItem span={5}>
-                    <label style={{ fontSize: 13, fontWeight: 600 }}>Minimaler CVSS-Score: {minCvss.toFixed(1)}</label>
+                    <label style={{ fontSize: 13, fontWeight: 600 }}>{t('settings.minCvssLabel', { value: minCvss.toFixed(1) })}</label>
                     <input
                       type="range" min={0} max={10} step={0.1}
                       value={minCvss}
@@ -194,7 +200,7 @@ export function Settings() {
                     />
                   </GridItem>
                   <GridItem span={5}>
-                    <label style={{ fontSize: 13, fontWeight: 600 }}>Minimaler EPSS-Score: {(minEpss * 100).toFixed(1)}%</label>
+                    <label style={{ fontSize: 13, fontWeight: 600 }}>{t('settings.minEpssLabel', { value: (minEpss * 100).toFixed(1) })}</label>
                     <input
                       type="range" min={0} max={1} step={0.01}
                       value={minEpss}
@@ -205,8 +211,11 @@ export function Settings() {
                   <GridItem span={12}>
                     {preview.data && (
                       <p style={{ fontSize: 13, color: '#6a6e73' }}>
-                        Vorschau: <strong>{preview.data.visible_cves}</strong> von {preview.data.total_cves} CVEs sichtbar
-                        ({preview.data.hidden_cves} ausgeblendet)
+                        {t('settings.preview', {
+                          visible: preview.data.visible_cves,
+                          total: preview.data.total_cves,
+                          hidden: preview.data.hidden_cves,
+                        })}
                       </p>
                     )}
                   </GridItem>
@@ -220,8 +229,8 @@ export function Settings() {
             <Card>
               <CardTitle>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Eskalationsregeln
-                  <HelpButton header="Eskalationsregeln" body="Jede Regel definiert, ab welchem Schweregrad und EPSS-Wert eine CVE eskaliert wird. Bleibt eine CVE unbehandelt (keine Behebung oder Risikoakzeptanz), durchläuft sie die Stufen L1 → L2 → L3 nach den konfigurierten Tagen. Die Namespace-Verantwortlichen werden per E-Mail benachrichtigt; auf L3 zusätzlich die Management-E-Mail." />
+                  {t('settings.escalationRules')}
+                  <HelpButton header={t('settings.escalationRules')} body={t('settings.escalationRulesHelpBody')} />
                 </span>
               </CardTitle>
               <CardBody>
@@ -229,11 +238,11 @@ export function Settings() {
                   <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. Schweregrad</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Min. EPSS</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L1</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L2</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>Tage → L3</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.severityMin')}</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.minEpssCol')}</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel1')}</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel2')}</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel3')}</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -242,6 +251,7 @@ export function Settings() {
                         <EscalationRuleRow
                           key={i}
                           rule={rule}
+                          severityOptions={SEVERITY_OPTIONS}
                           onChange={r => setEscalationRules(rs => rs.map((x, j) => j === i ? r : x))}
                           onDelete={() => setEscalationRules(rs => rs.filter((_, j) => j !== i))}
                         />
@@ -249,11 +259,11 @@ export function Settings() {
                     </tbody>
                   </table>
                 </div>
-                <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>+ Regel hinzufügen</Button>
+                <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>{t('settings.addRule')}</Button>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Vorwarnzeit (Tage)
-                    <HelpButton header="Vorwarnzeit" body="Betroffene Nutzer erhalten eine E-Mail-Benachrichtigung, wenn eine CVE-Eskalation innerhalb der konfigurierten Tage die nächste Stufe erreicht. So bleibt Zeit, die CVE zu beheben oder eine Risikoakzeptanz einzureichen, bevor eskaliert wird." />
+                    {t('settings.warningDays')}
+                    <HelpButton header={t('settings.warningDays')} body={t('settings.warningDaysHelpBody')} />
                   </label>
                   <input
                     type="number" min={1} max={14} step={1}
@@ -269,12 +279,12 @@ export function Settings() {
           {/* Notification settings */}
           <GridItem span={6}>
             <Card>
-              <CardTitle>Benachrichtigungen</CardTitle>
+              <CardTitle>{t('settings.notifications')}</CardTitle>
               <CardBody>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Wochentag für Digest-E-Mail
-                    <HelpButton header="Digest-E-Mail" body="Am gewählten Wochentag wird automatisch eine Zusammenfassung aller offenen CVEs, ausstehenden Eskalationen und Risikoakzeptanzen per E-Mail an die betroffenen Namespace-Verantwortlichen versendet." />
+                    {t('settings.digestDayLabel')}
+                    <HelpButton header={t('settings.digestDayLabel')} body={t('settings.digestDayHelpBody')} />
                   </label>
                   <select
                     value={digestDay}
@@ -288,25 +298,25 @@ export function Settings() {
                 </div>
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    Management-E-Mail (für Eskalationen)
-                    <HelpButton header="Management-E-Mail" body="Empfänger der wöchentlichen Management-Übersicht sowie von Eskalations-Benachrichtigungen auf höchster Stufe (L3). Typischerweise die zentrale Security-Team-Adresse oder ein Verteiler, der bei kritischen, unbehobenen CVEs informiert werden soll." />
+                    {t('settings.managementEmail')}
+                    <HelpButton header={t('settings.managementEmail')} body={t('settings.managementEmailHelpBody')} />
                   </label>
                   <TextInput
                     type="email"
                     value={managementEmail}
                     onChange={(_, v) => setManagementEmail(v)}
-                    placeholder="security@example.com"
+                    placeholder={t('settings.managementEmailPlaceholder')}
                     style={{ marginTop: 4 }}
                   />
                 </div>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
                   <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    Digest jetzt senden
-                    <HelpButton header="Digest jetzt senden" body="Sendet die Digest-E-Mail sofort an alle Namespace-Verantwortlichen, unabhängig vom konfigurierten Wochentag." />
+                    {t('settings.sendDigest')}
+                    <HelpButton header={t('settings.sendDigest')} body={t('settings.sendDigestHelpBody')} />
                   </label>
-                  {digestSent && <Alert variant="success" isInline title="Digest-E-Mail wurde gesendet." style={{ marginBottom: 8 }} />}
+                  {digestSent && <Alert variant="success" isInline title={t('settings.digestSent')} style={{ marginBottom: 8 }} />}
                   {sendDigest.isError && (
-                    <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(sendDigest.error)}`} style={{ marginBottom: 8 }} />
+                    <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(sendDigest.error)}`} style={{ marginBottom: 8 }} />
                   )}
                   <Button
                     variant="secondary"
@@ -319,7 +329,7 @@ export function Settings() {
                       setTimeout(() => setDigestSent(false), 5000)
                     }}
                   >
-                    Jetzt senden
+                    {t('settings.sendNow')}
                   </Button>
                 </div>
               </CardBody>
@@ -328,12 +338,12 @@ export function Settings() {
 
           {/* Save */}
           <GridItem span={12}>
-            {saved && <Alert variant="success" isInline title="Einstellungen gespeichert." style={{ marginBottom: 12 }} />}
+            {saved && <Alert variant="success" isInline title={t('settings.saved')} style={{ marginBottom: 12 }} />}
             {updateSettings.isError && (
-              <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(updateSettings.error)}`} style={{ marginBottom: 12 }} />
+              <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(updateSettings.error)}`} style={{ marginBottom: 12 }} />
             )}
             <Button variant="primary" onClick={handleSave} isLoading={updateSettings.isPending}>
-              Einstellungen speichern
+              {t('settings.saveSettings')}
             </Button>
           </GridItem>
         </Grid>

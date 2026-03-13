@@ -13,14 +13,9 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useRiskAcceptances } from '../api/riskAcceptances'
 import { useScope } from '../hooks/useScope'
+import { useTranslation } from 'react-i18next'
 
-const STATUS_LABELS: Record<string, string> = {
-  '': 'Alle',
-  requested: 'Beantragt',
-  approved: 'Genehmigt',
-  rejected: 'Abgelehnt',
-  expired: 'Abgelaufen',
-}
+const STATUS_KEYS = ['', 'requested', 'approved', 'rejected', 'expired'] as const
 
 const STATUS_COLORS: Record<string, string> = {
   requested: '#0066cc',
@@ -29,18 +24,27 @@ const STATUS_COLORS: Record<string, string> = {
   expired: '#8a8d90',
 }
 
-const STATUS_FILTERS = new Set(Object.keys(STATUS_LABELS))
+const STATUS_FILTERS = new Set(STATUS_KEYS)
 
 function normalizeStatusFilter(raw: string | null): string {
   if (!raw) return ''
-  return STATUS_FILTERS.has(raw) ? raw : ''
+  return STATUS_FILTERS.has(raw as typeof STATUS_KEYS[number]) ? raw : ''
 }
 
 export function RiskAcceptances() {
+  const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(() =>
     normalizeStatusFilter(searchParams.get('status')),
   )
+
+  const statusLabels: Record<string, string> = {
+    '': t('common.all'),
+    requested: t('status.requested'),
+    approved: t('status.approved'),
+    rejected: t('status.rejected'),
+    expired: t('status.expired'),
+  }
 
   useEffect(() => {
     const urlStatus = normalizeStatusFilter(searchParams.get('status'))
@@ -63,10 +67,12 @@ export function RiskAcceptances() {
   const { scopeParams } = useScope()
   const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined, scopeParams)
 
+  const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">Risikoakzeptanzen</Title>
+        <Title headingLevel="h1" size="xl">{t('riskAcceptance.title')}</Title>
       </PageSection>
 
       <PageSection variant="default" padding={{ default: 'noPadding' }}>
@@ -74,7 +80,7 @@ export function RiskAcceptances() {
           <ToolbarContent>
             <ToolbarItem>
               <div style={{ display: 'flex', gap: 4 }}>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                {STATUS_KEYS.map((value) => (
                   <button
                     key={value}
                     onClick={() => handleStatusFilterChange(value)}
@@ -88,7 +94,7 @@ export function RiskAcceptances() {
                       fontSize: 13,
                     }}
                   >
-                    {label}
+                    {statusLabels[value]}
                   </button>
                 ))}
               </div>
@@ -98,21 +104,21 @@ export function RiskAcceptances() {
       </PageSection>
 
       <PageSection>
-        {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
-          <Alert variant="info" isInline title="Keine Risikoakzeptanzen gefunden." />
+          <Alert variant="info" isInline title={t('riskAcceptance.noAcceptancesFound')} />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>CVE</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Status</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Begründung</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Beantragt von</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Beantragt am</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>Läuft ab</th>
-                <th style={{ padding: '8px 12px', textAlign: 'right' }}>Kommentare</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.cveId')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.status')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.justification')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.requestedBy')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.requestedAt')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('riskAcceptance.expiresOn')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('riskAcceptance.comments')}</th>
                 <th style={{ padding: '8px 12px' }}></th>
               </tr>
             </thead>
@@ -120,7 +126,7 @@ export function RiskAcceptances() {
               {data.map(ra => (
                 <tr key={ra.id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                   <td style={{ padding: '8px 12px' }}>
-                    <Link to={`/schwachstellen/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc', fontSize: 12 }}>
+                    <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc', fontSize: 12 }}>
                       {ra.cve_id}
                     </Link>
                   </td>
@@ -134,7 +140,7 @@ export function RiskAcceptances() {
                       fontSize: 11,
                       fontWeight: 600,
                     }}>
-                      {STATUS_LABELS[ra.status] ?? ra.status}
+                      {statusLabels[ra.status] ?? ra.status}
                     </span>
                   </td>
                   <td style={{ padding: '8px 12px', maxWidth: 300 }}>
@@ -144,10 +150,10 @@ export function RiskAcceptances() {
                   </td>
                   <td style={{ padding: '8px 12px', fontSize: 12 }}>{ra.created_by_name}</td>
                   <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                    {new Date(ra.created_at).toLocaleDateString('de-DE')}
+                    {new Date(ra.created_at).toLocaleDateString(localeDateLocale)}
                   </td>
                   <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                    {ra.expires_at ? new Date(ra.expires_at).toLocaleDateString('de-DE') : '–'}
+                    {ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(localeDateLocale) : '–'}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                     {ra.comment_count > 0 && (
@@ -157,8 +163,8 @@ export function RiskAcceptances() {
                     )}
                   </td>
                   <td style={{ padding: '8px 12px' }}>
-                    <Link to={`/risikoakzeptanzen/${ra.id}`}>
-                      <Button variant="secondary" size="sm">Details</Button>
+                    <Link to={`/risk-acceptances/${ra.id}`}>
+                      <Button variant="secondary" size="sm">{t('common.details')}</Button>
                     </Link>
                   </td>
                 </tr>

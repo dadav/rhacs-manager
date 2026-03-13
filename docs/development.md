@@ -171,7 +171,7 @@ just test
 
 ```bash
 just build-frontend
-# or: npm --prefix frontend run build
+# or: cd frontend && bun run build
 ```
 
 TypeScript type checking and Vite build must complete without errors.

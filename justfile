@@ -13,11 +13,11 @@ test:
 
 # Run frontend linter
 lint:
-    npm --prefix frontend run lint
+    cd frontend && bun run lint
 
 # Type-check and build frontend
 build-frontend:
-    npm --prefix frontend run build
+    cd frontend && bun run build
 
 # Check everything (tests + lint + frontend build)
 check:
@@ -40,7 +40,7 @@ migrate-status:
 # Install all dependencies (backend + frontend)
 install:
     uv --directory backend sync
-    npm --prefix frontend install
+    cd frontend && bun install
 
 # Build backend container image
 build-backend-image tag="rhacs-manager-backend:latest":
@@ -105,7 +105,7 @@ dev session="sec" *namespaces:
 
     uv --directory backend run alembic upgrade head
     uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
-    npm --prefix frontend run dev -- --host 0.0.0.0
+    cd frontend && bun run dev --host 0.0.0.0
 
 # Start only the backend dev server (session: sec or user; optional namespaces for team_member)
 dev-backend session="sec" *namespaces:
@@ -155,7 +155,7 @@ dev-backend session="sec" *namespaces:
 
 # Start only the frontend dev server
 dev-frontend:
-    npm --prefix frontend run dev -- --host 0.0.0.0
+    cd frontend && bun run dev --host 0.0.0.0
 
 # Start Mailhog container (SMTP :1025, Web UI :8025)
 mailhog:

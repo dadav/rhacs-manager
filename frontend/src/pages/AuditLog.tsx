@@ -9,26 +9,24 @@ import {
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useAuditLog } from '../api/audit'
+import { useTranslation } from 'react-i18next'
 
-const ACTION_LABELS: Record<string, string> = {
-  risk_acceptance_created: 'Risikoakzeptanz beantragt',
-  risk_acceptance_reviewed: 'Risikoakzeptanz geprüft',
-  risk_acceptance_expired: 'Risikoakzeptanz abgelaufen',
-  risk_acceptance_deleted: 'Risikoakzeptanz gelöscht',
-  priority_set: 'Priorität gesetzt',
-  priority_updated: 'Priorität aktualisiert',
-  priority_deleted: 'Priorität entfernt',
-  settings_updated: 'Einstellungen aktualisiert',
-  comment_added: 'Kommentar hinzugefügt',
-  user_created: 'Benutzer angelegt',
-  user_updated: 'Benutzer aktualisiert',
-}
-
-function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action.replace(/_/g, ' ')
-}
+const ACTION_KEYS = [
+  'risk_acceptance_created',
+  'risk_acceptance_reviewed',
+  'risk_acceptance_expired',
+  'risk_acceptance_deleted',
+  'priority_set',
+  'priority_updated',
+  'priority_deleted',
+  'settings_updated',
+  'comment_added',
+  'user_created',
+  'user_updated',
+] as const
 
 function DetailsCell({ details }: { details: Record<string, unknown> }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const isEmpty = Object.keys(details).length === 0
   if (isEmpty) return <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>–</span>
@@ -50,7 +48,7 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
             onClick={() => setExpanded(false)}
             style={{ background: 'none', border: 'none', color: 'var(--pf-t--global--color--blue--default)', cursor: 'pointer', padding: 0, fontSize: 11 }}
           >
-            Weniger
+            {t('common.less')}
           </button>
         </>
       ) : (
@@ -61,7 +59,7 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
             onClick={() => setExpanded(true)}
             style={{ background: 'none', border: 'none', color: 'var(--pf-t--global--color--blue--default)', cursor: 'pointer', padding: 0, fontSize: 11 }}
           >
-            Mehr
+            {t('common.more')}
           </button>
         </>
       )}
@@ -70,38 +68,48 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
 }
 
 export function AuditLog() {
+  const { t, i18n } = useTranslation()
   const [page, setPage] = useState(1)
   const { data, isLoading, error } = useAuditLog(page)
+
+  const localeString = i18n.language === 'de' ? 'de-DE' : 'en-US'
+
+  function actionLabel(action: string): string {
+    const key = `auditLog.actions.${action}`
+    const translated = t(key)
+    // If t() returns the key itself, fall back to replacing underscores
+    return translated === key ? action.replace(/_/g, ' ') : translated
+  }
 
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">Audit-Log</Title>
+        <Title headingLevel="h1" size="xl">{t('auditLog.title')}</Title>
       </PageSection>
 
       <PageSection>
-        {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.items.length ? (
-          <Alert variant="info" isInline title="Keine Einträge gefunden." />
+          <Alert variant="info" isInline title={t('auditLog.noEntries')} />
         ) : (
           <>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Zeitstempel</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Benutzer</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Aktion</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Entitätstyp</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Entitäts-ID</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>Details</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.date')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.user')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.action')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.entity')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.entityId')}</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('auditLog.details')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map(entry => (
                   <tr key={entry.id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                     <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)', whiteSpace: 'nowrap' }}>
-                      {new Date(entry.created_at).toLocaleString('de-DE')}
+                      {new Date(entry.created_at).toLocaleString(localeString)}
                     </td>
                     <td style={{ padding: '8px 12px', fontSize: 12 }}>{entry.username ?? '–'}</td>
                     <td style={{ padding: '8px 12px', fontSize: 12 }}>

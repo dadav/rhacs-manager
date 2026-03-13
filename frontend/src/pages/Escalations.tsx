@@ -14,6 +14,7 @@ import { CheckCircleIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-i
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useEscalations, useUpcomingEscalations } from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
@@ -23,20 +24,6 @@ const LEVEL_COLORS: Record<number, string> = {
   1: '#ec7a08',
   2: '#c9190b',
   3: '#7d1007',
-}
-
-const LEVEL_LABELS: Record<number, string> = {
-  1: 'Level 1',
-  2: 'Level 2',
-  3: 'Kritisch',
-}
-
-const SEVERITY_LABELS: Record<number, string> = {
-  0: 'Unbekannt',
-  1: 'Gering',
-  2: 'Mittel',
-  3: 'Hoch',
-  4: 'Kritisch',
 }
 
 const TH_STYLE: React.CSSProperties = {
@@ -60,22 +47,6 @@ const SELECT_STYLE: React.CSSProperties = {
   background: 'var(--pf-t--global--background--color--primary--default)',
   color: 'var(--pf-t--global--text--color--regular)',
   fontSize: 13,
-}
-
-function LevelBadge({ level }: { level: number }) {
-  return (
-    <span style={{
-      display: 'inline-block',
-      padding: '2px 8px',
-      borderRadius: 3,
-      background: LEVEL_COLORS[level] ?? '#8a8d90',
-      color: '#fff',
-      fontSize: 11,
-      fontWeight: 600,
-    }}>
-      {LEVEL_LABELS[level] ?? `Level ${level}`}
-    </span>
-  )
 }
 
 function filterUpcoming(
@@ -104,10 +75,43 @@ function filterActive(
 }
 
 export function Escalations() {
+  const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const { data, isLoading, error } = useEscalations(scopeParams)
   const upcoming = useUpcomingEscalations(scopeParams)
+
+  const LEVEL_LABELS: Record<number, string> = {
+    1: t('escalations.level1'),
+    2: t('escalations.level2'),
+    3: t('escalations.levelCritical'),
+  }
+
+  const SEVERITY_LABELS: Record<number, string> = {
+    0: t('severity.0'),
+    1: t('severity.1'),
+    2: t('severity.2'),
+    3: t('severity.3'),
+    4: t('severity.4'),
+  }
+
+  function LevelBadge({ level }: { level: number }) {
+    return (
+      <span style={{
+        display: 'inline-block',
+        padding: '2px 8px',
+        borderRadius: 3,
+        background: LEVEL_COLORS[level] ?? '#8a8d90',
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: 600,
+      }}>
+        {LEVEL_LABELS[level] ?? `Level ${level}`}
+      </span>
+    )
+  }
+
+  const localeDateFormat = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   // Upcoming filters + pagination
   const [upLevelFilter, setUpLevelFilter] = useState('')
@@ -137,25 +141,21 @@ export function Escalations() {
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Title headingLevel="h1" size="xl">Eskalationen</Title>
+          <Title headingLevel="h1" size="xl">{t('escalations.title')}</Title>
           <Popover
-            headerContent="Was sind Eskalationen?"
+            headerContent={t('escalations.whatAre')}
             bodyContent={
               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                 <p style={{ margin: '0 0 8px' }}>
-                  Eskalationen werden automatisch ausgelöst, wenn CVEs über einen bestimmten Zeitraum
-                  unbehandelt bleiben. Die Eskalationsstufen richten sich nach Schweregrad, EPSS-Wert
-                  und dem Alter der Schwachstelle.
+                  {t('escalations.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>Level 1</strong> — Nutzer-Benachrichtigung<br />
-                  <strong>Level 2</strong> — Nutzer &amp; Security-Team<br />
-                  <strong>Level 3 (Kritisch)</strong> — Management-Eskalation
+                  <strong>{t('escalations.helpBody2Level1')}</strong> — {t('escalations.helpBody2Level1Desc')}<br />
+                  <strong>{t('escalations.helpBody2Level2')}</strong> — {t('escalations.helpBody2Level2Desc')}<br />
+                  <strong>{t('escalations.helpBody2Level3')}</strong> — {t('escalations.helpBody2Level3Desc')}
                 </p>
                 <p style={{ margin: 0 }}>
-                  <strong>Bevorstehende Eskalationen</strong> zeigen CVEs, die in den nächsten Tagen
-                  eine Stufe erreichen. Behandeln Sie diese rechtzeitig, um eine Eskalation zu vermeiden.
-                  CVEs mit aktiven Risikoakzeptanzen werden nicht eskaliert.
+                  {t('escalations.helpBody3')}
                 </p>
               </div>
             }
@@ -163,7 +163,7 @@ export function Escalations() {
           >
             <Button
               variant="plain"
-              aria-label="Hilfe zu Eskalationen"
+              aria-label={t('escalations.helpLabel')}
               style={{ padding: '4px 6px' }}
             >
               <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
@@ -174,12 +174,12 @@ export function Escalations() {
 
       {/* Upcoming escalations section */}
       <PageSection>
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>Bevorstehende Eskalationen</Title>
-        {upcoming.isLoading ? <Spinner aria-label="Laden" size="md" /> : upcoming.error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(upcoming.error)}`} />
+        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.upcoming')}</Title>
+        {upcoming.isLoading ? <Spinner aria-label={t('common.loading')} size="md" /> : upcoming.error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(upcoming.error)}`} />
         ) : !upcoming.data?.length ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-            <p style={{ fontSize: 13, margin: 0 }}>Keine bevorstehenden Eskalationen.</p>
+            <p style={{ fontSize: 13, margin: 0 }}>{t('escalations.noUpcoming')}</p>
           </div>
         ) : (
           <>
@@ -187,7 +187,7 @@ export function Escalations() {
               <Alert
                 variant="info"
                 isInline
-                title={`${upTotal} CVE${upTotal !== 1 ? 's' : ''} stehen kurz vor einer Eskalation`}
+                title={t('escalations.upcomingCount', { count: upTotal })}
                 style={{ marginBottom: 16 }}
               />
             )}
@@ -198,12 +198,12 @@ export function Escalations() {
                     value={upLevelFilter}
                     onChange={e => { setUpLevelFilter(e.target.value); setUpPage(1) }}
                     style={SELECT_STYLE}
-                    aria-label="Nach Stufe filtern"
+                    aria-label={t('escalations.filterLevel')}
                   >
-                    <option value="">Alle Stufen</option>
-                    <option value="1">Level 1</option>
-                    <option value="2">Level 2</option>
-                    <option value="3">Kritisch</option>
+                    <option value="">{t('escalations.allLevels')}</option>
+                    <option value="1">{t('escalations.level1')}</option>
+                    <option value="2">{t('escalations.level2')}</option>
+                    <option value="3">{t('escalations.levelCritical')}</option>
                   </select>
                 </ToolbarItem>
                 <ToolbarItem>
@@ -211,32 +211,32 @@ export function Escalations() {
                     value={upSeverityFilter}
                     onChange={e => { setUpSeverityFilter(e.target.value); setUpPage(1) }}
                     style={SELECT_STYLE}
-                    aria-label="Nach Schweregrad filtern"
+                    aria-label={t('escalations.filterSeverity')}
                   >
-                    <option value="">Alle Schweregrade</option>
-                    <option value="4">Kritisch</option>
-                    <option value="3">Hoch</option>
-                    <option value="2">Mittel</option>
-                    <option value="1">Gering</option>
+                    <option value="">{t('escalations.allSeverities')}</option>
+                    <option value="4">{t('severity.4')}</option>
+                    <option value="3">{t('severity.3')}</option>
+                    <option value="2">{t('severity.2')}</option>
+                    <option value="1">{t('severity.1')}</option>
                   </select>
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
             {upPaged.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
-                Keine Treffer für die gewählten Filter.
+                {t('common.noFilterResults')}
               </div>
             ) : (
               <>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      <th style={TH_STYLE}>CVE</th>
-                      <th style={TH_STYLE}>Schweregrad</th>
+                      <th style={TH_STYLE}>{t('cves.cveId')}</th>
+                      <th style={TH_STYLE}>{t('cves.severity')}</th>
                       <th style={TH_STYLE}>EPSS</th>
-                      <th style={TH_STYLE}>Alter (Tage)</th>
-                      <th style={TH_STYLE}>Nächste Stufe</th>
-                      <th style={TH_STYLE}>Tage bis Eskalation</th>
+                      <th style={TH_STYLE}>{t('escalations.ageDays')}</th>
+                      <th style={TH_STYLE}>{t('escalations.nextLevel')}</th>
+                      <th style={TH_STYLE}>{t('escalations.daysUntil')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -251,7 +251,7 @@ export function Escalations() {
                         }}
                       >
                         <td style={TD_STYLE}>
-                          <Link to={`/schwachstellen/${u.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
+                          <Link to={`/vulnerabilities/${u.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
                             {u.cve_id}
                           </Link>
                         </td>
@@ -260,7 +260,7 @@ export function Escalations() {
                         <td style={TD_STYLE}>{u.current_age_days}</td>
                         <td style={TD_STYLE}><LevelBadge level={u.next_level} /></td>
                         <td style={{ ...TD_STYLE, fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
-                          {u.days_until_escalation} {u.days_until_escalation === 1 ? 'Tag' : 'Tage'}
+                          {u.days_until_escalation} {u.days_until_escalation === 1 ? t('common.day') : t('common.day_plural')}
                         </td>
                       </tr>
                     ))}
@@ -285,20 +285,20 @@ export function Escalations() {
 
       {/* Active escalations section */}
       <PageSection>
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>Aktive Eskalationen</Title>
-        {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.active')}</Title>
+        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
           <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
             <CheckCircleIcon style={{ fontSize: 32, color: '#1e8f19', display: 'block', margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 14, margin: 0 }}>Keine aktiven Eskalationen. Gut gemacht!</p>
+            <p style={{ fontSize: 14, margin: 0 }}>{t('escalations.noActive')}</p>
           </div>
         ) : (
           <>
             <Alert
               variant="warning"
               isInline
-              title={`${activeTotal} aktive Eskalation${activeTotal !== 1 ? 'en' : ''}`}
+              title={t('escalations.activeCount', { count: activeTotal })}
               style={{ marginBottom: 16 }}
             />
             <Toolbar style={{ padding: 0, marginBottom: 8 }}>
@@ -306,11 +306,11 @@ export function Escalations() {
                 <ToolbarItem>
                   <input
                     type="text"
-                    placeholder="CVE suchen..."
+                    placeholder={t('escalations.searchPlaceholder')}
                     value={activeSearch}
                     onChange={e => { setActiveSearch(e.target.value); setActivePage(1) }}
                     style={{ ...SELECT_STYLE, width: 200, paddingLeft: 8 }}
-                    aria-label="CVE-ID suchen"
+                    aria-label={t('escalations.searchLabel')}
                   />
                 </ToolbarItem>
                 <ToolbarItem>
@@ -318,50 +318,50 @@ export function Escalations() {
                     value={activeLevelFilter}
                     onChange={e => { setActiveLevelFilter(e.target.value); setActivePage(1) }}
                     style={SELECT_STYLE}
-                    aria-label="Nach Level filtern"
+                    aria-label={t('escalations.filterLevelLabel')}
                   >
-                    <option value="">Alle Level</option>
-                    <option value="1">Level 1</option>
-                    <option value="2">Level 2</option>
-                    <option value="3">Kritisch</option>
+                    <option value="">{t('escalations.allLevelsLabel')}</option>
+                    <option value="1">{t('escalations.level1')}</option>
+                    <option value="2">{t('escalations.level2')}</option>
+                    <option value="3">{t('escalations.levelCritical')}</option>
                   </select>
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
             {activePaged.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
-                Keine Treffer für die gewählten Filter.
+                {t('common.noFilterResults')}
               </div>
             ) : (
               <>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr>
-                      <th style={TH_STYLE}>CVE</th>
-                      <th style={TH_STYLE}>Namespace</th>
-                      <th style={TH_STYLE}>Level</th>
-                      <th style={TH_STYLE}>Ausgelöst am</th>
-                      {isSecTeam && <th style={TH_STYLE}>Benachrichtigt</th>}
+                      <th style={TH_STYLE}>{t('cves.cveId')}</th>
+                      <th style={TH_STYLE}>{t('cves.namespace')}</th>
+                      <th style={TH_STYLE}>{t('escalations.level')}</th>
+                      <th style={TH_STYLE}>{t('escalations.triggeredAt')}</th>
+                      {isSecTeam && <th style={TH_STYLE}>{t('escalations.notified')}</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {activePaged.map(e => (
                       <tr key={e.id} style={{ borderBottom: ROW_BORDER }}>
                         <td style={TD_STYLE}>
-                          <Link to={`/schwachstellen/${e.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
+                          <Link to={`/vulnerabilities/${e.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
                             {e.cve_id}
                           </Link>
                         </td>
                         <td style={TD_STYLE}>{e.cluster_name}/{e.namespace}</td>
                         <td style={TD_STYLE}><LevelBadge level={e.level} /></td>
                         <td style={{ ...TD_STYLE, fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                          {new Date(e.triggered_at).toLocaleDateString('de-DE')}
+                          {new Date(e.triggered_at).toLocaleDateString(localeDateFormat)}
                         </td>
                         {isSecTeam && (
                           <td style={{ ...TD_STYLE, fontSize: 12 }}>
                             {e.notified
-                              ? <span style={{ color: '#1e8f19' }}>✓ Ja</span>
-                              : <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>Ausstehend</span>}
+                              ? <span style={{ color: '#1e8f19' }}>✓ {t('escalations.yesNotified')}</span>
+                              : <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>{t('common.pending')}</span>}
                           </td>
                         )}
                       </tr>

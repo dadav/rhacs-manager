@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useTranslation } from 'react-i18next'
 import { Severity } from '../../types'
 
 const DOT_COLORS: Record<number, string> = {
@@ -18,14 +19,6 @@ const DOT_COLORS: Record<number, string> = {
   [Severity.LOW]: '#0066cc',
   [Severity.UNKNOWN]: '#8a8d90',
 }
-
-// Quadrant zones: use semi-transparent colors that work on both light and dark backgrounds
-const ZONES = [
-  { x1: 0,   x2: 0.1, y1: 0, y2: 7,  fill: '#1e8f19', label: 'Niedriges Risiko',  labelFill: '#1e8f19' },
-  { x1: 0,   x2: 0.1, y1: 7, y2: 10, fill: '#ec7a08', label: 'Schwerwiegend',      labelFill: '#ec7a08' },
-  { x1: 0.1, x2: 1,   y1: 0, y2: 7,  fill: '#0066cc', label: 'Aktiv ausgenutzt',   labelFill: '#0066cc' },
-  { x1: 0.1, x2: 1,   y1: 7, y2: 10, fill: '#c9190b', label: 'Kritisches Risiko',  labelFill: '#c9190b' },
-]
 
 interface Point {
   cve_id: string
@@ -63,13 +56,23 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 }
 
 export function EpssRiskMatrix({ data, onDotClick }: Props) {
+  const { t } = useTranslation()
+
+  const severityLabels = [t('severity.0'), t('severity.1'), t('severity.2'), t('severity.3'), t('severity.4')]
+
+  const zones = [
+    { x1: 0,   x2: 0.1, y1: 0, y2: 7,  fill: '#1e8f19', label: t('epssMatrix.lowRisk'),      labelFill: '#1e8f19' },
+    { x1: 0,   x2: 0.1, y1: 7, y2: 10, fill: '#ec7a08', label: t('epssMatrix.severe'),        labelFill: '#ec7a08' },
+    { x1: 0.1, x2: 1,   y1: 0, y2: 7,  fill: '#0066cc', label: t('epssMatrix.activelyExploited'), labelFill: '#0066cc' },
+    { x1: 0.1, x2: 1,   y1: 7, y2: 10, fill: '#c9190b', label: t('epssMatrix.criticalRisk'),  labelFill: '#c9190b' },
+  ]
+
   const bySeverity = data.reduce<Record<number, Point[]>>((acc, p) => {
     if (!acc[p.severity]) acc[p.severity] = []
     acc[p.severity].push(p)
     return acc
   }, {})
 
-  // Axis / grid colors that adapt to dark mode via CSS vars
   const axisColor = 'var(--pf-t--global--text--color--subtle, #8a8d90)'
   const gridColor = 'var(--pf-t--global--border--color--default, #444548)'
 
@@ -80,7 +83,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
           <span key={sev} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
             <span style={{ color: 'var(--pf-t--global--text--color--regular, inherit)' }}>
-              {['Unbekannt', 'Gering', 'Mittel', 'Hoch', 'Kritisch'][Number(sev)]}
+              {severityLabels[Number(sev)]}
             </span>
           </span>
         ))}
@@ -106,7 +109,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
             label={{ value: 'CVSS', angle: -90, position: 'insideLeft', fontSize: 11, fill: axisColor }}
           />
           <Tooltip content={<CustomTooltip />} />
-          {ZONES.map(z => (
+          {zones.map(z => (
             <ReferenceArea
               key={z.label}
               x1={z.x1} x2={z.x2} y1={z.y1} y2={z.y2}

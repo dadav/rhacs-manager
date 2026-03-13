@@ -6,12 +6,14 @@ import {
 } from '@patternfly/react-core'
 import { FilterIcon } from '@patternfly/react-icons'
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNamespaces } from '../../api/namespaces'
 import { useScope } from '../../hooks/useScope'
 
 const ALLE = '__alle__'
 
 export function ScopeSelector() {
+  const { t } = useTranslation()
   const { cluster, namespace, setScope } = useScope()
   const { data: nsList } = useNamespaces()
 
@@ -52,7 +54,7 @@ export function ScopeSelector() {
     <div style={{ padding: '12px 16px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
         <FilterIcon style={{ fontSize: 11 }} />
-        Scope
+        {t('scope.title')}
       </div>
       <Select
         isOpen={clusterOpen}
@@ -68,13 +70,13 @@ export function ScopeSelector() {
             isFullWidth
             size="sm"
           >
-            {cluster || 'Alle Cluster'}
+            {cluster || t('scope.allClusters')}
           </MenuToggle>
         )}
         popperProps={{ maxWidth: '100%' }}
       >
         <SelectList style={{ maxHeight: 300, overflowY: 'auto' }}>
-          <SelectOption value={ALLE}>Alle Cluster</SelectOption>
+          <SelectOption value={ALLE}>{t('scope.allClusters')}</SelectOption>
           {clusters.map(c => (
             <SelectOption key={c} value={c}>{c}</SelectOption>
           ))}
@@ -94,13 +96,13 @@ export function ScopeSelector() {
             isFullWidth
             size="sm"
           >
-            {namespace || 'Alle Namespaces'}
+            {namespace || t('scope.allNamespaces')}
           </MenuToggle>
         )}
         popperProps={{ maxWidth: '100%' }}
       >
         <SelectList style={{ maxHeight: 300, overflowY: 'auto' }}>
-          <SelectOption value={ALLE}>Alle Namespaces</SelectOption>
+          <SelectOption value={ALLE}>{t('scope.allNamespaces')}</SelectOption>
           {namespaces.map(ns => (
             <SelectOption key={ns} value={ns}>{ns}</SelectOption>
           ))}

@@ -17,8 +17,10 @@ import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useBadges, useCreateBadge, useDeleteBadge } from '../api/badges'
 import { useScope } from '../hooks/useScope'
+import { useTranslation } from 'react-i18next'
 
 export function Badges() {
+  const { t, i18n } = useTranslation()
   const { scopeParams } = useScope()
   const { data: badges, isLoading, error } = useBadges(scopeParams)
   const createBadge = useCreateBadge()
@@ -60,18 +62,18 @@ export function Badges() {
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title headingLevel="h1" size="xl">SVG-Badges</Title>
-          <Button variant="primary" onClick={() => setShowCreate(true)}>Badge erstellen</Button>
+          <Title headingLevel="h1" size="xl">{t('badges.title')}</Title>
+          <Button variant="primary" onClick={() => setShowCreate(true)}>{t('badges.create')}</Button>
         </div>
       </PageSection>
 
       <PageSection>
-        <Alert variant="info" isInline title="Badges können ohne Authentifizierung in READMEs eingebettet werden." style={{ marginBottom: 16 }} />
+        <Alert variant="info" isInline title={t('badges.hint')} style={{ marginBottom: 16 }} />
 
-        {isLoading ? <Spinner aria-label="Laden" /> : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !badges?.length ? (
-          <Alert variant="info" isInline title="Keine Badges vorhanden." />
+          <Alert variant="info" isInline title={t('badges.noBadgesAvailable')} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {badges.map(badge => (
@@ -79,9 +81,9 @@ export function Badges() {
                 <CardBody>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ fontWeight: 600, marginBottom: 2 }}>{badge.label || 'CVE Badge'}</div>
+                      <div style={{ fontWeight: 600, marginBottom: 2 }}>{badge.label || t('badges.cveBadge')}</div>
                       <div style={{ fontSize: 11, color: '#6a6e73', fontFamily: 'monospace' }}>
-                        {badge.cluster_name}/{badge.namespace ?? 'alle'}
+                        {badge.cluster_name}/{badge.namespace ?? t('badges.allScope')}
                       </div>
                     </div>
 
@@ -96,7 +98,7 @@ export function Badges() {
                         size="sm"
                         onClick={() => copyToClipboard(toAbsoluteBadgeUrl(badge.badge_url), badge.id + '-url')}
                       >
-                        {copied === badge.id + '-url' ? '✓ Kopiert' : 'URL kopieren'}
+                        {copied === badge.id + '-url' ? t('badges.copiedUrl') : t('badges.copyUrl')}
                       </Button>
                       <Button
                         variant="secondary"
@@ -106,7 +108,7 @@ export function Badges() {
                           badge.id + '-md'
                         )}
                       >
-                        {copied === badge.id + '-md' ? '✓ Kopiert' : 'Markdown kopieren'}
+                        {copied === badge.id + '-md' ? t('badges.copiedMd') : t('badges.markdownCopy')}
                       </Button>
                       <Button
                         variant="plain"
@@ -114,7 +116,7 @@ export function Badges() {
                         onClick={() => deleteBadge.mutate(badge.id)}
                         style={{ color: '#c9190b', fontSize: 12 }}
                       >
-                        Löschen
+                        {t('common.delete')}
                       </Button>
                     </div>
                   </div>
@@ -134,30 +136,30 @@ export function Badges() {
 
       {showCreate && (
         <Modal isOpen onClose={() => setShowCreate(false)} variant="small">
-          <ModalHeader title="Badge erstellen" />
+          <ModalHeader title={t('badges.create')} />
           <ModalBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p style={{ fontSize: 13, color: '#6a6e73' }}>
-                Leer lassen für einen allgemeinen Badge. Namespace+Cluster für einen namespace-spezifischen Badge.
+                {t('badges.createHint')}
               </p>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Namespace (optional)</label>
-                <TextInput value={namespace} onChange={(_, v) => setNamespace(v)} placeholder="mein-namespace" style={{ marginTop: 4 }} />
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.namespace')}</label>
+                <TextInput value={namespace} onChange={(_, v) => setNamespace(v)} placeholder={t('badges.namspacePlaceholder')} style={{ marginTop: 4 }} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Cluster (optional)</label>
-                <TextInput value={cluster} onChange={(_, v) => setCluster(v)} placeholder="production" style={{ marginTop: 4 }} />
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.cluster')}</label>
+                <TextInput value={cluster} onChange={(_, v) => setCluster(v)} placeholder={t('badges.clusterPlaceholder')} style={{ marginTop: 4 }} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Label (optional)</label>
-                <TextInput value={label} onChange={(_, v) => setLabel(v)} placeholder="CVEs" style={{ marginTop: 4 }} />
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.labelOptional')}</label>
+                <TextInput value={label} onChange={(_, v) => setLabel(v)} placeholder={t('badges.labelPlaceholder')} style={{ marginTop: 4 }} />
               </div>
               {formError && <Alert variant="danger" isInline title={formError} />}
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="primary" onClick={handleCreate} isLoading={createBadge.isPending}>Erstellen</Button>
-            <Button variant="link" onClick={() => setShowCreate(false)}>Abbrechen</Button>
+            <Button variant="primary" onClick={handleCreate} isLoading={createBadge.isPending}>{t('common.create')}</Button>
+            <Button variant="link" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
           </ModalFooter>
         </Modal>
       )}

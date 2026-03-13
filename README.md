@@ -55,7 +55,7 @@ Spoke Cluster                                    Hub Cluster
 ## Quick Start
 
 ```bash
-# Prerequisites: PostgreSQL, Node.js, Python 3.12, uv, just
+# Prerequisites: PostgreSQL, Bun, Python 3.12, uv, just
 
 # Start dev server (sec team user)
 just dev

@@ -20,6 +20,7 @@ import {
 } from "@patternfly/react-core";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
@@ -63,16 +64,19 @@ const STATUS_COLORS: Record<RiskStatus, string> = {
   [RiskStatus.expired]: "#8a8d90",
 };
 
-const STATUS_LABELS: Record<RiskStatus, string> = {
-  [RiskStatus.requested]: "Beantragt",
-  [RiskStatus.approved]: "Genehmigt",
-  [RiskStatus.rejected]: "Abgelehnt",
-  [RiskStatus.expired]: "Abgelaufen",
-};
+const REM_STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
+  open: 'blue',
+  in_progress: 'orange',
+  resolved: 'green',
+  verified: 'teal',
+  wont_fix: 'grey',
+}
 
 function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
   const fmt = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("de-DE") : undefined;
+    iso ? new Date(iso).toLocaleDateString(dateLocale) : undefined;
 
   type Step = { id: string; label: string; date: string | null; done: boolean };
 
@@ -80,13 +84,13 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   const steps: Step[] = [
     {
       id: "published",
-      label: "Veröffentlicht",
+      label: t('cveDetail.published'),
       date: cve.published_on,
       done: !!cve.published_on,
     },
     {
       id: "discovered",
-      label: "Entdeckt",
+      label: t('cveDetail.discovered'),
       date: cve.first_seen,
       done: !!cve.first_seen,
     },
@@ -96,19 +100,19 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   steps.push(
     {
       id: "esc-1",
-      label: "Eskalation Stufe 1",
+      label: t('cveDetail.escalationLevel', { level: 1 }),
       date: cve.escalation_level1_at ?? cve.escalation_level1_expected,
       done: !!cve.escalation_level1_at,
     },
     {
       id: "esc-2",
-      label: "Eskalation Stufe 2",
+      label: t('cveDetail.escalationLevel', { level: 2 }),
       date: cve.escalation_level2_at ?? cve.escalation_level2_expected,
       done: !!cve.escalation_level2_at,
     },
     {
       id: "esc-3",
-      label: "Eskalation Stufe 3",
+      label: t('cveDetail.escalationLevel', { level: 3 }),
       date: cve.escalation_level3_at ?? cve.escalation_level3_expected,
       done: !!cve.escalation_level3_at,
     },
@@ -118,7 +122,7 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   if (cve.has_priority) {
     steps.push({
       id: "prioritized",
-      label: "Priorisiert",
+      label: t('cveDetail.prioritized'),
       date: cve.priority_created_at,
       done: true,
     });
@@ -126,7 +130,7 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   if (cve.has_risk_acceptance) {
     steps.push({
       id: "ra-requested",
-      label: "Risikoakz. beantragt",
+      label: t('cveDetail.riskRequested'),
       date: cve.risk_acceptance_requested_at,
       done: true,
     });
@@ -134,10 +138,10 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   if (cve.risk_acceptance_reviewed_at) {
     const reviewLabel =
       cve.risk_acceptance_status === RiskStatus.approved
-        ? "Risikoakz. genehmigt"
+        ? t('cveDetail.riskApproved')
         : cve.risk_acceptance_status === RiskStatus.rejected
-          ? "Risikoakz. abgelehnt"
-          : "Risikoakz. geprüft";
+          ? t('cveDetail.riskRejected')
+          : t('cveDetail.riskReviewed');
     steps.push({
       id: "ra-reviewed",
       label: reviewLabel,
@@ -164,7 +168,7 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
   const lastDoneIdx = currentIdx === -1 ? sorted.length - 1 : currentIdx;
 
   return (
-    <ProgressStepper aria-label="CVE Lebenszyklus">
+    <ProgressStepper aria-label={t('cveDetail.lifecycle')}>
       {sorted.map((step, i) => {
         let variant: "success" | "info" | "pending" | "danger";
         if (step.done) {
@@ -203,6 +207,8 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
 export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
   const addComment = useAddCveComment(cveId ?? "");
@@ -210,6 +216,13 @@ export function CveDetail() {
   const [deploymentFilter, setDeploymentFilter] = useState("");
   const [deploymentPage, setDeploymentPage] = useState(1);
   const deploymentPerPage = 20;
+
+  const STATUS_LABELS: Record<RiskStatus, string> = {
+    [RiskStatus.requested]: t('status.requested'),
+    [RiskStatus.approved]: t('status.approved'),
+    [RiskStatus.rejected]: t('status.rejected'),
+    [RiskStatus.expired]: t('status.expired'),
+  };
 
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
@@ -221,13 +234,13 @@ export function CveDetail() {
   if (isLoading)
     return (
       <PageSection>
-        <Spinner aria-label="Laden" />
+        <Spinner aria-label={t('common.loading')} />
       </PageSection>
     );
   if (error)
     return (
       <PageSection>
-        <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+        <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
       </PageSection>
     );
   if (!cve) return null;
@@ -237,10 +250,10 @@ export function CveDetail() {
       <PageSection variant="default">
         <Breadcrumb>
           <BreadcrumbItem
-            onClick={() => navigate("/schwachstellen")}
+            onClick={() => navigate("/vulnerabilities")}
             style={{ cursor: "pointer" }}
           >
-            Schwachstellen
+            {t('nav.cves')}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{cve.cve_id}</BreadcrumbItem>
         </Breadcrumb>
@@ -262,7 +275,7 @@ export function CveDetail() {
           <SeverityBadge severity={cve.severity} />
           {cve.has_priority && (
             <Label color="orange" isCompact>
-              PRIORISIERT
+              {t('cveDetail.prioritizedLabel')}
             </Label>
           )}
           {cve.has_risk_acceptance && cve.risk_acceptance_status && (
@@ -284,14 +297,14 @@ export function CveDetail() {
           <Alert
             variant="warning"
             isInline
-            title="Priorisierung"
+            title={t('cveDetail.prioritization')}
           >
             <p>{cve.priority_reason}</p>
             {cve.priority_set_by_name && (
               <p style={{ fontSize: 12, color: "#6a6e73", marginTop: 4 }}>
                 — {cve.priority_set_by_name}
                 {cve.priority_created_at &&
-                  `, ${new Date(cve.priority_created_at).toLocaleDateString("de-DE")}`}
+                  `, ${new Date(cve.priority_created_at).toLocaleDateString(dateLocale)}`}
               </p>
             )}
           </Alert>
@@ -300,7 +313,7 @@ export function CveDetail() {
 
       <PageSection variant="default" style={{ paddingTop: 0 }}>
         <Card>
-          <CardTitle>Lebenszyklus</CardTitle>
+          <CardTitle>{t('cveDetail.lifecycle')}</CardTitle>
           <CardBody>
             <CveLifecycleTimeline cve={cve} />
           </CardBody>
@@ -312,12 +325,12 @@ export function CveDetail() {
           {/* Core details */}
           <GridItem span={6}>
             <Card>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t('common.details')}</CardTitle>
               <CardBody style={{ padding: 0 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <tbody>
                     <DetailRow
-                      label="CVE-ID"
+                      label={t('cves.cveId')}
                       value={
                         <span style={{ fontFamily: "monospace" }}>
                           {cve.cve_id}
@@ -325,7 +338,7 @@ export function CveDetail() {
                       }
                     />
                     <DetailRow
-                      label="Referenzen"
+                      label={t('cveDetail.references')}
                       value={
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                           <a
@@ -333,20 +346,20 @@ export function CveDetail() {
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            Red Hat Security
+                            {t('cveDetail.redHatSecurity')}
                           </a>
                           <a
                             href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            NVD
+                            {t('cveDetail.nvd')}
                           </a>
                         </div>
                       }
                     />
                     <DetailRow
-                      label="Kontakt E-Mail"
+                      label={t('cveDetail.contactEmail')}
                       value={
                         cve.contact_emails.length > 0 ? (
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -362,7 +375,7 @@ export function CveDetail() {
                       }
                     />
                     <DetailRow
-                      label="Schweregrad"
+                      label={t('cves.severity')}
                       value={<SeverityBadge severity={cve.severity} />}
                     />
                     <DetailRow
@@ -383,18 +396,18 @@ export function CveDetail() {
                       value={<EpssBadge value={cve.epss_probability} />}
                     />
                     <DetailRow
-                      label="Behebbar"
+                      label={t('cves.fixable')}
                       value={
                         cve.fixable ? (
-                          <span style={{ color: "#1e8f19" }}>✓ Ja</span>
+                          <span style={{ color: "#1e8f19" }}>{t('cveDetail.yesFixable')}</span>
                         ) : (
-                          <span style={{ color: "#8a8d90" }}>✗ Nein</span>
+                          <span style={{ color: "#8a8d90" }}>{t('cveDetail.noFixable')}</span>
                         )
                       }
                     />
                     {cve.fixed_by && (
                       <DetailRow
-                        label="Fix-Version"
+                        label={t('cves.fixVersion')}
                         value={
                           <span
                             style={{ fontFamily: "monospace", fontSize: 11 }}
@@ -405,35 +418,35 @@ export function CveDetail() {
                       />
                     )}
                     <DetailRow
-                      label="Erstmals gesehen"
+                      label={t('cves.firstSeen')}
                       value={
                         cve.first_seen
-                          ? new Date(cve.first_seen).toLocaleDateString("de-DE")
+                          ? new Date(cve.first_seen).toLocaleDateString(dateLocale)
                           : "–"
                       }
                     />
                     <DetailRow
-                      label="Veröffentlicht am"
+                      label={t('cves.publishedOn')}
                       value={
                         cve.published_on
                           ? new Date(cve.published_on).toLocaleDateString(
-                              "de-DE",
+                              dateLocale,
                             )
                           : "–"
                       }
                     />
                     {cve.operating_system && (
                       <DetailRow
-                        label="Betriebssystem"
+                        label={t('cves.operatingSystem')}
                         value={cve.operating_system}
                       />
                     )}
                     {cve.priority_deadline && (
                       <DetailRow
-                        label="Deadline"
+                        label={t('cves.deadline')}
                         value={new Date(
                           cve.priority_deadline,
-                        ).toLocaleDateString("de-DE")}
+                        ).toLocaleDateString(dateLocale)}
                       />
                     )}
                   </tbody>
@@ -445,7 +458,7 @@ export function CveDetail() {
           {/* Actions */}
           <GridItem span={6}>
             <Card>
-              <CardTitle>Aktionen</CardTitle>
+              <CardTitle>{t('cveDetail.actions')}</CardTitle>
               <CardBody>
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 12 }}
@@ -468,7 +481,7 @@ export function CveDetail() {
                           fontWeight: 600,
                         }}
                       >
-                        Risiko akzeptiert
+                        {t('cveDetail.riskAccepted')}
                       </span>
                     </div>
                   ) : (
@@ -478,10 +491,10 @@ export function CveDetail() {
                         cve.risk_acceptance_status === RiskStatus.requested
                       }
                       onClick={() =>
-                        navigate(`/risikoakzeptanzen/neu?cve=${cve.cve_id}`)
+                        navigate(`/risk-acceptances/neu?cve=${cve.cve_id}`)
                       }
                     >
-                      Risikoakzeptanz beantragen
+                      {t('cveDetail.requestRiskAcceptance')}
                     </Button>
                   )}
                   {cve.has_risk_acceptance && (
@@ -493,7 +506,7 @@ export function CveDetail() {
                           marginBottom: 8,
                         }}
                       >
-                        Bereits eine Risikoakzeptanz vorhanden (Status:{" "}
+                        {t('cveDetail.existingRiskAcceptance')}{" "}
                         {cve.risk_acceptance_status &&
                           STATUS_LABELS[cve.risk_acceptance_status]}
                         )
@@ -506,11 +519,11 @@ export function CveDetail() {
                             variant="secondary"
                             onClick={() =>
                               navigate(
-                                `/risikoakzeptanzen/${cve.risk_acceptance_id}`,
+                                `/risk-acceptances/${cve.risk_acceptance_id}`,
                               )
                             }
                           >
-                            Zur Risikoakzeptanz
+                            {t('cveDetail.viewRiskAcceptance')}
                           </Button>
                         )}
                         {cve.risk_acceptance_id &&
@@ -521,11 +534,11 @@ export function CveDetail() {
                               variant="secondary"
                               onClick={() =>
                                 navigate(
-                                  `/risikoakzeptanzen/${cve.risk_acceptance_id}?edit=1`,
+                                  `/risk-acceptances/${cve.risk_acceptance_id}?edit=1`,
                                 )
                               }
                             >
-                              Risikoakzeptanz ändern
+                              {t('cveDetail.editRiskAcceptance')}
                             </Button>
                           )}
                       </div>
@@ -533,9 +546,9 @@ export function CveDetail() {
                   )}
                   <Button
                     variant="link"
-                    onClick={() => navigate("/schwachstellen")}
+                    onClick={() => navigate("/vulnerabilities")}
                   >
-                    Zurück zur Liste
+                    {t('cveDetail.backToList')}
                   </Button>
                 </div>
               </CardBody>
@@ -547,7 +560,7 @@ export function CveDetail() {
             <GridItem span={12}>
               <Card>
                 <CardTitle>
-                  Betroffene Komponenten ({cve.components.length})
+                  {t('cveDetail.componentsCount', { count: cve.components.length })}
                 </CardTitle>
                 <CardBody style={{ padding: 0 }}>
                   <table
@@ -565,16 +578,16 @@ export function CveDetail() {
                         }}
                       >
                         <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          Komponente
+                          {t('cves.componentName')}
                         </th>
                         <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          Version
+                          {t('cves.componentVersion')}
                         </th>
                         <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          Behebbar
+                          {t('cves.fixable')}
                         </th>
                         <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          Fix-Version
+                          {t('cves.fixVersion')}
                         </th>
                       </tr>
                     </thead>
@@ -651,8 +664,7 @@ export function CveDetail() {
                 <GridItem span={12}>
                   <Card>
                     <CardTitle>
-                      Betroffene Deployments (
-                      {cve.affected_deployments_list.length})
+                      {t('cveDetail.deploymentsCount', { count: cve.affected_deployments_list.length })}
                     </CardTitle>
                     <CardBody>
                       <div
@@ -670,9 +682,9 @@ export function CveDetail() {
                             setDeploymentFilter(v);
                             setDeploymentPage(1);
                           }}
-                          placeholder="Filtern nach Deployment, Namespace, Cluster oder Image…"
+                          placeholder={t('cveDetail.deploymentFilterPlaceholder')}
                           style={{ flex: 1 }}
-                          aria-label="Deployments filtern"
+                          aria-label={t('cveDetail.deploymentFilterLabel')}
                         />
                         {deploymentFilter && (
                           <span
@@ -681,8 +693,7 @@ export function CveDetail() {
                               color: "var(--pf-t--global--text--color--subtle)",
                             }}
                           >
-                            {filtered.length} von{" "}
-                            {cve.affected_deployments_list.length}
+                            {t('cveDetail.filteredOf', { filtered: filtered.length, total: cve.affected_deployments_list.length })}
                           </span>
                         )}
                       </div>
@@ -712,22 +723,22 @@ export function CveDetail() {
                             <th
                               style={{ padding: "8px 12px", textAlign: "left" }}
                             >
-                              Deployment
+                              {t('cves.deploymentName')}
                             </th>
                             <th
                               style={{ padding: "8px 12px", textAlign: "left" }}
                             >
-                              Namespace
+                              {t('cves.namespace')}
                             </th>
                             <th
                               style={{ padding: "8px 12px", textAlign: "left" }}
                             >
-                              Cluster
+                              {t('cves.cluster')}
                             </th>
                             <th
                               style={{ padding: "8px 12px", textAlign: "left" }}
                             >
-                              Image
+                              {t('cves.imageName')}
                             </th>
                           </tr>
                         </thead>
@@ -801,7 +812,7 @@ export function CveDetail() {
                                   fontSize: 13,
                                 }}
                               >
-                                Keine Deployments gefunden.
+                                {t('cveDetail.noDeployments')}
                               </td>
                             </tr>
                           )}
@@ -831,7 +842,7 @@ export function CveDetail() {
           {/* Comments */}
           <GridItem span={12}>
             <Card>
-              <CardTitle>Kommentare ({comments?.length ?? 0})</CardTitle>
+              <CardTitle>{t('cveDetail.commentsCount', { count: comments?.length ?? 0 })}</CardTitle>
               <CardBody>
                 {comments && comments.length > 0 ? (
                   <div style={{ marginBottom: 20 }}>
@@ -875,7 +886,7 @@ export function CveDetail() {
                                   borderRadius: 3,
                                 }}
                               >
-                                SEC
+                                {t('cveDetail.secLabel')}
                               </span>
                             )}
                           </span>
@@ -885,7 +896,7 @@ export function CveDetail() {
                               color: "var(--pf-t--global--text--color--subtle)",
                             }}
                           >
-                            {new Date(c.created_at).toLocaleString("de-DE")}
+                            {new Date(c.created_at).toLocaleString(dateLocale)}
                           </span>
                         </div>
                         <p
@@ -909,7 +920,7 @@ export function CveDetail() {
                       marginBottom: 16,
                     }}
                   >
-                    Noch keine Kommentare.
+                    {t('cveDetail.noComments')}
                   </p>
                 )}
                 <form onSubmit={handleAddComment}>
@@ -917,7 +928,7 @@ export function CveDetail() {
                     value={newComment}
                     onChange={(_, v) => setNewComment(v)}
                     rows={3}
-                    placeholder="Kommentar hinzufügen..."
+                    placeholder={t('cveDetail.commentPlaceholder')}
                     style={{ marginBottom: 8 }}
                   />
                   <Button
@@ -926,7 +937,7 @@ export function CveDetail() {
                     isLoading={addComment.isPending}
                     isDisabled={!newComment.trim()}
                   >
-                    Kommentar senden
+                    {t('cveDetail.sendComment')}
                   </Button>
                 </form>
               </CardBody>
@@ -938,22 +949,6 @@ export function CveDetail() {
   );
 }
 
-const REM_STATUS_LABELS: Record<string, string> = {
-  open: 'Offen',
-  in_progress: 'In Bearbeitung',
-  resolved: 'Behoben',
-  verified: 'Verifiziert',
-  wont_fix: 'Wird nicht behoben',
-}
-
-const REM_STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
-  open: 'blue',
-  in_progress: 'orange',
-  resolved: 'green',
-  verified: 'teal',
-  wont_fix: 'grey',
-}
-
 function CveRemediationSection({
   cveId,
   deployments,
@@ -961,6 +956,8 @@ function CveRemediationSection({
   cveId: string
   deployments: { namespace: string; cluster_name: string }[]
 }) {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const { data: remediations, isLoading } = useRemediationsByCve(cveId, scopeParams)
@@ -985,6 +982,14 @@ function CveRemediationSection({
     d => !existingKeys.has(`${d.namespace}:${d.cluster_name}`)
   )
 
+  const REM_STATUS_LABELS: Record<string, string> = {
+    open: t('remediations.statusOpen'),
+    in_progress: t('remediations.statusInProgress'),
+    resolved: t('remediations.statusResolved'),
+    verified: t('remediations.statusVerified'),
+    wont_fix: t('remediations.statusWontFix'),
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedNs) return
@@ -1006,26 +1011,26 @@ function CveRemediationSection({
     <Card>
       <CardTitle>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Behebungen ({remediations?.length ?? 0})</span>
+          <span>{t('cveDetail.remediationsCount', { count: remediations?.length ?? 0 })}</span>
           {!isSecTeam && availableNs.length > 0 && !showForm && (
             <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
-              Behebung starten
+              {t('cveDetail.startRemediationBtn')}
             </Button>
           )}
         </div>
       </CardTitle>
       <CardBody>
         {isLoading ? (
-          <Spinner size="md" aria-label="Laden" />
+          <Spinner size="md" aria-label={t('common.loading')} />
         ) : remediations && remediations.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {remediations.map(r => (
-              <RemediationCard key={r.id} item={r} isSecTeam={isSecTeam} />
+              <RemediationCard key={r.id} item={r} isSecTeam={isSecTeam} remStatusLabels={REM_STATUS_LABELS} dateLocale={dateLocale} />
             ))}
           </div>
         ) : (
           <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', margin: 0 }}>
-            Keine Behebungen für diese CVE.
+            {t('cveDetail.noRemediationsForCve')}
           </p>
         )}
 
@@ -1033,7 +1038,7 @@ function CveRemediationSection({
           <form onSubmit={handleCreate} style={{ marginTop: 16, padding: 12, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Namespace *</label>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.selectNamespace')}</label>
                 <select
                   value={selectedNs}
                   onChange={e => setSelectedNs(e.target.value)}
@@ -1044,7 +1049,7 @@ function CveRemediationSection({
                     color: 'var(--pf-t--global--text--color--regular)', fontSize: 13,
                   }}
                 >
-                  <option value="">Namespace wählen...</option>
+                  <option value="">{t('cveDetail.selectNamespacePlaceholder')}</option>
                   {availableNs.map(d => (
                     <option key={`${d.namespace}:${d.cluster_name}`} value={`${d.namespace}:${d.cluster_name}`}>
                       {d.cluster_name}/{d.namespace}
@@ -1053,7 +1058,7 @@ function CveRemediationSection({
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Zieldatum</label>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.targetDate')}</label>
                 <TextInput
                   type="date"
                   value={targetDate}
@@ -1062,21 +1067,21 @@ function CveRemediationSection({
                 />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Notizen</label>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.notes')}</label>
                 <TextArea
                   value={notes}
                   onChange={(_, v) => setNotes(v)}
                   rows={2}
-                  placeholder="Optionale Notizen..."
+                  placeholder={t('cveDetail.notesPlaceholder')}
                   style={{ marginTop: 4 }}
                 />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="submit" variant="primary" size="sm" isLoading={createMutation.isPending} isDisabled={!selectedNs}>
-                  Erstellen
+                  {t('common.create')}
                 </Button>
                 <Button variant="link" size="sm" onClick={() => setShowForm(false)}>
-                  Abbrechen
+                  {t('common.cancel')}
                 </Button>
               </div>
               {createMutation.isError && (
@@ -1090,7 +1095,8 @@ function CveRemediationSection({
   )
 }
 
-function RemediationCard({ item, isSecTeam }: { item: RemediationItem; isSecTeam: boolean }) {
+function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }: { item: RemediationItem; isSecTeam: boolean; remStatusLabels: Record<string, string>; dateLocale: string }) {
+  const { t } = useTranslation();
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
@@ -1128,18 +1134,18 @@ function RemediationCard({ item, isSecTeam }: { item: RemediationItem; isSecTeam
           {item.cluster_name}/{item.namespace}
         </span>
         <Label color={REM_STATUS_COLORS[item.status] ?? 'grey'}>
-          {REM_STATUS_LABELS[item.status] ?? item.status}
+          {remStatusLabels[item.status] ?? item.status}
         </Label>
       </div>
       <div style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {item.assigned_to_name && <span>Zugewiesen: {item.assigned_to_name}</span>}
+        {item.assigned_to_name && <span>{t('cveDetail.assignedLabel', { name: item.assigned_to_name })}</span>}
         {item.target_date && (
           <span style={{ color: item.is_overdue ? '#c9190b' : undefined, fontWeight: item.is_overdue ? 600 : 400 }}>
-            Fällig: {new Date(item.target_date).toLocaleDateString('de-DE')}
-            {item.is_overdue && ' (überfällig)'}
+            {t('cveDetail.dueLabel', { date: new Date(item.target_date).toLocaleDateString(dateLocale) })}
+            {item.is_overdue && ` ${t('cveDetail.overdueLabel')}`}
           </span>
         )}
-        <span>Erstellt: {new Date(item.created_at).toLocaleDateString('de-DE')} von {item.created_by_name}</span>
+        <span>{t('cveDetail.createdInfo', { date: new Date(item.created_at).toLocaleDateString(dateLocale), name: item.created_by_name })}</span>
       </div>
       {item.notes && (
         <p style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--pf-t--global--text--color--regular)', whiteSpace: 'pre-wrap' }}>
@@ -1149,46 +1155,46 @@ function RemediationCard({ item, isSecTeam }: { item: RemediationItem; isSecTeam
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         {canProgress && (
           <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
-            Starten
+            {t('cveDetail.start')}
           </Button>
         )}
         {canResolve && (
           <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
-            Als behoben markieren
+            {t('cveDetail.markResolvedBtn')}
           </Button>
         )}
         {canVerify && (
           <Button variant="primary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
-            Verifizieren
+            {t('cveDetail.verify')}
           </Button>
         )}
         {canWontFix && !showWontFix && (
           <Button variant="link" size="sm" isDanger onClick={() => setShowWontFix(true)}>
-            Wird nicht behoben
+            {t('cveDetail.wontFix')}
           </Button>
         )}
         {canReopen && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
-            Wiedereröffnen
+            {t('cveDetail.reopen')}
           </Button>
         )}
       </div>
       {showWontFix && (
         <div style={{ marginTop: 8, padding: 10, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
-          <label style={{ fontSize: 12, fontWeight: 600 }}>Begründung *</label>
+          <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.wontFixReason')}</label>
           <TextArea
             value={wontFixReason}
             onChange={(_, v) => setWontFixReason(v)}
             rows={2}
-            placeholder="Warum wird diese CVE nicht behoben?"
+            placeholder={t('cveDetail.wontFixPlaceholder')}
             style={{ marginTop: 4 }}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <Button variant="danger" size="sm" isLoading={updateMutation.isPending} isDisabled={!wontFixReason.trim()} onClick={handleWontFix}>
-              Bestätigen
+              {t('common.confirm')}
             </Button>
             <Button variant="link" size="sm" onClick={() => { setShowWontFix(false); setWontFixReason('') }}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
           </div>
         </div>

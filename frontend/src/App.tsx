@@ -18,8 +18,9 @@ import {
   Tooltip,
   Button,
 } from "@patternfly/react-core";
-import { BarsIcon, GithubIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
+import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useScope, buildScopedTo } from "./hooks/useScope";
@@ -40,28 +41,29 @@ import { OnboardingModal } from "./components/OnboardingModal";
 
 interface NavEntry {
   to: string;
-  label: string;
+  labelKey: string;
 }
 
 const TEAM_NAV_ITEMS: NavEntry[] = [
-  { to: "/dashboard", label: "Dashboard" },
-  { to: "/schwachstellen", label: "Schwachstellen" },
-  { to: "/behebungen", label: "Behebungen" },
-  { to: "/risikoakzeptanzen", label: "Risikoakzeptanzen" },
-  { to: "/prioritaeten", label: "Prioritäten" },
-  { to: "/eskalationen", label: "Eskalationen" },
-  { to: "/badges", label: "SVG-Badges" },
+  { to: "/dashboard", labelKey: "nav.dashboard" },
+  { to: "/vulnerabilities", labelKey: "nav.cves" },
+  { to: "/remediations", labelKey: "nav.remediations" },
+  { to: "/risk-acceptances", labelKey: "nav.riskAcceptances" },
+  { to: "/priorities", labelKey: "nav.priorities" },
+  { to: "/escalations", labelKey: "nav.escalations" },
+  { to: "/badges", labelKey: "nav.badges" },
 ];
 
 const SEC_NAV_ITEMS: NavEntry[] = [
-  { to: "/einstellungen", label: "Einstellungen" },
-  { to: "/audit-log", label: "Audit-Log" },
+  { to: "/settings", labelKey: "nav.settings" },
+  { to: "/audit-log", labelKey: "nav.auditLog" },
 ];
 
 export function App() {
   const location = useLocation();
   const { user, isLoading, isSecTeam } = useAuth();
   const { scopeSearchString } = useScope();
+  const { t, i18n } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("pf-theme") === "dark",
@@ -72,10 +74,15 @@ export function App() {
     localStorage.setItem("pf-theme", isDark ? "dark" : "light");
   }, [isDark]);
 
+  const toggleLanguage = () => {
+    const next = i18n.language === "de" ? "en" : "de";
+    i18n.changeLanguage(next);
+  };
+
   if (isLoading) {
     return (
       <PageSection>
-        <Spinner aria-label="Authentifizierung..." />
+        <Spinner aria-label={t("app.authenticating")} />
       </PageSection>
     );
   }
@@ -85,7 +92,7 @@ export function App() {
       <PageSection>
         <Alert
           variant="danger"
-          title="Nicht authentifiziert. Bitte melden Sie sich an."
+          title={t("app.notAuthenticated")}
         />
       </PageSection>
     );
@@ -99,7 +106,7 @@ export function App() {
         <MastheadToggle>
           <PageToggleButton
             variant="plain"
-            aria-label="Navigation ein-/ausblenden"
+            aria-label={t("app.toggleNav")}
             isSidebarOpen={sidebarOpen}
             onSidebarToggle={() => setSidebarOpen((o) => !o)}
           >
@@ -162,7 +169,7 @@ export function App() {
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
             {user.username}
             {isSecTeam && (
-              <Tooltip content="Sicherheitsteam-Rolle" position="bottom">
+              <Tooltip content={t("app.secTeamRole")} position="bottom">
                 <span
                   style={{
                     marginLeft: 6,
@@ -181,9 +188,20 @@ export function App() {
               </Tooltip>
             )}
           </span>
+          <Tooltip content={t("app.switchLanguage")} position="bottom">
+            <Button
+              variant="plain"
+              aria-label={t("app.switchLanguage")}
+              onClick={toggleLanguage}
+              style={{ color: "#e0e0e0", fontWeight: 600, fontSize: 13 }}
+            >
+              <GlobeIcon style={{ marginRight: 4 }} />
+              {i18n.language === "de" ? "DE" : "EN"}
+            </Button>
+          </Tooltip>
           <Button
             variant="plain"
-            aria-label={isDark ? "Helles Design" : "Dunkles Design"}
+            aria-label={isDark ? t("app.lightTheme") : t("app.darkTheme")}
             onClick={() => setIsDark((d) => !d)}
             style={{ color: "#e0e0e0" }}
           >
@@ -201,24 +219,24 @@ export function App() {
         <ScopeSelector />
         <Nav aria-label="Navigation">
           <NavList>
-            <NavGroup title="Allgemein">
+            <NavGroup title={t("nav.general")}>
               {TEAM_NAV_ITEMS.map((item) => (
                 <NavItem
                   key={item.to}
                   isActive={location.pathname.startsWith(item.to)}
                 >
-                  <Link to={scopedLink(item.to)}>{item.label}</Link>
+                  <Link to={scopedLink(item.to)}>{t(item.labelKey)}</Link>
                 </NavItem>
               ))}
             </NavGroup>
             {isSecTeam && (
-              <NavGroup title="Admin">
+              <NavGroup title={t("nav.admin")}>
                 {SEC_NAV_ITEMS.map((item) => (
                   <NavItem
                     key={item.to}
                     isActive={location.pathname.startsWith(item.to)}
                   >
-                    <Link to={scopedLink(item.to)}>{item.label}</Link>
+                    <Link to={scopedLink(item.to)}>{t(item.labelKey)}</Link>
                   </NavItem>
                 ))}
               </NavGroup>
@@ -259,18 +277,18 @@ export function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/schwachstellen" element={<CveList />} />
-        <Route path="/schwachstellen/:cveId" element={<CveDetail />} />
-        <Route path="/behebungen" element={<Remediations />} />
-        <Route path="/risikoakzeptanzen" element={<RiskAcceptances />} />
+        <Route path="/vulnerabilities" element={<CveList />} />
+        <Route path="/vulnerabilities/:cveId" element={<CveDetail />} />
+        <Route path="/remediations" element={<Remediations />} />
+        <Route path="/risk-acceptances" element={<RiskAcceptances />} />
         <Route
-          path="/risikoakzeptanzen/:id"
+          path="/risk-acceptances/:id"
           element={<RiskAcceptanceDetail />}
         />
-        <Route path="/prioritaeten" element={<Priorities />} />
-        <Route path="/eskalationen" element={<Escalations />} />
+        <Route path="/priorities" element={<Priorities />} />
+        <Route path="/escalations" element={<Escalations />} />
         <Route
-          path="/einstellungen"
+          path="/settings"
           element={
             isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />
           }

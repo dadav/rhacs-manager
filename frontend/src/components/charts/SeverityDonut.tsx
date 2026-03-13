@@ -1,4 +1,5 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { useTranslation } from 'react-i18next'
 import { Severity } from '../../types'
 
 const COLORS: Record<number, string> = {
@@ -9,24 +10,26 @@ const COLORS: Record<number, string> = {
   [Severity.UNKNOWN]: '#8a8d90',
 }
 
-const LABELS: Record<number, string> = {
-  [Severity.CRITICAL]: 'Kritisch',
-  [Severity.IMPORTANT]: 'Hoch',
-  [Severity.MODERATE]: 'Mittel',
-  [Severity.LOW]: 'Gering',
-  [Severity.UNKNOWN]: 'Unbekannt',
-}
-
 interface Props {
   data: { severity: Severity; count: number }[]
   onSegmentClick?: (severity: Severity) => void
 }
 
 export function SeverityDonut({ data, onSegmentClick }: Props) {
+  const { t } = useTranslation()
+
+  const labels: Record<number, string> = {
+    [Severity.CRITICAL]: t('severity.4'),
+    [Severity.IMPORTANT]: t('severity.3'),
+    [Severity.MODERATE]: t('severity.2'),
+    [Severity.LOW]: t('severity.1'),
+    [Severity.UNKNOWN]: t('severity.0'),
+  }
+
   const chartData = data
     .filter(d => d.count > 0)
     .map(d => ({
-      name: LABELS[d.severity] ?? 'Unbekannt',
+      name: labels[d.severity] ?? t('severity.0'),
       value: d.count,
       color: COLORS[d.severity] ?? '#8a8d90',
       severity: d.severity,
@@ -35,7 +38,7 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
   if (!chartData.length) {
     return (
       <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6a6e73' }}>
-        Keine Daten
+        {t('common.noData')}
       </div>
     )
   }

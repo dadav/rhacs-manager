@@ -33,11 +33,11 @@ Build steps:
 
 **File**: `frontend/Containerfile`
 
-Two-stage build: Node.js build stage + nginx serve stage.
+Two-stage build: Bun build stage + nginx serve stage.
 
 Build steps:
 
-1. **Builder stage** (`node:22-slim`): `npm ci` + `npm run build` (TypeScript + Vite)
+1. **Builder stage** (`oven/bun:1`): `bun install --frozen-lockfile` + `bun run build` (TypeScript + Vite)
 2. **Serve stage** (`nginxinc/nginx-unprivileged:alpine`): copies built SPA to nginx html directory
 
 | Property    | Value                                             |
@@ -55,7 +55,7 @@ podman build -t rhacs-manager-spoke:latest -f frontend/Containerfile frontend/
 
 Build steps:
 
-1. **Builder stage** (`node:22-slim`): `npm ci` + `npm run build`
+1. **Builder stage** (`oven/bun:1`): `bun install --frozen-lockfile` + `bun run build`
 2. **Serve stage** (`nginxinc/nginx-unprivileged:alpine`):
    - Installs `gettext` for `envsubst`
    - Copies built SPA

@@ -34,7 +34,8 @@ import type { ImageCveGroup } from '../types'
 /* ── Image-grouped expandable row ── */
 
 function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const [expanded, setExpanded] = useState(false)
   const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
 
@@ -88,7 +89,7 @@ function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: Scop
                 </div>
               )}
               {isLoading ? (
-                <Spinner size="md" aria-label="Laden" />
+                <Spinner size="md" aria-label={t('common.loading')} />
               ) : !cves?.length ? (
                 <div style={{ color: '#6a6e73', fontSize: 13 }}>{t('cves.imageGroupNoCves')}</div>
               ) : (
@@ -109,7 +110,7 @@ function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: Scop
                     {cves.map(cve => (
                       <tr key={cve.cve_id} style={{ borderBottom: '1px solid #e0e0e0' }}>
                         <td style={{ padding: '6px 12px' }}>
-                          <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
+                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
                             {cve.cve_id}
                           </Link>
                         </td>
@@ -124,7 +125,7 @@ function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: Scop
                         <td style={{ padding: '6px 12px', fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</td>
                         <td style={{ padding: '6px 12px', textAlign: 'right' }}>{cve.affected_deployments}</td>
                         <td style={{ padding: '6px 12px', fontSize: 11, color: '#6a6e73' }}>
-                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
+                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
                         </td>
                       </tr>
                     ))}
@@ -139,21 +140,6 @@ function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: Scop
   )
 }
 
-const SEVERITY_OPTIONS = [
-  { label: 'Alle', value: '' },
-  { label: 'Kritisch', value: String(Severity.CRITICAL) },
-  { label: 'Hoch', value: String(Severity.IMPORTANT) },
-  { label: 'Mittel', value: String(Severity.MODERATE) },
-  { label: 'Gering', value: String(Severity.LOW) },
-]
-
-const RISK_STATUS_OPTIONS = [
-  { label: 'Alle', value: '' },
-  { label: 'Beliebig (vorhanden)', value: 'any' },
-  { label: 'Angefragt', value: 'requested' },
-  { label: 'Akzeptiert', value: 'approved' },
-]
-
 function useDebounce<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => {
@@ -164,7 +150,25 @@ function useDebounce<T>(value: T, delayMs: number): T {
 }
 
 export function CveList() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+
+  const SEVERITY_OPTIONS = [
+    { label: t('common.all'), value: '' },
+    { label: t('severity.4'), value: String(Severity.CRITICAL) },
+    { label: t('severity.3'), value: String(Severity.IMPORTANT) },
+    { label: t('severity.2'), value: String(Severity.MODERATE) },
+    { label: t('severity.1'), value: String(Severity.LOW) },
+  ]
+
+  const RISK_STATUS_OPTIONS = [
+    { label: t('cves.riskStatusAll'), value: '' },
+    { label: t('cves.riskStatusAny'), value: 'any' },
+    { label: t('cves.riskStatusRequested'), value: 'requested' },
+    { label: t('cves.riskStatusApproved'), value: 'approved' },
+  ]
+
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+
   const [searchParams, setSearchParams] = useSearchParams()
 
   // --- Read all filter state from URL ---
@@ -543,7 +547,7 @@ export function CveList() {
                       color: 'var(--pf-v6-global--Color--100)',
                     }}
                   >
-                    {exporting ? <Spinner size="sm" aria-label="Exportieren" /> : <ExportIcon />}
+                    {exporting ? <Spinner size="sm" aria-label={t('exports.export')} /> : <ExportIcon />}
                     {t('exports.export')}
                   </button>
                 )}
@@ -592,27 +596,27 @@ export function CveList() {
             <FilterIcon style={{ color: '#0066cc' }} />
             {urlCluster && (
               <span>
-                <strong>Cluster:</strong> {urlCluster}
+                <strong>{t('common.cluster')}:</strong> {urlCluster}
               </span>
             )}
             {urlNamespace && (
               <span>
-                <strong>Namespace:</strong> {urlNamespace}
+                <strong>{t('common.namespace')}:</strong> {urlNamespace}
               </span>
             )}
             {urlDeployment && (
               <span>
-                <strong>Deployment:</strong> {urlDeployment}
+                <strong>{t('common.deployment')}:</strong> {urlDeployment}
               </span>
             )}
             {(urlAgeMin || urlAgeMax) && (
               <span>
-                <strong>Alter:</strong>{' '}
+                <strong>{t('common.age')}:</strong>{' '}
                 {urlAgeMin && urlAgeMax
-                  ? `${urlAgeMin}–${urlAgeMax} Tage`
+                  ? `${urlAgeMin}–${urlAgeMax} ${t('common.day_plural')}`
                   : urlAgeMin
-                    ? `≥ ${urlAgeMin} Tage`
-                    : `≤ ${urlAgeMax} Tage`}
+                    ? `≥ ${urlAgeMin} ${t('common.day_plural')}`
+                    : `≤ ${urlAgeMax} ${t('common.day_plural')}`}
               </span>
             )}
             <button
@@ -622,7 +626,7 @@ export function CveList() {
                 cursor: 'pointer', fontSize: 13, padding: '2px 0', fontFamily: 'inherit',
               }}
             >
-              Filter entfernen
+              {t('common.removeFilter')}
             </button>
           </div>
         )}
@@ -680,7 +684,7 @@ export function CveList() {
               <TextInput
                 value={componentInput}
                 onChange={(_, v) => setComponentInput(v)}
-                placeholder="z.B. openssl"
+                placeholder="openssl"
                 style={{ width: 160 }}
                 aria-label={t('cves.filterComponent')}
               />
@@ -721,8 +725,8 @@ export function CveList() {
       <PageSection>
         {urlViewMode === 'image' ? (
           /* ── Image-grouped view ── */
-          imageLoading ? <Spinner aria-label="Laden" /> : imageError ? (
-            <Alert variant="danger" title={`Fehler: ${getErrorMessage(imageError)}`} />
+          imageLoading ? <Spinner aria-label={t('common.loading')} /> : imageError ? (
+            <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(imageError)}`} />
           ) : !imageData?.length ? (
             <Alert variant="info" isInline title={t('cves.imageGroupNoImages')} />
           ) : (
@@ -754,8 +758,8 @@ export function CveList() {
           )
         ) : (
           /* ── Per-CVE view ── */
-          isLoading ? <Spinner aria-label="Laden" /> : error ? (
-            <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+          isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+            <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
           ) : !data?.items.length ? (
             <Alert variant="info" isInline title={t('cves.noResults')} />
           ) : (
@@ -779,7 +783,7 @@ export function CveList() {
                     {data.items.map(cve => (
                       <tr key={cve.cve_id} style={getRowStyle(cve.has_priority)}>
                         <td style={{ padding: '8px 12px' }}>
-                          <Link to={`/schwachstellen/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
+                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>
                             {cve.cve_id}
                           </Link>
                           {cve.has_priority && (
@@ -808,10 +812,10 @@ export function CveList() {
                           {cve.fixable ? <span style={{ color: '#1e8f19' }}>✓</span> : <span style={{ color: '#8a8d90' }}>✗</span>}
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
-                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString('de-DE') : '–'}
+                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#6a6e73' }}>
-                          {cve.published_on ? new Date(cve.published_on).toLocaleDateString('de-DE') : '–'}
+                          {cve.published_on ? new Date(cve.published_on).toLocaleDateString(dateLocale) : '–'}
                         </td>
                       </tr>
                     ))}

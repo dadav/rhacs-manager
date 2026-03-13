@@ -2,6 +2,7 @@
 Read-only queries against the StackRox central_active PostgreSQL database.
 All functions accept an AsyncSession connected to the StackRox DB.
 """
+
 from datetime import datetime, timedelta
 
 from sqlalchemy import text
@@ -415,7 +416,13 @@ async def get_cve_trend(
         ORDER BY date
     """)
     result = await session.execute(
-        sql, {"since": since, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {
+            "since": since,
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+        },
     )
     return [{"date": str(row.date), "count": row.count} for row in result]
 
@@ -461,7 +468,8 @@ async def get_epss_risk_matrix(
         ORDER BY severity DESC, cvss DESC
     """)
     result = await session.execute(
-        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
     )
     return [dict(row._mapping) for row in result]
 
@@ -517,7 +525,8 @@ async def get_cluster_heatmap(
         ORDER BY d.clustername, vc.severity
     """)
     result = await session.execute(
-        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
     )
     rows = [dict(row._mapping) for row in result]
 
@@ -526,8 +535,22 @@ async def get_cluster_heatmap(
     for row in rows:
         c = row["cluster"]
         if c not in clusters:
-            clusters[c] = {"cluster": c, "unknown": 0, "low": 0, "moderate": 0, "important": 0, "critical": 0, "total": 0}
-        severity_map = {0: "unknown", 1: "low", 2: "moderate", 3: "important", 4: "critical"}
+            clusters[c] = {
+                "cluster": c,
+                "unknown": 0,
+                "low": 0,
+                "moderate": 0,
+                "important": 0,
+                "critical": 0,
+                "total": 0,
+            }
+        severity_map = {
+            0: "unknown",
+            1: "low",
+            2: "moderate",
+            3: "important",
+            4: "critical",
+        }
         key = severity_map.get(row["severity"], "unknown")
         clusters[c][key] = row["count"]
         clusters[c]["total"] += row["count"]
@@ -600,7 +623,8 @@ async def get_fixability_breakdown(
         )
     """)
     result = await session.execute(
-        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
     )
     rows = result.fetchall()
     fixable = sum(1 for r in rows if r.any_fixable)
@@ -661,7 +685,12 @@ async def get_top_affected_deployments(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "limit": limit},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            "limit": limit,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -742,9 +771,18 @@ async def get_fixable_trend(
         ORDER BY date
     """)
     result = await session.execute(
-        sql, {"since": since, "min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {
+            "since": since,
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+        },
     )
-    return [{"date": str(row.date), "fixable": row.fixable, "unfixable": row.unfixable} for row in result]
+    return [
+        {"date": str(row.date), "fixable": row.fixable, "unfixable": row.unfixable}
+        for row in result
+    ]
 
 
 async def get_cve_aging(
@@ -784,16 +822,17 @@ async def get_cve_aging(
         )
     """)
     result = await session.execute(
-        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
     )
     rows = [r.age_days for r in result if r.age_days is not None]
 
     buckets = [
-        ("0-7 Tage", 0, 7),
-        ("8-30 Tage", 8, 30),
-        ("31-90 Tage", 31, 90),
-        ("91-180 Tage", 91, 180),
-        (">180 Tage", 181, float("inf")),
+        ("0-7", 0, 7),
+        ("8-30", 8, 30),
+        ("31-90", 31, 90),
+        ("91-180", 91, 180),
+        ("180+", 181, float("inf")),
     ]
     distribution = []
     for label, lo, hi in buckets:
@@ -849,8 +888,14 @@ async def get_threshold_preview(
         ) sub
     """)
     total = (await session.execute(sql_total)).scalar() or 0
-    visible = (await session.execute(sql_visible, {"min_cvss": min_cvss, "min_epss": min_epss})).scalar() or 0
-    return {"total_cves": total, "visible_cves": visible, "hidden_cves": total - visible}
+    visible = (
+        await session.execute(sql_visible, {"min_cvss": min_cvss, "min_epss": min_epss})
+    ).scalar() or 0
+    return {
+        "total_cves": total,
+        "visible_cves": visible,
+        "hidden_cves": total - visible,
+    }
 
 
 async def get_cves_grouped_by_image(
@@ -887,7 +932,11 @@ async def get_cves_grouped_by_image(
     # Build additional CTE-level filters for user-facing filters
     cte_extra_joins = ""
     cte_extra_having = ""
-    params: dict = {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show}
+    params: dict = {
+        "min_cvss": min_cvss,
+        "min_epss": min_epss,
+        "always_show": always_show,
+    }
 
     if search:
         cte_extra_having += "\n                AND ic.cvebaseinfo_cve ILIKE :search_pat"
@@ -896,11 +945,17 @@ async def get_cves_grouped_by_image(
         cte_extra_having += "\n                AND MAX(ic.severity) = :filter_severity"
         params["filter_severity"] = severity
     if fixable is True:
-        cte_extra_having += "\n                AND BOOL_OR(COALESCE(ic.isfixable, false))"
+        cte_extra_having += (
+            "\n                AND BOOL_OR(COALESCE(ic.isfixable, false))"
+        )
     elif fixable is False:
-        cte_extra_having += "\n                AND NOT BOOL_OR(COALESCE(ic.isfixable, false))"
+        cte_extra_having += (
+            "\n                AND NOT BOOL_OR(COALESCE(ic.isfixable, false))"
+        )
     if cvss_min is not None and cvss_min > 0:
-        cte_extra_having += "\n                AND MAX(COALESCE(ic.cvss, 0)) >= :user_cvss_min"
+        cte_extra_having += (
+            "\n                AND MAX(COALESCE(ic.cvss, 0)) >= :user_cvss_min"
+        )
         params["user_cvss_min"] = cvss_min
     if epss_min is not None and epss_min > 0:
         cte_extra_having += "\n                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :user_epss_min"
@@ -984,7 +1039,9 @@ async def get_cves_for_image(
     # Build HAVING filters for user-applied filters
     having_filters = []
     bind_params: dict = {
-        "image_id": image_id, "min_cvss": min_cvss, "min_epss": min_epss,
+        "image_id": image_id,
+        "min_cvss": min_cvss,
+        "min_epss": min_epss,
         "always_show": always_show,
     }
 
@@ -1197,7 +1254,12 @@ async def get_top_vulnerable_components(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "limit": limit},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            "limit": limit,
+        },
     )
     return [dict(row._mapping) for row in result]
 

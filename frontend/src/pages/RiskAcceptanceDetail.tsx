@@ -20,6 +20,7 @@ import { useAddComment, useCancelRiskAcceptance, useCreateRiskAcceptance, useRev
 import { useCurrentUser } from '../api/auth'
 import { useCveDetail } from '../api/cves'
 import { RiskScope, RiskScopeMode, RiskStatus } from '../types'
+import { useTranslation } from 'react-i18next'
 
 const STATUS_COLORS: Record<RiskStatus, string> = {
   [RiskStatus.requested]: '#0066cc',
@@ -28,21 +29,9 @@ const STATUS_COLORS: Record<RiskStatus, string> = {
   [RiskStatus.expired]: '#8a8d90',
 }
 
-const STATUS_LABELS: Record<RiskStatus, string> = {
-  [RiskStatus.requested]: 'Beantragt',
-  [RiskStatus.approved]: 'Genehmigt',
-  [RiskStatus.rejected]: 'Abgelehnt',
-  [RiskStatus.expired]: 'Abgelaufen',
-}
-
-const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
-  all: 'Alle betroffenen Vorkommen',
-  namespace: 'Nur ausgewählte Namespaces',
-  image: 'Nur ausgewählte Images',
-  deployment: 'Nur ausgewählte Deployments',
-}
-
 function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const navigate = useNavigate()
   const createRA = useCreateRiskAcceptance()
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(cveId)
@@ -51,6 +40,13 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
   const [scopeMode, setScopeMode] = useState<RiskScopeMode>('all')
   const [selectedTargets, setSelectedTargets] = useState<string[]>([])
   const [error, setError] = useState('')
+
+  const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
+    all: t('riskAcceptance.scopeAll'),
+    namespace: t('riskAcceptance.scopeNamespace'),
+    image: t('riskAcceptance.scopeImage'),
+    deployment: t('riskAcceptance.scopeDeployment'),
+  }
 
   const deployments = cve?.affected_deployments_list ?? []
   const namespaces = useMemo(
@@ -110,10 +106,10 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!justification.trim()) { setError('Begründung erforderlich.'); return }
-    if (!cveId) { setError('CVE-ID fehlt.'); return }
+    if (!justification.trim()) { setError(t('riskAcceptance.justificationRequired')); return }
+    if (!cveId) { setError(t('riskAcceptance.cveIdMissing')); return }
     if (scopeMode !== 'all' && selectedTargets.length === 0) {
-      setError('Bitte mindestens ein Scope-Target auswählen.')
+      setError(t('riskAcceptance.scopeTargetRequired'))
       return
     }
     try {
@@ -123,7 +119,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
         scope: buildScope(),
         expires_at: expiresAt || null,
       })
-      navigate(`/risikoakzeptanzen/${ra.id}`)
+      navigate(`/risk-acceptances/${ra.id}`)
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -133,35 +129,35 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risikoakzeptanzen')} style={{ cursor: 'pointer' }}>
-            Risikoakzeptanzen
+          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+            {t('riskAcceptance.title')}
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>Neu</BreadcrumbItem>
+          <BreadcrumbItem isActive>{t('riskAcceptance.new')}</BreadcrumbItem>
         </Breadcrumb>
-        <Title headingLevel="h1" size="xl" style={{ marginTop: 8 }}>Risikoakzeptanz beantragen</Title>
+        <Title headingLevel="h1" size="xl" style={{ marginTop: 8 }}>{t('riskAcceptance.create')}</Title>
       </PageSection>
       <PageSection>
         <Card style={{ maxWidth: 640 }}>
           <CardBody>
-            {isCveLoading && <Spinner aria-label="CVE laden" />}
-            {cveError && <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
+            {isCveLoading && <Spinner aria-label={t('common.loading')} />}
+            {cveError && <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>CVE-ID</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.cveId')}</label>
                 <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{cveId}</div>
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Begründung *</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
                 <TextArea
                   value={justification}
                   onChange={(_, v) => setJustification(v)}
                   rows={5}
                   style={{ marginTop: 4 }}
-                  placeholder="Warum ist dieses Risiko akzeptabel?"
+                  placeholder={t('riskAcceptance.whyAcceptable')}
                 />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Scope *</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scope')} *</label>
                 <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
                   {(Object.keys(SCOPE_MODE_LABELS) as RiskScopeMode[]).map((mode) => (
                     <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -181,7 +177,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
               </div>
               {scopeMode !== 'all' && (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Scope-Targets *</label>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scopeTargets')}</label>
                   <div style={{ marginTop: 8, maxHeight: 220, overflow: 'auto', border: '1px solid #d2d2d2', borderRadius: 4, padding: 10 }}>
                     {scopeMode === 'namespace' && namespaces.map((ns) => {
                       const key = `${ns.cluster_name}::${ns.namespace}`
@@ -215,7 +211,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Ablaufdatum (optional)</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.expiryOptional')}</label>
                 <input
                   type="date"
                   value={expiresAt}
@@ -226,10 +222,10 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
               {error && <Alert variant="danger" isInline title={error} style={{ marginBottom: 12 }} />}
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="submit" variant="primary" isLoading={createRA.isPending}>
-                  Beantragen
+                  {t('riskAcceptance.submit')}
                 </Button>
-                <Button variant="link" onClick={() => navigate('/risikoakzeptanzen')}>
-                  Abbrechen
+                <Button variant="link" onClick={() => navigate('/risk-acceptances')}>
+                  {t('common.cancel')}
                 </Button>
               </div>
             </form>
@@ -241,6 +237,8 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
 }
 
 function EditRiskAcceptanceForm({ raId }: { raId: string }) {
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const navigate = useNavigate()
   const { data: ra, isLoading: isRaLoading, error: raError } = useRiskAcceptance(raId)
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(ra?.cve_id ?? '')
@@ -252,6 +250,13 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
   const [selectedTargets, setSelectedTargets] = useState<string[]>([])
   const [initialized, setInitialized] = useState(false)
   const [error, setError] = useState('')
+
+  const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
+    all: t('riskAcceptance.scopeAll'),
+    namespace: t('riskAcceptance.scopeNamespace'),
+    image: t('riskAcceptance.scopeImage'),
+    deployment: t('riskAcceptance.scopeDeployment'),
+  }
 
   // Pre-fill form once RA data is loaded
   useMemo(() => {
@@ -328,9 +333,9 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!justification.trim()) { setError('Begründung erforderlich.'); return }
+    if (!justification.trim()) { setError(t('riskAcceptance.justificationRequired')); return }
     if (scopeMode !== 'all' && selectedTargets.length === 0) {
-      setError('Bitte mindestens ein Scope-Target auswählen.')
+      setError(t('riskAcceptance.scopeTargetRequired'))
       return
     }
     try {
@@ -339,57 +344,57 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
         scope: buildScope(),
         expires_at: expiresAt || null,
       })
-      navigate(`/risikoakzeptanzen/${raId}`)
+      navigate(`/risk-acceptances/${raId}`)
     } catch (err) {
       setError(getErrorMessage(err))
     }
   }
 
-  if (isRaLoading || isCveLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (raError) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(raError)}`} /></PageSection>
+  if (isRaLoading || isCveLoading) return <PageSection><Spinner aria-label={t('common.loading')} /></PageSection>
+  if (raError) return <PageSection><Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(raError)}`} /></PageSection>
   if (!ra) return null
 
   return (
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risikoakzeptanzen')} style={{ cursor: 'pointer' }}>
-            Risikoakzeptanzen
+          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+            {t('riskAcceptance.title')}
           </BreadcrumbItem>
-          <BreadcrumbItem onClick={() => navigate(`/risikoakzeptanzen/${raId}`)} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(`/risk-acceptances/${raId}`)} style={{ cursor: 'pointer' }}>
             {ra.cve_id}
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>Ändern</BreadcrumbItem>
+          <BreadcrumbItem isActive>{t('riskAcceptance.edit')}</BreadcrumbItem>
         </Breadcrumb>
-        <Title headingLevel="h1" size="xl" style={{ marginTop: 8 }}>Risikoakzeptanz ändern</Title>
+        <Title headingLevel="h1" size="xl" style={{ marginTop: 8 }}>{t('riskAcceptance.editTitle')}</Title>
       </PageSection>
       <PageSection>
         <Card style={{ maxWidth: 640 }}>
           <CardBody>
-            {cveError && <Alert variant="danger" isInline title={`Fehler: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
+            {cveError && <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
             <Alert
               variant="info"
               isInline
-              title="Nach der Änderung muss das Security-Team die Risikoakzeptanz erneut prüfen."
+              title={t('riskAcceptance.editReviewHint')}
               style={{ marginBottom: 16 }}
             />
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>CVE-ID</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.cveId')}</label>
                 <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{ra.cve_id}</div>
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Begründung *</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
                 <TextArea
                   value={justification}
                   onChange={(_, v) => setJustification(v)}
                   rows={5}
                   style={{ marginTop: 4 }}
-                  placeholder="Warum ist dieses Risiko akzeptabel?"
+                  placeholder={t('riskAcceptance.whyAcceptable')}
                 />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Scope *</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scope')} *</label>
                 <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
                   {(Object.keys(SCOPE_MODE_LABELS) as RiskScopeMode[]).map((mode) => (
                     <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -409,7 +414,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
               </div>
               {scopeMode !== 'all' && (
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>Scope-Targets *</label>
+                  <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scopeTargets')}</label>
                   <div style={{ marginTop: 8, maxHeight: 220, overflow: 'auto', border: '1px solid #d2d2d2', borderRadius: 4, padding: 10 }}>
                     {scopeMode === 'namespace' && namespaces.map((ns) => {
                       const key = `${ns.cluster_name}::${ns.namespace}`
@@ -443,7 +448,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
                 </div>
               )}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>Ablaufdatum (optional)</label>
+                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.expiryOptional')}</label>
                 <input
                   type="date"
                   value={expiresAt}
@@ -454,10 +459,10 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
               {error && <Alert variant="danger" isInline title={error} style={{ marginBottom: 12 }} />}
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="submit" variant="primary" isLoading={updateRA.isPending}>
-                  Änderung einreichen
+                  {t('riskAcceptance.submitEdit')}
                 </Button>
-                <Button variant="link" onClick={() => navigate(`/risikoakzeptanzen/${raId}`)}>
-                  Abbrechen
+                <Button variant="link" onClick={() => navigate(`/risk-acceptances/${raId}`)}>
+                  {t('common.cancel')}
                 </Button>
               </div>
             </form>
@@ -488,6 +493,8 @@ export function RiskAcceptanceDetail() {
 }
 
 function RiskAcceptanceView({ id }: { id: string }) {
+  const { t, i18n } = useTranslation()
+  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const navigate = useNavigate()
   const { data: ra, isLoading, error } = useRiskAcceptance(id)
   const { data: comments } = useRiskComments(id)
@@ -500,8 +507,22 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelError, setCancelError] = useState('')
 
-  if (isLoading) return <PageSection><Spinner aria-label="Laden" /></PageSection>
-  if (error) return <PageSection><Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} /></PageSection>
+  const STATUS_LABELS: Record<RiskStatus, string> = {
+    [RiskStatus.requested]: t('status.requested'),
+    [RiskStatus.approved]: t('status.approved'),
+    [RiskStatus.rejected]: t('status.rejected'),
+    [RiskStatus.expired]: t('status.expired'),
+  }
+
+  const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
+    all: t('riskAcceptance.scopeAll'),
+    namespace: t('riskAcceptance.scopeNamespace'),
+    image: t('riskAcceptance.scopeImage'),
+    deployment: t('riskAcceptance.scopeDeployment'),
+  }
+
+  if (isLoading) return <PageSection><Spinner aria-label={t('common.loading')} /></PageSection>
+  if (error) return <PageSection><Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} /></PageSection>
   if (!ra) return null
 
   async function handleAddComment(e: React.FormEvent) {
@@ -524,8 +545,8 @@ function RiskAcceptanceView({ id }: { id: string }) {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risikoakzeptanzen')} style={{ cursor: 'pointer' }}>
-            Risikoakzeptanzen
+          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+            {t('riskAcceptance.title')}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{ra.cve_id}</BreadcrumbItem>
         </Breadcrumb>
@@ -550,18 +571,18 @@ function RiskAcceptanceView({ id }: { id: string }) {
           {/* Details */}
           <GridItem span={6}>
             <Card>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t('common.details')}</CardTitle>
               <CardBody style={{ padding: 0 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      ['CVE-ID', <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
-                      ['Scope', `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
-                      ['Beantragt von', ra.created_by_name],
-                      ['Beantragt am', new Date(ra.created_at).toLocaleDateString('de-DE')],
-                      ['Läuft ab', ra.expires_at ? new Date(ra.expires_at).toLocaleDateString('de-DE') : '–'],
-                      ra.reviewed_by_name ? ['Bearbeitet von', ra.reviewed_by_name] : null,
-                      ra.reviewed_at ? ['Bearbeitet am', new Date(ra.reviewed_at).toLocaleDateString('de-DE')] : null,
+                      [t('riskAcceptance.cveId'), <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
+                      [t('riskAcceptance.scope'), `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
+                      [t('riskAcceptance.requestedBy'), ra.created_by_name],
+                      [t('riskAcceptance.requestedAt'), new Date(ra.created_at).toLocaleDateString(dateLocale)],
+                      [t('riskAcceptance.expiresOn'), ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(dateLocale) : '–'],
+                      ra.reviewed_by_name ? [t('riskAcceptance.reviewedBy'), ra.reviewed_by_name] : null,
+                      ra.reviewed_at ? [t('riskAcceptance.reviewedAt'), new Date(ra.reviewed_at).toLocaleDateString(dateLocale)] : null,
                     ] as ([string, React.ReactNode] | null)[]).filter((row): row is [string, React.ReactNode] => row !== null).map(([label, value], i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', width: 160 }}>{label}</td>
@@ -577,7 +598,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
           {/* Justification + Actions */}
           <GridItem span={6}>
             <Card style={{ marginBottom: 16 }}>
-              <CardTitle>Begründung</CardTitle>
+              <CardTitle>{t('riskAcceptance.justification')}</CardTitle>
               <CardBody>
                 <p style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{ra.justification}</p>
               </CardBody>
@@ -586,7 +607,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
             {/* Sec team review actions */}
             {me?.is_sec_team && ra.status === RiskStatus.requested && (
               <Card>
-                <CardTitle>Überprüfen</CardTitle>
+                <CardTitle>{t('riskAcceptance.review')}</CardTitle>
                 <CardBody>
                   {reviewError && <Alert variant="danger" isInline title={reviewError} style={{ marginBottom: 12 }} />}
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -595,14 +616,14 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       onClick={() => handleReview(true)}
                       isLoading={review.isPending}
                     >
-                      Genehmigen
+                      {t('riskAcceptance.approve')}
                     </Button>
                     <Button
                       variant="danger"
                       onClick={() => handleReview(false)}
                       isLoading={review.isPending}
                     >
-                      Ablehnen
+                      {t('riskAcceptance.reject')}
                     </Button>
                   </div>
                 </CardBody>
@@ -612,12 +633,12 @@ function RiskAcceptanceView({ id }: { id: string }) {
             {/* Creator cancel action */}
             {!me?.is_sec_team && me?.id === ra.created_by && ra.status === RiskStatus.requested && (
               <Card>
-                <CardTitle>Antrag zurückziehen</CardTitle>
+                <CardTitle>{t('riskAcceptance.withdrawTitle')}</CardTitle>
                 <CardBody>
                   {cancelError && <Alert variant="danger" isInline title={cancelError} style={{ marginBottom: 12 }} />}
                   {confirmCancel ? (
                     <div>
-                      <p style={{ fontSize: 13, marginBottom: 12 }}>Sind Sie sicher? Der Antrag wird unwiderruflich gelöscht.</p>
+                      <p style={{ fontSize: 13, marginBottom: 12 }}>{t('riskAcceptance.withdrawConfirm')}</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <Button
                           variant="danger"
@@ -625,22 +646,22 @@ function RiskAcceptanceView({ id }: { id: string }) {
                           onClick={async () => {
                             try {
                               await cancelRA.mutateAsync()
-                              navigate('/risikoakzeptanzen')
+                              navigate('/risk-acceptances')
                             } catch (err) {
                               setCancelError(getErrorMessage(err))
                             }
                           }}
                         >
-                          Endgültig zurückziehen
+                          {t('riskAcceptance.withdrawFinal')}
                         </Button>
                         <Button variant="link" onClick={() => setConfirmCancel(false)}>
-                          Abbrechen
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <Button variant="warning" onClick={() => setConfirmCancel(true)}>
-                      Zurückziehen
+                      {t('riskAcceptance.withdraw')}
                     </Button>
                   )}
                 </CardBody>
@@ -651,7 +672,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
           {/* Comment thread */}
           <GridItem span={12}>
             <Card>
-              <CardTitle>Kommentare ({comments?.length ?? 0})</CardTitle>
+              <CardTitle>{t('riskAcceptance.commentsCount', { count: comments?.length ?? 0 })}</CardTitle>
               <CardBody>
                 {comments && comments.length > 0 ? (
                   <div style={{ marginBottom: 20 }}>
@@ -671,12 +692,12 @@ function RiskAcceptanceView({ id }: { id: string }) {
                             {c.username}
                             {c.is_sec_team && (
                               <span style={{ marginLeft: 6, fontSize: 10, background: '#0066cc', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
-                                SEC
+                                {t('cveDetail.secLabel')}
                               </span>
                             )}
                           </span>
                           <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                            {new Date(c.created_at).toLocaleString('de-DE')}
+                            {new Date(c.created_at).toLocaleString(dateLocale)}
                           </span>
                         </div>
                         <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{c.message}</p>
@@ -684,7 +705,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     ))}
                   </div>
                 ) : (
-                  <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 16 }}>Noch keine Kommentare.</p>
+                  <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 16 }}>{t('riskAcceptance.noComments')}</p>
                 )}
 
                 {/* Add comment form */}
@@ -693,11 +714,11 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     value={newComment}
                     onChange={(_, v) => setNewComment(v)}
                     rows={3}
-                    placeholder="Kommentar hinzufügen..."
+                    placeholder={t('riskAcceptance.commentPlaceholder')}
                     style={{ marginBottom: 8 }}
                   />
                   <Button type="submit" variant="secondary" isLoading={addComment.isPending} isDisabled={!newComment.trim()}>
-                    Kommentar senden
+                    {t('riskAcceptance.addComment')}
                   </Button>
                 </form>
               </CardBody>

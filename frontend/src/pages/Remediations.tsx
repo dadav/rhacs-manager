@@ -15,19 +15,12 @@ import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
 import type { RemediationItem } from '../types'
 import { RemediationStatus } from '../types'
-
-const STATUS_LABELS: Record<string, string> = {
-  open: 'Offen',
-  in_progress: 'In Bearbeitung',
-  resolved: 'Behoben',
-  verified: 'Verifiziert',
-  wont_fix: 'Wird nicht behoben',
-}
 
 const STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
   open: 'blue',
@@ -60,23 +53,21 @@ const SELECT_STYLE: React.CSSProperties = {
 
 const PER_PAGE = 20
 
-function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
-  return (
-    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-      <Label color={STATUS_COLORS[status] ?? 'grey'}>
-        {STATUS_LABELS[status] ?? status}
-      </Label>
-      {isOverdue && (
-        <Label color="red">Überfällig</Label>
-      )}
-    </span>
-  )
-}
-
 export function Remediations() {
+  const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  const STATUS_LABELS: Record<string, string> = {
+    open: t('remediations.statusOpen'),
+    in_progress: t('remediations.statusInProgress'),
+    resolved: t('remediations.statusResolved'),
+    verified: t('remediations.statusVerified'),
+    wont_fix: t('remediations.statusWontFix'),
+  }
+
+  const localeDateFormat = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   const statusFilter = searchParams.get('status') ?? ''
   const [searchCve, setSearchCve] = useState('')
@@ -115,29 +106,39 @@ export function Remediations() {
     setPage(1)
   }
 
+  function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
+    return (
+      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+        <Label color={STATUS_COLORS[status] ?? 'grey'}>
+          {STATUS_LABELS[status] ?? status}
+        </Label>
+        {isOverdue && (
+          <Label color="red">{t('remediations.overdue')}</Label>
+        )}
+      </span>
+    )
+  }
+
   return (
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Title headingLevel="h1" size="xl">Behebungen</Title>
+          <Title headingLevel="h1" size="xl">{t('remediations.title')}</Title>
           <Popover
-            headerContent="Was sind Behebungen?"
+            headerContent={t('remediations.whatAre')}
             bodyContent={
               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
                 <p style={{ margin: '0 0 8px' }}>
-                  Behebungen verfolgen die aktive Beseitigung von CVEs. Ein Team-Mitglied
-                  erstellt eine Behebung für eine CVE in seinem Namespace und verfolgt den
-                  Fortschritt bis zur Verifizierung durch das Security-Team.
+                  {t('remediations.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>Offen</strong> — Behebung angelegt<br />
-                  <strong>In Bearbeitung</strong> — Aktiv daran gearbeitet<br />
-                  <strong>Behoben</strong> — CVE wurde beseitigt, wartet auf Verifizierung<br />
-                  <strong>Verifiziert</strong> — Vom Security-Team bestätigt
+                  <strong>{t('remediations.helpBody2Open')}</strong> — {t('remediations.helpBody2OpenDesc')}<br />
+                  <strong>{t('remediations.helpBody2InProgress')}</strong> — {t('remediations.helpBody2InProgressDesc')}<br />
+                  <strong>{t('remediations.helpBody2Resolved')}</strong> — {t('remediations.helpBody2ResolvedDesc')}<br />
+                  <strong>{t('remediations.helpBody2Verified')}</strong> — {t('remediations.helpBody2VerifiedDesc')}
                 </p>
                 <p style={{ margin: 0 }}>
-                  Behebungen können automatisch als behoben markiert werden, wenn die CVE
-                  nicht mehr in den Deployments des Namespaces gefunden wird.
+                  {t('remediations.helpBody3')}
                 </p>
               </div>
             }
@@ -145,7 +146,7 @@ export function Remediations() {
           >
             <Button
               variant="plain"
-              aria-label="Hilfe zu Behebungen"
+              aria-label={t('remediations.helpLabel')}
               style={{ padding: '4px 6px' }}
             >
               <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
@@ -159,12 +160,12 @@ export function Remediations() {
         <PageSection>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {([
-              ['open', 'Offen', 'blue'],
-              ['in_progress', 'In Bearbeitung', 'orange'],
-              ['resolved', 'Behoben', 'green'],
-              ['verified', 'Verifiziert', 'teal'],
-              ['overdue', 'Überfällig', 'red'],
-            ] as const).map(([key, label, color]) => (
+              ['open', t('remediations.statusOpen'), 'blue'],
+              ['in_progress', t('remediations.statusInProgress'), 'orange'],
+              ['resolved', t('remediations.statusResolved'), 'green'],
+              ['verified', t('remediations.statusVerified'), 'teal'],
+              ['overdue', t('remediations.overdue'), 'red'],
+            ] as [string, string, string][]).map(([key, label, color]) => (
               <div
                 key={key}
                 onClick={() => {
@@ -206,11 +207,11 @@ export function Remediations() {
             <ToolbarItem>
               <input
                 type="text"
-                placeholder="CVE suchen..."
+                placeholder={t('remediations.searchPlaceholder')}
                 value={searchCve}
                 onChange={e => { setSearchCve(e.target.value); setPage(1) }}
                 style={{ ...SELECT_STYLE, width: 200, paddingLeft: 8 }}
-                aria-label="CVE-ID suchen"
+                aria-label={t('remediations.searchLabel')}
               />
             </ToolbarItem>
             <ToolbarItem>
@@ -218,30 +219,30 @@ export function Remediations() {
                 value={statusFilter}
                 onChange={e => { setStatus(e.target.value); setOverdueFilter(false) }}
                 style={SELECT_STYLE}
-                aria-label="Nach Status filtern"
+                aria-label={t('remediations.filterStatus')}
               >
-                <option value="">Alle Status</option>
-                <option value="open">Offen</option>
-                <option value="in_progress">In Bearbeitung</option>
-                <option value="resolved">Behoben</option>
-                <option value="verified">Verifiziert</option>
-                <option value="wont_fix">Wird nicht behoben</option>
+                <option value="">{t('remediations.allStatuses')}</option>
+                <option value="open">{t('remediations.statusOpen')}</option>
+                <option value="in_progress">{t('remediations.statusInProgress')}</option>
+                <option value="resolved">{t('remediations.statusResolved')}</option>
+                <option value="verified">{t('remediations.statusVerified')}</option>
+                <option value="wont_fix">{t('remediations.statusWontFix')}</option>
               </select>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
 
         {isLoading ? (
-          <Spinner aria-label="Laden" />
+          <Spinner aria-label={t('common.loading')} />
         ) : error ? (
-          <Alert variant="danger" title={`Fehler: ${getErrorMessage(error)}`} />
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !filtered.length ? (
           <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
             <p style={{ fontSize: 14, margin: 0 }}>
-              {statusFilter || overdueFilter ? 'Keine Behebungen für die gewählten Filter.' : 'Keine Behebungen vorhanden.'}
+              {statusFilter || overdueFilter ? t('remediations.noFilterResults') : t('remediations.noRemediations')}
             </p>
             <p style={{ fontSize: 12, margin: '8px 0 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-              Behebungen können über die CVE-Detailseite erstellt werden.
+              {t('remediations.createHint')}
             </p>
           </div>
         ) : (
@@ -249,19 +250,27 @@ export function Remediations() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr>
-                  <th style={TH_STYLE}>CVE</th>
-                  <th style={TH_STYLE}>Namespace</th>
-                  <th style={TH_STYLE}>Status</th>
-                  <th style={TH_STYLE}>Zugewiesen</th>
-                  <th style={TH_STYLE}>Fällig</th>
-                  <th style={TH_STYLE}>Erstellt</th>
-                  <th style={TH_STYLE}>Ersteller</th>
-                  <th style={{ ...TH_STYLE, width: 120 }}>Aktionen</th>
+                  <th style={TH_STYLE}>{t('remediations.cve')}</th>
+                  <th style={TH_STYLE}>{t('remediations.namespace')}</th>
+                  <th style={TH_STYLE}>{t('remediations.status')}</th>
+                  <th style={TH_STYLE}>{t('remediations.assignedTo')}</th>
+                  <th style={TH_STYLE}>{t('remediations.dueDate')}</th>
+                  <th style={TH_STYLE}>{t('remediations.created')}</th>
+                  <th style={TH_STYLE}>{t('remediations.createdBy')}</th>
+                  <th style={{ ...TH_STYLE, width: 120 }}>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.map(r => (
-                  <RemediationRow key={r.id} item={r} isSecTeam={isSecTeam} />
+                  <RemediationRow
+                    key={r.id}
+                    item={r}
+                    isSecTeam={isSecTeam}
+                    statusLabels={STATUS_LABELS}
+                    localeDateFormat={localeDateFormat}
+                    StatusBadge={StatusBadge}
+                    t={t}
+                  />
                 ))}
               </tbody>
             </table>
@@ -283,7 +292,21 @@ export function Remediations() {
   )
 }
 
-function RemediationRow({ item, isSecTeam }: { item: RemediationItem; isSecTeam: boolean }) {
+function RemediationRow({
+  item,
+  isSecTeam,
+  statusLabels,
+  localeDateFormat,
+  StatusBadge,
+  t,
+}: {
+  item: RemediationItem
+  isSecTeam: boolean
+  statusLabels: Record<string, string>
+  localeDateFormat: string
+  StatusBadge: React.ComponentType<{ status: string; isOverdue: boolean }>
+  t: (key: string) => string
+}) {
   const updateMutation = useUpdateRemediation(item.id)
 
   const canVerify = isSecTeam && item.status === RemediationStatus.resolved
@@ -300,7 +323,7 @@ function RemediationRow({ item, isSecTeam }: { item: RemediationItem; isSecTeam:
     >
       <td style={TD_STYLE}>
         <Link
-          to={`/schwachstellen/${item.cve_id}`}
+          to={`/vulnerabilities/${item.cve_id}`}
           style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}
         >
           {item.cve_id}
@@ -320,14 +343,14 @@ function RemediationRow({ item, isSecTeam }: { item: RemediationItem; isSecTeam:
             fontWeight: item.is_overdue ? 600 : 400,
             fontSize: 12,
           }}>
-            {new Date(item.target_date).toLocaleDateString('de-DE')}
+            {new Date(item.target_date).toLocaleDateString(localeDateFormat)}
           </span>
         ) : (
           <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
         )}
       </td>
       <td style={{ ...TD_STYLE, fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-        {new Date(item.created_at).toLocaleDateString('de-DE')}
+        {new Date(item.created_at).toLocaleDateString(localeDateFormat)}
       </td>
       <td style={TD_STYLE}>
         <span style={{ fontSize: 12 }}>{item.created_by_name}</span>
@@ -335,22 +358,22 @@ function RemediationRow({ item, isSecTeam }: { item: RemediationItem; isSecTeam:
       <td style={{ ...TD_STYLE, whiteSpace: 'nowrap' }}>
         {canProgress && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
-            Starten
+            {t('remediations.start')}
           </Button>
         )}
         {canResolve && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
-            Behoben
+            {t('remediations.markResolved')}
           </Button>
         )}
         {canVerify && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
-            Verifizieren
+            {t('remediations.verify')}
           </Button>
         )}
         {canReopen && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
-            Wiedereröffnen
+            {t('remediations.reopen')}
           </Button>
         )}
       </td>
