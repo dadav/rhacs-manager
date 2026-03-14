@@ -24,7 +24,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts'
+} from "recharts";
 import { getErrorMessage } from "../utils/errors";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -80,7 +80,7 @@ function StatCard({
           {label}
         </div>
         {subtitle && (
-          <div style={{ fontSize: 11, color: '#ec7a08', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "#ec7a08", marginTop: 4 }}>
             {subtitle}
           </div>
         )}
@@ -95,34 +95,53 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { scopeParams } = useScope();
   const { data, isLoading, error } = useDashboard(scopeParams);
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
-  const severityLabels = [t('severity.0'), t('severity.1'), t('severity.2'), t('severity.3'), t('severity.4')];
+  const dateLocale = i18n.language === "de" ? "de-DE" : "en-US";
+  const severityLabels = [
+    t("severity.0"),
+    t("severity.1"),
+    t("severity.2"),
+    t("severity.3"),
+    t("severity.4"),
+  ];
 
   if (isLoading)
     return (
       <PageSection>
-        <Spinner aria-label={t('common.loading')} />
+        <Spinner aria-label={t("common.loading")} />
       </PageSection>
     );
   if (error)
     return (
       <PageSection>
-        <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
+        <Alert
+          variant="danger"
+          title={`${t("common.error")}: ${getErrorMessage(error)}`}
+        />
       </PageSection>
     );
   if (!data) return null;
 
-  const heatmapCols = ['unknown', 'low', 'moderate', 'important', 'critical'] as const
-  const heatmapSeverityIndex: Record<typeof heatmapCols[number], number> = {
-    unknown: 0, low: 1, moderate: 2, important: 3, critical: 4,
-  }
-  const heatmapRgb: Record<typeof heatmapCols[number], string> = {
-    unknown:   '210,210,210',
-    low:       '190,225,244',
-    moderate:  '249,224,162',
-    important: '244,182,120',
-    critical:  '249,185,183',
-  }
+  const heatmapCols = [
+    "unknown",
+    "low",
+    "moderate",
+    "important",
+    "critical",
+  ] as const;
+  const heatmapSeverityIndex: Record<(typeof heatmapCols)[number], number> = {
+    unknown: 0,
+    low: 1,
+    moderate: 2,
+    important: 3,
+    critical: 4,
+  };
+  const heatmapRgb: Record<(typeof heatmapCols)[number], string> = {
+    unknown: "210,210,210",
+    low: "190,225,244",
+    moderate: "249,224,162",
+    important: "244,182,120",
+    critical: "249,185,183",
+  };
 
   return (
     <>
@@ -136,7 +155,14 @@ export function Dashboard() {
         <Grid hasGutter>
           {/* Stat cards */}
           <GridItem span={3}>
-            <Link to="/vulnerabilities" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+            <Link
+              to="/vulnerabilities"
+              style={{
+                textDecoration: "none",
+                display: "block",
+                height: "100%",
+              }}
+            >
               <StatCard
                 label={t("dashboard.totalCves")}
                 value={data.stat_total_cves}
@@ -144,7 +170,14 @@ export function Dashboard() {
             </Link>
           </GridItem>
           <GridItem span={3}>
-            <Link to="/vulnerabilities?severity=4&fixable=true" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+            <Link
+              to="/vulnerabilities?severity=4&fixable=true"
+              style={{
+                textDecoration: "none",
+                display: "block",
+                height: "100%",
+              }}
+            >
               <StatCard
                 label={t("dashboard.fixableCriticalCves")}
                 value={data.stat_fixable_critical_cves}
@@ -153,19 +186,35 @@ export function Dashboard() {
             </Link>
           </GridItem>
           <GridItem span={3}>
-            <Link to="/escalations" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+            <Link
+              to="/escalations"
+              style={{
+                textDecoration: "none",
+                display: "block",
+                height: "100%",
+              }}
+            >
               <StatCard
                 label={t("dashboard.escalations")}
                 value={data.stat_escalations}
                 color={data.stat_escalations > 0 ? "#ec7a08" : undefined}
-                subtitle={data.stat_upcoming_escalations > 0
-                  ? `${data.stat_upcoming_escalations} ${t('dashboard.upcoming')}`
-                  : undefined}
+                subtitle={
+                  data.stat_upcoming_escalations > 0
+                    ? `${data.stat_upcoming_escalations} ${t("dashboard.upcoming")}`
+                    : undefined
+                }
               />
             </Link>
           </GridItem>
           <GridItem span={3}>
-            <Link to="/risk-acceptances?status=requested" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
+            <Link
+              to="/risk-acceptances?status=requested"
+              style={{
+                textDecoration: "none",
+                display: "block",
+                height: "100%",
+              }}
+            >
               <StatCard
                 label={t("dashboard.openRiskAcceptances")}
                 value={data.stat_open_risk_acceptances}
@@ -267,14 +316,22 @@ export function Dashboard() {
           {data.epss_matrix.length > 0 && (
             <GridItem span={isSecTeam ? 8 : 12}>
               <Card>
-                <CardTitle>{t('dashboard.epssMatrix')}</CardTitle>
+                <CardTitle>{t("dashboard.epssMatrix")}</CardTitle>
                 <CardBody>
-                  <p style={{ fontSize: 12, color: 'var(--pf-v6-global--Color--200)', marginBottom: 8 }}>
-                    {t('dashboard.epssMatrixDescription')}
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--pf-v6-global--Color--200)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    {t("dashboard.epssMatrixDescription")}
                   </p>
                   <EpssRiskMatrix
                     data={data.epss_matrix}
-                    onDotClick={(cveId) => navigate(`/vulnerabilities/${cveId}`)}
+                    onDotClick={(cveId) =>
+                      navigate(`/vulnerabilities/${cveId}`)
+                    }
                   />
                 </CardBody>
               </Card>
@@ -283,41 +340,65 @@ export function Dashboard() {
 
           {isSecTeam && (
             <GridItem span={data.epss_matrix.length > 0 ? 4 : 4}>
-              <Card style={{ height: '100%' }}>
+              <Card style={{ height: "100%" }}>
                 <CardTitle>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <span>{t('dashboard.pipeline')}</span>
-                    <Link to="/risk-acceptances" style={{ fontSize: 12 }}>{t('dashboard.viewAll')}</Link>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>{t("dashboard.pipeline")}</span>
+                    <Link to="/risk-acceptances" style={{ fontSize: 12 }}>
+                      {t("dashboard.viewAll")}
+                    </Link>
                   </div>
                 </CardTitle>
                 <CardBody>
-                  {(['requested', 'approved', 'rejected', 'expired'] as const).map(status => {
+                  {(
+                    ["requested", "approved", "rejected", "expired"] as const
+                  ).map((status) => {
                     const labels: Record<string, string> = {
-                      requested: t('status.requested'), approved: t('status.approved'), rejected: t('status.rejected'), expired: t('status.expired')
-                    }
+                      requested: t("status.requested"),
+                      approved: t("status.approved"),
+                      rejected: t("status.rejected"),
+                      expired: t("status.expired"),
+                    };
                     const colors: Record<string, string> = {
-                      requested: '#0066cc', approved: '#1e8f19', rejected: '#c9190b', expired: '#8a8d90'
-                    }
+                      requested: "#0066cc",
+                      approved: "#1e8f19",
+                      rejected: "#c9190b",
+                      expired: "#8a8d90",
+                    };
                     return (
                       <Link
                         key={status}
                         to={`/risk-acceptances?status=${status}`}
                         style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '8px 0',
-                          borderBottom: '1px solid var(--pf-t--global--border--color--default)',
-                          color: 'inherit',
-                          textDecoration: 'none',
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "8px 0",
+                          borderBottom:
+                            "1px solid var(--pf-t--global--border--color--default)",
+                          color: "inherit",
+                          textDecoration: "none",
                         }}
                       >
                         <span style={{ fontSize: 13 }}>{labels[status]}</span>
-                        <Badge style={{ background: colors[status], color: '#fff', padding: '2px 8px' }}>
+                        <Badge
+                          style={{
+                            background: colors[status],
+                            color: "#fff",
+                            padding: "2px 8px",
+                          }}
+                        >
                           {data.risk_acceptance_pipeline[status]}
                         </Badge>
                       </Link>
-                    )
+                    );
                   })}
                 </CardBody>
               </Card>
@@ -330,31 +411,44 @@ export function Dashboard() {
               <CardBody>
                 <SeverityDonut
                   data={data.severity_distribution}
-                  onSegmentClick={(severity) => navigate(`/vulnerabilities?severity=${severity}`)}
+                  onSegmentClick={(severity) =>
+                    navigate(`/vulnerabilities?severity=${severity}`)
+                  }
                 />
               </CardBody>
             </Card>
           </GridItem>
 
           {/* Fixability Breakdown Donut — side by side with severity */}
-          {(data.fixability_breakdown.fixable > 0 || data.fixability_breakdown.unfixable > 0) && (
+          {(data.fixability_breakdown.fixable > 0 ||
+            data.fixability_breakdown.unfixable > 0) && (
             <GridItem span={6}>
-              <Card style={{ height: '100%' }}>
-                <CardTitle>{t('dashboard.fixabilityBreakdown')}</CardTitle>
+              <Card style={{ height: "100%" }}>
+                <CardTitle>{t("dashboard.fixabilityBreakdown")}</CardTitle>
                 <CardBody>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie
                         data={[
-                          { name: t('dashboard.fixable'), value: data.fixability_breakdown.fixable, fixable: 'true' },
-                          { name: t('dashboard.unfixable'), value: data.fixability_breakdown.unfixable, fixable: 'false' },
+                          {
+                            name: t("dashboard.fixable"),
+                            value: data.fixability_breakdown.fixable,
+                            fixable: "true",
+                          },
+                          {
+                            name: t("dashboard.unfixable"),
+                            value: data.fixability_breakdown.unfixable,
+                            fixable: "false",
+                          },
                         ]}
                         innerRadius={60}
                         outerRadius={90}
                         dataKey="value"
                         nameKey="name"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?fixable=${entry.fixable}`)}
+                        style={{ cursor: "pointer" }}
+                        onClick={(entry) =>
+                          navigate(`/vulnerabilities?fixable=${entry.fixable}`)
+                        }
                       >
                         <Cell fill="#1e8f19" />
                         <Cell fill="#c9190b" />
@@ -372,17 +466,36 @@ export function Dashboard() {
           {data.fixable_trend.length > 0 && (
             <GridItem span={12}>
               <Card>
-                <CardTitle>{t('dashboard.fixableTrend')}</CardTitle>
+                <CardTitle>{t("dashboard.fixableTrend")}</CardTitle>
                 <CardBody>
                   <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={data.fixable_trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <AreaChart
+                      data={data.fixable_trend}
+                      margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Area type="monotone" dataKey="fixable" name={t('dashboard.fixable')} stackId="1" fill="#1e8f19" stroke="#1e8f19" fillOpacity={0.6} />
-                      <Area type="monotone" dataKey="unfixable" name={t('dashboard.unfixable')} stackId="1" fill="#c9190b" stroke="#c9190b" fillOpacity={0.6} />
+                      <Area
+                        type="monotone"
+                        dataKey="fixable"
+                        name={t("dashboard.fixable")}
+                        stackId="1"
+                        fill="#1e8f19"
+                        stroke="#1e8f19"
+                        fillOpacity={0.6}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="unfixable"
+                        name={t("dashboard.unfixable")}
+                        stackId="1"
+                        fill="#c9190b"
+                        stroke="#c9190b"
+                        fillOpacity={0.6}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </CardBody>
@@ -394,48 +507,115 @@ export function Dashboard() {
           {data.cluster_heatmap.length > 0 && (
             <GridItem span={12}>
               <Card>
-                <CardTitle>{t('dashboard.clusterHeatmap')}</CardTitle>
+                <CardTitle>{t("dashboard.clusterHeatmap")}</CardTitle>
                 <CardBody>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: 13,
+                      }}
+                    >
                       <thead>
-                        <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                          <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('common.cluster')}</th>
-                          {severityLabels.map(l => <th key={l} style={{ padding: '8px 12px', textAlign: 'right' }}>{l}</th>)}
-                          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>{t('common.total')}</th>
+                        <tr
+                          style={{
+                            background:
+                              "var(--pf-t--global--background--color--secondary--default)",
+                          }}
+                        >
+                          <th
+                            style={{ padding: "8px 12px", textAlign: "left" }}
+                          >
+                            {t("common.cluster")}
+                          </th>
+                          {severityLabels.map((l) => (
+                            <th
+                              key={l}
+                              style={{
+                                padding: "8px 12px",
+                                textAlign: "right",
+                              }}
+                            >
+                              {l}
+                            </th>
+                          ))}
+                          <th
+                            style={{
+                              padding: "8px 12px",
+                              textAlign: "right",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {t("common.total")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {data.cluster_heatmap.map(row => (
-                          <tr key={row.cluster} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                        {data.cluster_heatmap.map((row) => (
+                          <tr
+                            key={row.cluster}
+                            style={{
+                              borderBottom:
+                                "1px solid var(--pf-t--global--border--color--default)",
+                            }}
+                          >
                             <td
-                              style={{ padding: '8px 12px', fontFamily: 'monospace', cursor: 'pointer' }}
-                              onClick={() => navigate(`/vulnerabilities?cluster=${encodeURIComponent(row.cluster)}`)}
+                              style={{
+                                padding: "8px 12px",
+                                fontFamily: "monospace",
+                                cursor: "pointer",
+                              }}
+                              onClick={() =>
+                                navigate(
+                                  `/vulnerabilities?cluster=${encodeURIComponent(row.cluster)}`,
+                                )
+                              }
                             >
                               {row.cluster}
                             </td>
-                            {heatmapCols.map(col => {
-                              const val = row[col]
-                              const bgAlpha = val > 0 ? Math.min(0.3 + val / 50, 1) : 0
+                            {heatmapCols.map((col) => {
+                              const val = row[col];
+                              const bgAlpha =
+                                val > 0 ? Math.min(0.3 + val / 50, 1) : 0;
                               return (
                                 <td
                                   key={col}
                                   style={{
-                                    padding: '8px 12px',
-                                    textAlign: 'right',
-                                    background: val > 0 ? `rgba(${heatmapRgb[col]},${bgAlpha})` : 'transparent',
-                                    color: val > 0 ? '#151515' : 'inherit',
-                                    cursor: val > 0 ? 'pointer' : 'default',
+                                    padding: "8px 12px",
+                                    textAlign: "right",
+                                    background:
+                                      val > 0
+                                        ? `rgba(${heatmapRgb[col]},${bgAlpha})`
+                                        : "transparent",
+                                    color: val > 0 ? "#151515" : "inherit",
+                                    cursor: val > 0 ? "pointer" : "default",
                                   }}
-                                  onClick={val > 0 ? () => navigate(`/vulnerabilities?severity=${heatmapSeverityIndex[col]}&cluster=${encodeURIComponent(row.cluster)}`) : undefined}
+                                  onClick={
+                                    val > 0
+                                      ? () =>
+                                          navigate(
+                                            `/vulnerabilities?severity=${heatmapSeverityIndex[col]}&cluster=${encodeURIComponent(row.cluster)}`,
+                                          )
+                                      : undefined
+                                  }
                                 >
-                                  {val > 0 ? val : '–'}
+                                  {val > 0 ? val : "–"}
                                 </td>
-                              )
+                              );
                             })}
                             <td
-                              style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, cursor: 'pointer' }}
-                              onClick={() => navigate(`/vulnerabilities?cluster=${encodeURIComponent(row.cluster)}`)}
+                              style={{
+                                padding: "8px 12px",
+                                textAlign: "right",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                              onClick={() =>
+                                navigate(
+                                  `/vulnerabilities?cluster=${encodeURIComponent(row.cluster)}`,
+                                )
+                              }
                             >
                               {row.total}
                             </td>
@@ -450,56 +630,74 @@ export function Dashboard() {
           )}
 
           {/* CVE Aging Distribution */}
-          {data.aging_distribution.some(b => b.count > 0) && (() => {
-            const bucketRanges: Record<string, [number, number | undefined]> = {
-              '0-7': [0, 7],
-              '8-30': [8, 30],
-              '31-90': [31, 90],
-              '91-180': [91, 180],
-              '180+': [181, undefined],
-            }
-            const agingData = data.aging_distribution.map(b => ({
-              ...b,
-              bucketLabel: t(`dashboard.ageBuckets.${b.bucket}`),
-            }))
-            return (
-            <GridItem span={6}>
-              <Card>
-                <CardTitle>{t('dashboard.aging')}</CardTitle>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={agingData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="bucketLabel" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip />
-                      <Bar
-                        dataKey="count"
-                        name="CVEs"
-                        fill="#0066cc"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => {
-                          const range = bucketRanges[entry.bucket as string]
-                          if (!range) return
-                          const params = new URLSearchParams()
-                          params.set('age_min', String(range[0]))
-                          if (range[1] !== undefined) params.set('age_max', String(range[1]))
-                          navigate(`/vulnerabilities?${params.toString()}`)
-                        }}
-                      >
-                        {agingData.map((_, i) => (
-                          <Cell key={i} fill={i >= 3 ? '#c9190b' : i >= 2 ? '#ec7a08' : '#0066cc'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </GridItem>
-            )
-          })()}
+          {data.aging_distribution.some((b) => b.count > 0) &&
+            (() => {
+              const bucketRanges: Record<string, [number, number | undefined]> =
+                {
+                  "0-7": [0, 7],
+                  "8-30": [8, 30],
+                  "31-90": [31, 90],
+                  "91-180": [91, 180],
+                  "180+": [181, undefined],
+                };
+              const agingData = data.aging_distribution.map((b) => ({
+                ...b,
+                bucketLabel: t(`dashboard.ageBuckets.${b.bucket}`),
+              }));
+              return (
+                <GridItem span={6}>
+                  <Card>
+                    <CardTitle>{t("dashboard.aging")}</CardTitle>
+                    <CardBody>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={agingData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="bucketLabel"
+                            tick={{ fontSize: 10 }}
+                          />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Bar
+                            dataKey="count"
+                            name="CVEs"
+                            fill="#0066cc"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) => {
+                              const range =
+                                bucketRanges[entry.bucket as string];
+                              if (!range) return;
+                              const params = new URLSearchParams();
+                              params.set("age_min", String(range[0]));
+                              if (range[1] !== undefined)
+                                params.set("age_max", String(range[1]));
+                              navigate(`/vulnerabilities?${params.toString()}`);
+                            }}
+                          >
+                            {agingData.map((_, i) => (
+                              <Cell
+                                key={i}
+                                fill={
+                                  i >= 3
+                                    ? "#c9190b"
+                                    : i >= 2
+                                      ? "#ec7a08"
+                                      : "#0066cc"
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardBody>
+                  </Card>
+                </GridItem>
+              );
+            })()}
 
-          <GridItem span={data.aging_distribution.some(b => b.count > 0) ? 6 : 12}>
+          <GridItem
+            span={data.aging_distribution.some((b) => b.count > 0) ? 6 : 12}
+          >
             <Card>
               <CardTitle>{t("dashboard.trend")}</CardTitle>
               <CardBody>
@@ -509,82 +707,168 @@ export function Dashboard() {
           </GridItem>
 
           {/* CVEs per Namespace — stacked by severity */}
-          {data.cves_per_namespace.length > 0 && (() => {
-            const nsData = data.cves_per_namespace.slice(0, 10)
-            const hasMultiCluster = nsData.some(ns => ns.cluster_count > 1)
-            const barHeight = hasMultiCluster ? 48 : 40
-            return (
-            <GridItem span={12}>
-              <Card>
-                <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
-                <CardBody>
-                  <ResponsiveContainer width="100%" height={nsData.length * barHeight + 20}>
-                    <BarChart
-                      data={nsData}
-                      layout="vertical"
-                      margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
-                      barSize={hasMultiCluster ? 20 : undefined}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <YAxis
-                        type="category"
-                        dataKey="namespace"
-                        width={200}
-                        interval={0}
-                        tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-                          const ns = nsData.find(n => n.namespace === payload.value)
-                          return (
-                            <text x={x} y={y} textAnchor="end" fontSize={11} fill="var(--pf-v6-global--Color--100)">
-                              <tspan x={x} dy={ns && ns.cluster_count > 1 ? -6 : 4}>{payload.value}</tspan>
-                              {ns && ns.cluster_count > 1 && (
-                                <tspan x={x} dy={14} fontSize={9} fill="var(--pf-v6-global--Color--200)">
-                                  {ns.cluster_count} {t('common.cluster')}
-                                </tspan>
-                              )}
-                            </text>
-                          )
-                        }}
-                      />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="critical" name={t('severity.4')} stackId="sev" fill="#a30000"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=4`)} />
-                      <Bar dataKey="important" name={t('severity.3')} stackId="sev" fill="#c9190b"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=3`)} />
-                      <Bar dataKey="moderate" name={t('severity.2')} stackId="sev" fill="#ec7a08"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=2`)} />
-                      <Bar dataKey="low" name={t('severity.1')} stackId="sev" fill="#2b9af3"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=1`)} />
-                      <Bar dataKey="unknown" name={t('severity.0')} stackId="sev" fill="#d2d2d2"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=0`)} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardBody>
-              </Card>
-            </GridItem>
-            )
-          })()}
+          {data.cves_per_namespace.length > 0 &&
+            (() => {
+              const nsData = data.cves_per_namespace.slice(0, 10);
+              const hasMultiCluster = nsData.some((ns) => ns.cluster_count > 1);
+              const barHeight = hasMultiCluster ? 48 : 40;
+              return (
+                <GridItem span={12}>
+                  <Card>
+                    <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
+                    <CardBody>
+                      <ResponsiveContainer
+                        width="100%"
+                        height={Math.max(120, nsData.length * barHeight + 20)}
+                      >
+                        <BarChart
+                          data={nsData}
+                          layout="vertical"
+                          margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
+                          barSize={hasMultiCluster ? 20 : undefined}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            type="number"
+                            tick={{ fontSize: 10 }}
+                            allowDecimals={false}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="namespace"
+                            width={200}
+                            interval={0}
+                            tick={({
+                              x,
+                              y,
+                              payload,
+                            }: {
+                              x: number;
+                              y: number;
+                              payload: { value: string };
+                            }) => {
+                              const ns = nsData.find(
+                                (n) => n.namespace === payload.value,
+                              );
+                              return (
+                                <text
+                                  x={x}
+                                  y={y}
+                                  textAnchor="end"
+                                  fontSize={11}
+                                  fill="var(--pf-v6-global--Color--100)"
+                                >
+                                  <tspan
+                                    x={x}
+                                    dy={ns && ns.cluster_count > 1 ? -6 : 4}
+                                  >
+                                    {payload.value}
+                                  </tspan>
+                                  {ns && ns.cluster_count > 1 && (
+                                    <tspan
+                                      x={x}
+                                      dy={14}
+                                      fontSize={9}
+                                      fill="var(--pf-v6-global--Color--200)"
+                                    >
+                                      {ns.cluster_count} {t("common.cluster")}
+                                    </tspan>
+                                  )}
+                                </text>
+                              );
+                            }}
+                          />
+                          <Tooltip />
+                          <Legend />
+                          <Bar
+                            dataKey="critical"
+                            name={t("severity.4")}
+                            stackId="sev"
+                            fill="#a30000"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) =>
+                              navigate(
+                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=4`,
+                              )
+                            }
+                          />
+                          <Bar
+                            dataKey="important"
+                            name={t("severity.3")}
+                            stackId="sev"
+                            fill="#c9190b"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) =>
+                              navigate(
+                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=3`,
+                              )
+                            }
+                          />
+                          <Bar
+                            dataKey="moderate"
+                            name={t("severity.2")}
+                            stackId="sev"
+                            fill="#ec7a08"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) =>
+                              navigate(
+                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=2`,
+                              )
+                            }
+                          />
+                          <Bar
+                            dataKey="low"
+                            name={t("severity.1")}
+                            stackId="sev"
+                            fill="#2b9af3"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) =>
+                              navigate(
+                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=1`,
+                              )
+                            }
+                          />
+                          <Bar
+                            dataKey="unknown"
+                            name={t("severity.0")}
+                            stackId="sev"
+                            fill="#d2d2d2"
+                            style={{ cursor: "pointer" }}
+                            onClick={(entry) =>
+                              navigate(
+                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=0`,
+                              )
+                            }
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardBody>
+                  </Card>
+                </GridItem>
+              );
+            })()}
 
           {/* Top Vulnerable Components — stacked by fixability */}
           {data.top_vulnerable_components.length > 0 && (
             <GridItem span={12}>
               <Card>
-                <CardTitle>{t('dashboard.topVulnerableComponents')}</CardTitle>
+                <CardTitle>{t("dashboard.topVulnerableComponents")}</CardTitle>
                 <CardBody>
-                  <ResponsiveContainer width="100%" height={data.top_vulnerable_components.length * 40 + 20}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={data.top_vulnerable_components.length * 40 + 20}
+                  >
                     <BarChart
                       data={data.top_vulnerable_components}
                       layout="vertical"
                       margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10 }}
+                        allowDecimals={false}
+                      />
                       <YAxis
                         type="category"
                         dataKey="component_name"
@@ -594,12 +878,30 @@ export function Dashboard() {
                       />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="fixable_count" name={t('dashboard.fixable')} stackId="fix" fill="#1e8f19"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=true&advanced=1`)} />
-                      <Bar dataKey="unfixable_count" name={t('dashboard.unfixable')} stackId="fix" fill="#c9190b"
-                        style={{ cursor: 'pointer' }}
-                        onClick={(entry) => navigate(`/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=false&advanced=1`)} />
+                      <Bar
+                        dataKey="fixable_count"
+                        name={t("dashboard.fixable")}
+                        stackId="fix"
+                        fill="#1e8f19"
+                        style={{ cursor: "pointer" }}
+                        onClick={(entry) =>
+                          navigate(
+                            `/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=true&advanced=1`,
+                          )
+                        }
+                      />
+                      <Bar
+                        dataKey="unfixable_count"
+                        name={t("dashboard.unfixable")}
+                        stackId="fix"
+                        fill="#c9190b"
+                        style={{ cursor: "pointer" }}
+                        onClick={(entry) =>
+                          navigate(
+                            `/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=false&advanced=1`,
+                          )
+                        }
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardBody>
