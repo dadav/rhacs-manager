@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from fnmatch import fnmatch
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,6 +65,26 @@ def _compute_suppressed_cves(
                     break
 
     return suppressed
+
+
+def compute_per_rule_matched_counts(
+    rules: list[SuppressionRule],
+    all_cve_ids: set[str],
+    component_version_map: dict[str, list[tuple[str, str]]],
+) -> dict[UUID, int]:
+    """Return {rule.id: matched_cve_count} for each rule."""
+    counts: dict[UUID, int] = {}
+    for rule in rules:
+        if rule.type == SuppressionType.cve:
+            counts[rule.id] = 1 if rule.cve_id in all_cve_ids else 0
+        elif rule.type == SuppressionType.component:
+            count = 0
+            for cve_id in all_cve_ids:
+                components = component_version_map.get(cve_id, [])
+                if _matches_component_rule(rule, components):
+                    count += 1
+            counts[rule.id] = count
+    return counts
 
 
 def _build_cve_item(

@@ -1,6 +1,10 @@
 import {
   Alert,
   Button,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
   Label,
   Modal,
   ModalBody,
@@ -47,6 +51,7 @@ export function SuppressionRules() {
   const { isSecTeam } = useAuth()
   const [statusFilter, setStatusFilter] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [detailRule, setDetailRule] = useState<SuppressionRule | null>(null)
   const [reviewId, setReviewId] = useState<string | null>(null)
   const [reviewApprove, setReviewApprove] = useState(true)
   const [reviewComment, setReviewComment] = useState('')
@@ -169,12 +174,17 @@ export function SuppressionRules() {
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.reason')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdAt')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('suppressionRules.matchedCves')}</th>
                 <th style={{ padding: '8px 12px' }}></th>
               </tr>
             </thead>
             <tbody>
               {data.map((rule: SuppressionRule) => (
-                <tr key={rule.id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                <tr
+                  key={rule.id}
+                  style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)', cursor: 'pointer' }}
+                  onClick={() => setDetailRule(rule)}
+                >
                   <td style={{ padding: '8px 12px' }}>
                     <Label color={rule.type === 'component' ? 'purple' : 'blue'}>
                       {rule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
@@ -233,7 +243,10 @@ export function SuppressionRules() {
                   <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                     {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
                   </td>
-                  <td style={{ padding: '8px 12px' }}>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>
+                    {rule.matched_cve_count}
+                  </td>
+                  <td style={{ padding: '8px 12px' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {isSecTeam && rule.status === SuppressionStatus.requested && (
                         <>
@@ -419,6 +432,167 @@ export function SuppressionRules() {
           </Button>
           <Button variant="link" onClick={() => { setReviewId(null); setReviewComment('') }}>
             {t('common.cancel')}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Detail modal */}
+      <Modal
+        isOpen={!!detailRule}
+        onClose={() => setDetailRule(null)}
+        aria-label={t('suppressionRules.detailTitle')}
+        variant="medium"
+      >
+        <ModalHeader title={t('suppressionRules.detailTitle')} />
+        {detailRule && (
+          <ModalBody>
+            <DescriptionList isHorizontal>
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.type')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label color={detailRule.type === 'component' ? 'purple' : 'blue'}>
+                    {detailRule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.target')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {detailRule.type === 'component' ? (
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                      {detailRule.component_name}
+                      {detailRule.version_pattern && (
+                        <span style={{ color: 'var(--pf-t--global--text--color--subtle)', marginLeft: 4 }}>
+                          @ {detailRule.version_pattern}
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <Link to={`/vulnerabilities/${detailRule.cve_id}`} style={{ color: '#0066cc', fontFamily: 'monospace', fontSize: 13 }}>
+                      {detailRule.cve_id}
+                    </Link>
+                  )}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.status')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '2px 8px',
+                    borderRadius: 3,
+                    background: STATUS_COLORS[detailRule.status] ?? '#8a8d90',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}>
+                    {statusLabels[detailRule.status] ?? detailRule.status}
+                  </span>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.reason')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {detailRule.reason}
+                  </div>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              {detailRule.reference_url && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('suppressionRules.referenceUrl')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <a
+                      href={detailRule.reference_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#0066cc', wordBreak: 'break-all' }}
+                    >
+                      {detailRule.reference_url}
+                    </a>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.matchedCves')}</DescriptionListTerm>
+                <DescriptionListDescription>{detailRule.matched_cve_count}</DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.createdBy')}</DescriptionListTerm>
+                <DescriptionListDescription>{detailRule.created_by_name}</DescriptionListDescription>
+              </DescriptionListGroup>
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.createdAt')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {new Date(detailRule.created_at).toLocaleString(localeDateLocale)}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+
+              {detailRule.reviewed_by_name && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('suppressionRules.reviewedBy')}</DescriptionListTerm>
+                  <DescriptionListDescription>{detailRule.reviewed_by_name}</DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              {detailRule.reviewed_at && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('suppressionRules.reviewedAt')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {new Date(detailRule.reviewed_at).toLocaleString(localeDateLocale)}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              <DescriptionListGroup>
+                <DescriptionListTerm>{t('suppressionRules.reviewComment')}</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {detailRule.review_comment ? (
+                    <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {detailRule.review_comment}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--pf-t--global--text--color--subtle)', fontStyle: 'italic' }}>
+                      {t('suppressionRules.noReviewComment')}
+                    </span>
+                  )}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
+          </ModalBody>
+        )}
+        <ModalFooter>
+          {isSecTeam && detailRule?.status === SuppressionStatus.requested && (
+            <>
+              <Button variant="primary" size="sm" onClick={() => {
+                if (detailRule) {
+                  setReviewId(detailRule.id)
+                  setReviewApprove(true)
+                  setDetailRule(null)
+                }
+              }}>
+                {t('suppressionRules.approve')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => {
+                if (detailRule) {
+                  setReviewId(detailRule.id)
+                  setReviewApprove(false)
+                  setDetailRule(null)
+                }
+              }}>
+                {t('suppressionRules.reject')}
+              </Button>
+            </>
+          )}
+          <Button variant="link" onClick={() => setDetailRule(null)}>
+            {t('common.close')}
           </Button>
         </ModalFooter>
       </Modal>

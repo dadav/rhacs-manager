@@ -578,7 +578,13 @@
     "deleteConfirm": "Really delete this rule?",
     "noRules": "No suppression rules found.",
     "suppressedLabel": "False Positive",
-    "suppressionRequestedLabel": "FP Requested"
+    "suppressionRequestedLabel": "FP Requested",
+    "detailTitle": "Rule Details",
+    "reviewedBy": "Reviewed by",
+    "reviewedAt": "Reviewed at",
+    "reviewComment": "Review comment",
+    "matchedCves": "Suppressed CVEs",
+    "noReviewComment": "No comment"
   },
   "scope": {
     "title": "Scope",

@@ -578,7 +578,13 @@
     "deleteConfirm": "Regel wirklich löschen?",
     "noRules": "Keine Unterdrückungsregeln vorhanden.",
     "suppressedLabel": "False Positive",
-    "suppressionRequestedLabel": "FP beantragt"
+    "suppressionRequestedLabel": "FP beantragt",
+    "detailTitle": "Regeldetails",
+    "reviewedBy": "Geprüft von",
+    "reviewedAt": "Geprüft am",
+    "reviewComment": "Prüfkommentar",
+    "matchedCves": "Unterdrückte CVEs",
+    "noReviewComment": "Kein Kommentar"
   },
   "scope": {
     "title": "Scope",

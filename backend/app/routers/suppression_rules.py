@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
-from ..deps import get_app_db
+from ..deps import get_app_db, get_stackrox_db
 from ..models.suppression_rule import (
     SuppressionRule,
     SuppressionStatus,
@@ -20,6 +20,8 @@ from ..schemas.suppression_rule import (
     SuppressionRuleUpdate,
 )
 from ..services.audit_service import log_action
+from ..services.cve_filter_service import compute_per_rule_matched_counts
+from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/suppression-rules", tags=["suppression-rules"])
 
@@ -129,6 +131,7 @@ async def list_suppression_rules(
     type: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[SuppressionRuleResponse]:
     query = select(SuppressionRule).order_by(SuppressionRule.created_at.desc())
 
@@ -145,9 +148,25 @@ async def list_suppression_rules(
             raise HTTPException(400, f"Ungültiger Typ: {type}")
 
     result = await db.execute(query)
-    rules = result.scalars().all()
+    rules = list(result.scalars().all())
 
-    return [await _build_response(rule, db) for rule in rules]
+    # Compute matched CVE counts from StackRox data
+    all_cve_ids = await sx.get_all_deployed_cve_ids(sx_db)
+    all_cve_id_set = set(all_cve_ids)
+
+    has_component_rules = any(r.type == SuppressionType.component for r in rules)
+    component_version_map: dict[str, list[tuple[str, str]]] = {}
+    if has_component_rules:
+        component_version_map = await sx.get_global_component_version_map(sx_db)
+
+    counts = compute_per_rule_matched_counts(
+        rules, all_cve_id_set, component_version_map
+    )
+
+    return [
+        await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0))
+        for rule in rules
+    ]
 
 
 @router.get("/{rule_id}", response_model=SuppressionRuleResponse)
@@ -155,6 +174,7 @@ async def get_suppression_rule(
     rule_id: UUID,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> SuppressionRuleResponse:
     result = await db.execute(
         select(SuppressionRule).where(SuppressionRule.id == rule_id)
@@ -162,7 +182,18 @@ async def get_suppression_rule(
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "Nicht gefunden")
-    return await _build_response(rule, db)
+
+    all_cve_ids = await sx.get_all_deployed_cve_ids(sx_db)
+    all_cve_id_set = set(all_cve_ids)
+
+    component_version_map: dict[str, list[tuple[str, str]]] = {}
+    if rule.type == SuppressionType.component:
+        component_version_map = await sx.get_global_component_version_map(sx_db)
+
+    counts = compute_per_rule_matched_counts(
+        [rule], all_cve_id_set, component_version_map
+    )
+    return await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0))
 
 
 @router.put("/{rule_id}", response_model=SuppressionRuleResponse)

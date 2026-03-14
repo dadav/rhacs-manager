@@ -1321,3 +1321,39 @@ async def get_cve_component_version_map(
             (row.component_name, row.component_version or "")
         )
     return mapping
+
+
+async def get_all_deployed_cve_ids(session: AsyncSession) -> list[str]:
+    """Return all distinct CVE IDs currently present in deployed images (global, no namespace filter)."""
+    sql = text("""
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+    """)
+    result = await session.execute(sql)
+    return [row.cve_id for row in result]
+
+
+async def get_global_component_version_map(
+    session: AsyncSession,
+) -> dict[str, list[tuple[str, str]]]:
+    """Return {cve_id: [(component_name, version), ...]} for all deployed CVEs (global, no namespace filter)."""
+    sql = text("""
+        SELECT DISTINCT
+            ic.cvebaseinfo_cve AS cve_id,
+            comp.name AS component_name,
+            comp.version AS component_version
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
+        WHERE comp.name IS NOT NULL
+    """)
+    result = await session.execute(sql)
+    mapping: dict[str, list[tuple[str, str]]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, []).append(
+            (row.component_name, row.component_version or "")
+        )
+    return mapping
