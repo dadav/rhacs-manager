@@ -32,15 +32,15 @@ graph TB
 
 ## What Gets Deployed Where
 
-| Component | Hub | Spoke |
-|-----------|-----|-------|
-| Backend (FastAPI) | Yes | No |
+| Component              | Hub            | Spoke                              |
+| ---------------------- | -------------- | ---------------------------------- |
+| Backend (FastAPI)      | Yes            | No                                 |
 | Frontend (nginx + SPA) | Yes (standard) | Yes (spoke variant with API proxy) |
-| oauth-proxy sidecar | No | Yes |
-| Backend secret | Yes | No |
-| Spoke secret | No | Yes |
-| App DB access | Yes | No |
-| StackRox DB access | Yes | No |
+| oauth-proxy sidecar    | No             | Yes                                |
+| Backend secret         | Yes            | No                                 |
+| Spoke secret           | No             | Yes                                |
+| App DB access          | Yes            | No                                 |
+| StackRox DB access     | Yes            | No                                 |
 
 ## Prerequisites
 
@@ -51,7 +51,7 @@ Before deploying either hub or spoke:
 3. Override image references and secret values via Helm values
 
 !!! warning "Secrets"
-    The default values contain placeholder credentials. You **must** override them before deploying. Never commit real credentials to version control.
+The default values contain placeholder credentials. You **must** override them before deploying. Never commit real credentials to version control.
 
 ## Helm Deployment
 
@@ -76,11 +76,11 @@ If you prefer plain manifests without installing Helm on the cluster, use `just`
 ```bash
 # Render hub manifests
 just render-hub > hub.yaml
-kubectl apply -f hub.yaml
+oc apply -f hub.yaml
 
 # Render spoke manifests
 just render-spoke > spoke.yaml
-kubectl apply -f spoke.yaml
+c oapply -f spoke.yaml
 ```
 
 You can pass additional Helm flags via `just render-hub --set key=value`.

@@ -32,9 +32,9 @@ See `examples/helm-values-hub-minimal.yaml` for a minimal values override.
 Copy `central-db-password` from `stackrox` to `rhacs-manager`:
 
 ```bash
-kubectl get secret central-db-password -n stackrox -o json \
+oc get secret central-db-password -n stackrox -o json \
   | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-  | kubectl apply -n rhacs-manager -f -
+  | oc apply -n rhacs-manager -f -
 ```
 
 ## Deploy
@@ -48,19 +48,19 @@ helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
 Or render plain YAML:
 
 ```bash
-just render-hub -f my-hub-values.yaml | kubectl apply -f -
+just render-hub -f my-hub-values.yaml | oc apply -f -
 ```
 
 ## Verify
 
 ```bash
-kubectl -n rhacs-manager get pods
-kubectl -n rhacs-manager get routes
+oc -n rhacs-manager get pods
+oc -n rhacs-manager get routes
 curl https://rhacs-manager-api.apps.hub.example.com/health
 ```
 
 Expected health response:
 
 ```json
-{"status": "ok"}
+{ "status": "ok" }
 ```

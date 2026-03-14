@@ -24,15 +24,15 @@ The spoke frontend deployment contains three containers:
 
 Configuration:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLUSTER_NAME` | required | Name of this spoke cluster |
-| `NAMESPACE_ANNOTATION` | `rhacs-manager.io/users` | User annotation key |
-| `GROUP_ANNOTATION` | `rhacs-manager.io/groups` | Group annotation key |
-| `EMAIL_ANNOTATION` | `rhacs-manager.io/escalation-email` | Namespace escalation contact annotation key |
-| `CACHE_TTL_SECONDS` | `300` | Cache refresh interval |
-| `GROUP_CACHE_TTL_SECONDS` | `60` | Group lookup cache interval |
-| `ALL_NAMESPACES_GROUPS` | `""` | Comma-separated groups that should receive wildcard namespace access |
+| Variable                  | Default                             | Description                                                          |
+| ------------------------- | ----------------------------------- | -------------------------------------------------------------------- |
+| `CLUSTER_NAME`            | required                            | Name of this spoke cluster                                           |
+| `NAMESPACE_ANNOTATION`    | `rhacs-manager.io/users`            | User annotation key                                                  |
+| `GROUP_ANNOTATION`        | `rhacs-manager.io/groups`           | Group annotation key                                                 |
+| `EMAIL_ANNOTATION`        | `rhacs-manager.io/escalation-email` | Namespace escalation contact annotation key                          |
+| `CACHE_TTL_SECONDS`       | `300`                               | Cache refresh interval                                               |
+| `GROUP_CACHE_TTL_SECONDS` | `60`                                | Group lookup cache interval                                          |
+| `ALL_NAMESPACES_GROUPS`   | `""`                                | Comma-separated groups that should receive wildcard namespace access |
 
 `*` namespace access is for users who need fleet-wide visibility without receiving backend `sec_team` privileges. The hub interprets this as full namespace scope, not as an administrative role change.
 
@@ -53,11 +53,11 @@ metadata:
 
 Set these values via Helm (or in a values file under `spoke.secret.stringData`):
 
-| Key | Description |
-|-----|-------------|
-| `HUB_API_URL` | Hub backend API URL (e.g. `https://rhacs-manager-api.apps.hub.example.com`) |
-| `SPOKE_API_KEY` | Must match one entry in hub's `SPOKE_API_KEYS` |
-| `CLUSTER_NAME` | Name of this spoke cluster |
+| Key             | Description                                                                 |
+| --------------- | --------------------------------------------------------------------------- |
+| `HUB_API_URL`   | Hub backend API URL (e.g. `https://rhacs-manager-api.apps.hub.example.com`) |
+| `SPOKE_API_KEY` | Must match one entry in hub's `SPOKE_API_KEYS`                              |
+| `CLUSTER_NAME`  | Name of this spoke cluster                                                  |
 
 ## OAuth Proxy Cookie Secret
 
@@ -88,7 +88,7 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
 Or render plain YAML:
 
 ```bash
-just render-spoke -f my-spoke-values.yaml | kubectl apply -f -
+just render-spoke -f my-spoke-values.yaml | oc apply -f -
 ```
 
 See `examples/helm-values-spoke-minimal.yaml` for a minimal values override.
