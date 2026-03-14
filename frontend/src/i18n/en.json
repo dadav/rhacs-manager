@@ -252,7 +252,16 @@
     "assignedLabel": "Assigned: {{name}}",
     "dueLabel": "Due: {{date}}",
     "createdInfo": "Created: {{date}} by {{name}}",
-    "prioritizedLabel": "PRIORITIZED"
+    "prioritizedLabel": "PRIORITIZED",
+    "requestFalsePositive": "Request false positive",
+    "falsePositiveSuppressed": "Suppressed as false positive",
+    "falsePositiveRequested": "False positive requested",
+    "falsePositiveRejected": "False positive rejected",
+    "fpReasonLabel": "Reason *",
+    "fpReasonPlaceholder": "Why is this CVE a false positive? (min. 10 characters)",
+    "fpReferenceLabel": "Reference URL (optional)",
+    "fpSubmitSuccess": "False positive has been requested",
+    "viewSuppressionRule": "View suppression rule"
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",

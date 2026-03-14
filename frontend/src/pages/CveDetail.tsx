@@ -9,6 +9,10 @@ import {
   Grid,
   GridItem,
   Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   PageSection,
   Pagination,
   ProgressStep,
@@ -24,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
+import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
@@ -217,6 +222,37 @@ export function CveDetail() {
   const [deploymentPage, setDeploymentPage] = useState(1);
   const deploymentPerPage = 20;
 
+  // False positive request state
+  const [showFpModal, setShowFpModal] = useState(false);
+  const [fpReason, setFpReason] = useState("");
+  const [fpRefUrl, setFpRefUrl] = useState("");
+  const [fpError, setFpError] = useState("");
+  const [fpSuccess, setFpSuccess] = useState(false);
+  const createSuppression = useCreateSuppressionRule();
+
+  function resetFpForm() {
+    setFpReason("");
+    setFpRefUrl("");
+    setFpError("");
+  }
+
+  async function handleFpSubmit() {
+    setFpError("");
+    try {
+      await createSuppression.mutateAsync({
+        type: "cve",
+        cve_id: cveId ?? null,
+        reason: fpReason,
+        reference_url: fpRefUrl || null,
+      });
+      setShowFpModal(false);
+      resetFpForm();
+      setFpSuccess(true);
+    } catch (e) {
+      setFpError(getErrorMessage(e));
+    }
+  }
+
   const STATUS_LABELS: Record<RiskStatus, string> = {
     [RiskStatus.requested]: t('status.requested'),
     [RiskStatus.approved]: t('status.approved'),
@@ -287,6 +323,16 @@ export function CveDetail() {
               }}
             >
               {STATUS_LABELS[cve.risk_acceptance_status]}
+            </Label>
+          )}
+          {cve.is_suppressed && (
+            <Label color="green" isCompact>
+              {t('suppressionRules.suppressedLabel')}
+            </Label>
+          )}
+          {!cve.is_suppressed && cve.suppression_requested && (
+            <Label color="blue" isCompact>
+              {t('suppressionRules.suppressionRequestedLabel')}
             </Label>
           )}
         </div>
@@ -544,6 +590,64 @@ export function CveDetail() {
                       </div>
                     </div>
                   )}
+                  {/* False positive section */}
+                  {cve.is_suppressed ? (
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 10 }}
+                    >
+                      <CheckCircleIcon
+                        style={{
+                          fontSize: 24,
+                          color: "#1e8f19",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: "#1e8f19",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {t('cveDetail.falsePositiveSuppressed')}
+                      </span>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => navigate("/suppression-rules")}
+                      >
+                        {t('cveDetail.viewSuppressionRule')}
+                      </Button>
+                    </div>
+                  ) : cve.suppression_requested ? (
+                    <div>
+                      <Label color="blue" isCompact>
+                        {t('cveDetail.falsePositiveRequested')}
+                      </Label>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => navigate("/suppression-rules")}
+                        style={{ marginLeft: 8 }}
+                      >
+                        {t('cveDetail.viewSuppressionRule')}
+                      </Button>
+                    </div>
+                  ) : fpSuccess ? (
+                    <Alert
+                      variant="success"
+                      isInline
+                      title={t('cveDetail.fpSubmitSuccess')}
+                    />
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowFpModal(true)}
+                    >
+                      {t('cveDetail.requestFalsePositive')}
+                    </Button>
+                  )}
+
                   <Button
                     variant="link"
                     onClick={() => navigate("/vulnerabilities")}
@@ -945,6 +1049,55 @@ export function CveDetail() {
           </GridItem>
         </Grid>
       </PageSection>
+
+      {/* False Positive Request Modal */}
+      <Modal
+        isOpen={showFpModal}
+        onClose={() => { setShowFpModal(false); resetFpForm(); }}
+        aria-label={t('cveDetail.requestFalsePositive')}
+        variant="medium"
+      >
+        <ModalHeader title={`${t('cveDetail.requestFalsePositive')} — ${cveId}`} />
+        <ModalBody>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
+                {t('cveDetail.fpReasonLabel')}
+              </label>
+              <TextArea
+                value={fpReason}
+                onChange={(_, v) => setFpReason(v)}
+                placeholder={t('cveDetail.fpReasonPlaceholder')}
+                rows={3}
+              />
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
+                {t('cveDetail.fpReferenceLabel')}
+              </label>
+              <TextInput
+                value={fpRefUrl}
+                onChange={(_, v) => setFpRefUrl(v)}
+                placeholder="https://..."
+              />
+            </div>
+            {fpError && <Alert variant="danger" isInline title={fpError} />}
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="primary"
+            onClick={handleFpSubmit}
+            isLoading={createSuppression.isPending}
+            isDisabled={createSuppression.isPending || fpReason.length < 10}
+          >
+            {t('suppressionRules.submit')}
+          </Button>
+          <Button variant="link" onClick={() => { setShowFpModal(false); resetFpForm(); }}>
+            {t('common.cancel')}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </>
   );
 }

@@ -252,7 +252,16 @@
     "assignedLabel": "Zugewiesen: {{name}}",
     "dueLabel": "Fällig: {{date}}",
     "createdInfo": "Erstellt: {{date}} von {{name}}",
-    "prioritizedLabel": "PRIORISIERT"
+    "prioritizedLabel": "PRIORISIERT",
+    "requestFalsePositive": "False Positive beantragen",
+    "falsePositiveSuppressed": "Als False Positive unterdrückt",
+    "falsePositiveRequested": "False Positive beantragt",
+    "falsePositiveRejected": "False Positive abgelehnt",
+    "fpReasonLabel": "Begründung *",
+    "fpReasonPlaceholder": "Warum ist diese CVE ein False Positive? (mind. 10 Zeichen)",
+    "fpReferenceLabel": "Referenz-URL (optional)",
+    "fpSubmitSuccess": "False Positive wurde beantragt",
+    "viewSuppressionRule": "Zur Unterdrückungsregel"
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",
