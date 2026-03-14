@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Index, String, Text, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -33,8 +34,9 @@ class SuppressionRule(Base):
             ),
         ),
         Index(
-            "uq_suppression_rules_active_cve",
+            "uq_suppression_rules_active_cve_scope",
             "cve_id",
+            "scope_key",
             unique=True,
             postgresql_where=text(
                 "type = 'cve' AND status IN ('requested', 'approved')"
@@ -59,6 +61,10 @@ class SuppressionRule(Base):
     cve_id: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     reference_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    scope: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=lambda: {"mode": "all", "targets": []}
+    )
+    scope_key: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     created_by: Mapped[str] = mapped_column(

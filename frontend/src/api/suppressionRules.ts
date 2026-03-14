@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { SuppressionRule, SuppressionType } from '../types'
+import type { SuppressionRule, SuppressionScope, SuppressionType } from '../types'
 
 export const suppressionKeys = {
   list: (status?: string, type?: string) => ['suppression-rules', 'list', status, type] as const,
@@ -36,6 +36,7 @@ export function useCreateSuppressionRule() {
       cve_id?: string | null
       reason: string
       reference_url?: string | null
+      scope?: SuppressionScope | null
     }) => api.post<SuppressionRule>('/suppression-rules', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['suppression-rules'] })
@@ -59,8 +60,11 @@ export function useReviewSuppressionRule(id: string) {
 export function useUpdateSuppressionRule(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { reason: string; reference_url?: string | null }) =>
-      api.put<SuppressionRule>(`/suppression-rules/${id}`, data),
+    mutationFn: (data: {
+      reason: string
+      reference_url?: string | null
+      scope?: SuppressionScope | null
+    }) => api.put<SuppressionRule>(`/suppression-rules/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['suppression-rules'] })
     },

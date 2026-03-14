@@ -228,22 +228,58 @@ export function CveDetail() {
   const [fpRefUrl, setFpRefUrl] = useState("");
   const [fpError, setFpError] = useState("");
   const [fpSuccess, setFpSuccess] = useState(false);
+  const [fpScopeMode, setFpScopeMode] = useState<"all" | "namespace">("all");
+  const [fpSelectedNamespaces, setFpSelectedNamespaces] = useState<Set<string>>(new Set());
   const createSuppression = useCreateSuppressionRule();
 
   function resetFpForm() {
     setFpReason("");
     setFpRefUrl("");
     setFpError("");
+    setFpScopeMode("all");
+    setFpSelectedNamespaces(new Set());
+  }
+
+  // Get unique namespace:cluster pairs from affected deployments
+  const affectedNamespacePairs: Array<{ namespace: string; cluster_name: string }> = cve
+    ? Array.from(
+        new Map(
+          cve.affected_deployments_list.map((d) => [
+            `${d.namespace}:${d.cluster_name}`,
+            { namespace: d.namespace, cluster_name: d.cluster_name },
+          ])
+        ).values()
+      ).sort((a, b) => `${a.namespace}:${a.cluster_name}`.localeCompare(`${b.namespace}:${b.cluster_name}`))
+    : [];
+
+  function toggleFpNamespace(key: string) {
+    setFpSelectedNamespaces((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   async function handleFpSubmit() {
     setFpError("");
+    const scope =
+      fpScopeMode === "all"
+        ? { mode: "all" as const, targets: [] }
+        : {
+            mode: "namespace" as const,
+            targets: Array.from(fpSelectedNamespaces).map((key) => {
+              const [namespace, cluster_name] = key.split(":");
+              return { cluster_name, namespace };
+            }),
+          };
     try {
       await createSuppression.mutateAsync({
         type: "cve",
         cve_id: cveId ?? null,
         reason: fpReason,
         reference_url: fpRefUrl || null,
+        scope,
       });
       setShowFpModal(false);
       resetFpForm();
@@ -1081,6 +1117,69 @@ export function CveDetail() {
                 placeholder="https://..."
               />
             </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 8 }}>
+                {t('suppressionRules.scopeLabel')}
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="fp-scope"
+                    checked={fpScopeMode === "all"}
+                    onChange={() => setFpScopeMode("all")}
+                  />
+                  <span style={{ fontSize: 13 }}>{t('suppressionRules.scopeAll')}</span>
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="fp-scope"
+                    checked={fpScopeMode === "namespace"}
+                    onChange={() => setFpScopeMode("namespace")}
+                  />
+                  <span style={{ fontSize: 13 }}>{t('suppressionRules.scopeNamespace')}</span>
+                </label>
+                {fpScopeMode === "namespace" && (
+                  <div style={{
+                    marginLeft: 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    border: "1px solid var(--pf-t--global--border--color--default)",
+                    borderRadius: 4,
+                    padding: 8,
+                  }}>
+                    {affectedNamespacePairs.length === 0 ? (
+                      <span style={{ fontSize: 12, color: "var(--pf-t--global--text--color--subtle)" }}>
+                        {t('cveDetail.noDeployments')}
+                      </span>
+                    ) : (
+                      affectedNamespacePairs.map((pair) => {
+                        const key = `${pair.namespace}:${pair.cluster_name}`;
+                        return (
+                          <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={fpSelectedNamespaces.has(key)}
+                              onChange={() => toggleFpNamespace(key)}
+                            />
+                            <span style={{ fontSize: 12, fontFamily: "monospace" }}>
+                              {pair.namespace}
+                              <span style={{ color: "var(--pf-t--global--text--color--subtle)", marginLeft: 4 }}>
+                                ({pair.cluster_name})
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
             {fpError && <Alert variant="danger" isInline title={fpError} />}
           </div>
         </ModalBody>
@@ -1089,7 +1188,11 @@ export function CveDetail() {
             variant="primary"
             onClick={handleFpSubmit}
             isLoading={createSuppression.isPending}
-            isDisabled={createSuppression.isPending || fpReason.length < 10}
+            isDisabled={
+              createSuppression.isPending ||
+              fpReason.length < 10 ||
+              (fpScopeMode === "namespace" && fpSelectedNamespaces.size === 0)
+            }
           >
             {t('suppressionRules.submit')}
           </Button>

@@ -91,7 +91,10 @@
     "risk_expiring": "Läuft ab",
     "new_priority": "Priorisiert",
     "escalation": "Eskalation",
-    "new_critical_cve": "Neue kritische CVE"
+    "new_critical_cve": "Neue kritische CVE",
+    "suppression_requested": "Unterdrückung beantragt",
+    "suppression_approved": "Unterdrückung genehmigt",
+    "suppression_rejected": "Unterdrückung abgelehnt"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -586,6 +589,11 @@
     "reviewComment": "Kommentar (optional)",
     "deleteConfirm": "Regel wirklich löschen?",
     "noRules": "Keine Unterdrückungsregeln vorhanden.",
+    "scopeLabel": "Geltungsbereich",
+    "scopeAll": "Global (alle Namespaces)",
+    "scopeNamespace": "Bestimmte Namespaces",
+    "scopeNamespaceHint": "Namespace-Auswahl ist auf der CVE-Detailseite verfügbar, wo die betroffenen Deployments sichtbar sind.",
+    "scopeTargets": "Betroffene Namespaces",
     "suppressedLabel": "False Positive",
     "suppressionRequestedLabel": "FP beantragt",
     "detailTitle": "Regeldetails",

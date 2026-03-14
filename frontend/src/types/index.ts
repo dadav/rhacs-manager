@@ -70,6 +70,18 @@ export enum SuppressionStatus {
 
 export type SuppressionType = 'component' | 'cve'
 
+export type SuppressionScopeMode = 'all' | 'namespace'
+
+export interface SuppressionScopeTarget {
+  cluster_name: string
+  namespace: string
+}
+
+export interface SuppressionScope {
+  mode: SuppressionScopeMode
+  targets: SuppressionScopeTarget[]
+}
+
 export interface SuppressionRule {
   id: string
   status: SuppressionStatus
@@ -87,6 +99,7 @@ export interface SuppressionRule {
   reviewed_by_name: string | null
   reviewed_at: string | null
   matched_cve_count: number
+  scope: SuppressionScope | null
 }
 
 export interface AffectedDeployment {

@@ -1191,6 +1191,42 @@ async def get_cve_namespace_map(
     return mapping
 
 
+async def get_cve_namespace_cluster_map(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]] | None = None,
+) -> dict[str, set[tuple[str, str]]]:
+    """Returns {cve_id: {(cluster_name, namespace), ...}} for the given CVEs.
+
+    If namespaces is None, returns data for all namespaces.
+    """
+    if not cve_ids:
+        return {}
+    if namespaces is not None and not namespaces:
+        return {}
+
+    if namespaces:
+        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+        ns_values = ", ".join(ns_pairs)
+        ns_filter = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+    else:
+        ns_filter = ""
+
+    sql = text(f"""
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, d.clustername, d.namespace
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+          {ns_filter}
+    """)
+    result = await session.execute(sql, {"cve_ids": cve_ids})
+    mapping: dict[str, set[tuple[str, str]]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, set()).add((row.clustername, row.namespace))
+    return mapping
+
+
 async def get_top_vulnerable_components(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,

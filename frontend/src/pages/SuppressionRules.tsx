@@ -74,6 +74,7 @@ export function SuppressionRules() {
   const [createReason, setCreateReason] = useState('')
   const [createRefUrl, setCreateRefUrl] = useState('')
   const [createError, setCreateError] = useState('')
+  const [createScopeMode, setCreateScopeMode] = useState<'all' | 'namespace'>('all')
 
   const createMutation = useCreateSuppressionRule()
   const reviewMutation = useReviewSuppressionRule(reviewId || '')
@@ -86,6 +87,7 @@ export function SuppressionRules() {
     setCreateReason('')
     setCreateRefUrl('')
     setCreateError('')
+    setCreateScopeMode('all')
   }
 
   async function handleCreate() {
@@ -98,6 +100,7 @@ export function SuppressionRules() {
         cve_id: createType === 'cve' ? createCveId : null,
         reason: createReason,
         reference_url: createRefUrl || null,
+        scope: createType === 'cve' ? { mode: createScopeMode, targets: [] } : undefined,
       })
       setShowCreate(false)
       resetCreateForm()
@@ -170,6 +173,7 @@ export function SuppressionRules() {
               <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.type')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.target')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.scopeLabel')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.status')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.reason')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
@@ -214,6 +218,23 @@ export function SuppressionRules() {
                       >
                         [{t('suppressionRules.reference')}]
                       </a>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 12px', fontSize: 12 }}>
+                    {rule.type === 'cve' && rule.scope ? (
+                      rule.scope.mode === 'all' ? (
+                        <Label color="blue">{t('suppressionRules.scopeAll')}</Label>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {rule.scope.targets.map((target) => (
+                            <Label key={`${target.namespace}:${target.cluster_name}`} color="teal">
+                              {target.namespace} ({target.cluster_name})
+                            </Label>
+                          ))}
+                        </div>
+                      )
+                    ) : (
+                      <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: '8px 12px' }}>
@@ -343,16 +364,48 @@ export function SuppressionRules() {
                 </div>
               </>
             ) : (
-              <div>
-                <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
-                  {t('suppressionRules.cveId')} *
-                </label>
-                <TextInput
-                  value={createCveId}
-                  onChange={(_e, v) => setCreateCveId(v)}
-                  placeholder="CVE-2024-12345"
-                />
-              </div>
+              <>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                    {t('suppressionRules.cveId')} *
+                  </label>
+                  <TextInput
+                    value={createCveId}
+                    onChange={(_e, v) => setCreateCveId(v)}
+                    placeholder="CVE-2024-12345"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 8 }}>
+                    {t('suppressionRules.scopeLabel')}
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="create-scope"
+                        checked={createScopeMode === 'all'}
+                        onChange={() => setCreateScopeMode('all')}
+                      />
+                      <span style={{ fontSize: 13 }}>{t('suppressionRules.scopeAll')}</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="create-scope"
+                        checked={createScopeMode === 'namespace'}
+                        onChange={() => setCreateScopeMode('namespace')}
+                      />
+                      <span style={{ fontSize: 13 }}>{t('suppressionRules.scopeNamespace')}</span>
+                    </label>
+                  </div>
+                  {createScopeMode === 'namespace' && (
+                    <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)', marginTop: 4, display: 'block' }}>
+                      {t('suppressionRules.scopeNamespaceHint')}
+                    </span>
+                  )}
+                </div>
+              </>
             )}
 
             <div>
@@ -514,6 +567,25 @@ export function SuppressionRules() {
                     >
                       {detailRule.reference_url}
                     </a>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              )}
+
+              {detailRule.type === 'cve' && detailRule.scope && (
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('suppressionRules.scopeLabel')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {detailRule.scope.mode === 'all' ? (
+                      <Label color="blue">{t('suppressionRules.scopeAll')}</Label>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {detailRule.scope.targets.map((target) => (
+                          <Label key={`${target.namespace}:${target.cluster_name}`} color="teal">
+                            {target.namespace} ({target.cluster_name})
+                          </Label>
+                        ))}
+                      </div>
+                    )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>
               )}

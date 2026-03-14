@@ -19,6 +19,9 @@ class NotificationType(str, enum.Enum):
     remediation_created = "remediation_created"
     remediation_status = "remediation_status"
     remediation_overdue = "remediation_overdue"
+    suppression_requested = "suppression_requested"
+    suppression_approved = "suppression_approved"
+    suppression_rejected = "suppression_rejected"
 
 
 class Notification(Base):
@@ -28,7 +31,9 @@ class Notification(Base):
     user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    type: Mapped[NotificationType] = mapped_column(SQLEnum(NotificationType), nullable=False)
+    type: Mapped[NotificationType] = mapped_column(
+        SQLEnum(NotificationType), nullable=False
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     link: Mapped[str | None] = mapped_column(String(512), nullable=True)

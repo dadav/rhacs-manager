@@ -32,9 +32,7 @@ async def create_notification(
 
 
 async def _get_sec_team_users(session: AsyncSession) -> list[User]:
-    result = await session.execute(
-        select(User).where(User.role == UserRole.sec_team)
-    )
+    result = await session.execute(select(User).where(User.role == UserRole.sec_team))
     return list(result.scalars().all())
 
 
@@ -58,7 +56,12 @@ async def notify_risk_comment(
         # Notify the RA creator
         if acceptance.created_by != author.id:
             await create_notification(
-                session, acceptance.created_by, NotificationType.risk_comment, title, msg, link
+                session,
+                acceptance.created_by,
+                NotificationType.risk_comment,
+                title,
+                msg,
+                link,
             )
 
 
@@ -215,3 +218,49 @@ async def notify_remediation_overdue(
         await create_notification(
             session, user_id, NotificationType.remediation_overdue, title, msg, link
         )
+
+
+async def notify_suppression_requested(
+    session: AsyncSession,
+    rule: "SuppressionRule",  # type: ignore[name-defined]
+    creator: "User",  # type: ignore[name-defined]
+) -> None:
+    """Notify sec team about a new suppression rule request."""
+    target = rule.cve_id if rule.cve_id else rule.component_name
+    link = "/unterdrueckungsregeln"
+    title = f"Neue Unterdrückungsanfrage: {target}"
+    msg = f"{creator.username} hat eine Unterdrückungsregel für {target} beantragt."
+
+    for user in await _get_sec_team_users(session):
+        if user.id != creator.id:
+            await create_notification(
+                session,
+                user.id,
+                NotificationType.suppression_requested,
+                title,
+                msg,
+                link,
+            )
+
+
+async def notify_suppression_status_change(
+    session: AsyncSession,
+    rule: "SuppressionRule",  # type: ignore[name-defined]
+    reviewer: "User",  # type: ignore[name-defined]
+) -> None:
+    """Notify the suppression rule creator about approval/rejection."""
+    target = rule.cve_id if rule.cve_id else rule.component_name
+    link = "/unterdrueckungsregeln"
+    status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(
+        rule.status.value, rule.status.value
+    )
+    title = f"Unterdrückungsregel {status_label}: {target}"
+    msg = f"Ihre Unterdrückungsregel für {target} wurde {status_label}."
+    ntype = (
+        NotificationType.suppression_approved
+        if rule.status.value == "approved"
+        else NotificationType.suppression_rejected
+    )
+
+    if rule.created_by != reviewer.id:
+        await create_notification(session, rule.created_by, ntype, title, msg, link)

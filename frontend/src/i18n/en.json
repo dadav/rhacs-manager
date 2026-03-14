@@ -91,7 +91,10 @@
     "risk_expiring": "Expiring",
     "new_priority": "Prioritized",
     "escalation": "Escalation",
-    "new_critical_cve": "New critical CVE"
+    "new_critical_cve": "New critical CVE",
+    "suppression_requested": "Suppression requested",
+    "suppression_approved": "Suppression approved",
+    "suppression_rejected": "Suppression rejected"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -586,6 +589,11 @@
     "reviewComment": "Comment (optional)",
     "deleteConfirm": "Really delete this rule?",
     "noRules": "No suppression rules found.",
+    "scopeLabel": "Scope",
+    "scopeAll": "Global (all namespaces)",
+    "scopeNamespace": "Specific namespaces",
+    "scopeNamespaceHint": "Namespace selection is available on the CVE detail page, where affected deployments are visible.",
+    "scopeTargets": "Affected namespaces",
     "suppressedLabel": "False Positive",
     "suppressionRequestedLabel": "FP Requested",
     "detailTitle": "Rule Details",

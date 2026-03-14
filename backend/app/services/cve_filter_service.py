@@ -40,20 +40,80 @@ def _matches_component_rule(
     return False
 
 
+def _is_cve_suppressed_by_rules(
+    cve_id: str,
+    rules: list[SuppressionRule],
+    cve_namespace_map: dict[str, set[tuple[str, str]]],
+    user_namespaces: set[tuple[str, str]] | None,
+) -> bool:
+    """Check if a CVE is fully suppressed for the user's visible namespaces.
+
+    A CVE is suppressed if every (cluster, namespace) pair where the CVE appears
+    in the user's view is covered by at least one approved rule's scope.
+    """
+    matching_rules = [r for r in rules if r.cve_id == cve_id]
+    if not matching_rules:
+        return False
+
+    # If any rule has global scope, CVE is suppressed everywhere
+    for rule in matching_rules:
+        scope = rule.scope or {"mode": "all", "targets": []}
+        if scope.get("mode") == "all":
+            return True
+
+    # For namespace-scoped rules, collect all covered (cluster, namespace) pairs
+    covered: set[tuple[str, str]] = set()
+    for rule in matching_rules:
+        scope = rule.scope or {"mode": "all", "targets": []}
+        if scope.get("mode") == "namespace":
+            for target in scope.get("targets", []):
+                covered.add((target["cluster_name"], target["namespace"]))
+
+    # Get where this CVE appears
+    cve_locations = cve_namespace_map.get(cve_id, set())
+    if not cve_locations:
+        return False
+
+    # Narrow to user's visible namespaces
+    if user_namespaces is not None:
+        visible_locations = cve_locations & user_namespaces
+    else:
+        visible_locations = cve_locations
+
+    if not visible_locations:
+        return False
+
+    # Suppressed only if ALL visible locations are covered
+    return visible_locations.issubset(covered)
+
+
 def _compute_suppressed_cves(
     cve_rules: list[SuppressionRule],
     component_rules: list[SuppressionRule],
     component_version_map: dict[str, list[tuple[str, str]]],
     all_cve_ids: list[str],
+    cve_namespace_map: dict[str, set[tuple[str, str]]] | None = None,
+    user_namespaces: set[tuple[str, str]] | None = None,
 ) -> set[str]:
     """Return set of cve_ids that are suppressed by approved rules."""
     suppressed: set[str] = set()
 
-    # Direct CVE rules
-    cve_rule_ids = {r.cve_id for r in cve_rules if r.cve_id}
-    suppressed |= cve_rule_ids & set(all_cve_ids)
+    # Direct CVE rules (now scope-aware)
+    if cve_rules:
+        cve_rule_ids = {r.cve_id for r in cve_rules if r.cve_id}
+        candidate_cves = cve_rule_ids & set(all_cve_ids)
 
-    # Component rules
+        if cve_namespace_map is not None:
+            for cve_id in candidate_cves:
+                if _is_cve_suppressed_by_rules(
+                    cve_id, cve_rules, cve_namespace_map, user_namespaces
+                ):
+                    suppressed.add(cve_id)
+        else:
+            # Fallback for cases without namespace context (backwards compat)
+            suppressed |= candidate_cves
+
+    # Component rules (unchanged — always global)
     if component_rules:
         for cve_id in all_cve_ids:
             if cve_id in suppressed:
@@ -126,12 +186,16 @@ def _build_cve_item(
 
 async def _load_suppression_sets(
     app_db: AsyncSession,
-) -> tuple[set[str], set[str], list[SuppressionRule], list[SuppressionRule]]:
+) -> tuple[
+    list[SuppressionRule],
+    list[SuppressionRule],
+    list[SuppressionRule],
+    list[SuppressionRule],
+]:
     """Load approved and requested suppression rules.
 
     Returns:
-        (approved_cve_ids, requested_cve_ids, approved_component_rules, requested_component_rules)
-        The cve_ids sets are for direct CVE-type rules only.
+        (approved_cve_rules, approved_component_rules, requested_cve_rules, requested_component_rules)
     """
     result = await app_db.execute(
         select(SuppressionRule).where(
@@ -273,14 +337,42 @@ async def fetch_filtered_cves(
             sx_db, cve_ids_all, ns_for_components
         )
 
+    # Build namespace map for scope-aware suppression
+    has_scoped_cve_rules = any(
+        (r.scope or {}).get("mode") == "namespace"
+        for r in approved_cve_rules + requested_cve_rules
+    )
+    cve_namespace_map: dict[str, set[tuple[str, str]]] | None = None
+    if has_scoped_cve_rules and cve_ids_all:
+        cve_rule_cve_ids = list(
+            {r.cve_id for r in approved_cve_rules + requested_cve_rules if r.cve_id}
+        )
+        cve_namespace_map = await sx.get_cve_namespace_cluster_map(
+            sx_db, cve_rule_cve_ids, ns_for_components
+        )
+
+    # Build user namespace set for scope comparison
+    user_ns_set: set[tuple[str, str]] | None = None
+    if not current_user.can_see_all_namespaces and current_user.has_namespaces:
+        user_ns_set = {(cl, ns) for ns, cl in ns_for_components}
+    elif current_user.can_see_all_namespaces:
+        user_ns_set = None  # sees everything
+
     suppressed_cve_ids = _compute_suppressed_cves(
-        approved_cve_rules, approved_component_rules, component_version_map, cve_ids_all
+        approved_cve_rules,
+        approved_component_rules,
+        component_version_map,
+        cve_ids_all,
+        cve_namespace_map,
+        user_ns_set,
     )
     suppression_requested_cve_ids = _compute_suppressed_cves(
         requested_cve_rules,
         requested_component_rules,
         component_version_map,
         cve_ids_all,
+        cve_namespace_map,
+        user_ns_set,
     )
 
     # Build items
