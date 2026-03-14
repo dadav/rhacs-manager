@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401 — imports register models with Base.met
     Notification,
     RiskAcceptance,
     RiskAcceptanceComment,
+    SuppressionRule,
     User,
 )
 

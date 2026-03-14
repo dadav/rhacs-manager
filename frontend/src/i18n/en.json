@@ -16,6 +16,7 @@
     "priorities": "Priorities",
     "escalations": "Escalations",
     "badges": "Badges",
+    "suppressionRules": "False Positives",
     "settings": "Settings",
     "auditLog": "Audit Log",
     "general": "General",
@@ -494,7 +495,11 @@
       "settings_updated": "Settings updated",
       "comment_added": "Comment added",
       "user_created": "User created",
-      "user_updated": "User updated"
+      "user_updated": "User updated",
+      "suppression_rule_created": "Suppression rule created",
+      "suppression_rule_reviewed": "Suppression rule reviewed",
+      "suppression_rule_updated": "Suppression rule updated",
+      "suppression_rule_deleted": "Suppression rule deleted"
     }
   },
   "onboarding": {
@@ -543,6 +548,37 @@
     "severe": "Severe",
     "activelyExploited": "Actively exploited",
     "criticalRisk": "Critical risk"
+  },
+  "suppressionRules": {
+    "title": "Suppression Rules (False Positives)",
+    "description": "Mark misidentified components or individual CVEs as false positives. Team members request, security team approves.",
+    "create": "Create Rule",
+    "type": "Type",
+    "typeComponent": "Component",
+    "typeCve": "CVE",
+    "target": "Target",
+    "status": "Status",
+    "reason": "Reason",
+    "reasonPlaceholder": "Why is this a false positive? (e.g., internal module version, not the actual software version)",
+    "createdBy": "Created by",
+    "createdAt": "Created at",
+    "componentName": "Component name",
+    "versionPattern": "Version pattern (optional)",
+    "versionPatternHint": "Glob pattern, e.g. v0.0.0-* for all pseudo-versions. Leave empty for all versions.",
+    "cveId": "CVE ID",
+    "referenceUrl": "Reference URL (optional)",
+    "reference": "Ref",
+    "submit": "Submit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approveConfirm": "Approve suppression rule?",
+    "rejectConfirm": "Reject suppression rule?",
+    "review": "Review",
+    "reviewComment": "Comment (optional)",
+    "deleteConfirm": "Really delete this rule?",
+    "noRules": "No suppression rules found.",
+    "suppressedLabel": "False Positive",
+    "suppressionRequestedLabel": "FP Requested"
   },
   "scope": {
     "title": "Scope",

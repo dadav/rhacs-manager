@@ -48,6 +48,8 @@ class CveListItem(BaseModel):
     has_risk_acceptance: bool = False
     risk_acceptance_status: str | None = None
     risk_acceptance_id: str | None = None
+    is_suppressed: bool = False
+    suppression_requested: bool = False
 
 
 class CveDetail(CveListItem):
@@ -85,6 +87,7 @@ class ImageCveGroup(BaseModel):
 
 class ImageCveDetail(BaseModel):
     """CVEs for a specific image — lighter than full CveListItem."""
+
     cve_id: str
     severity: SeverityLevel
     cvss: float

@@ -37,6 +37,7 @@ import { Settings } from "./pages/Settings";
 import { AuditLog } from "./pages/AuditLog";
 import { Badges } from "./pages/Badges";
 import { Remediations } from "./pages/Remediations";
+import { SuppressionRules } from "./pages/SuppressionRules";
 import { OnboardingModal } from "./components/OnboardingModal";
 
 interface NavEntry {
@@ -52,6 +53,7 @@ const TEAM_NAV_ITEMS: NavEntry[] = [
   { to: "/priorities", labelKey: "nav.priorities" },
   { to: "/escalations", labelKey: "nav.escalations" },
   { to: "/badges", labelKey: "nav.badges" },
+  { to: "/suppression-rules", labelKey: "nav.suppressionRules" },
 ];
 
 const SEC_NAV_ITEMS: NavEntry[] = [
@@ -300,6 +302,7 @@ export function App() {
           }
         />
         <Route path="/badges" element={<Badges />} />
+        <Route path="/suppression-rules" element={<SuppressionRules />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Page>

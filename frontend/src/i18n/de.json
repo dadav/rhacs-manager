@@ -16,6 +16,7 @@
     "priorities": "Prioritäten",
     "escalations": "Eskalationen",
     "badges": "SVG-Badges",
+    "suppressionRules": "False Positives",
     "settings": "Einstellungen",
     "auditLog": "Audit-Log",
     "general": "Allgemein",
@@ -494,7 +495,11 @@
       "settings_updated": "Einstellungen aktualisiert",
       "comment_added": "Kommentar hinzugefügt",
       "user_created": "Benutzer angelegt",
-      "user_updated": "Benutzer aktualisiert"
+      "user_updated": "Benutzer aktualisiert",
+      "suppression_rule_created": "Unterdrückungsregel erstellt",
+      "suppression_rule_reviewed": "Unterdrückungsregel überprüft",
+      "suppression_rule_updated": "Unterdrückungsregel aktualisiert",
+      "suppression_rule_deleted": "Unterdrückungsregel gelöscht"
     }
   },
   "onboarding": {
@@ -543,6 +548,37 @@
     "severe": "Schwerwiegend",
     "activelyExploited": "Aktiv ausgenutzt",
     "criticalRisk": "Kritisches Risiko"
+  },
+  "suppressionRules": {
+    "title": "Unterdrückungsregeln (False Positives)",
+    "description": "Markieren Sie fehlerkannte Komponenten oder einzelne CVEs als False Positive. Team-Mitglieder beantragen, das Security-Team genehmigt.",
+    "create": "Regel erstellen",
+    "type": "Typ",
+    "typeComponent": "Komponente",
+    "typeCve": "CVE",
+    "target": "Ziel",
+    "status": "Status",
+    "reason": "Begründung",
+    "reasonPlaceholder": "Warum ist dies ein False Positive? (z.B. interne Modulversion, nicht die tatsächliche Softwareversion)",
+    "createdBy": "Erstellt von",
+    "createdAt": "Erstellt am",
+    "componentName": "Komponentenname",
+    "versionPattern": "Versionsmuster (optional)",
+    "versionPatternHint": "Glob-Muster, z.B. v0.0.0-* für alle Pseudo-Versionen. Leer lassen für alle Versionen.",
+    "cveId": "CVE-ID",
+    "referenceUrl": "Referenz-URL (optional)",
+    "reference": "Ref",
+    "submit": "Beantragen",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen",
+    "approveConfirm": "Unterdrückungsregel genehmigen?",
+    "rejectConfirm": "Unterdrückungsregel ablehnen?",
+    "review": "Überprüfen",
+    "reviewComment": "Kommentar (optional)",
+    "deleteConfirm": "Regel wirklich löschen?",
+    "noRules": "Keine Unterdrückungsregeln vorhanden.",
+    "suppressedLabel": "False Positive",
+    "suppressionRequestedLabel": "FP beantragt"
   },
   "scope": {
     "title": "Scope",

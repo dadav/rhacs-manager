@@ -1,0 +1,427 @@
+import {
+  Alert,
+  Button,
+  Label,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  PageSection,
+  Spinner,
+  TextArea,
+  TextInput,
+  Title,
+  Toolbar,
+  ToolbarContent,
+  ToolbarItem,
+} from '@patternfly/react-core'
+import { getErrorMessage } from '../utils/errors'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useAuth } from '../hooks/useAuth'
+import {
+  useSuppressionRules,
+  useCreateSuppressionRule,
+  useReviewSuppressionRule,
+} from '../api/suppressionRules'
+import { api } from '../api/client'
+import type { SuppressionRule, SuppressionType } from '../types'
+import { SuppressionStatus } from '../types'
+
+const STATUS_KEYS = ['', 'requested', 'approved', 'rejected'] as const
+
+const STATUS_COLORS: Record<string, string> = {
+  requested: '#0066cc',
+  approved: '#1e8f19',
+  rejected: '#c9190b',
+}
+
+function normalizeStatusFilter(raw: string | null): string {
+  if (!raw) return ''
+  return (STATUS_KEYS as readonly string[]).includes(raw) ? raw : ''
+}
+
+export function SuppressionRules() {
+  const { t, i18n } = useTranslation()
+  const { isSecTeam } = useAuth()
+  const [statusFilter, setStatusFilter] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
+  const [reviewId, setReviewId] = useState<string | null>(null)
+  const [reviewApprove, setReviewApprove] = useState(true)
+  const [reviewComment, setReviewComment] = useState('')
+
+  const statusLabels: Record<string, string> = {
+    '': t('common.all'),
+    requested: t('status.requested'),
+    approved: t('status.approved'),
+    rejected: t('status.rejected'),
+  }
+
+  const { data, isLoading, error } = useSuppressionRules(statusFilter || undefined)
+  const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+
+  // Create form state
+  const [createType, setCreateType] = useState<SuppressionType>('component')
+  const [createComponentName, setCreateComponentName] = useState('')
+  const [createVersionPattern, setCreateVersionPattern] = useState('')
+  const [createCveId, setCreateCveId] = useState('')
+  const [createReason, setCreateReason] = useState('')
+  const [createRefUrl, setCreateRefUrl] = useState('')
+  const [createError, setCreateError] = useState('')
+
+  const createMutation = useCreateSuppressionRule()
+  const reviewMutation = useReviewSuppressionRule(reviewId || '')
+
+  function resetCreateForm() {
+    setCreateType('component')
+    setCreateComponentName('')
+    setCreateVersionPattern('')
+    setCreateCveId('')
+    setCreateReason('')
+    setCreateRefUrl('')
+    setCreateError('')
+  }
+
+  async function handleCreate() {
+    setCreateError('')
+    try {
+      await createMutation.mutateAsync({
+        type: createType,
+        component_name: createType === 'component' ? createComponentName : null,
+        version_pattern: createType === 'component' && createVersionPattern ? createVersionPattern : null,
+        cve_id: createType === 'cve' ? createCveId : null,
+        reason: createReason,
+        reference_url: createRefUrl || null,
+      })
+      setShowCreate(false)
+      resetCreateForm()
+    } catch (e) {
+      setCreateError(getErrorMessage(e))
+    }
+  }
+
+  async function handleReview() {
+    if (!reviewId) return
+    try {
+      await reviewMutation.mutateAsync({ approved: reviewApprove, comment: reviewComment || undefined })
+      setReviewId(null)
+      setReviewComment('')
+    } catch {
+      // error handled by query
+    }
+  }
+
+  return (
+    <>
+      <PageSection variant="default">
+        <Title headingLevel="h1" size="xl">{t('suppressionRules.title')}</Title>
+        <p style={{ marginTop: 8, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)' }}>
+          {t('suppressionRules.description')}
+        </p>
+      </PageSection>
+
+      <PageSection variant="default" padding={{ default: 'noPadding' }}>
+        <Toolbar>
+          <ToolbarContent>
+            <ToolbarItem>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {STATUS_KEYS.map((value) => (
+                  <button
+                    key={value}
+                    onClick={() => setStatusFilter(value)}
+                    style={{
+                      padding: '4px 12px',
+                      border: '1px solid #d2d2d2',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      background: statusFilter === value ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                      color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                      fontSize: 13,
+                    }}
+                  >
+                    {statusLabels[value]}
+                  </button>
+                ))}
+              </div>
+            </ToolbarItem>
+            <ToolbarItem style={{ marginLeft: 'auto' }}>
+              <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+                {t('suppressionRules.create')}
+              </Button>
+            </ToolbarItem>
+          </ToolbarContent>
+        </Toolbar>
+      </PageSection>
+
+      <PageSection>
+        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
+        ) : !data?.length ? (
+          <Alert variant="info" isInline title={t('suppressionRules.noRules')} />
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.type')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.target')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.status')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.reason')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdAt')}</th>
+                <th style={{ padding: '8px 12px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((rule: SuppressionRule) => (
+                <tr key={rule.id} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
+                  <td style={{ padding: '8px 12px' }}>
+                    <Label color={rule.type === 'component' ? 'purple' : 'blue'}>
+                      {rule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
+                    </Label>
+                  </td>
+                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 12 }}>
+                    {rule.type === 'component' ? (
+                      <span>
+                        {rule.component_name}
+                        {rule.version_pattern && (
+                          <span style={{ color: 'var(--pf-t--global--text--color--subtle)', marginLeft: 4 }}>
+                            @ {rule.version_pattern}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <Link to={`/vulnerabilities/${rule.cve_id}`} style={{ color: '#0066cc' }}>
+                        {rule.cve_id}
+                      </Link>
+                    )}
+                    {rule.reference_url && (
+                      <a
+                        href={rule.reference_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ marginLeft: 8, fontSize: 11, color: '#0066cc' }}
+                      >
+                        [{t('suppressionRules.reference')}]
+                      </a>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      borderRadius: 3,
+                      background: STATUS_COLORS[rule.status] ?? '#8a8d90',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}>
+                      {statusLabels[rule.status] ?? rule.status}
+                    </span>
+                    {rule.review_comment && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                        ({rule.review_comment})
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px 12px', maxWidth: 300 }}>
+                    <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {rule.reason}
+                    </span>
+                  </td>
+                  <td style={{ padding: '8px 12px', fontSize: 12 }}>{rule.created_by_name}</td>
+                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                    {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {isSecTeam && rule.status === SuppressionStatus.requested && (
+                        <>
+                          <Button variant="primary" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(true) }}>
+                            {t('suppressionRules.approve')}
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(false) }}>
+                            {t('suppressionRules.reject')}
+                          </Button>
+                        </>
+                      )}
+                      {isSecTeam && (
+                        <Button variant="secondary" size="sm" isDanger onClick={() => {
+                          if (confirm(t('suppressionRules.deleteConfirm'))) {
+                            api.delete(`/suppression-rules/${rule.id}`).then(() => {
+                              window.location.reload()
+                            })
+                          }
+                        }}>
+                          {t('common.delete')}
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </PageSection>
+
+      {/* Create modal */}
+      <Modal
+        isOpen={showCreate}
+        onClose={() => { setShowCreate(false); resetCreateForm() }}
+        aria-label={t('suppressionRules.create')}
+        variant="medium"
+      >
+        <ModalHeader title={t('suppressionRules.create')} />
+        <ModalBody>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                {t('suppressionRules.type')}
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setCreateType('component')}
+                  style={{
+                    padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
+                    background: createType === 'component' ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                    color: createType === 'component' ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                  }}
+                >
+                  {t('suppressionRules.typeComponent')}
+                </button>
+                <button
+                  onClick={() => setCreateType('cve')}
+                  style={{
+                    padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
+                    background: createType === 'cve' ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                    color: createType === 'cve' ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                  }}
+                >
+                  {t('suppressionRules.typeCve')}
+                </button>
+              </div>
+            </div>
+
+            {createType === 'component' ? (
+              <>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                    {t('suppressionRules.componentName')} *
+                  </label>
+                  <TextInput
+                    value={createComponentName}
+                    onChange={(_e, v) => setCreateComponentName(v)}
+                    placeholder="github.com/grafana/grafana"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                    {t('suppressionRules.versionPattern')}
+                  </label>
+                  <TextInput
+                    value={createVersionPattern}
+                    onChange={(_e, v) => setCreateVersionPattern(v)}
+                    placeholder="v0.0.0-*"
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                    {t('suppressionRules.versionPatternHint')}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  {t('suppressionRules.cveId')} *
+                </label>
+                <TextInput
+                  value={createCveId}
+                  onChange={(_e, v) => setCreateCveId(v)}
+                  placeholder="CVE-2024-12345"
+                />
+              </div>
+            )}
+
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                {t('suppressionRules.reason')} *
+              </label>
+              <TextArea
+                value={createReason}
+                onChange={(_e, v) => setCreateReason(v)}
+                placeholder={t('suppressionRules.reasonPlaceholder')}
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                {t('suppressionRules.referenceUrl')}
+              </label>
+              <TextInput
+                value={createRefUrl}
+                onChange={(_e, v) => setCreateRefUrl(v)}
+                placeholder="https://github.com/..."
+              />
+            </div>
+
+            {createError && <Alert variant="danger" isInline title={createError} />}
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant="primary"
+            onClick={handleCreate}
+            isLoading={createMutation.isPending}
+            isDisabled={
+              createMutation.isPending ||
+              createReason.length < 10 ||
+              (createType === 'component' && !createComponentName) ||
+              (createType === 'cve' && !createCveId)
+            }
+          >
+            {t('suppressionRules.submit')}
+          </Button>
+          <Button variant="link" onClick={() => { setShowCreate(false); resetCreateForm() }}>
+            {t('common.cancel')}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Review modal */}
+      <Modal
+        isOpen={!!reviewId}
+        onClose={() => { setReviewId(null); setReviewComment('') }}
+        aria-label={t('suppressionRules.review')}
+        variant="small"
+      >
+        <ModalHeader title={reviewApprove ? t('suppressionRules.approveConfirm') : t('suppressionRules.rejectConfirm')} />
+        <ModalBody>
+          <div>
+            <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+              {t('suppressionRules.reviewComment')}
+            </label>
+            <TextArea
+              value={reviewComment}
+              onChange={(_e, v) => setReviewComment(v)}
+              placeholder={t('riskAcceptance.commentPlaceholder')}
+              rows={3}
+            />
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant={reviewApprove ? 'primary' : 'danger'}
+            onClick={handleReview}
+            isLoading={reviewMutation.isPending}
+          >
+            {reviewApprove ? t('suppressionRules.approve') : t('suppressionRules.reject')}
+          </Button>
+          <Button variant="link" onClick={() => { setReviewId(null); setReviewComment('') }}>
+            {t('common.cancel')}
+          </Button>
+        </ModalFooter>
+      </Modal>
+    </>
+  )
+}

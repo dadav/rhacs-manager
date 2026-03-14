@@ -58,6 +58,35 @@ export interface CveListItem {
   has_risk_acceptance: boolean
   risk_acceptance_status: RiskStatus | null
   risk_acceptance_id: string | null
+  is_suppressed: boolean
+  suppression_requested: boolean
+}
+
+export enum SuppressionStatus {
+  requested = 'requested',
+  approved = 'approved',
+  rejected = 'rejected',
+}
+
+export type SuppressionType = 'component' | 'cve'
+
+export interface SuppressionRule {
+  id: string
+  status: SuppressionStatus
+  type: SuppressionType
+  component_name: string | null
+  version_pattern: string | null
+  cve_id: string | null
+  reason: string
+  reference_url: string | null
+  review_comment: string | null
+  created_at: string
+  created_by: string
+  created_by_name: string
+  reviewed_by: string | null
+  reviewed_by_name: string | null
+  reviewed_at: string | null
+  matched_cve_count: number
 }
 
 export interface AffectedDeployment {

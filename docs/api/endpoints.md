@@ -38,6 +38,7 @@ All endpoints are prefixed with `/api`.
 | `risk_status` | string | - | `any`, `requested`, `approved` |
 | `cluster` | string | - | scope filter |
 | `namespace` | string | - | scope filter |
+| `show_suppressed` | bool | `false` | include suppressed (false positive) CVEs |
 
 !!! note
     Prioritized CVEs are always placed first, regardless of selected sort column.
@@ -77,6 +78,63 @@ Response includes stat cards and chart data:
 `scope.mode`: `all`, `namespace`, `image`, `deployment`
 
 Targets are validated against affected deployments for that CVE.
+
+## Suppression Rules (False Positives)
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| POST | `/api/suppression-rules` | Any | Create a suppression rule (team members: `requested`, sec team: `approved`) |
+| GET | `/api/suppression-rules` | Any | List all rules |
+| GET | `/api/suppression-rules/{id}` | Any | Get one rule |
+| PUT | `/api/suppression-rules/{id}` | Creator or `sec_team` | Update reason/reference |
+| PATCH | `/api/suppression-rules/{id}` | `sec_team` | Approve or reject a `requested` rule |
+| DELETE | `/api/suppression-rules/{id}` | Creator (`requested` only) or `sec_team` | Delete a rule |
+
+### `POST /api/suppression-rules` Body
+
+```json
+{
+  "type": "component",
+  "component_name": "github.com/grafana/grafana",
+  "version_pattern": "v0.0.0-*",
+  "reason": "Internal Go module version, not actual Grafana version. See upstream issue.",
+  "reference_url": "https://github.com/grafana/grafana/issues/106728"
+}
+```
+
+Or for a single CVE:
+
+```json
+{
+  "type": "cve",
+  "cve_id": "CVE-2024-12345",
+  "reason": "This CVE does not apply to our deployment configuration."
+}
+```
+
+### `GET /api/suppression-rules` Query Parameters
+
+| Parameter | Type | Default | Notes |
+|-----------|------|---------|-------|
+| `status` | string | - | `requested`, `approved`, `rejected` |
+| `type` | string | - | `component`, `cve` |
+
+### `PATCH /api/suppression-rules/{id}` Body
+
+```json
+{
+  "approved": true,
+  "comment": "Verified upstream issue confirms version misidentification."
+}
+```
+
+### Suppression Behavior
+
+- **Component rules** match CVEs whose affected components include a component with the specified `component_name` and, if provided, a version matching the `version_pattern` glob (e.g., `v0.0.0-*`).
+- **CVE rules** match a single CVE by ID.
+- Only `approved` rules suppress CVEs. Rules in `requested` status mark CVEs with a `suppression_requested` flag but do not hide them.
+- Suppressed CVEs are excluded from the default `/api/cves` response. Pass `show_suppressed=true` to include them.
+- Active rules are unique per target: one active rule per `(component_name, version_pattern)` for component rules, one per `cve_id` for CVE rules.
 
 ## Priorities
 

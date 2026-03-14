@@ -19,6 +19,7 @@ from .routers import (
     remediations,
     risk_acceptances,
     settings,
+    suppression_rules,
 )
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
@@ -71,6 +72,7 @@ for router_module in [
     settings,
     audit,
     exports,
+    suppression_rules,
 ]:
     app.include_router(router_module.router, prefix="/api")
 

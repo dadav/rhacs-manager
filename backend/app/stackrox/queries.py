@@ -1289,3 +1289,35 @@ async def get_cve_component_map(
     for row in result:
         mapping.setdefault(row.cve_id, []).append(row.component_name)
     return mapping
+
+
+async def get_cve_component_version_map(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]],
+) -> dict[str, list[tuple[str, str]]]:
+    """Returns {cve_id: [(component_name, component_version), ...]} for suppression rule matching."""
+    if not cve_ids or not namespaces:
+        return {}
+    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
+    ns_values = ", ".join(ns_pairs)
+    sql = text(f"""
+        SELECT DISTINCT
+            ic.cvebaseinfo_cve AS cve_id,
+            comp.name AS component_name,
+            comp.version AS component_version
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
+        WHERE (d.namespace, d.clustername) IN ({ns_values})
+          AND ic.cvebaseinfo_cve = ANY(:cve_ids)
+          AND comp.name IS NOT NULL
+    """)
+    result = await session.execute(sql, {"cve_ids": cve_ids})
+    mapping: dict[str, list[tuple[str, str]]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, []).append(
+            (row.component_name, row.component_version or "")
+        )
+    return mapping

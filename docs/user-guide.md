@@ -8,8 +8,8 @@ See [Configuration](configuration.md) for threshold and notification settings, a
 
 | User type | What they can do |
 |----------|-------------------|
-| `team_member` | Work on CVEs in accessible namespaces, request risk acceptances, create badges, create and update remediations |
-| `sec_team` | Everything above plus approve or reject risk acceptances, change priorities, edit settings, review audit data, verify remediations |
+| `team_member` | Work on CVEs in accessible namespaces, request risk acceptances and suppression rules, create badges, create and update remediations |
+| `sec_team` | Everything above plus approve or reject risk acceptances and suppression rules, change priorities, edit settings, review audit data, verify remediations |
 | Wildcard all-namespace user | Still a `team_member`, but receives `X-Forwarded-Namespaces: *` from the spoke and can browse all namespaces without gaining `sec_team` actions |
 
 !!! note
@@ -92,6 +92,56 @@ Remediations are tracked on **Behebungen** and are always namespace-scoped.
 !!! note
     The scheduler can auto-mark an `open` or `in_progress` remediation as `resolved` if StackRox no longer reports that CVE in the namespace's deployments.
 
+## False Positive Suppression
+
+The **False Positives** page manages suppression rules for CVEs that are incorrectly reported by the scanner. A common case is when RHACS misidentifies a component version — for example, Grafana's internal Go module version `v0.0.0-*` being treated as the actual Grafana version, causing dozens of false CVE matches.
+
+### Suppression Rule Types
+
+| Type | Matches on | Use case |
+|------|-----------|----------|
+| **Component** | Component name + optional version pattern | A misidentified component produces many false CVEs (e.g., `github.com/grafana/grafana` at `v0.0.0-*`) |
+| **CVE** | Single CVE ID | One-off false positive for a specific CVE |
+
+### Creating a Suppression Rule
+
+1. Open **False Positives** from the sidebar.
+2. Click **Regel erstellen** and select the rule type.
+3. For **Component** rules:
+     - Enter the component name exactly as shown in the CVE detail's component list (e.g., `github.com/grafana/grafana`).
+     - Optionally enter a version pattern using glob syntax (e.g., `v0.0.0-*` to match all pseudo-versions). Leave empty to suppress all versions.
+4. For **CVE** rules:
+     - Enter the CVE ID (e.g., `CVE-2024-12345`).
+5. Provide a reason explaining why this is a false positive (minimum 10 characters).
+6. Optionally add a reference URL linking to the upstream issue (e.g., a GitHub issue confirming the version misidentification).
+7. Submit the rule.
+
+### Review Workflow
+
+- **Team members** create rules in `requested` status. The security team must approve before suppression takes effect.
+- **Security team** creates rules directly in `approved` status, with immediate suppression effect.
+- Approved rules suppress matched CVEs from the default CVE list and dashboard counts.
+- Rejected rules have no effect and are kept for audit purposes.
+
+### Visibility of Suppressed CVEs
+
+- By default, suppressed CVEs are **hidden** from the CVE list and excluded from dashboard statistics.
+- The CVE list supports a `show_suppressed` toggle to reveal suppressed CVEs with a visual indicator.
+- CVEs with a pending suppression request (status `requested`) are **not** hidden but are marked with a "FP beantragt" label.
+
+### Interaction with Other Features
+
+- Suppression is independent from risk acceptance — a CVE can have both.
+- Suppressed CVEs are excluded from escalation triggers and notification generation.
+- Component-level rules are especially powerful: one rule for `github.com/grafana/grafana` at `v0.0.0-*` eliminates all false positives from that misidentification in a single action.
+- When the upstream issue is fixed (e.g., RHACS or the component corrects its version reporting), the security team can delete the rule and the CVEs will reappear automatically.
+
+!!! tip
+    Use component-level rules for systematic version misidentification issues. Reserve CVE-level rules for isolated false positives that don't share a common component pattern.
+
+!!! note
+    Suppression rules are org-wide. Unlike risk acceptances, they are not scoped to specific namespaces because scanner errors affect all users equally.
+
 ## Escalations
 
 The **Eskalationen** page shows both active escalations and upcoming ones.
@@ -152,18 +202,19 @@ Notifications appear in the bell menu and are stored per user.
 
 ### `team_member`
 
-- Can see CVEs, escalations, badges, remediations, and risk acceptances in allowed namespaces.
-- Can request or edit their own risk acceptances.
+- Can see CVEs, escalations, badges, remediations, risk acceptances, and suppression rules in allowed namespaces.
+- Can request or edit their own risk acceptances and suppression rules.
 - Can create badges and remediations.
-- Cannot approve risk acceptances, edit global settings, or verify remediations.
+- Cannot approve risk acceptances or suppression rules, edit global settings, or verify remediations.
 
 ### `sec_team`
 
 - Sees all namespaces.
-- Can approve or reject risk acceptances.
+- Can approve or reject risk acceptances and suppression rules.
 - Can edit thresholds, escalation rules, and digest settings in **Einstellungen**.
 - Can verify remediations and manage priorities.
 - Can review **Audit-Log**.
+- Can delete suppression rules.
 
 ### Wildcard all-namespace user
 

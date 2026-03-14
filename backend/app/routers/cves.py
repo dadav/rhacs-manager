@@ -14,7 +14,17 @@ from ..models.escalation import Escalation
 from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
-from ..schemas.cve import AffectedComponent, AffectedDeployment, CveCommentCreate, CveCommentResponse, CveDetail, CveListItem, ImageCveDetail, ImageCveGroup, SeverityLevel
+from ..schemas.cve import (
+    AffectedComponent,
+    AffectedDeployment,
+    CveCommentCreate,
+    CveCommentResponse,
+    CveDetail,
+    CveListItem,
+    ImageCveDetail,
+    ImageCveGroup,
+    SeverityLevel,
+)
 from ..schemas.common import PaginatedResponse
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..stackrox import queries as sx
@@ -46,17 +56,31 @@ async def list_cves(
     age_min: int | None = Query(None, ge=0),
     age_max: int | None = Query(None, ge=0),
     deployment: str | None = Query(None),
+    show_suppressed: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> PaginatedResponse[CveListItem]:
     items = await fetch_filtered_cves(
-        current_user, app_db, sx_db,
-        search=search, severity=severity, fixable=fixable,
-        prioritized_only=prioritized_only, sort_by=sort_by, sort_desc=sort_desc,
-        cvss_min=cvss_min, epss_min=epss_min, component=component,
-        risk_status=risk_status, cluster=cluster, namespace=namespace,
-        age_min=age_min, age_max=age_max, deployment=deployment,
+        current_user,
+        app_db,
+        sx_db,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        prioritized_only=prioritized_only,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        component=component,
+        risk_status=risk_status,
+        cluster=cluster,
+        namespace=namespace,
+        age_min=age_min,
+        age_max=age_max,
+        deployment=deployment,
+        show_suppressed=show_suppressed,
     )
 
     total = len(items)
@@ -99,7 +123,9 @@ async def list_cves_by_image(
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
-                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+                [(r["namespace"], r["cluster_name"]) for r in all_ns],
+                cluster,
+                namespace,
             )
         else:
             namespaces_list = None
@@ -118,9 +144,17 @@ async def list_cves_by_image(
     always_show |= {row[0] for row in ra_result}
 
     rows = await sx.get_cves_grouped_by_image(
-        sx_db, namespaces_list, min_cvss, min_epss, always_show,
-        search=search, severity=severity, fixable=fixable,
-        cvss_min=cvss_min, epss_min=epss_min, component=component,
+        sx_db,
+        namespaces_list,
+        min_cvss,
+        min_epss,
+        always_show,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        component=component,
     )
     return [
         ImageCveGroup(
@@ -173,7 +207,9 @@ async def list_cves_for_image(
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces_list: list[tuple[str, str]] | None = narrow_namespaces(
-                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+                [(r["namespace"], r["cluster_name"]) for r in all_ns],
+                cluster,
+                namespace,
             )
         else:
             namespaces_list = None
@@ -192,9 +228,18 @@ async def list_cves_for_image(
     always_show |= {row[0] for row in ra_result}
 
     rows = await sx.get_cves_for_image(
-        sx_db, image_id, namespaces_list, min_cvss, min_epss, always_show,
-        search=search, severity=severity, fixable=fixable,
-        filter_cvss_min=cvss_min, filter_epss_min=epss_min, component=component,
+        sx_db,
+        image_id,
+        namespaces_list,
+        min_cvss,
+        min_epss,
+        always_show,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        filter_cvss_min=cvss_min,
+        filter_epss_min=epss_min,
+        component=component,
     )
     return [
         ImageCveDetail(
@@ -227,13 +272,17 @@ async def get_cve(
     )
     priority = prio_result.scalar_one_or_none()
 
-    ra_query = select(RiskAcceptance).where(
-        RiskAcceptance.cve_id == cve_id,
-        RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
-    ).order_by(
-        # Prefer approved over requested, then most recent
-        RiskAcceptance.status.asc(),
-        RiskAcceptance.created_at.desc(),
+    ra_query = (
+        select(RiskAcceptance)
+        .where(
+            RiskAcceptance.cve_id == cve_id,
+            RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]),
+        )
+        .order_by(
+            # Prefer approved over requested, then most recent
+            RiskAcceptance.status.asc(),
+            RiskAcceptance.created_at.desc(),
+        )
     )
     ra_result = await app_db.execute(ra_query)
     acceptance = ra_result.scalars().first()
@@ -250,7 +299,9 @@ async def get_cve(
 
     if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
-        ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
+        ns: list[tuple[str, str]] = [
+            (r["namespace"], r["cluster_name"]) for r in all_ns
+        ]
         cve_data = await sx.get_all_cves(sx_db)
         cve_data = next((c for c in cve_data if c["cve_id"] == cve_id), None)
     else:
@@ -274,20 +325,28 @@ async def get_cve(
                 severity_ok = severity >= rule.get("severity_min", 0)
                 epss_ok = epss >= rule.get("epss_threshold", 0)
                 if severity_ok or epss_ok:
-                    esc_expected[1] = first_seen + timedelta(days=rule.get("days_to_level1", 999))
-                    esc_expected[2] = first_seen + timedelta(days=rule.get("days_to_level2", 999))
-                    esc_expected[3] = first_seen + timedelta(days=rule.get("days_to_level3", 999))
+                    esc_expected[1] = first_seen + timedelta(
+                        days=rule.get("days_to_level1", 999)
+                    )
+                    esc_expected[2] = first_seen + timedelta(
+                        days=rule.get("days_to_level2", 999)
+                    )
+                    esc_expected[3] = first_seen + timedelta(
+                        days=rule.get("days_to_level3", 999)
+                    )
                     break  # first matching rule only
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     components = await sx.get_affected_components(sx_db, cve_id, ns)
     contact_emails: list[str] = []
     if current_user.can_see_all_namespaces and deployments:
-        ns_cluster_pairs = sorted({
-            (d["namespace"], d["cluster_name"])
-            for d in deployments
-            if d.get("namespace") and d.get("cluster_name")
-        })
+        ns_cluster_pairs = sorted(
+            {
+                (d["namespace"], d["cluster_name"])
+                for d in deployments
+                if d.get("namespace") and d.get("cluster_name")
+            }
+        )
         if ns_cluster_pairs:
             from ..config import settings as app_settings
 
@@ -301,12 +360,16 @@ async def get_cve(
             )
             contacts = contact_result.scalars().all()
             covered_pairs = {(c.namespace, c.cluster_name) for c in contacts}
-            contact_emails = sorted({c.escalation_email for c in contacts if c.escalation_email})
+            contact_emails = sorted(
+                {c.escalation_email for c in contacts if c.escalation_email}
+            )
 
             # Add default escalation email for namespaces without explicit contacts
             uncovered = set(ns_cluster_pairs) - covered_pairs
             if uncovered and app_settings.default_escalation_email:
-                contact_emails = sorted(set(contact_emails) | {app_settings.default_escalation_email})
+                contact_emails = sorted(
+                    set(contact_emails) | {app_settings.default_escalation_email}
+                )
 
     return CveDetail(
         cve_id=cve_data["cve_id"],
@@ -368,7 +431,9 @@ async def list_cve_comments(
     app_db: AsyncSession = Depends(get_app_db),
 ) -> list[CveCommentResponse]:
     result = await app_db.execute(
-        select(CveComment).where(CveComment.cve_id == cve_id).order_by(CveComment.created_at)
+        select(CveComment)
+        .where(CveComment.cve_id == cve_id)
+        .order_by(CveComment.created_at)
     )
     comments = result.scalars().all()
 
@@ -376,15 +441,17 @@ async def list_cve_comments(
     for c in comments:
         user_result = await app_db.execute(select(User).where(User.id == c.user_id))
         user = user_result.scalar_one_or_none()
-        out.append(CveCommentResponse(
-            id=c.id,
-            cve_id=c.cve_id,
-            user_id=c.user_id,
-            username=user.username if user else c.user_id,
-            message=c.message,
-            created_at=c.created_at,
-            is_sec_team=user.role.value == "sec_team" if user else False,
-        ))
+        out.append(
+            CveCommentResponse(
+                id=c.id,
+                cve_id=c.cve_id,
+                user_id=c.user_id,
+                username=user.username if user else c.user_id,
+                message=c.message,
+                created_at=c.created_at,
+                is_sec_team=user.role.value == "sec_team" if user else False,
+            )
+        )
     return out
 
 
