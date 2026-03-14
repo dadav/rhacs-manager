@@ -15,9 +15,6 @@ import {
   TextArea,
   TextInput,
   Title,
-  Toolbar,
-  ToolbarContent,
-  ToolbarItem,
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
@@ -129,57 +126,48 @@ export function SuppressionRules() {
         </p>
       </PageSection>
 
-      <PageSection variant="default" padding={{ default: 'noPadding' }}>
-        <Toolbar>
-          <ToolbarContent>
-            <ToolbarItem>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {STATUS_KEYS.map((value) => (
-                  <button
-                    key={value}
-                    onClick={() => setStatusFilter(value)}
-                    style={{
-                      padding: '4px 12px',
-                      border: '1px solid #d2d2d2',
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      background: statusFilter === value ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
-                      color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                      fontSize: 13,
-                    }}
-                  >
-                    {statusLabels[value]}
-                  </button>
-                ))}
-              </div>
-            </ToolbarItem>
-            <ToolbarItem style={{ marginLeft: 'auto' }}>
-              <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-                {t('suppressionRules.create')}
-              </Button>
-            </ToolbarItem>
-          </ToolbarContent>
-        </Toolbar>
-      </PageSection>
-
       <PageSection>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {STATUS_KEYS.map((value) => (
+              <button
+                key={value}
+                onClick={() => setStatusFilter(value)}
+                style={{
+                  padding: '4px 12px',
+                  border: '1px solid #d2d2d2',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  background: statusFilter === value ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                  color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
+                  fontSize: 13,
+                }}
+              >
+                {statusLabels[value]}
+              </button>
+            ))}
+          </div>
+          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+            {t('suppressionRules.create')}
+          </Button>
+        </div>
         {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
           <Alert variant="info" isInline title={t('suppressionRules.noRules')} />
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
             <thead>
               <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.type')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.target')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.scopeLabel')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.status')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.reason')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
+<th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdAt')}</th>
                 <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('suppressionRules.matchedCves')}</th>
-                <th style={{ padding: '8px 12px' }}></th>
+                <th style={{ padding: '8px 12px', width: '1%', whiteSpace: 'nowrap' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -194,7 +182,7 @@ export function SuppressionRules() {
                       {rule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
                     </Label>
                   </td>
-                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 12 }}>
+                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {rule.type === 'component' ? (
                       <span>
                         {rule.component_name}
@@ -255,19 +243,14 @@ export function SuppressionRules() {
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: '8px 12px', maxWidth: 300 }}>
-                    <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {rule.reason}
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12 }}>{rule.created_by_name}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <td style={{ padding: '8px 12px', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rule.created_by_name}</td>
+                  <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap', color: 'var(--pf-t--global--text--color--subtle)' }}>
                     {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>
                     {rule.matched_cve_count}
                   </td>
-                  <td style={{ padding: '8px 12px' }} onClick={(e) => e.stopPropagation()}>
+                  <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {isSecTeam && rule.status === SuppressionStatus.requested && (
                         <>
@@ -296,6 +279,7 @@ export function SuppressionRules() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </PageSection>
 

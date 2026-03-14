@@ -96,6 +96,18 @@ export function Dashboard() {
   const { scopeParams } = useScope();
   const { data, isLoading, error } = useDashboard(scopeParams);
   const dateLocale = i18n.language === "de" ? "de-DE" : "en-US";
+  // "currentColor" inherits the text color from the parent Card/CardBody,
+  // which PatternFly sets correctly for both light and dark themes.
+  const chartTickFill = "currentColor";
+  const chartGridStroke = "var(--pf-t--global--border--color--default, #d2d2d2)";
+  const chartTooltipStyle: React.CSSProperties = {
+    backgroundColor:
+      "var(--pf-v6-global--BackgroundColor--100, var(--pf-t--global--background--color--primary--default, #fff))",
+    border:
+      "1px solid var(--pf-t--global--border--color--default, #d2d2d2)",
+    color:
+      "var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))",
+  };
   const severityLabels = [
     t("severity.0"),
     t("severity.1"),
@@ -453,8 +465,10 @@ export function Dashboard() {
                         <Cell fill="#1e8f19" />
                         <Cell fill="#c9190b" />
                       </Pie>
-                      <Tooltip />
-                      <Legend />
+                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Legend
+                        wrapperStyle={{ color: "inherit" }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardBody>
@@ -473,11 +487,11 @@ export function Dashboard() {
                       data={data.fixable_trend}
                       margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: chartTickFill }} />
+                      <YAxis tick={{ fontSize: 10, fill: chartTickFill }} allowDecimals={false} />
+                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Legend wrapperStyle={{ color: "inherit" }} />
                       <Area
                         type="monotone"
                         dataKey="fixable"
@@ -651,13 +665,13 @@ export function Dashboard() {
                     <CardBody>
                       <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={agingData}>
-                          <CartesianGrid strokeDasharray="3 3" />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
                           <XAxis
                             dataKey="bucketLabel"
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: chartTickFill }}
                           />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
+                          <YAxis tick={{ fontSize: 10, fill: chartTickFill }} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
                           <Bar
                             dataKey="count"
                             name="CVEs"
@@ -727,10 +741,10 @@ export function Dashboard() {
                           margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
                           barSize={hasMultiCluster ? 20 : undefined}
                         >
-                          <CartesianGrid strokeDasharray="3 3" />
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
                           <XAxis
                             type="number"
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: chartTickFill }}
                             allowDecimals={false}
                           />
                           <YAxis
@@ -756,7 +770,7 @@ export function Dashboard() {
                                   y={y}
                                   textAnchor="end"
                                   fontSize={11}
-                                  fill="var(--pf-v6-global--Color--100)"
+                                  fill="currentColor"
                                 >
                                   <tspan
                                     x={x}
@@ -769,7 +783,7 @@ export function Dashboard() {
                                       x={x}
                                       dy={14}
                                       fontSize={9}
-                                      fill="var(--pf-v6-global--Color--200)"
+                                      opacity={0.7}
                                     >
                                       {ns.cluster_count} {t("common.cluster")}
                                     </tspan>
@@ -778,8 +792,8 @@ export function Dashboard() {
                               );
                             }}
                           />
-                          <Tooltip />
-                          <Legend />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Legend wrapperStyle={{ color: "inherit" }} />
                           <Bar
                             dataKey="critical"
                             name={t("severity.4")}
@@ -863,21 +877,21 @@ export function Dashboard() {
                       layout="vertical"
                       margin={{ left: 10, right: 20, top: 5, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
                       <XAxis
                         type="number"
-                        tick={{ fontSize: 10 }}
+                        tick={{ fontSize: 10, fill: chartTickFill }}
                         allowDecimals={false}
                       />
                       <YAxis
                         type="category"
                         dataKey="component_name"
-                        tick={{ fontSize: 11 }}
+                        tick={{ fontSize: 11, fill: chartTickFill }}
                         width={200}
                         interval={0}
                       />
-                      <Tooltip />
-                      <Legend />
+                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Legend wrapperStyle={{ color: "inherit" }} />
                       <Bar
                         dataKey="fixable_count"
                         name={t("dashboard.fixable")}

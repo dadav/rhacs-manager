@@ -22,14 +22,22 @@ export function TrendLine({ data }: Props) {
             <stop offset="95%" stopColor="#0066cc" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--pf-t--global--border--color--default, #d2d2d2)" />
         <XAxis
           dataKey="date"
-          tick={{ fontSize: 10 }}
+          tick={{ fontSize: 10, fill: 'currentColor' }}
           tickFormatter={d => d.slice(5)}  // MM-DD
         />
-        <YAxis tick={{ fontSize: 10 }} />
-        <Tooltip labelFormatter={l => `Datum: ${l}`} formatter={v => [v, 'CVEs']} />
+        <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} />
+        <Tooltip
+          labelFormatter={l => `Datum: ${l}`}
+          formatter={v => [v, 'CVEs']}
+          contentStyle={{
+            backgroundColor: 'var(--pf-v6-global--BackgroundColor--100, var(--pf-t--global--background--color--primary--default, #fff))',
+            border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
+            color: 'var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))',
+          }}
+        />
         <Area
           type="monotone"
           dataKey="count"

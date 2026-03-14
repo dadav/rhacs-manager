@@ -63,8 +63,15 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
             <Cell key={i} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip formatter={(val, name) => [val, name]} />
-        <Legend />
+        <Tooltip
+          formatter={(val, name) => [val, name]}
+          contentStyle={{
+            backgroundColor: 'var(--pf-v6-global--BackgroundColor--100, var(--pf-t--global--background--color--primary--default, #fff))',
+            border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
+            color: 'var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))',
+          }}
+        />
+        <Legend wrapperStyle={{ color: 'inherit' }} />
       </PieChart>
     </ResponsiveContainer>
   )
