@@ -139,7 +139,7 @@
       "fixableTrend": "Zeigt die Entwicklung von behebbaren und nicht behebbaren CVEs über die letzten 30 Tage. Steigende Trends bei nicht behebbaren CVEs erfordern besondere Aufmerksamkeit.",
       "clusterHeatmap": "Zeigt die Verteilung von CVEs nach Cluster und Schweregrad. Cluster mit vielen kritischen CVEs sollten zuerst überprüft werden.",
       "aging": "Zeigt, wie lange CVEs bereits bekannt sind. Alte, unbehandelte CVEs stellen ein erhöhtes Risiko dar und sollten priorisiert werden.",
-      "trend": "Zeigt die Gesamtentwicklung der CVE-Anzahl über die letzten 30 Tage. Steigende Trends deuten auf wachsenden Handlungsbedarf hin.",
+      "trend": "Zeigt die Anzahl neu entdeckter CVEs pro Tag in den letzten 30 Tagen. Es werden nur CVEs berücksichtigt, die erstmals innerhalb dieses Zeitraums aufgetreten sind. Bereits länger bekannte CVEs erscheinen hier nicht, sind aber in der CVE-Liste weiterhin sichtbar.",
       "cvesPerNamespace": "Zeigt die Top 10 Namespaces mit den meisten CVEs, aufgeschlüsselt nach Schweregrad. Hilft zu erkennen, welche Namespaces die meiste Aufmerksamkeit benötigen.",
       "topVulnerableComponents": "Zeigt die 10 Komponenten mit den meisten CVEs, aufgeteilt in behebbar und nicht behebbar. Ein Update dieser Komponenten kann viele CVEs auf einmal beheben."
     }
