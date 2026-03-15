@@ -6,7 +6,7 @@ Three container images are built for deployment. All dependencies are bundled at
 
 **File**: `backend/Containerfile`
 
-Single-stage build based on `python:3.12-slim`.
+Single-stage build based on `python:3.14-slim`.
 
 ```bash
 just build-backend-image tag=rhacs-manager-backend:latest
@@ -25,7 +25,7 @@ Build steps:
 
 | Property   | Value                     |
 | ---------- | ------------------------- |
-| Base image | `python:3.12-slim`        |
+| Base image | `python:3.14-slim`        |
 | Port       | 8000                      |
 | Entrypoint | Alembic migrate + uvicorn |
 
@@ -79,6 +79,6 @@ The spoke image differs from the hub image in that it:
 
 | Image            | Build command               | Base                        | Port |
 | ---------------- | --------------------------- | --------------------------- | ---- |
-| Backend          | `just build-backend-image`  | `python:3.12-slim`          | 8000 |
+| Backend          | `just build-backend-image`  | `python:3.14-slim`          | 8000 |
 | Frontend (hub)   | `just build-frontend-image` | `nginx-unprivileged:alpine` | 8080 |
 | Frontend (spoke) | `just build-spoke-image`    | `nginx-unprivileged:alpine` | 8080 |
