@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useCreatePriority, useDeletePriority, usePriorities, useUpdatePriority } from '../api/priorities'
 import { useCurrentUser } from '../api/auth'
 import { PriorityLevel } from '../types'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 
 const PRIORITY_COLORS: Record<PriorityLevel, string> = {

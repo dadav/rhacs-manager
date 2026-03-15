@@ -13,7 +13,7 @@ import {
 import { CheckCircleIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useEscalations, useUpcomingEscalations } from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'

@@ -26,7 +26,7 @@ import { CheckCircleIcon } from "@patternfly/react-icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";

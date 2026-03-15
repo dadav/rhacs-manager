@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Badge, Button } from '@patternfly/react-core'
 import { BellIcon } from '@patternfly/react-icons'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useUnreadCount, useNotifications, useMarkRead, useMarkAllRead } from '../../api/notifications'
 import { useTranslation } from 'react-i18next'
 import type { AppNotification } from '../../types'

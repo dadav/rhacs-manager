@@ -27,7 +27,7 @@ import {
 } from "recharts";
 import { getErrorMessage } from "../utils/errors";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useDashboard } from "../api/dashboard";
 
 import { useAuth } from "../hooks/useAuth";
@@ -458,8 +458,8 @@ export function Dashboard() {
                         dataKey="value"
                         nameKey="name"
                         style={{ cursor: "pointer" }}
-                        onClick={(entry) =>
-                          navigate(`/vulnerabilities?fixable=${entry.fixable}`)
+                        onClick={(_, index) =>
+                          navigate(`/vulnerabilities?fixable=${index === 0 ? "true" : "false"}`)
                         }
                       >
                         <Cell fill="#1e8f19" />
@@ -679,7 +679,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) => {
                               const range =
-                                bucketRanges[entry.bucket as string];
+                                bucketRanges[(entry as unknown as { bucket: string }).bucket];
                               if (!range) return;
                               const params = new URLSearchParams();
                               params.set("age_min", String(range[0]));
@@ -757,8 +757,8 @@ export function Dashboard() {
                               y,
                               payload,
                             }: {
-                              x: number;
-                              y: number;
+                              x: string | number;
+                              y: string | number;
                               payload: { value: string };
                             }) => {
                               const ns = nsData.find(
@@ -802,7 +802,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
-                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=4`,
+                                `/vulnerabilities?namespace=${encodeURIComponent((entry as unknown as { namespace: string }).namespace)}&severity=4`,
                               )
                             }
                           />
@@ -814,7 +814,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
-                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=3`,
+                                `/vulnerabilities?namespace=${encodeURIComponent((entry as unknown as { namespace: string }).namespace)}&severity=3`,
                               )
                             }
                           />
@@ -826,7 +826,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
-                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=2`,
+                                `/vulnerabilities?namespace=${encodeURIComponent((entry as unknown as { namespace: string }).namespace)}&severity=2`,
                               )
                             }
                           />
@@ -838,7 +838,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
-                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=1`,
+                                `/vulnerabilities?namespace=${encodeURIComponent((entry as unknown as { namespace: string }).namespace)}&severity=1`,
                               )
                             }
                           />
@@ -850,7 +850,7 @@ export function Dashboard() {
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
-                                `/vulnerabilities?namespace=${encodeURIComponent(entry.namespace)}&severity=0`,
+                                `/vulnerabilities?namespace=${encodeURIComponent((entry as unknown as { namespace: string }).namespace)}&severity=0`,
                               )
                             }
                           />
@@ -900,7 +900,7 @@ export function Dashboard() {
                         style={{ cursor: "pointer" }}
                         onClick={(entry) =>
                           navigate(
-                            `/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=true&advanced=1`,
+                            `/vulnerabilities?component=${encodeURIComponent((entry as unknown as { component_name: string }).component_name)}&fixable=true&advanced=1`,
                           )
                         }
                       />
@@ -912,7 +912,7 @@ export function Dashboard() {
                         style={{ cursor: "pointer" }}
                         onClick={(entry) =>
                           navigate(
-                            `/vulnerabilities?component=${encodeURIComponent(entry.component_name)}&fixable=false&advanced=1`,
+                            `/vulnerabilities?component=${encodeURIComponent((entry as unknown as { component_name: string }).component_name)}&fixable=false&advanced=1`,
                           )
                         }
                       />

@@ -21,7 +21,7 @@ import {
 import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./hooks/useAuth";
 import { useScope, buildScopedTo } from "./hooks/useScope";
 import { NotificationBell } from "./components/notifications/NotificationBell";

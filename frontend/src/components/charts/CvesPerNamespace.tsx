@@ -32,7 +32,7 @@ export function CvesPerNamespace({ data, onBarClick }: Props) {
           radius={[0, 2, 2, 0]}
           style={onBarClick ? { cursor: 'pointer' } : undefined}
           onClick={onBarClick ? (entry) => {
-            onBarClick(entry.namespace)
+            onBarClick((entry as unknown as { namespace: string }).namespace)
           } : undefined}
         />
       </BarChart>

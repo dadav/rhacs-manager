@@ -128,7 +128,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
               fillOpacity={0.85}
               style={onDotClick ? { cursor: 'pointer' } : undefined}
               onClick={onDotClick ? (point) => {
-                onDotClick(point.cve_id)
+                onDotClick((point as unknown as Point).cve_id)
               } : undefined}
             />
           ))}

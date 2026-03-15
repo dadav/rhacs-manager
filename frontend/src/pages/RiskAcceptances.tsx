@@ -10,7 +10,7 @@ import {
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router'
 import { useRiskAcceptances } from '../api/riskAcceptances'
 import { useScope } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'

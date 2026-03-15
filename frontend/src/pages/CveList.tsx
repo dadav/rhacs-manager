@@ -18,7 +18,7 @@ import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, AngleRightIcon, Ang
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router'
 import { useCves, useCvesByImage, useCvesForImage } from '../api/cves'
 import { exportPdf, exportExcel } from '../api/exports'
 import { useThresholds } from '../api/settings'
