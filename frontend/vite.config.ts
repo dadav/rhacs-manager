@@ -19,13 +19,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          patternfly: ['@patternfly/react-core', '@patternfly/react-icons'],
-          charts: ['recharts'],
-          query: ['@tanstack/react-query'],
+        codeSplitting: {
+          groups: [
+            { name: 'vendor', test: /[\\/]node_modules[\\/](react|react-dom|react-router-dom)[\\/]/ },
+            { name: 'patternfly', test: /[\\/]node_modules[\\/]@patternfly[\\/](react-core|react-icons)[\\/]/ },
+            { name: 'charts', test: /[\\/]node_modules[\\/]recharts[\\/]/ },
+            { name: 'query', test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/ },
+          ],
         },
       },
     },
