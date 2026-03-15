@@ -195,6 +195,76 @@ just migrate
 !!! tip
     Migrations run automatically when starting the dev server with `just dev`.
 
+## Updating Dependencies
+
+Routine dependency updates are handled automatically by [Renovate](https://docs.renovatebot.com/), which opens pull requests on early Mondays. The sections below cover how to update dependencies manually when needed.
+
+### Backend (Python / uv)
+
+Dependencies are declared in `backend/pyproject.toml` and pinned in `backend/uv.lock`.
+
+```bash
+# Update all dependencies to their latest allowed versions
+uv --directory backend lock --upgrade
+uv --directory backend sync
+
+# Update a single package
+uv --directory backend lock --upgrade-package fastapi
+uv --directory backend sync
+
+# Add a new dependency
+uv --directory backend add somepackage
+
+# Add a new dev dependency
+uv --directory backend add --group dev somepkg
+```
+
+After updating, run `just test` to verify nothing broke.
+
+### Frontend (TypeScript / bun)
+
+Dependencies are declared in `frontend/package.json` and pinned in `frontend/bun.lock`.
+
+```bash
+cd frontend
+
+# Update all dependencies to their latest allowed versions
+bun update
+
+# Update a single package
+bun update @patternfly/react-core
+
+# Add a new dependency
+bun add somepackage
+
+# Add a new dev dependency
+bun add --dev somepackage
+```
+
+After updating, run `just build-frontend` and `just lint` to verify nothing broke.
+
+### Auth Header Injector (Go)
+
+Dependencies are declared in `auth-header-injector/go.mod` and pinned in `auth-header-injector/go.sum`.
+
+```bash
+cd auth-header-injector
+
+# Update all dependencies to their latest versions
+go get -u ./...
+go mod tidy
+
+# Update a single dependency
+go get -u k8s.io/client-go
+go mod tidy
+```
+
+After updating, verify the build with:
+
+```bash
+go build -o /dev/null .
+```
+
 ## PatternFly 6 Notes
 
 When working with the frontend, keep these PatternFly 6 constraints in mind:
