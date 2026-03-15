@@ -70,6 +70,7 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
             border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
             color: 'var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))',
           }}
+          wrapperStyle={{ zIndex: 10 }}
         />
         <Legend wrapperStyle={{ color: 'inherit' }} />
       </PieChart>

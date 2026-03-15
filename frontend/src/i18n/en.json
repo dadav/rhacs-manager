@@ -130,6 +130,18 @@
       "31-90": "31-90 days",
       "91-180": "91-180 days",
       "180+": ">180 days"
+    },
+    "help": {
+      "epssMatrix": "The EPSS Risk Matrix plots each CVE by CVSS severity (Y-axis) and EPSS exploitation probability (X-axis). CVEs in the top-right have both high severity and high exploitation likelihood and should be addressed first.",
+      "pipeline": "Shows the current distribution of all risk acceptances by status. Quickly see how many requests are pending, approved, rejected, or expired.",
+      "severityDistribution": "Shows the distribution of your visible CVEs by severity level. Click a segment to filter the vulnerability list accordingly.",
+      "fixabilityBreakdown": "Shows how many of your CVEs can be fixed by an update vs. those with no fix available yet. Helps prioritize update efforts.",
+      "fixableTrend": "Shows the trend of fixable vs. unfixable CVEs over the last 30 days. Rising trends in unfixable CVEs require special attention.",
+      "clusterHeatmap": "Shows CVE distribution across clusters by severity. Clusters with many critical CVEs should be reviewed first.",
+      "aging": "Shows how long CVEs have been known. Old, unaddressed CVEs represent increased risk and should be prioritized.",
+      "trend": "Shows the overall CVE count trend over the last 30 days. Rising trends indicate a growing need for action.",
+      "cvesPerNamespace": "Shows the top 10 namespaces with the most CVEs, broken down by severity. Helps identify which namespaces need the most attention.",
+      "topVulnerableComponents": "Shows the 10 components with the most CVEs, split into fixable and unfixable. Updating these components can resolve many CVEs at once."
     }
   },
   "cves": {

@@ -1,12 +1,14 @@
 import {
   Alert,
   Badge,
+  Button,
   Card,
   CardBody,
   CardTitle,
   Grid,
   GridItem,
   PageSection,
+  Popover,
   Spinner,
   Title,
 } from "@patternfly/react-core";
@@ -37,8 +39,52 @@ import { SeverityDonut } from "../components/charts/SeverityDonut";
 import { TrendLine } from "../components/charts/TrendLine";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
+import { OutlinedQuestionCircleIcon } from "@patternfly/react-icons";
 
 // Severity labels are resolved inside the component via t() calls
+
+function ChartCardTitle({
+  title,
+  helpKey,
+  children,
+}: {
+  title: string;
+  helpKey: string;
+  children?: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  return (
+    <CardTitle>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {title}
+          <Popover bodyContent={t(helpKey)} position="top">
+            <Button
+              variant="plain"
+              aria-label={t("app.showHelp")}
+              style={{ padding: "2px 4px" }}
+            >
+              <OutlinedQuestionCircleIcon
+                style={{
+                  color: "var(--pf-t--global--text--color--subtle)",
+                  fontSize: 14,
+                }}
+              />
+            </Button>
+          </Popover>
+        </span>
+        {children}
+      </div>
+    </CardTitle>
+  );
+}
 
 function StatCard({
   label,
@@ -108,6 +154,7 @@ export function Dashboard() {
     color:
       "var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))",
   };
+  const chartTooltipWrapperStyle: React.CSSProperties = { zIndex: 10 };
   const severityLabels = [
     t("severity.0"),
     t("severity.1"),
@@ -328,17 +375,11 @@ export function Dashboard() {
           {data.epss_matrix.length > 0 && (
             <GridItem span={isSecTeam ? 8 : 12}>
               <Card>
-                <CardTitle>{t("dashboard.epssMatrix")}</CardTitle>
+                <ChartCardTitle
+                  title={t("dashboard.epssMatrix")}
+                  helpKey="dashboard.help.epssMatrix"
+                />
                 <CardBody>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "var(--pf-v6-global--Color--200)",
-                      marginBottom: 8,
-                    }}
-                  >
-                    {t("dashboard.epssMatrixDescription")}
-                  </p>
                   <EpssRiskMatrix
                     data={data.epss_matrix}
                     onDotClick={(cveId) =>
@@ -353,21 +394,14 @@ export function Dashboard() {
           {isSecTeam && (
             <GridItem span={data.epss_matrix.length > 0 ? 4 : 4}>
               <Card style={{ height: "100%" }}>
-                <CardTitle>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span>{t("dashboard.pipeline")}</span>
-                    <Link to="/risk-acceptances" style={{ fontSize: 12 }}>
-                      {t("dashboard.viewAll")}
-                    </Link>
-                  </div>
-                </CardTitle>
+                <ChartCardTitle
+                  title={t("dashboard.pipeline")}
+                  helpKey="dashboard.help.pipeline"
+                >
+                  <Link to="/risk-acceptances" style={{ fontSize: 12 }}>
+                    {t("dashboard.viewAll")}
+                  </Link>
+                </ChartCardTitle>
                 <CardBody>
                   {(
                     ["requested", "approved", "rejected", "expired"] as const
@@ -418,8 +452,11 @@ export function Dashboard() {
           )}
 
           <GridItem span={6}>
-            <Card style={{ height: "100%" }}>
-              <CardTitle>{t("dashboard.severityDistribution")}</CardTitle>
+            <Card style={{ height: "100%", overflow: "visible" }}>
+              <ChartCardTitle
+                title={t("dashboard.severityDistribution")}
+                helpKey="dashboard.help.severityDistribution"
+              />
               <CardBody>
                 <SeverityDonut
                   data={data.severity_distribution}
@@ -435,8 +472,11 @@ export function Dashboard() {
           {(data.fixability_breakdown.fixable > 0 ||
             data.fixability_breakdown.unfixable > 0) && (
             <GridItem span={6}>
-              <Card style={{ height: "100%" }}>
-                <CardTitle>{t("dashboard.fixabilityBreakdown")}</CardTitle>
+              <Card style={{ height: "100%", overflow: "visible" }}>
+                <ChartCardTitle
+                  title={t("dashboard.fixabilityBreakdown")}
+                  helpKey="dashboard.help.fixabilityBreakdown"
+                />
                 <CardBody>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
@@ -465,7 +505,7 @@ export function Dashboard() {
                         <Cell fill="#1e8f19" />
                         <Cell fill="#c9190b" />
                       </Pie>
-                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Tooltip contentStyle={chartTooltipStyle} wrapperStyle={chartTooltipWrapperStyle} />
                       <Legend
                         wrapperStyle={{ color: "inherit" }}
                       />
@@ -479,8 +519,11 @@ export function Dashboard() {
           {/* Fixable Trend (Stacked Area) */}
           {data.fixable_trend.length > 0 && (
             <GridItem span={12}>
-              <Card>
-                <CardTitle>{t("dashboard.fixableTrend")}</CardTitle>
+              <Card style={{ overflow: "visible" }}>
+                <ChartCardTitle
+                  title={t("dashboard.fixableTrend")}
+                  helpKey="dashboard.help.fixableTrend"
+                />
                 <CardBody>
                   <ResponsiveContainer width="100%" height={220}>
                     <AreaChart
@@ -490,7 +533,7 @@ export function Dashboard() {
                       <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
                       <XAxis dataKey="date" tick={{ fontSize: 10, fill: chartTickFill }} />
                       <YAxis tick={{ fontSize: 10, fill: chartTickFill }} allowDecimals={false} />
-                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Tooltip contentStyle={chartTooltipStyle} wrapperStyle={chartTooltipWrapperStyle} />
                       <Legend wrapperStyle={{ color: "inherit" }} />
                       <Area
                         type="monotone"
@@ -521,7 +564,10 @@ export function Dashboard() {
           {data.cluster_heatmap.length > 0 && (
             <GridItem span={12}>
               <Card>
-                <CardTitle>{t("dashboard.clusterHeatmap")}</CardTitle>
+                <ChartCardTitle
+                  title={t("dashboard.clusterHeatmap")}
+                  helpKey="dashboard.help.clusterHeatmap"
+                />
                 <CardBody>
                   <div style={{ overflowX: "auto" }}>
                     <table
@@ -660,8 +706,11 @@ export function Dashboard() {
               }));
               return (
                 <GridItem span={6}>
-                  <Card>
-                    <CardTitle>{t("dashboard.aging")}</CardTitle>
+                  <Card style={{ overflow: "visible" }}>
+                    <ChartCardTitle
+                      title={t("dashboard.aging")}
+                      helpKey="dashboard.help.aging"
+                    />
                     <CardBody>
                       <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={agingData}>
@@ -671,11 +720,12 @@ export function Dashboard() {
                             tick={{ fontSize: 10, fill: chartTickFill }}
                           />
                           <YAxis tick={{ fontSize: 10, fill: chartTickFill }} />
-                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Tooltip contentStyle={chartTooltipStyle} wrapperStyle={chartTooltipWrapperStyle} />
                           <Bar
                             dataKey="count"
                             name="CVEs"
                             fill="#0066cc"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) => {
                               const range =
@@ -713,7 +763,10 @@ export function Dashboard() {
             span={data.aging_distribution.some((b) => b.count > 0) ? 6 : 12}
           >
             <Card>
-              <CardTitle>{t("dashboard.trend")}</CardTitle>
+              <ChartCardTitle
+                title={t("dashboard.trend")}
+                helpKey="dashboard.help.trend"
+              />
               <CardBody>
                 <TrendLine data={data.cve_trend} />
               </CardBody>
@@ -728,8 +781,11 @@ export function Dashboard() {
               const barHeight = hasMultiCluster ? 48 : 40;
               return (
                 <GridItem span={12}>
-                  <Card>
-                    <CardTitle>{t("dashboard.cvesPerNamespace")}</CardTitle>
+                  <Card style={{ overflow: "visible" }}>
+                    <ChartCardTitle
+                      title={t("dashboard.cvesPerNamespace")}
+                      helpKey="dashboard.help.cvesPerNamespace"
+                    />
                     <CardBody>
                       <ResponsiveContainer
                         width="100%"
@@ -792,13 +848,14 @@ export function Dashboard() {
                               );
                             }}
                           />
-                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Tooltip contentStyle={chartTooltipStyle} wrapperStyle={chartTooltipWrapperStyle} />
                           <Legend wrapperStyle={{ color: "inherit" }} />
                           <Bar
                             dataKey="critical"
                             name={t("severity.4")}
                             stackId="sev"
                             fill="#a30000"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
@@ -811,6 +868,7 @@ export function Dashboard() {
                             name={t("severity.3")}
                             stackId="sev"
                             fill="#c9190b"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
@@ -823,6 +881,7 @@ export function Dashboard() {
                             name={t("severity.2")}
                             stackId="sev"
                             fill="#ec7a08"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
@@ -835,6 +894,7 @@ export function Dashboard() {
                             name={t("severity.1")}
                             stackId="sev"
                             fill="#2b9af3"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
@@ -847,6 +907,7 @@ export function Dashboard() {
                             name={t("severity.0")}
                             stackId="sev"
                             fill="#d2d2d2"
+                            isAnimationActive={false}
                             style={{ cursor: "pointer" }}
                             onClick={(entry) =>
                               navigate(
@@ -865,8 +926,11 @@ export function Dashboard() {
           {/* Top Vulnerable Components — stacked by fixability */}
           {data.top_vulnerable_components.length > 0 && (
             <GridItem span={12}>
-              <Card>
-                <CardTitle>{t("dashboard.topVulnerableComponents")}</CardTitle>
+              <Card style={{ overflow: "visible" }}>
+                <ChartCardTitle
+                  title={t("dashboard.topVulnerableComponents")}
+                  helpKey="dashboard.help.topVulnerableComponents"
+                />
                 <CardBody>
                   <ResponsiveContainer
                     width="100%"
@@ -890,13 +954,14 @@ export function Dashboard() {
                         width={200}
                         interval={0}
                       />
-                      <Tooltip contentStyle={chartTooltipStyle} />
+                      <Tooltip contentStyle={chartTooltipStyle} wrapperStyle={chartTooltipWrapperStyle} />
                       <Legend wrapperStyle={{ color: "inherit" }} />
                       <Bar
                         dataKey="fixable_count"
                         name={t("dashboard.fixable")}
                         stackId="fix"
                         fill="#1e8f19"
+                        isAnimationActive={false}
                         style={{ cursor: "pointer" }}
                         onClick={(entry) =>
                           navigate(
@@ -909,6 +974,7 @@ export function Dashboard() {
                         name={t("dashboard.unfixable")}
                         stackId="fix"
                         fill="#c9190b"
+                        isAnimationActive={false}
                         style={{ cursor: "pointer" }}
                         onClick={(entry) =>
                           navigate(

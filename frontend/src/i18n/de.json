@@ -130,6 +130,18 @@
       "31-90": "31-90 Tage",
       "91-180": "91-180 Tage",
       "180+": ">180 Tage"
+    },
+    "help": {
+      "epssMatrix": "Die EPSS-Risikomatrix zeigt jede CVE als Punkt, positioniert nach CVSS-Schweregrad (Y-Achse) und EPSS-Ausnutzungswahrscheinlichkeit (X-Achse). CVEs oben rechts haben sowohl hohen Schweregrad als auch hohe Ausnutzungswahrscheinlichkeit und sollten zuerst bearbeitet werden.",
+      "pipeline": "Zeigt die aktuelle Verteilung aller Risikoakzeptanzen nach Status. So erkennen Sie auf einen Blick, wie viele Anträge offen, genehmigt, abgelehnt oder abgelaufen sind.",
+      "severityDistribution": "Zeigt die Verteilung Ihrer sichtbaren CVEs nach Schweregrad. Klicken Sie auf ein Segment, um die entsprechenden CVEs gefiltert anzuzeigen.",
+      "fixabilityBreakdown": "Zeigt, wie viele Ihrer CVEs durch ein Update behoben werden können und wie viele derzeit keinen Fix haben. Hilft bei der Priorisierung von Update-Maßnahmen.",
+      "fixableTrend": "Zeigt die Entwicklung von behebbaren und nicht behebbaren CVEs über die letzten 30 Tage. Steigende Trends bei nicht behebbaren CVEs erfordern besondere Aufmerksamkeit.",
+      "clusterHeatmap": "Zeigt die Verteilung von CVEs nach Cluster und Schweregrad. Cluster mit vielen kritischen CVEs sollten zuerst überprüft werden.",
+      "aging": "Zeigt, wie lange CVEs bereits bekannt sind. Alte, unbehandelte CVEs stellen ein erhöhtes Risiko dar und sollten priorisiert werden.",
+      "trend": "Zeigt die Gesamtentwicklung der CVE-Anzahl über die letzten 30 Tage. Steigende Trends deuten auf wachsenden Handlungsbedarf hin.",
+      "cvesPerNamespace": "Zeigt die Top 10 Namespaces mit den meisten CVEs, aufgeschlüsselt nach Schweregrad. Hilft zu erkennen, welche Namespaces die meiste Aufmerksamkeit benötigen.",
+      "topVulnerableComponents": "Zeigt die 10 Komponenten mit den meisten CVEs, aufgeteilt in behebbar und nicht behebbar. Ein Update dieser Komponenten kann viele CVEs auf einmal beheben."
     }
   },
   "cves": {
