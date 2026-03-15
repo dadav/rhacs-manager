@@ -87,7 +87,7 @@ just lint
 # Hub prerequisite: copy StackRox central DB password secret into rhacs-manager namespace
 oc get secret central-db-password -n stackrox -o json \
   | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
-  | kubectl apply -n rhacs-manager -f -
+  | oc apply -n rhacs-manager -f -
 
 # Hub
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
@@ -101,8 +101,8 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
   --set spoke.oauthProxy.cookieSecret='<base64-32-byte-secret>'
 
 # Plain YAML (without Helm on cluster)
-just render-hub | kubectl apply -f -
-just render-spoke | kubectl apply -f -
+just render-hub | oc apply -f -
+just render-spoke | oc apply -f -
 ```
 
 ## Project Structure
