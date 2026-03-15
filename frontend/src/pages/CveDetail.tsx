@@ -594,7 +594,7 @@ export function CveDetail() {
                         )
                       </p>
                       <div
-                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        style={{ display: "flex", flexDirection: "column", gap: 8 }}
                       >
                         {cve.risk_acceptance_id && (
                           <Button

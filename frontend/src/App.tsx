@@ -18,7 +18,7 @@ import {
   Tooltip,
   Button,
 } from "@patternfly/react-core";
-import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, SunIcon } from "@patternfly/react-icons";
+import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SunIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
@@ -67,6 +67,7 @@ export function App() {
   const { scopeSearchString } = useScope();
   const { t, i18n } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("pf-theme") === "dark",
   );
@@ -209,6 +210,16 @@ export function App() {
           >
             {isDark ? <SunIcon /> : <MoonIcon />}
           </Button>
+          <Tooltip content={t("app.showHelp")} position="bottom">
+            <Button
+              variant="plain"
+              aria-label={t("app.showHelp")}
+              onClick={() => setShowOnboarding(true)}
+              style={{ color: "#e0e0e0" }}
+            >
+              <OutlinedQuestionCircleIcon />
+            </Button>
+          </Tooltip>
           <NotificationBell />
         </div>
       </MastheadContent>
@@ -275,7 +286,12 @@ export function App() {
 
   return (
     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
-      <OnboardingModal isOpen={!user.onboarding_completed} />
+      <OnboardingModal isOpen={!user.onboarding_completed} isFirstTime />
+      <OnboardingModal
+        isOpen={showOnboarding}
+        isFirstTime={false}
+        onClose={() => setShowOnboarding(false)}
+      />
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
