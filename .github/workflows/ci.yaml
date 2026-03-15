@@ -79,7 +79,7 @@ jobs:
           echo "Total HIGH/CRITICAL vulnerabilities: ${total_high_critical}"
       - name: Upload Trivy JSON report
         if: ${{ hashFiles('trivy-report.json') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: trivy-report-${{ matrix.name }}
           path: trivy-report.json
