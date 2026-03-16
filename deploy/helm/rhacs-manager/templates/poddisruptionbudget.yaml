@@ -1,0 +1,33 @@
+{{- $isHub := eq (default "hub" .Values.mode) "hub" -}}
+{{- $isSpoke := eq (default "hub" .Values.mode) "spoke" -}}
+{{- if and $isHub .Values.backend.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.backend.deploymentName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.backend.deploymentName }}
+{{- end }}
+---
+{{- $feEnabled := or (and $isHub .Values.frontend.enabled) $isSpoke -}}
+{{- $feDeploymentName := ternary .Values.frontend.deploymentName .Values.spoke.frontend.deploymentName $isHub -}}
+{{- if $feEnabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $feDeploymentName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: {{ $feDeploymentName }}
+{{- end }}

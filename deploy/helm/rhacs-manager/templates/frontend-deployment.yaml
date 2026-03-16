@@ -14,6 +14,7 @@
 {{- $nodeSelector := ternary .Values.frontend.nodeSelector .Values.spoke.frontend.nodeSelector $isHub -}}
 {{- $tolerations := ternary .Values.frontend.tolerations .Values.spoke.frontend.tolerations $isHub -}}
 {{- $affinity := ternary .Values.frontend.affinity .Values.spoke.frontend.affinity $isHub -}}
+{{- $topologySpreadConstraints := ternary .Values.frontend.topologySpreadConstraints .Values.spoke.frontend.topologySpreadConstraints $isHub -}}
 {{- $cookieSecretMsg := ternary "frontend.oauthProxy.cookieSecret is required" "spoke.oauthProxy.cookieSecret is required in spoke mode" $isHub -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -42,6 +43,7 @@ spec:
       "nodeSelector" $nodeSelector
       "tolerations" $tolerations
       "affinity" $affinity
+      "topologySpreadConstraints" $topologySpreadConstraints
       "chart" .Chart
     -}}
     {{- include "rhacs-manager.frontendPodSpec" $args | nindent 4 }}

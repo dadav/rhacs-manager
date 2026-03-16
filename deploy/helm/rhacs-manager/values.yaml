@@ -14,7 +14,7 @@ database:
   cnpg:
     enabled: true
     clusterName: rhacs-manager-db
-    instances: 1
+    instances: 2
     database: rhacs_manager
     owner: rhacs_manager
     storage:
@@ -40,7 +40,7 @@ backend:
   deploymentName: rhacs-manager-backend
   serviceName: rhacs-manager-backend
   serviceAccountName: rhacs-manager-backend
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ghcr.io/dadav/rhacs-manager-backend
     # Defaults to Chart.appVersion if not set
@@ -56,6 +56,13 @@ backend:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: rhacs-manager-backend
   service:
     port: 8000
     targetPort: 8000
@@ -130,7 +137,7 @@ frontend:
   enabled: true
   deploymentName: rhacs-manager-frontend
   serviceName: rhacs-manager-frontend
-  replicaCount: 1
+  replicaCount: 2
   # Spoke frontend image (nginx with envsubst + API proxy)
   image:
     repository: ghcr.io/dadav/rhacs-manager-spoke
@@ -147,6 +154,13 @@ frontend:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app: rhacs-manager-frontend
   resources:
     requests:
       cpu: 50m
@@ -312,7 +326,7 @@ spoke:
   frontend:
     deploymentName: rhacs-manager-frontend
     serviceName: rhacs-manager-frontend
-    replicaCount: 1
+    replicaCount: 2
     image:
       repository: ghcr.io/dadav/rhacs-manager-spoke
       # Defaults to Chart.appVersion if not set
@@ -328,6 +342,13 @@ spoke:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: rhacs-manager-frontend
     resources:
       requests:
         cpu: 50m

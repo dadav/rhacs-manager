@@ -242,7 +242,7 @@
           "type": "object"
         },
         "replicaCount": {
-          "default": 1,
+          "default": 2,
           "title": "replicaCount",
           "type": "integer"
         },
@@ -576,6 +576,67 @@
           },
           "title": "tolerations",
           "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "labelSelector": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "matchLabels": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "app": {
+                            "default": "rhacs-manager-backend",
+                            "title": "app",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "app"
+                        ],
+                        "title": "matchLabels",
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "matchLabels"
+                    ],
+                    "title": "labelSelector",
+                    "type": "object"
+                  },
+                  "maxSkew": {
+                    "default": 1,
+                    "title": "maxSkew",
+                    "type": "integer"
+                  },
+                  "topologyKey": {
+                    "default": "kubernetes.io/hostname",
+                    "title": "topologyKey",
+                    "type": "string"
+                  },
+                  "whenUnsatisfiable": {
+                    "default": "ScheduleAnyway",
+                    "title": "whenUnsatisfiable",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "maxSkew",
+                  "topologyKey",
+                  "whenUnsatisfiable",
+                  "labelSelector"
+                ],
+                "type": "object"
+              }
+            ],
+            "required": []
+          },
+          "title": "topologySpreadConstraints",
+          "type": "array"
         }
       },
       "required": [
@@ -591,6 +652,7 @@
         "nodeSelector",
         "tolerations",
         "affinity",
+        "topologySpreadConstraints",
         "service",
         "secret",
         "env",
@@ -624,7 +686,7 @@
               "type": "boolean"
             },
             "instances": {
-              "default": 1,
+              "default": 2,
               "title": "instances",
               "type": "integer"
             },
@@ -1174,7 +1236,7 @@
           "type": "object"
         },
         "replicaCount": {
-          "default": 1,
+          "default": 2,
           "title": "replicaCount",
           "type": "integer"
         },
@@ -1373,6 +1435,67 @@
           },
           "title": "tolerations",
           "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "labelSelector": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "matchLabels": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "app": {
+                            "default": "rhacs-manager-frontend",
+                            "title": "app",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "app"
+                        ],
+                        "title": "matchLabels",
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "matchLabels"
+                    ],
+                    "title": "labelSelector",
+                    "type": "object"
+                  },
+                  "maxSkew": {
+                    "default": 1,
+                    "title": "maxSkew",
+                    "type": "integer"
+                  },
+                  "topologyKey": {
+                    "default": "kubernetes.io/hostname",
+                    "title": "topologyKey",
+                    "type": "string"
+                  },
+                  "whenUnsatisfiable": {
+                    "default": "ScheduleAnyway",
+                    "title": "whenUnsatisfiable",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "maxSkew",
+                  "topologyKey",
+                  "whenUnsatisfiable",
+                  "labelSelector"
+                ],
+                "type": "object"
+              }
+            ],
+            "required": []
+          },
+          "title": "topologySpreadConstraints",
+          "type": "array"
         }
       },
       "required": [
@@ -1387,6 +1510,7 @@
         "nodeSelector",
         "tolerations",
         "affinity",
+        "topologySpreadConstraints",
         "resources",
         "readinessProbe",
         "secret",
@@ -1973,7 +2097,7 @@
               "type": "object"
             },
             "replicaCount": {
-              "default": 1,
+              "default": 2,
               "title": "replicaCount",
               "type": "integer"
             },
@@ -2079,6 +2203,67 @@
               },
               "title": "tolerations",
               "type": "array"
+            },
+            "topologySpreadConstraints": {
+              "items": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "labelSelector": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "matchLabels": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "app": {
+                                "default": "rhacs-manager-frontend",
+                                "title": "app",
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "app"
+                            ],
+                            "title": "matchLabels",
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "matchLabels"
+                        ],
+                        "title": "labelSelector",
+                        "type": "object"
+                      },
+                      "maxSkew": {
+                        "default": 1,
+                        "title": "maxSkew",
+                        "type": "integer"
+                      },
+                      "topologyKey": {
+                        "default": "kubernetes.io/hostname",
+                        "title": "topologyKey",
+                        "type": "string"
+                      },
+                      "whenUnsatisfiable": {
+                        "default": "ScheduleAnyway",
+                        "title": "whenUnsatisfiable",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "maxSkew",
+                      "topologyKey",
+                      "whenUnsatisfiable",
+                      "labelSelector"
+                    ],
+                    "type": "object"
+                  }
+                ],
+                "required": []
+              },
+              "title": "topologySpreadConstraints",
+              "type": "array"
             }
           },
           "required": [
@@ -2092,6 +2277,7 @@
             "nodeSelector",
             "tolerations",
             "affinity",
+            "topologySpreadConstraints",
             "resources",
             "readinessProbe"
           ],

@@ -189,6 +189,10 @@ spec:
   affinity:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .topologySpreadConstraints }}
+  topologySpreadConstraints:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   volumes:
     - name: proxy-tls
       secret:
