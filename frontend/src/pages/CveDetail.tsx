@@ -144,15 +144,13 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     });
   }
 
-  const fixed = steps.slice(0, 2);
-  const sortable = steps.slice(2);
+  const fixed = steps.slice(0, 5); // published, discovered, esc-1, esc-2, esc-3
+  const sortable = steps.slice(5);
   sortable.sort((a, b) => {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
     if (!b.date) return -1;
-    const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
-    if (diff !== 0) return diff;
-    return sortable.indexOf(a) - sortable.indexOf(b);
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
   });
   const sorted = [...fixed, ...sortable];
 
