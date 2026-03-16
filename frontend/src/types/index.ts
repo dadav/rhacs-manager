@@ -270,7 +270,10 @@ export interface NamespaceCveCount {
 
 export interface CveTrendPoint {
   date: string
-  count: number
+  critical: number
+  important: number
+  moderate: number
+  low: number
 }
 
 export interface DashboardData {
@@ -291,6 +294,7 @@ export interface DashboardData {
   risk_acceptance_pipeline: RiskAcceptancePipeline
   fixability_breakdown: FixabilityCount
   fixable_trend: FixableTrendPoint[]
+  mttr_by_severity: MttrSeverity[]
 }
 
 export interface EpssMatrixPoint {
@@ -312,6 +316,12 @@ export interface ClusterHeatmapRow {
 
 export interface AgingBucket {
   bucket: string
+  count: number
+}
+
+export interface MttrSeverity {
+  severity: Severity
+  avg_days: number
   count: number
 }
 

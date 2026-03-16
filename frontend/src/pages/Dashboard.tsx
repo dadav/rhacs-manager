@@ -689,6 +689,72 @@ export function Dashboard() {
             </GridItem>
           )}
 
+          {/* MTTR by Severity */}
+          {data.mttr_by_severity.some((m) => m.count > 0) &&
+            (() => {
+              const severityColorMap: Record<number, string> = {
+                0: "#8a8d90", // Unknown
+                1: "#2b9af3", // Low
+                2: "#ec7a08", // Moderate
+                3: "#c9190b", // Important
+                4: "#7d1007", // Critical
+              };
+              const formatMttr = (days: number): string => {
+                if (days >= 1) return `${Math.round(days)} ${t("dashboard.mttrDays")}`;
+                const hours = days * 24;
+                if (hours >= 1) return `${hours.toFixed(1)} h`;
+                return `${(hours * 60).toFixed(0)} min`;
+              };
+              const mttrData = data.mttr_by_severity.map((m) => ({
+                ...m,
+                label: severityLabels[m.severity] || severityLabels[0],
+                fill: severityColorMap[m.severity] || severityColorMap[0],
+              }));
+              return (
+                <GridItem span={6}>
+                  <Card style={{ overflow: "visible" }}>
+                    <ChartCardTitle
+                      title={t("dashboard.mttr")}
+                      helpKey="dashboard.help.mttr"
+                    />
+                    <CardBody>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <BarChart data={mttrData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 10, fill: chartTickFill }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10, fill: chartTickFill }}
+                            label={{
+                              value: t("dashboard.mttrDays"),
+                              angle: -90,
+                              position: "insideLeft",
+                              style: { fontSize: 11, fill: chartTickFill },
+                            }}
+                          />
+                          <Tooltip
+                            contentStyle={chartTooltipStyle}
+                            wrapperStyle={chartTooltipWrapperStyle}
+                            formatter={(value, _name, props) => [
+                              `${formatMttr(value as number)} (${(props.payload as { count: number }).count} ${t("dashboard.mttrCount")})`,
+                              (props.payload as { label: string }).label,
+                            ]}
+                          />
+                          <Bar dataKey="avg_days" isAnimationActive={false} minPointSize={3}>
+                            {mttrData.map((entry, i) => (
+                              <Cell key={i} fill={entry.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardBody>
+                  </Card>
+                </GridItem>
+              );
+            })()}
+
           {/* CVE Aging Distribution */}
           {data.aging_distribution.some((b) => b.count > 0) &&
             (() => {
@@ -759,9 +825,7 @@ export function Dashboard() {
               );
             })()}
 
-          <GridItem
-            span={data.aging_distribution.some((b) => b.count > 0) ? 6 : 12}
-          >
+          <GridItem span={12}>
             <Card>
               <ChartCardTitle
                 title={t("dashboard.trend")}

@@ -371,12 +371,12 @@ async def get_cves_by_namespace_detail(
 async def get_cve_trend(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,
-    days: int = 30,
+    days: int = 90,
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
 ) -> list[dict]:
-    """CVE first-seen trend per day over the last N days."""
+    """CVE first-seen trend per day over the last N days, broken down by severity."""
     since = datetime.utcnow() - timedelta(days=days)
 
     if namespaces is not None and len(namespaces) == 0:
@@ -395,7 +395,8 @@ async def get_cve_trend(
         WITH visible_cves AS (
             SELECT
                 ic.cvebaseinfo_cve AS cve_id,
-                MIN(ic.firstimageoccurrence) AS first_seen
+                MIN(ic.firstimageoccurrence) AS first_seen,
+                MAX(ic.severity) AS severity
             FROM deployments d
             JOIN deployments_containers dc ON dc.deployments_id = d.id
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
@@ -410,7 +411,12 @@ async def get_cve_trend(
                 OR ic.cvebaseinfo_cve = ANY(:always_show)
             )
         )
-        SELECT DATE(first_seen) AS date, COUNT(*) AS count
+        SELECT
+            DATE(first_seen) AS date,
+            COUNT(*) FILTER (WHERE severity = 4) AS critical,
+            COUNT(*) FILTER (WHERE severity = 3) AS important,
+            COUNT(*) FILTER (WHERE severity = 2) AS moderate,
+            COUNT(*) FILTER (WHERE severity = 1) AS low
         FROM visible_cves
         GROUP BY DATE(first_seen)
         ORDER BY date
@@ -424,7 +430,16 @@ async def get_cve_trend(
             "always_show": always_show,
         },
     )
-    return [{"date": str(row.date), "count": row.count} for row in result]
+    return [
+        {
+            "date": str(row.date),
+            "critical": row.critical,
+            "important": row.important,
+            "moderate": row.moderate,
+            "low": row.low,
+        }
+        for row in result
+    ]
 
 
 async def get_epss_risk_matrix(

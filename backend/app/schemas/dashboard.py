@@ -21,7 +21,10 @@ class NamespaceCveCount(BaseModel):
 
 class CveTrendPoint(BaseModel):
     date: str  # YYYY-MM-DD
-    count: int
+    critical: int = 0
+    important: int = 0
+    moderate: int = 0
+    low: int = 0
 
 
 class EpssMatrixPoint(BaseModel):
@@ -43,6 +46,12 @@ class ClusterHeatmapRow(BaseModel):
 
 class AgingBucket(BaseModel):
     bucket: str  # "0-7 Tage", "8-30 Tage", etc.
+    count: int
+
+
+class MttrSeverity(BaseModel):
+    severity: SeverityLevel
+    avg_days: float
     count: int
 
 
@@ -95,3 +104,4 @@ class DashboardData(BaseModel):
     risk_acceptance_pipeline: RiskAcceptancePipeline
     fixability_breakdown: FixabilityCount
     fixable_trend: list[FixableTrendPoint]
+    mttr_by_severity: list[MttrSeverity]

@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -11,6 +11,7 @@ from ..deps import get_app_db, get_stackrox_db
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
+from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ._scope import narrow_namespaces
 from ..schemas.dashboard import (
@@ -21,6 +22,7 @@ from ..schemas.dashboard import (
     EpssMatrixPoint,
     FixabilityCount,
     FixableTrendPoint,
+    MttrSeverity,
     NamespaceCveCount,
     RiskAcceptancePipeline,
     SeverityCount,
@@ -74,98 +76,154 @@ def _enrich_cves(
 
 # -- Helpers that open their own StackRox session for parallel execution --
 
+
 async def _sx_severity_distribution(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_severity_distribution(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_cves_per_namespace(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_cves_per_namespace(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_cve_trend(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_cve_trend(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_epss_risk_matrix(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_epss_risk_matrix(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_cluster_heatmap(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_cluster_heatmap(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_cve_aging(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_cve_aging(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_top_vulnerable_components(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_top_vulnerable_components(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_fixability_breakdown(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> dict:
     async with StackRoxSessionLocal() as db:
         return await sx.get_fixability_breakdown(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _sx_fixable_trend(
     ns: list[tuple[str, str]] | None,
-    min_cvss: float, min_epss: float, always_show: set[str],
+    min_cvss: float,
+    min_epss: float,
+    always_show: set[str],
 ) -> list[dict]:
     async with StackRoxSessionLocal() as db:
         return await sx.get_fixable_trend(
-            db, ns, min_cvss=min_cvss, min_epss=min_epss, always_show_cve_ids=always_show,
+            db,
+            ns,
+            min_cvss=min_cvss,
+            min_epss=min_epss,
+            always_show_cve_ids=always_show,
         )
 
 
 async def _upcoming_escalations(
-    namespaces: list[tuple[str, str]], settings: GlobalSettings | None,
+    namespaces: list[tuple[str, str]],
+    settings: GlobalSettings | None,
 ) -> list:
     if not settings:
         return []
@@ -184,6 +242,84 @@ async def _ra_pipeline() -> RiskAcceptancePipeline:
             )
             counts[st] = result.scalar() or 0
         return RiskAcceptancePipeline(**counts)
+
+
+async def _mttr_by_severity(
+    ns_list: list[tuple[str, str]] | None,
+) -> list[MttrSeverity]:
+    """Compute mean time to remediate grouped by CVE severity.
+
+    MTTR = resolved_at - first_seen (firstimageoccurrence from StackRox).
+    This measures the full exposure window from when the CVE first appeared
+    until remediation was completed.
+    """
+    from collections import defaultdict
+
+    # Step 1: get resolved remediations (cve_id -> list of resolved_at timestamps)
+    async with AppSessionLocal() as app_db:
+        q = select(
+            Remediation.cve_id,
+            Remediation.resolved_at,
+        ).where(Remediation.resolved_at.isnot(None))
+
+        if ns_list is not None and len(ns_list) > 0:
+            from sqlalchemy import tuple_
+
+            q = q.where(
+                tuple_(Remediation.namespace, Remediation.cluster_name).in_(ns_list)
+            )
+
+        result = await app_db.execute(q)
+        rows = result.all()
+
+    if not rows:
+        return []
+
+    cve_ids = list({r.cve_id for r in rows})
+
+    # Step 2: get severity and first_seen for those CVE IDs from StackRox
+    async with StackRoxSessionLocal() as sx_db:
+        sx_rows = await sx_db.execute(
+            sa_text(
+                "SELECT ic.cvebaseinfo_cve, "
+                "       MAX(ic.severity), "
+                "       MIN(ic.firstimageoccurrence) "
+                "FROM image_cves_v2 ic "
+                "WHERE ic.cvebaseinfo_cve = ANY(:cve_ids) "
+                "GROUP BY ic.cvebaseinfo_cve"
+            ),
+            {"cve_ids": cve_ids},
+        )
+        cve_info = {
+            row[0]: (row[1], row[2]) for row in sx_rows.all()
+        }  # cve_id -> (severity, first_seen)
+
+    # Step 3: compute per-remediation MTTR using first_seen, aggregate by severity
+    sev_totals: dict[int, list[float]] = defaultdict(list)
+    sev_counts: dict[int, int] = defaultdict(int)
+    for r in rows:
+        info = cve_info.get(r.cve_id)
+        if not info or info[1] is None:
+            continue
+        sev, first_seen = info
+        delta_days = (r.resolved_at - first_seen).total_seconds() / 86400.0
+        if delta_days < 0:
+            continue
+        sev_totals[sev].append(delta_days)
+        sev_counts[sev] += 1
+
+    result_list = []
+    for sev in sorted(sev_totals.keys()):
+        days_list = sev_totals[sev]
+        avg = sum(days_list) / len(days_list)
+        result_list.append(
+            MttrSeverity(
+                severity=SeverityLevel(sev),
+                avg_days=round(avg, 4),
+                count=sev_counts[sev],
+            )
+        )
+    return result_list
 
 
 @router.get("", response_model=DashboardData)
@@ -209,7 +345,9 @@ async def dashboard(
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             namespaces: list[tuple[str, str]] = narrow_namespaces(
-                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+                [(r["namespace"], r["cluster_name"]) for r in all_ns],
+                cluster,
+                namespace,
             )
         else:
             namespaces = []  # empty = all for sec team
@@ -221,13 +359,21 @@ async def dashboard(
                 stat_upcoming_escalations=0,
                 stat_fixable_critical_cves=0,
                 stat_open_risk_acceptances=0,
-                severity_distribution=[], cves_per_namespace=[], priority_cves=[],
-                high_epss_cves=[], cve_trend=[],
-                epss_matrix=[], cluster_heatmap=[], aging_distribution=[],
+                severity_distribution=[],
+                cves_per_namespace=[],
+                priority_cves=[],
+                high_epss_cves=[],
+                cve_trend=[],
+                epss_matrix=[],
+                cluster_heatmap=[],
+                aging_distribution=[],
                 top_vulnerable_components=[],
-                risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
+                risk_acceptance_pipeline=RiskAcceptancePipeline(
+                    requested=0, approved=0, rejected=0, expired=0
+                ),
                 fixability_breakdown=FixabilityCount(fixable=0, unfixable=0),
                 fixable_trend=[],
+                mttr_by_severity=[],
             )
         namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
 
@@ -248,7 +394,9 @@ async def dashboard(
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
         ns_list_for_queries = None
     else:
-        cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
+        cves = await sx.get_cves_for_namespaces(
+            sx_db, namespaces, min_cvss, min_epss, always_show
+        )
         ns_list_for_queries = namespaces
 
     enriched = _enrich_cves(cves, priorities, acceptances)
@@ -261,11 +409,11 @@ async def dashboard(
 
     # Escalation count: filter by scope-narrowed namespaces
     if current_user.can_see_all_namespaces and not has_scope:
-        escalations_result = await app_db.execute(
-            select(func.count(Escalation.id))
-        )
+        escalations_result = await app_db.execute(select(func.count(Escalation.id)))
     else:
-        esc_ns = namespaces if has_scope or not current_user.can_see_all_namespaces else []
+        esc_ns = (
+            namespaces if has_scope or not current_user.can_see_all_namespaces else []
+        )
         if esc_ns:
             ns_pairs_esc = [(ns, cl) for ns, cl in esc_ns]
             esc_query = select(func.count(Escalation.id)).where(
@@ -275,9 +423,7 @@ async def dashboard(
                 esc_query = esc_query.where(Escalation.cluster_name == cluster)
             escalations_result = await app_db.execute(esc_query)
         else:
-            escalations_result = await app_db.execute(
-                select(func.count(Escalation.id))
-            )
+            escalations_result = await app_db.execute(select(func.count(Escalation.id)))
     escalations = escalations_result.scalar() or 0
 
     open_ra_result = await app_db.execute(
@@ -288,7 +434,9 @@ async def dashboard(
     open_ra = open_ra_result.scalar() or 0
 
     # Run all chart queries + upcoming escalations + RA pipeline concurrently
-    upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
+    upcoming_ns = (
+        namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
+    )
     (
         sev_dist,
         ns_counts,
@@ -301,6 +449,7 @@ async def dashboard(
         fixable_trend_rows,
         upcoming_escalations,
         risk_acceptance_pipeline,
+        mttr_data,
     ) = await asyncio.gather(
         _sx_severity_distribution(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_cves_per_namespace(ns_list_for_queries, min_cvss, min_epss, always_show),
@@ -308,11 +457,14 @@ async def dashboard(
         _sx_epss_risk_matrix(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show),
+        _sx_top_vulnerable_components(
+            ns_list_for_queries, min_cvss, min_epss, always_show
+        ),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show),
         _upcoming_escalations(upcoming_ns, settings),
         _ra_pipeline(),
+        _mttr_by_severity(ns_list_for_queries),
     )
 
     epss_matrix = [
@@ -325,7 +477,9 @@ async def dashboard(
         for r in matrix_rows
     ]
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
-    aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
+    aging_distribution = [
+        AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows
+    ]
     top_vulnerable_components = [
         ComponentCveCount(
             component_name=r["component_name"],
@@ -340,12 +494,19 @@ async def dashboard(
     # Keep the entry with the highest epss_probability for each unique CVE.
     seen_cve_ids: dict[str, CveListItem] = {}
     for item in enriched:
-        if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
+        if (
+            item.cve_id not in seen_cve_ids
+            or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability
+        ):
             seen_cve_ids[item.cve_id] = item
     unique_items = list(seen_cve_ids.values())
     top_epss = sorted(unique_items, key=lambda x: x.epss_probability, reverse=True)[:5]
     top_priorities = sorted(
-        (item for item in unique_items if item.has_priority and not item.has_risk_acceptance),
+        (
+            item
+            for item in unique_items
+            if item.has_priority and not item.has_risk_acceptance
+        ),
         key=lambda x: (
             x.priority_deadline is None,
             x.priority_deadline or x.first_seen or datetime.max,
@@ -379,7 +540,16 @@ async def dashboard(
         ],
         priority_cves=top_priorities,
         high_epss_cves=top_epss,
-        cve_trend=[CveTrendPoint(date=r["date"], count=r["count"]) for r in trend],
+        cve_trend=[
+            CveTrendPoint(
+                date=r["date"],
+                critical=r.get("critical", 0),
+                important=r.get("important", 0),
+                moderate=r.get("moderate", 0),
+                low=r.get("low", 0),
+            )
+            for r in trend
+        ],
         epss_matrix=epss_matrix,
         cluster_heatmap=cluster_heatmap,
         aging_distribution=aging_distribution,
@@ -387,7 +557,10 @@ async def dashboard(
         risk_acceptance_pipeline=risk_acceptance_pipeline,
         fixability_breakdown=FixabilityCount(**fixability_data),
         fixable_trend=[
-            FixableTrendPoint(date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"])
+            FixableTrendPoint(
+                date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"]
+            )
             for r in fixable_trend_rows
         ],
+        mttr_by_severity=mttr_data,
     )
