@@ -65,7 +65,12 @@ async def ensure_namespace_contact(session) -> NamespaceContact:
     )
     session.add(contact)
     await session.flush()
-    logger.info("Created NamespaceContact for %s/%s -> %s", TEST_NAMESPACE, TEST_CLUSTER, TEST_EMAIL)
+    logger.info(
+        "Created NamespaceContact for %s/%s -> %s",
+        TEST_NAMESPACE,
+        TEST_CLUSTER,
+        TEST_EMAIL,
+    )
     return contact
 
 
@@ -100,9 +105,18 @@ async def main() -> None:
 
         # Sample deployment data for email preview
         sample_deployments = [
-            {"deployment_name": "frontend-app", "image_name": "registry.example.com/frontend:v1.2.3"},
-            {"deployment_name": "backend-api", "image_name": "registry.example.com/backend:v2.0.1"},
-            {"deployment_name": "worker", "image_name": "registry.example.com/worker:latest"},
+            {
+                "deployment_name": "frontend-app",
+                "image_name": "registry.example.com/frontend:v1.2.3",
+            },
+            {
+                "deployment_name": "backend-api",
+                "image_name": "registry.example.com/backend:v2.0.1",
+            },
+            {
+                "deployment_name": "worker",
+                "image_name": "registry.example.com/worker:latest",
+            },
         ]
 
         # Send one escalation email per level (1, 2, 3)
@@ -139,9 +153,41 @@ async def main() -> None:
         digest_stats = {
             "total_cves": 142,
             "critical_cves": 23,
+            "important_cves": 45,
             "fixable_cves": 87,
+            "new_cves_7d": 12,
+            "severity_dist": {4: 23, 3: 45, 2: 60, 1: 14},
+            "top_epss_cves": [
+                {
+                    "cve_id": "CVE-2024-21626",
+                    "severity": 4,
+                    "cvss": 8.6,
+                    "epss_probability": 0.95,
+                    "fixable": True,
+                    "affected_deployments": 12,
+                },
+                {
+                    "cve_id": "CVE-2024-3094",
+                    "severity": 4,
+                    "cvss": 10.0,
+                    "epss_probability": 0.82,
+                    "fixable": False,
+                    "affected_deployments": 3,
+                },
+                {
+                    "cve_id": "CVE-2023-44487",
+                    "severity": 3,
+                    "cvss": 7.5,
+                    "epss_probability": 0.68,
+                    "fixable": True,
+                    "affected_deployments": 27,
+                },
+            ],
             "open_risk_acceptances": 5,
-            "avg_epss": 0.37,
+            "pending_escalations": 3,
+            "remediations_open": 18,
+            "remediations_overdue": 4,
+            "remediations_resolved_7d": 7,
         }
         await mail_svc.send_weekly_digest(
             to_email=MANAGEMENT_EMAIL,
