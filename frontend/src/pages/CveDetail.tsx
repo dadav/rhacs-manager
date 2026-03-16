@@ -793,7 +793,7 @@ export function CveDetail() {
                       </div>
                     </CardBody>
                     <CardBody style={{ padding: 0 }}>
-                      <Table variant="compact" isStickyHeader>
+                      <Table variant="compact" isStickyHeader style={{ tableLayout: "fixed" }}>
                         <Thead>
                           <Tr>
                             <Th width={20}>{t('cves.deploymentName')}</Th>
