@@ -91,6 +91,7 @@ backend:
       DEFAULT_ESCALATION_EMAIL: ""
       SPOKE_API_KEYS: "[]"
       SEC_TEAM_GROUP: "rhacs-sec-team"
+      SCHEDULER_ENABLED: "false"
   env:
     appDbHost: rhacs-manager-db-rw
     appDbSecretName: rhacs-manager-db-app
@@ -105,8 +106,8 @@ backend:
     stackroxDbPasswordKey: password
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 500m
+      memory: 512Mi
     limits:
       cpu: 500m
       memory: 512Mi
@@ -123,6 +124,51 @@ backend:
     periodSeconds: 10
     timeoutSeconds: 3
     failureThreshold: 3
+    successThreshold: 1
+  livenessProbe:
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+# Worker deployment — runs scheduler jobs (single replica only).
+# Shares backend image, secret, and DB config. Do NOT increase replicaCount
+# above 1 — the in-memory scheduler has no leader election and duplicate
+# cron runs will cause duplicate emails and race conditions.
+worker:
+  enabled: true
+  deploymentName: rhacs-manager-worker
+  replicaCount: 1
+  image:
+    repository: ghcr.io/dadav/rhacs-manager-backend
+    # Defaults to Chart.appVersion if not set
+    tag: ""
+    pullPolicy: IfNotPresent
+  podAnnotations: {}
+  podSecurityContext:
+    runAsNonRoot: true
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+  startupProbe:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
     successThreshold: 1
   livenessProbe:
     path: /health
@@ -163,8 +209,8 @@ frontend:
           app: rhacs-manager-frontend
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
+      cpu: 200m
+      memory: 128Mi
     limits:
       cpu: 200m
       memory: 128Mi
@@ -198,8 +244,8 @@ frontend:
     tlsSecretName: rhacs-manager-oauth-proxy-tls
     resources:
       requests:
-        cpu: 10m
-        memory: 32Mi
+        cpu: 100m
+        memory: 64Mi
       limits:
         cpu: 100m
         memory: 64Mi
@@ -224,8 +270,8 @@ frontend:
     clusterRoleBindingName: rhacs-manager-namespace-reader
     resources:
       requests:
-        cpu: 10m
-        memory: 32Mi
+        cpu: 100m
+        memory: 64Mi
       limits:
         cpu: 100m
         memory: 64Mi
@@ -283,8 +329,8 @@ spoke:
     tlsSecretName: rhacs-manager-oauth-proxy-tls
     resources:
       requests:
-        cpu: 10m
-        memory: 32Mi
+        cpu: 100m
+        memory: 64Mi
       limits:
         cpu: 100m
         memory: 64Mi
@@ -310,8 +356,8 @@ spoke:
     clusterRoleBindingName: rhacs-manager-namespace-reader
     resources:
       requests:
-        cpu: 10m
-        memory: 32Mi
+        cpu: 100m
+        memory: 64Mi
       limits:
         cpu: 100m
         memory: 64Mi
@@ -351,8 +397,8 @@ spoke:
             app: rhacs-manager-frontend
     resources:
       requests:
-        cpu: 50m
-        memory: 64Mi
+        cpu: 200m
+        memory: 128Mi
       limits:
         cpu: 200m
         memory: 128Mi

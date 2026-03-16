@@ -29,17 +29,22 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler = setup_scheduler()
-    scheduler.start()
-    logger.info("APScheduler started")
-    try:
-        await run_escalation_check()
-        logger.info("Initial escalation check complete")
-    except Exception:
-        logger.exception("Initial escalation check failed")
+    active_scheduler = None
+    if app_settings.scheduler_enabled:
+        active_scheduler = setup_scheduler()
+        active_scheduler.start()
+        logger.info("APScheduler started")
+        try:
+            await run_escalation_check()
+            logger.info("Initial escalation check complete")
+        except Exception:
+            logger.exception("Initial escalation check failed")
+    else:
+        logger.info("Scheduler disabled (SCHEDULER_ENABLED=false)")
     yield
-    scheduler.shutdown()
-    logger.info("APScheduler stopped")
+    if active_scheduler:
+        active_scheduler.shutdown()
+        logger.info("APScheduler stopped")
 
 
 app = FastAPI(

@@ -274,12 +274,12 @@
               "additionalProperties": false,
               "properties": {
                 "cpu": {
-                  "default": "100m",
+                  "default": "500m",
                   "title": "cpu",
                   "type": "string"
                 },
                 "memory": {
-                  "default": "256Mi",
+                  "default": "512Mi",
                   "title": "memory",
                   "type": "string"
                 }
@@ -365,6 +365,11 @@
                   "title": "MANAGEMENT_EMAIL",
                   "type": "string"
                 },
+                "SCHEDULER_ENABLED": {
+                  "default": "false",
+                  "title": "SCHEDULER_ENABLED",
+                  "type": "string"
+                },
                 "SECRET_KEY": {
                   "default": "change-me-to-a-random-secret",
                   "title": "SECRET_KEY",
@@ -442,7 +447,8 @@
                 "MANAGEMENT_EMAIL",
                 "DEFAULT_ESCALATION_EMAIL",
                 "SPOKE_API_KEYS",
-                "SEC_TEAM_GROUP"
+                "SEC_TEAM_GROUP",
+                "SCHEDULER_ENABLED"
               ],
               "title": "stringData",
               "type": "object"
@@ -883,12 +889,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "cpu": {
-                      "default": "10m",
+                      "default": "100m",
                       "title": "cpu",
                       "type": "string"
                     },
                     "memory": {
-                      "default": "32Mi",
+                      "default": "64Mi",
                       "title": "memory",
                       "type": "string"
                     }
@@ -1082,12 +1088,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "cpu": {
-                      "default": "10m",
+                      "default": "100m",
                       "title": "cpu",
                       "type": "string"
                     },
                     "memory": {
-                      "default": "32Mi",
+                      "default": "64Mi",
                       "title": "memory",
                       "type": "string"
                     }
@@ -1268,12 +1274,12 @@
               "additionalProperties": false,
               "properties": {
                 "cpu": {
-                  "default": "50m",
+                  "default": "200m",
                   "title": "cpu",
                   "type": "string"
                 },
                 "memory": {
-                  "default": "64Mi",
+                  "default": "128Mi",
                   "title": "memory",
                   "type": "string"
                 }
@@ -1901,12 +1907,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "cpu": {
-                      "default": "10m",
+                      "default": "100m",
                       "title": "cpu",
                       "type": "string"
                     },
                     "memory": {
-                      "default": "32Mi",
+                      "default": "64Mi",
                       "title": "memory",
                       "type": "string"
                     }
@@ -2129,12 +2135,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "cpu": {
-                      "default": "50m",
+                      "default": "200m",
                       "title": "cpu",
                       "type": "string"
                     },
                     "memory": {
-                      "default": "64Mi",
+                      "default": "128Mi",
                       "title": "memory",
                       "type": "string"
                     }
@@ -2357,12 +2363,12 @@
                   "additionalProperties": false,
                   "properties": {
                     "cpu": {
-                      "default": "10m",
+                      "default": "100m",
                       "title": "cpu",
                       "type": "string"
                     },
                     "memory": {
-                      "default": "32Mi",
+                      "default": "64Mi",
                       "title": "memory",
                       "type": "string"
                     }
@@ -2596,6 +2602,293 @@
       ],
       "title": "spoke",
       "type": "object"
+    },
+    "worker": {
+      "additionalProperties": false,
+      "description": "Worker deployment — runs scheduler jobs (single replica only).\nShares backend image, secret, and DB config. Do NOT increase replicaCount\nabove 1 — the in-memory scheduler has no leader election and duplicate\ncron runs will cause duplicate emails and race conditions.",
+      "properties": {
+        "affinity": {
+          "additionalProperties": false,
+          "required": [],
+          "title": "affinity",
+          "type": "object"
+        },
+        "deploymentName": {
+          "default": "rhacs-manager-worker",
+          "title": "deploymentName",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "image": {
+          "additionalProperties": false,
+          "properties": {
+            "pullPolicy": {
+              "default": "IfNotPresent",
+              "title": "pullPolicy",
+              "type": "string"
+            },
+            "repository": {
+              "default": "ghcr.io/dadav/rhacs-manager-backend",
+              "title": "repository",
+              "type": "string"
+            },
+            "tag": {
+              "default": "",
+              "description": "Defaults to Chart.appVersion if not set",
+              "title": "tag",
+              "type": "string"
+            }
+          },
+          "required": [
+            "repository",
+            "tag",
+            "pullPolicy"
+          ],
+          "title": "image",
+          "type": "object"
+        },
+        "livenessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "failureThreshold": {
+              "default": 3,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 30,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "path": {
+              "default": "/health",
+              "title": "path",
+              "type": "string"
+            },
+            "periodSeconds": {
+              "default": 30,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 3,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "path",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "livenessProbe",
+          "type": "object"
+        },
+        "nodeSelector": {
+          "additionalProperties": false,
+          "required": [],
+          "title": "nodeSelector",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": false,
+          "required": [],
+          "title": "podAnnotations",
+          "type": "object"
+        },
+        "podSecurityContext": {
+          "additionalProperties": false,
+          "properties": {
+            "runAsNonRoot": {
+              "default": true,
+              "title": "runAsNonRoot",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "runAsNonRoot"
+          ],
+          "title": "podSecurityContext",
+          "type": "object"
+        },
+        "replicaCount": {
+          "default": 1,
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": false,
+          "properties": {
+            "limits": {
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "default": "200m",
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "512Mi",
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "limits",
+              "type": "object"
+            },
+            "requests": {
+              "additionalProperties": false,
+              "properties": {
+                "cpu": {
+                  "default": "200m",
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "512Mi",
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "requests",
+              "type": "object"
+            }
+          },
+          "required": [
+            "requests",
+            "limits"
+          ],
+          "title": "resources",
+          "type": "object"
+        },
+        "securityContext": {
+          "additionalProperties": false,
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": false,
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "drop": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "title": "drop",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "drop"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            }
+          },
+          "required": [
+            "allowPrivilegeEscalation",
+            "capabilities"
+          ],
+          "title": "securityContext",
+          "type": "object"
+        },
+        "startupProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "failureThreshold": {
+              "default": 30,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 5,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "path": {
+              "default": "/health",
+              "title": "path",
+              "type": "string"
+            },
+            "periodSeconds": {
+              "default": 5,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 3,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "path",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "startupProbe",
+          "type": "object"
+        },
+        "tolerations": {
+          "items": {
+            "required": []
+          },
+          "title": "tolerations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "enabled",
+        "deploymentName",
+        "replicaCount",
+        "image",
+        "podAnnotations",
+        "podSecurityContext",
+        "securityContext",
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "resources",
+        "startupProbe",
+        "livenessProbe"
+      ],
+      "title": "worker",
+      "type": "object"
     }
   },
   "required": [
@@ -2607,6 +2900,7 @@
     "global",
     "networkPolicy",
     "backend",
+    "worker",
     "frontend",
     "route",
     "spoke"

@@ -1,0 +1,108 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.backend.enabled .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.worker.deploymentName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.worker.deploymentName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.worker.deploymentName }}
+        {{- include "rhacs-manager.selectorLabels" . | nindent 8 }}
+      {{- with .Values.worker.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.backend.serviceAccountName }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: "{{ .Values.worker.image.repository }}:{{ include "rhacs-manager.imageTag" (dict "tag" .Values.worker.image.tag "chart" .Chart) }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.service.targetPort }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.backend.secret.name }}
+          env:
+            - name: SCHEDULER_ENABLED
+              value: "true"
+            - name: APP_DB_HOST
+              value: {{ .Values.backend.env.appDbHost | quote }}
+            - name: APP_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.appDbSecretName }}
+                  key: {{ .Values.backend.env.appDbUserKey }}
+            - name: APP_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.appDbSecretName }}
+                  key: {{ .Values.backend.env.appDbPasswordKey }}
+            - name: APP_DB_NAME
+              value: {{ .Values.backend.env.appDbName | quote }}
+            - name: STACKROX_DB_HOST
+              value: {{ .Values.backend.env.stackroxDbHost | quote }}
+            - name: STACKROX_DB_PORT
+              value: {{ .Values.backend.env.stackroxDbPort | quote }}
+            - name: STACKROX_DB_USER
+              value: {{ .Values.backend.env.stackroxDbUser | quote }}
+            - name: STACKROX_DB_NAME
+              value: {{ .Values.backend.env.stackroxDbName | quote }}
+            - name: STACKROX_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.env.stackroxDbPasswordSecretName }}
+                  key: {{ .Values.backend.env.stackroxDbPasswordKey }}
+          {{- with .Values.worker.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.worker.startupProbe.path }}
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: {{ .Values.worker.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.worker.startupProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.worker.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.worker.startupProbe.failureThreshold }}
+            successThreshold: {{ .Values.worker.startupProbe.successThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.worker.livenessProbe.path }}
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: {{ .Values.worker.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.worker.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.worker.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.worker.livenessProbe.failureThreshold }}
+            successThreshold: {{ .Values.worker.livenessProbe.successThreshold }}
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

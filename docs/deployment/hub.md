@@ -4,7 +4,8 @@ The hub cluster runs backend + frontend and stores application state.
 
 ## What the Hub Deploys
 
-- Backend (`rhacs-manager-backend`) on port 8000
+- Backend (`rhacs-manager-backend`) on port 8000 — API replicas, no scheduler
+- Worker (`rhacs-manager-worker`) — single-replica deployment running scheduler jobs (escalation checks, digest emails, auto-resolution, etc.)
 - Frontend (`rhacs-manager-frontend`) on port 8080
 - Two routes:
   - `rhacs-manager` (frontend)

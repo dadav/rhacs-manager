@@ -21,7 +21,11 @@ class Settings(BaseSettings):
     def effective_app_db_url(self) -> str:
         if self.app_db_url:
             return self.app_db_url
-        cred = f"{self.app_db_user}:{self.app_db_password}" if self.app_db_password else self.app_db_user
+        cred = (
+            f"{self.app_db_user}:{self.app_db_password}"
+            if self.app_db_password
+            else self.app_db_user
+        )
         return f"postgresql+asyncpg://{cred}@{self.app_db_host}:{self.app_db_port}/{self.app_db_name}"
 
     # StackRox Central database (read-only)
@@ -38,7 +42,11 @@ class Settings(BaseSettings):
     def effective_stackrox_db_url(self) -> str:
         if self.stackrox_db_url:
             return self.stackrox_db_url
-        cred = f"{self.stackrox_db_user}:{self.stackrox_db_password}" if self.stackrox_db_password else self.stackrox_db_user
+        cred = (
+            f"{self.stackrox_db_user}:{self.stackrox_db_password}"
+            if self.stackrox_db_password
+            else self.stackrox_db_user
+        )
         return f"postgresql+asyncpg://{cred}@{self.stackrox_db_host}:{self.stackrox_db_port}/{self.stackrox_db_name}"
 
     # Auth — set dev_mode=true to skip OIDC and use mock user
@@ -48,7 +56,9 @@ class Settings(BaseSettings):
     dev_user_email: str = Field(default="dev@example.com")
     dev_user_role: str = Field(default="sec_team")  # "sec_team" or "team_member"
     dev_user_namespaces: str = Field(default="")  # format: ns1:cluster1,ns2:cluster2
-    dev_namespace_emails: str = Field(default="")  # format: ns1:cluster1=email@example.com,ns2:cluster2=other@example.com
+    dev_namespace_emails: str = Field(
+        default=""
+    )  # format: ns1:cluster1=email@example.com,ns2:cluster2=other@example.com
 
     # OIDC (production)
     oidc_issuer: str = Field(default="")
@@ -65,15 +75,26 @@ class Settings(BaseSettings):
     smtp_validate_certs: bool = Field(default=True)  # TLS certificate validation
 
     # Spoke proxy auth (hub-spoke architecture)
-    spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies
-    sec_team_group: str = Field(default="rhacs-sec-team")  # group granting sec_team role
+    spoke_api_keys: list[str] = Field(
+        default_factory=list
+    )  # allowed API keys from spoke proxies
+    sec_team_group: str = Field(
+        default="rhacs-sec-team"
+    )  # group granting sec_team role
+
+    # Scheduler
+    scheduler_enabled: bool = Field(default=True)
 
     # App
     app_base_url: str = Field(default="http://localhost:5173")
-    badge_base_url: str = Field(default="")  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
+    badge_base_url: str = Field(
+        default=""
+    )  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
     secret_key: str = Field(default="dev-secret-key-change-in-production")
     management_email: str = Field(default="")  # org-wide digest recipient
-    default_escalation_email: str = Field(default="")  # fallback escalation email for unannotated namespaces
+    default_escalation_email: str = Field(
+        default=""
+    )  # fallback escalation email for unannotated namespaces
 
 
 settings = Settings()
