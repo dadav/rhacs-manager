@@ -1,5 +1,5 @@
 # Build stage
-FROM oven/bun:1 AS builder
+FROM oven/bun:1@sha256:b86c67b531d87b4db11470d9b2bd0c519b1976eee6fcd71634e73abfa6230d2e AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN bun run build
 
 # Serve stage — spoke variant with API proxying to hub
-FROM nginxinc/nginx-unprivileged:alpine
+FROM nginxinc/nginx-unprivileged:alpine@sha256:ccbac1a4c20a8b41c5dd1691bd91d63eda3b7989d643a33fd47841838519bfb9
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
       org.opencontainers.image.description="RHACS CVE Manager Frontend (Spoke)" \

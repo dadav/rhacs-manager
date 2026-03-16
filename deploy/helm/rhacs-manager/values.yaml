@@ -44,7 +44,7 @@ backend:
   image:
     repository: ghcr.io/dadav/rhacs-manager-backend
     # Defaults to Chart.appVersion if not set
-    tag: ""
+    tag: "@sha256:fa6709e6b2cc8b55273d3098e943355e5367fd67750e894f810e3b6a0e096970"
     pullPolicy: IfNotPresent
   podAnnotations: {}
   podSecurityContext:
@@ -135,7 +135,7 @@ frontend:
   image:
     repository: ghcr.io/dadav/rhacs-manager-spoke
     # Defaults to Chart.appVersion if not set
-    tag: ""
+    tag: "@sha256:3eb7603840796f0f650e1f105b6733dea1ec0dfa0df5ebae05537902f3a47b9e"
     pullPolicy: IfNotPresent
   podAnnotations: {}
   podSecurityContext:
@@ -194,7 +194,7 @@ frontend:
     image:
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
       # Defaults to Chart.appVersion if not set
-      tag: ""
+      tag: "@sha256:bff081b44c4639d0c7e799f33eeea8350943608681955767d6ed83bccf3896f7"
       pullPolicy: IfNotPresent
     securityContext:
       allowPrivilegeEscalation: false
@@ -280,7 +280,7 @@ spoke:
     image:
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
       # Defaults to Chart.appVersion if not set
-      tag: ""
+      tag: "@sha256:bff081b44c4639d0c7e799f33eeea8350943608681955767d6ed83bccf3896f7"
       pullPolicy: IfNotPresent
     securityContext:
       allowPrivilegeEscalation: false
@@ -316,7 +316,7 @@ spoke:
     image:
       repository: ghcr.io/dadav/rhacs-manager-spoke
       # Defaults to Chart.appVersion if not set
-      tag: ""
+      tag: "@sha256:3eb7603840796f0f650e1f105b6733dea1ec0dfa0df5ebae05537902f3a47b9e"
       pullPolicy: IfNotPresent
     podAnnotations: {}
     podSecurityContext:
