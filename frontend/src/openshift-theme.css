@@ -3,6 +3,15 @@
  * Applied on top of the PF6 base CSS to match the OCP visual style.
  */
 
+/* ── Typography: Red Hat Display for headings ────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&display=swap');
+
+.pf-v6-c-title,
+.pf-v6-c-modal-box__title-text,
+.pf-v6-c-card__title-text {
+  font-family: 'Red Hat Display', 'RedHatDisplay', var(--pf-t--global--font--family--heading), sans-serif;
+}
+
 /* ── Masthead: deep dark header, like OpenShift Console ──────────────── */
 .pf-v6-c-masthead {
   --pf-v6-c-masthead--BackgroundColor: #1b1d21;
@@ -51,15 +60,6 @@
 .pf-v6-c-card {
   --pf-v6-c-card--BoxShadow: 0 1px 4px rgba(0, 0, 0, 0.10);
   border: none;
-}
-
-/* ── Table header rows: light mode gray, dark mode transparent ────────── */
-:root:not(.pf-v6-theme-dark) thead tr {
-  background-color: #f0f0f0 !important;
-}
-
-:root.pf-v6-theme-dark thead tr {
-  background-color: transparent !important;
 }
 
 /* ── Nav section title on dark sidebar ───────────────────────────────── */
@@ -118,4 +118,171 @@
     margin-right: auto;
     width: 100%;
   }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── PatternFly Table enhancements ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+/* Row hover highlight */
+.pf-v6-c-table tbody tr:hover {
+  background-color: var(--pf-t--global--background--color--secondary--hover, rgba(0, 102, 204, 0.06)) !important;
+}
+
+/* Sticky header — extra z-index so it stays above content */
+.pf-v6-c-table.pf-m-sticky-header thead {
+  z-index: 2;
+}
+
+/* Subtle top border on thead for separation */
+.pf-v6-c-table thead th {
+  font-weight: 600;
+}
+
+/* Clickable row cursor */
+.pf-v6-c-table tbody tr.pf-m-clickable {
+  cursor: pointer;
+}
+
+/* Light mode table header background */
+:root:not(.pf-v6-theme-dark) .pf-v6-c-table thead tr {
+  background-color: #f0f0f0;
+}
+
+:root(.pf-v6-theme-dark) .pf-v6-c-table thead tr {
+  background-color: transparent;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Stat card left-border accent ───────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+.stat-card--danger {
+  border-left: 4px solid #c9190b !important;
+}
+
+.stat-card--warning {
+  border-left: 4px solid #ec7a08 !important;
+}
+
+.stat-card--success {
+  border-left: 4px solid #1e8f19 !important;
+}
+
+.stat-card--info {
+  border-left: 4px solid #0066cc !important;
+}
+
+.stat-card--neutral {
+  border-left: 4px solid var(--pf-t--global--border--color--default) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Page / card entrance animations ────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animate page sections on mount */
+.pf-v6-c-page__main-section {
+  animation: fadeSlideIn 0.25s ease-out both;
+}
+
+/* Stagger cards inside grid */
+.pf-v6-l-grid > * {
+  animation: fadeSlideIn 0.3s ease-out both;
+}
+
+.pf-v6-l-grid > *:nth-child(1) { animation-delay: 0.02s; }
+.pf-v6-l-grid > *:nth-child(2) { animation-delay: 0.05s; }
+.pf-v6-l-grid > *:nth-child(3) { animation-delay: 0.08s; }
+.pf-v6-l-grid > *:nth-child(4) { animation-delay: 0.11s; }
+.pf-v6-l-grid > *:nth-child(5) { animation-delay: 0.14s; }
+.pf-v6-l-grid > *:nth-child(6) { animation-delay: 0.17s; }
+.pf-v6-l-grid > *:nth-child(7) { animation-delay: 0.20s; }
+.pf-v6-l-grid > *:nth-child(8) { animation-delay: 0.23s; }
+.pf-v6-l-grid > *:nth-child(n+9) { animation-delay: 0.26s; }
+
+/* Card hover lift effect */
+.pf-v6-c-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.pf-v6-c-card:hover {
+  --pf-v6-c-card--BoxShadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Skeleton loading placeholders ──────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+@keyframes skeletonShimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.skeleton-card {
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--pf-t--global--background--color--secondary--default, #f0f0f0) 0px,
+    var(--pf-t--global--background--color--primary--default, #e8e8e8) 40px,
+    var(--pf-t--global--background--color--secondary--default, #f0f0f0) 80px
+  );
+  background-size: 200px 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-chart {
+  height: 220px;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--pf-t--global--background--color--secondary--default, #f0f0f0) 0px,
+    var(--pf-t--global--background--color--primary--default, #e8e8e8) 40px,
+    var(--pf-t--global--background--color--secondary--default, #f0f0f0) 80px
+  );
+  background-size: 200px 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Priority CVE alert card ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+.priority-alert-card {
+  border-left: 4px solid #ec7a08;
+  background: var(--pf-t--global--background--color--primary--default);
+}
+
+.priority-alert-card .prio-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: rgba(236, 122, 8, 0.2);
+  color: #ec7a08;
+  border: 1px solid rgba(236, 122, 8, 0.5);
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.high-epss-alert-card {
+  border-left: 4px solid #f0ab00;
+  background: var(--pf-t--global--background--color--primary--default);
 }

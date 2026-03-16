@@ -1,15 +1,18 @@
 import {
   Alert,
   Button,
+  EmptyState,
+  EmptyStateBody,
   PageSection,
   Pagination,
   Popover,
-  Spinner,
+  Skeleton,
   Title,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { CheckCircleIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
@@ -18,24 +21,8 @@ import { useTranslation } from 'react-i18next'
 import { useEscalations, useUpcomingEscalations } from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
+import { LEVEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { Escalation, UpcomingEscalation } from '../types'
-
-const LEVEL_COLORS: Record<number, string> = {
-  1: '#ec7a08',
-  2: '#c9190b',
-  3: '#7d1007',
-}
-
-const TH_STYLE: React.CSSProperties = {
-  padding: '8px 12px',
-  textAlign: 'left' as const,
-  background: 'var(--pf-t--global--background--color--secondary--default)',
-  color: 'var(--pf-t--global--text--color--regular)',
-}
-
-const TD_STYLE: React.CSSProperties = { padding: '8px 12px' }
-
-const ROW_BORDER = '1px solid var(--pf-t--global--border--color--default)'
 
 const PER_PAGE = 20
 
@@ -113,12 +100,10 @@ export function Escalations() {
 
   const localeDateFormat = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
-  // Upcoming filters + pagination
   const [upLevelFilter, setUpLevelFilter] = useState('')
   const [upSeverityFilter, setUpSeverityFilter] = useState('')
   const [upPage, setUpPage] = useState(1)
 
-  // Active filters + pagination
   const [activeLevelFilter, setActiveLevelFilter] = useState('')
   const [activeSearch, setActiveSearch] = useState('')
   const [activePage, setActivePage] = useState(1)
@@ -175,12 +160,37 @@ export function Escalations() {
       {/* Upcoming escalations section */}
       <PageSection>
         <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.upcoming')}</Title>
-        {upcoming.isLoading ? <Spinner aria-label={t('common.loading')} size="md" /> : upcoming.error ? (
+        {upcoming.isLoading ? (
+          <Table variant="compact" isStickyHeader>
+            <Thead>
+              <Tr>
+                <Th>{t('cves.cveId')}</Th>
+                <Th>{t('cves.severity')}</Th>
+                <Th>EPSS</Th>
+                <Th>{t('escalations.ageDays')}</Th>
+                <Th>{t('escalations.nextLevel')}</Th>
+                <Th>{t('escalations.daysUntil')}</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {[1, 2, 3].map(i => (
+                <Tr key={i}>
+                  <Td><Skeleton width="120px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="50px" /></Td>
+                  <Td><Skeleton width="40px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="60px" /></Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        ) : upcoming.error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(upcoming.error)}`} />
         ) : !upcoming.data?.length ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-            <p style={{ fontSize: 13, margin: 0 }}>{t('escalations.noUpcoming')}</p>
-          </div>
+          <EmptyState>
+            <EmptyStateBody>{t('escalations.noUpcoming')}</EmptyStateBody>
+          </EmptyState>
         ) : (
           <>
             {upTotal > 0 && (
@@ -223,49 +233,49 @@ export function Escalations() {
               </ToolbarContent>
             </Toolbar>
             {upPaged.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
-                {t('common.noFilterResults')}
-              </div>
+              <EmptyState>
+                <EmptyStateBody>{t('common.noFilterResults')}</EmptyStateBody>
+              </EmptyState>
             ) : (
               <>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={TH_STYLE}>{t('cves.cveId')}</th>
-                      <th style={TH_STYLE}>{t('cves.severity')}</th>
-                      <th style={TH_STYLE}>EPSS</th>
-                      <th style={TH_STYLE}>{t('escalations.ageDays')}</th>
-                      <th style={TH_STYLE}>{t('escalations.nextLevel')}</th>
-                      <th style={TH_STYLE}>{t('escalations.daysUntil')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table variant="compact" isStickyHeader>
+                  <Thead>
+                    <Tr>
+                      <Th>{t('cves.cveId')}</Th>
+                      <Th>{t('cves.severity')}</Th>
+                      <Th>EPSS</Th>
+                      <Th>{t('escalations.ageDays')}</Th>
+                      <Th>{t('escalations.nextLevel')}</Th>
+                      <Th>{t('escalations.daysUntil')}</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
                     {upPaged.map(u => (
-                      <tr
+                      <Tr
                         key={`${u.cve_id}-${u.next_level}`}
+                        isClickable
                         style={{
-                          borderBottom: ROW_BORDER,
                           background: u.days_until_escalation <= 1
                             ? 'rgba(201, 25, 11, 0.1)'
-                            : 'transparent',
+                            : undefined,
                         }}
                       >
-                        <td style={TD_STYLE}>
-                          <Link to={`/vulnerabilities/${u.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
+                        <Td>
+                          <Link to={`/vulnerabilities/${u.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
                             {u.cve_id}
                           </Link>
-                        </td>
-                        <td style={TD_STYLE}>{SEVERITY_LABELS[u.severity] ?? `${u.severity}`}</td>
-                        <td style={TD_STYLE}>{(u.epss_probability * 100).toFixed(1)}%</td>
-                        <td style={TD_STYLE}>{u.current_age_days}</td>
-                        <td style={TD_STYLE}><LevelBadge level={u.next_level} /></td>
-                        <td style={{ ...TD_STYLE, fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
+                        </Td>
+                        <Td>{SEVERITY_LABELS[u.severity] ?? `${u.severity}`}</Td>
+                        <Td>{(u.epss_probability * 100).toFixed(1)}%</Td>
+                        <Td>{u.current_age_days}</Td>
+                        <Td><LevelBadge level={u.next_level} /></Td>
+                        <Td style={{ fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
                           {u.days_until_escalation} {u.days_until_escalation === 1 ? t('common.day') : t('common.day_plural')}
-                        </td>
-                      </tr>
+                        </Td>
+                      </Tr>
                     ))}
-                  </tbody>
-                </table>
+                  </Tbody>
+                </Table>
                 {upTotal > PER_PAGE && (
                   <div style={{ marginTop: 12 }}>
                     <Pagination
@@ -286,7 +296,30 @@ export function Escalations() {
       {/* Active escalations section */}
       <PageSection>
         <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.active')}</Title>
-        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+        {isLoading ? (
+          <Table variant="compact" isStickyHeader>
+            <Thead>
+              <Tr>
+                <Th>{t('cves.cveId')}</Th>
+                <Th>{t('cves.namespace')}</Th>
+                <Th>{t('escalations.level')}</Th>
+                <Th>{t('escalations.triggeredAt')}</Th>
+                {isSecTeam && <Th>{t('escalations.notified')}</Th>}
+              </Tr>
+            </Thead>
+            <Tbody>
+              {[1, 2, 3].map(i => (
+                <Tr key={i}>
+                  <Td><Skeleton width="120px" /></Td>
+                  <Td><Skeleton width="150px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  {isSecTeam && <Td><Skeleton width="60px" /></Td>}
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
           <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
@@ -329,45 +362,45 @@ export function Escalations() {
               </ToolbarContent>
             </Toolbar>
             {activePaged.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
-                {t('common.noFilterResults')}
-              </div>
+              <EmptyState>
+                <EmptyStateBody>{t('common.noFilterResults')}</EmptyStateBody>
+              </EmptyState>
             ) : (
               <>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={TH_STYLE}>{t('cves.cveId')}</th>
-                      <th style={TH_STYLE}>{t('cves.namespace')}</th>
-                      <th style={TH_STYLE}>{t('escalations.level')}</th>
-                      <th style={TH_STYLE}>{t('escalations.triggeredAt')}</th>
-                      {isSecTeam && <th style={TH_STYLE}>{t('escalations.notified')}</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table variant="compact" isStickyHeader>
+                  <Thead>
+                    <Tr>
+                      <Th>{t('cves.cveId')}</Th>
+                      <Th>{t('cves.namespace')}</Th>
+                      <Th>{t('escalations.level')}</Th>
+                      <Th>{t('escalations.triggeredAt')}</Th>
+                      {isSecTeam && <Th>{t('escalations.notified')}</Th>}
+                    </Tr>
+                  </Thead>
+                  <Tbody>
                     {activePaged.map(e => (
-                      <tr key={e.id} style={{ borderBottom: ROW_BORDER }}>
-                        <td style={TD_STYLE}>
-                          <Link to={`/vulnerabilities/${e.cve_id}`} style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}>
+                      <Tr key={e.id}>
+                        <Td>
+                          <Link to={`/vulnerabilities/${e.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
                             {e.cve_id}
                           </Link>
-                        </td>
-                        <td style={TD_STYLE}>{e.cluster_name}/{e.namespace}</td>
-                        <td style={TD_STYLE}><LevelBadge level={e.level} /></td>
-                        <td style={{ ...TD_STYLE, fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                        </Td>
+                        <Td>{e.cluster_name}/{e.namespace}</Td>
+                        <Td><LevelBadge level={e.level} /></Td>
+                        <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                           {new Date(e.triggered_at).toLocaleDateString(localeDateFormat)}
-                        </td>
+                        </Td>
                         {isSecTeam && (
-                          <td style={{ ...TD_STYLE, fontSize: 12 }}>
+                          <Td style={{ fontSize: 12 }}>
                             {e.notified
                               ? <span style={{ color: '#1e8f19' }}>✓ {t('escalations.yesNotified')}</span>
                               : <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>{t('common.pending')}</span>}
-                          </td>
+                          </Td>
                         )}
-                      </tr>
+                      </Tr>
                     ))}
-                  </tbody>
-                </table>
+                  </Tbody>
+                </Table>
                 {activeTotal > PER_PAGE && (
                   <div style={{ marginTop: 12 }}>
                     <Pagination

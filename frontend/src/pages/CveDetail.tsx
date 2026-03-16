@@ -17,11 +17,13 @@ import {
   Pagination,
   ProgressStep,
   ProgressStepper,
+  Skeleton,
   Spinner,
   TextArea,
   TextInput,
   Title,
 } from "@patternfly/react-core";
+import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { CheckCircleIcon } from "@patternfly/react-icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,6 +38,12 @@ import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
 import { CveDetail as CveDetailType, RiskStatus, RemediationStatus } from "../types";
 import type { RemediationItem } from "../types";
+import {
+  STATUS_COLORS,
+  REMEDIATION_LABEL_COLORS,
+  BRAND_BLUE,
+  FIXABLE_COLOR,
+} from "../tokens";
 
 function DetailRow({
   label,
@@ -45,10 +53,9 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <tr>
-      <td
+    <Tr>
+      <Td
         style={{
-          padding: "8px 12px",
           fontWeight: 600,
           fontSize: 13,
           color: "#6a6e73",
@@ -56,25 +63,10 @@ function DetailRow({
         }}
       >
         {label}
-      </td>
-      <td style={{ padding: "8px 12px", fontSize: 13 }}>{value}</td>
-    </tr>
+      </Td>
+      <Td style={{ fontSize: 13 }}>{value}</Td>
+    </Tr>
   );
-}
-
-const STATUS_COLORS: Record<RiskStatus, string> = {
-  [RiskStatus.requested]: "#0066cc",
-  [RiskStatus.approved]: "#1e8f19",
-  [RiskStatus.rejected]: "#c9190b",
-  [RiskStatus.expired]: "#8a8d90",
-};
-
-const REM_STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
-  open: 'blue',
-  in_progress: 'orange',
-  resolved: 'green',
-  verified: 'teal',
-  wont_fix: 'grey',
 }
 
 function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
@@ -85,7 +77,6 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
 
   type Step = { id: string; label: string; date: string | null; done: boolean };
 
-  // Always-visible steps
   const steps: Step[] = [
     {
       id: "published",
@@ -101,7 +92,6 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     },
   ];
 
-  // Escalation steps — always visible, show expected date if not yet triggered
   steps.push(
     {
       id: "esc-1",
@@ -123,7 +113,6 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     },
   );
 
-  // Conditional steps — only shown if they happened
   if (cve.has_priority) {
     steps.push({
       id: "prioritized",
@@ -155,7 +144,6 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     });
   }
 
-  // Sort all steps after the fixed "published/discovered" pair by date
   const fixed = steps.slice(0, 2);
   const sortable = steps.slice(2);
   sortable.sort((a, b) => {
@@ -164,7 +152,6 @@ function CveLifecycleTimeline({ cve }: { cve: CveDetailType }) {
     if (!b.date) return -1;
     const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
     if (diff !== 0) return diff;
-    // Preserve original order for same-date steps (e.g. escalation levels)
     return sortable.indexOf(a) - sortable.indexOf(b);
   });
   const sorted = [...fixed, ...sortable];
@@ -222,7 +209,6 @@ export function CveDetail() {
   const [deploymentPage, setDeploymentPage] = useState(1);
   const deploymentPerPage = 20;
 
-  // False positive request state
   const [showFpModal, setShowFpModal] = useState(false);
   const [fpReason, setFpReason] = useState("");
   const [fpRefUrl, setFpRefUrl] = useState("");
@@ -240,7 +226,6 @@ export function CveDetail() {
     setFpSelectedNamespaces(new Set());
   }
 
-  // Get unique namespace:cluster pairs from affected deployments
   const affectedNamespacePairs: Array<{ namespace: string; cluster_name: string }> = cve
     ? Array.from(
         new Map(
@@ -306,7 +291,21 @@ export function CveDetail() {
   if (isLoading)
     return (
       <PageSection>
-        <Spinner aria-label={t('common.loading')} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Skeleton width="40%" height="24px" />
+          <Skeleton width="60%" height="32px" />
+          <Grid hasGutter>
+            <GridItem span={6}>
+              <Skeleton height="200px" />
+            </GridItem>
+            <GridItem span={6}>
+              <Skeleton height="200px" />
+            </GridItem>
+            <GridItem span={12}>
+              <Skeleton height="120px" />
+            </GridItem>
+          </Grid>
+        </div>
       </PageSection>
     );
   if (error)
@@ -404,13 +403,12 @@ export function CveDetail() {
 
       <PageSection>
         <Grid hasGutter>
-          {/* Core details */}
           <GridItem span={6}>
             <Card>
               <CardTitle>{t('common.details')}</CardTitle>
               <CardBody style={{ padding: 0 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <tbody>
+                <Table variant="compact" borders={false}>
+                  <Tbody>
                     <DetailRow
                       label={t('cves.cveId')}
                       value={
@@ -427,6 +425,7 @@ export function CveDetail() {
                             href={`https://access.redhat.com/security/cve/${cve.cve_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            style={{ color: BRAND_BLUE }}
                           >
                             {t('cveDetail.redHatSecurity')}
                           </a>
@@ -434,6 +433,7 @@ export function CveDetail() {
                             href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            style={{ color: BRAND_BLUE }}
                           >
                             {t('cveDetail.nvd')}
                           </a>
@@ -446,7 +446,7 @@ export function CveDetail() {
                         cve.contact_emails.length > 0 ? (
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             {cve.contact_emails.map((email) => (
-                              <a key={email} href={`mailto:${email}`}>
+                              <a key={email} href={`mailto:${email}`} style={{ color: BRAND_BLUE }}>
                                 {email}
                               </a>
                             ))}
@@ -481,7 +481,7 @@ export function CveDetail() {
                       label={t('cves.fixable')}
                       value={
                         cve.fixable ? (
-                          <span style={{ color: "#1e8f19" }}>{t('cveDetail.yesFixable')}</span>
+                          <span style={{ color: FIXABLE_COLOR }}>{t('cveDetail.yesFixable')}</span>
                         ) : (
                           <span style={{ color: "#8a8d90" }}>{t('cveDetail.noFixable')}</span>
                         )
@@ -531,13 +531,12 @@ export function CveDetail() {
                         ).toLocaleDateString(dateLocale)}
                       />
                     )}
-                  </tbody>
-                </table>
+                  </Tbody>
+                </Table>
               </CardBody>
             </Card>
           </GridItem>
 
-          {/* Actions */}
           <GridItem span={6}>
             <Card>
               <CardTitle>{t('cveDetail.actions')}</CardTitle>
@@ -552,14 +551,14 @@ export function CveDetail() {
                       <CheckCircleIcon
                         style={{
                           fontSize: 24,
-                          color: "#1e8f19",
+                          color: FIXABLE_COLOR,
                           flexShrink: 0,
                         }}
                       />
                       <span
                         style={{
                           fontSize: 13,
-                          color: "#1e8f19",
+                          color: FIXABLE_COLOR,
                           fontWeight: 600,
                         }}
                       >
@@ -626,7 +625,6 @@ export function CveDetail() {
                       </div>
                     </div>
                   )}
-                  {/* False positive section */}
                   {cve.is_suppressed ? (
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 10 }}
@@ -634,14 +632,14 @@ export function CveDetail() {
                       <CheckCircleIcon
                         style={{
                           fontSize: 24,
-                          color: "#1e8f19",
+                          color: FIXABLE_COLOR,
                           flexShrink: 0,
                         }}
                       />
                       <span
                         style={{
                           fontSize: 13,
-                          color: "#1e8f19",
+                          color: FIXABLE_COLOR,
                           fontWeight: 600,
                         }}
                       >
@@ -695,7 +693,6 @@ export function CveDetail() {
             </Card>
           </GridItem>
 
-          {/* Affected components */}
           {cve.components.length > 0 && (
             <GridItem span={12}>
               <Card>
@@ -703,86 +700,43 @@ export function CveDetail() {
                   {t('cveDetail.componentsCount', { count: cve.components.length })}
                 </CardTitle>
                 <CardBody style={{ padding: 0 }}>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                    }}
-                  >
-                    <thead>
-                      <tr
-                        style={{
-                          background:
-                            "var(--pf-t--global--background--color--secondary--default)",
-                        }}
-                      >
-                        <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          {t('cves.componentName')}
-                        </th>
-                        <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          {t('cves.componentVersion')}
-                        </th>
-                        <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          {t('cves.fixable')}
-                        </th>
-                        <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                          {t('cves.fixVersion')}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table variant="compact">
+                    <Thead>
+                      <Tr>
+                        <Th>{t('cves.componentName')}</Th>
+                        <Th>{t('cves.componentVersion')}</Th>
+                        <Th>{t('cves.fixable')}</Th>
+                        <Th>{t('cves.fixVersion')}</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
                       {cve.components.map((c, i) => (
-                        <tr
-                          key={i}
-                          style={{
-                            borderBottom:
-                              "1px solid var(--pf-t--global--border--color--default)",
-                          }}
-                        >
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                              fontFamily: "monospace",
-                            }}
-                          >
+                        <Tr key={i}>
+                          <Td style={{ fontFamily: "monospace" }}>
                             {c.component_name}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                              fontFamily: "monospace",
-                              fontSize: 11,
-                            }}
-                          >
+                          </Td>
+                          <Td style={{ fontFamily: "monospace", fontSize: 11 }}>
                             {c.component_version}
-                          </td>
-                          <td style={{ padding: "8px 12px" }}>
+                          </Td>
+                          <Td>
                             {c.fixable ? (
-                              <span style={{ color: "#1e8f19" }}>✓</span>
+                              <span style={{ color: FIXABLE_COLOR }}>✓</span>
                             ) : (
                               <span style={{ color: "#8a8d90" }}>✗</span>
                             )}
-                          </td>
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                              fontFamily: "monospace",
-                              fontSize: 11,
-                            }}
-                          >
+                          </Td>
+                          <Td style={{ fontFamily: "monospace", fontSize: 11 }}>
                             {c.fixed_by ?? "–"}
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                       ))}
-                    </tbody>
-                  </table>
+                    </Tbody>
+                  </Table>
                 </CardBody>
               </Card>
             </GridItem>
           )}
 
-          {/* Affected deployments */}
           {cve.affected_deployments_list.length > 0 &&
             (() => {
               const filterLower = deploymentFilter.toLowerCase();
@@ -839,62 +793,21 @@ export function CveDetail() {
                       </div>
                     </CardBody>
                     <CardBody style={{ padding: 0 }}>
-                      <table
-                        style={{
-                          width: "100%",
-                          borderCollapse: "collapse",
-                          fontSize: 13,
-                          tableLayout: "fixed",
-                        }}
-                      >
-                        <colgroup>
-                          <col style={{ width: "18%" }} />
-                          <col style={{ width: "18%" }} />
-                          <col style={{ width: "18%" }} />
-                          <col style={{ width: "46%" }} />
-                        </colgroup>
-                        <thead>
-                          <tr
-                            style={{
-                              background:
-                                "var(--pf-t--global--background--color--secondary--default)",
-                            }}
-                          >
-                            <th
-                              style={{ padding: "8px 12px", textAlign: "left" }}
-                            >
-                              {t('cves.deploymentName')}
-                            </th>
-                            <th
-                              style={{ padding: "8px 12px", textAlign: "left" }}
-                            >
-                              {t('cves.namespace')}
-                            </th>
-                            <th
-                              style={{ padding: "8px 12px", textAlign: "left" }}
-                            >
-                              {t('cves.cluster')}
-                            </th>
-                            <th
-                              style={{ padding: "8px 12px", textAlign: "left" }}
-                            >
-                              {t('cves.imageName')}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
+                      <Table variant="compact" isStickyHeader>
+                        <Thead>
+                          <Tr>
+                            <Th width={20}>{t('cves.deploymentName')}</Th>
+                            <Th width={20}>{t('cves.namespace')}</Th>
+                            <Th width={15}>{t('cves.cluster')}</Th>
+                            <Th width={45}>{t('cves.imageName')}</Th>
+                          </Tr>
+                        </Thead>
+                        <Tbody>
                           {pageItems.length > 0 ? (
                             pageItems.map((d) => (
-                              <tr
-                                key={d.deployment_id}
-                                style={{
-                                  borderBottom:
-                                    "1px solid var(--pf-t--global--border--color--default)",
-                                }}
-                              >
-                                <td
+                              <Tr key={d.deployment_id}>
+                                <Td
                                   style={{
-                                    padding: "8px 12px",
                                     fontFamily: "monospace",
                                     fontSize: 11,
                                     overflow: "hidden",
@@ -903,20 +816,18 @@ export function CveDetail() {
                                   }}
                                 >
                                   {d.deployment_name}
-                                </td>
-                                <td
+                                </Td>
+                                <Td
                                   style={{
-                                    padding: "8px 12px",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
                                   }}
                                 >
                                   {d.namespace}
-                                </td>
-                                <td
+                                </Td>
+                                <Td
                                   style={{
-                                    padding: "8px 12px",
                                     fontSize: 11,
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
@@ -924,10 +835,9 @@ export function CveDetail() {
                                   }}
                                 >
                                   {d.cluster_name}
-                                </td>
-                                <td
+                                </Td>
+                                <Td
                                   style={{
-                                    padding: "8px 12px",
                                     fontFamily: "monospace",
                                     fontSize: 11,
                                     overflow: "hidden",
@@ -937,15 +847,14 @@ export function CveDetail() {
                                   title={d.image_name}
                                 >
                                   {d.image_name}
-                                </td>
-                              </tr>
+                                </Td>
+                              </Tr>
                             ))
                           ) : (
-                            <tr>
-                              <td
+                            <Tr>
+                              <Td
                                 colSpan={4}
                                 style={{
-                                  padding: "16px 12px",
                                   textAlign: "center",
                                   color:
                                     "var(--pf-t--global--text--color--subtle)",
@@ -953,11 +862,11 @@ export function CveDetail() {
                                 }}
                               >
                                 {t('cveDetail.noDeployments')}
-                              </td>
-                            </tr>
+                              </Td>
+                            </Tr>
                           )}
-                        </tbody>
-                      </table>
+                        </Tbody>
+                      </Table>
                     </CardBody>
                     {filtered.length > deploymentPerPage && (
                       <CardBody style={{ paddingTop: 0 }}>
@@ -974,12 +883,10 @@ export function CveDetail() {
                 </GridItem>
               );
             })()}
-          {/* Remediations */}
           <GridItem span={12}>
             <CveRemediationSection cveId={cve.cve_id} deployments={cve.affected_deployments_list} />
           </GridItem>
 
-          {/* Comments */}
           <GridItem span={12}>
             <Card>
               <CardTitle>{t('cveDetail.commentsCount', { count: comments?.length ?? 0 })}</CardTitle>
@@ -1020,7 +927,7 @@ export function CveDetail() {
                                 style={{
                                   marginLeft: 6,
                                   fontSize: 10,
-                                  background: "#0066cc",
+                                  background: BRAND_BLUE,
                                   color: "#fff",
                                   padding: "1px 5px",
                                   borderRadius: 3,
@@ -1086,7 +993,6 @@ export function CveDetail() {
         </Grid>
       </PageSection>
 
-      {/* False Positive Request Modal */}
       <Modal
         isOpen={showFpModal}
         onClose={() => { setShowFpModal(false); resetFpForm(); }}
@@ -1223,14 +1129,12 @@ function CveRemediationSection({
   const [targetDate, setTargetDate] = useState('')
   const [notes, setNotes] = useState('')
 
-  // Unique namespaces from deployments
   const namespaces = Array.from(
     new Map(
       deployments.map(d => [`${d.namespace}:${d.cluster_name}`, d])
     ).values()
   )
 
-  // Filter to namespaces that don't already have a remediation
   const existingKeys = new Set(
     (remediations ?? []).map(r => `${r.namespace}:${r.cluster_name}`)
   )
@@ -1379,7 +1283,7 @@ function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }: { ite
       borderLeft: `3px solid ${
         item.is_overdue ? '#c9190b'
         : item.status === RemediationStatus.verified ? '#009596'
-        : item.status === RemediationStatus.resolved ? '#1e8f19'
+        : item.status === RemediationStatus.resolved ? FIXABLE_COLOR
         : item.status === RemediationStatus.in_progress ? '#ec7a08'
         : item.status === RemediationStatus.wont_fix ? '#8a8d90'
         : 'var(--pf-t--global--color--brand--default)'
@@ -1389,7 +1293,7 @@ function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }: { ite
         <span style={{ fontSize: 13, fontWeight: 600 }}>
           {item.cluster_name}/{item.namespace}
         </span>
-        <Label color={REM_STATUS_COLORS[item.status] ?? 'grey'}>
+        <Label color={REMEDIATION_LABEL_COLORS[item.status] ?? 'grey'}>
           {remStatusLabels[item.status] ?? item.status}
         </Label>
       </div>

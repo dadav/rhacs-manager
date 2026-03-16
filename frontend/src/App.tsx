@@ -13,10 +13,11 @@ import {
   MastheadToggle,
   PageToggleButton,
   Spinner,
-  Alert,
   PageSection,
   Tooltip,
   Button,
+  EmptyState,
+  EmptyStateBody,
 } from "@patternfly/react-core";
 import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SunIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
@@ -84,19 +85,28 @@ export function App() {
 
   if (isLoading) {
     return (
-      <PageSection>
-        <Spinner aria-label={t("app.authenticating")} />
-      </PageSection>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 16 }}>
+        <Spinner size="xl" aria-label={t("app.authenticating")} />
+        <span style={{ fontSize: 14, color: "var(--pf-t--global--text--color--subtle)" }}>
+          {t("app.authenticating")}
+        </span>
+      </div>
     );
   }
 
   if (!user) {
     return (
       <PageSection>
-        <Alert
-          variant="danger"
-          title={t("app.notAuthenticated")}
-        />
+        <EmptyState
+          headingLevel="h2"
+          titleText={t("app.notAuthenticated")}
+          variant="lg"
+          status="danger"
+        >
+          <EmptyStateBody>
+            {t("app.notAuthenticated")}
+          </EmptyStateBody>
+        </EmptyState>
       </PageSection>
     );
   }

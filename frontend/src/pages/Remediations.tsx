@@ -1,16 +1,19 @@
 import {
   Alert,
   Button,
+  EmptyState,
+  EmptyStateBody,
   Label,
   PageSection,
   Pagination,
   Popover,
-  Spinner,
+  Skeleton,
   Title,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useMemo, useState } from 'react'
@@ -19,27 +22,9 @@ import { useTranslation } from 'react-i18next'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
+import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
 import { RemediationStatus } from '../types'
-
-const STATUS_COLORS: Record<string, 'blue' | 'orange' | 'green' | 'teal' | 'grey'> = {
-  open: 'blue',
-  in_progress: 'orange',
-  resolved: 'green',
-  verified: 'teal',
-  wont_fix: 'grey',
-}
-
-const TH_STYLE: React.CSSProperties = {
-  padding: '8px 12px',
-  textAlign: 'left' as const,
-  background: 'var(--pf-t--global--background--color--secondary--default)',
-  color: 'var(--pf-t--global--text--color--regular)',
-}
-
-const TD_STYLE: React.CSSProperties = { padding: '8px 12px' }
-
-const ROW_BORDER = '1px solid var(--pf-t--global--border--color--default)'
 
 const SELECT_STYLE: React.CSSProperties = {
   height: 36,
@@ -109,7 +94,7 @@ export function Remediations() {
   function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
     return (
       <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-        <Label color={STATUS_COLORS[status] ?? 'grey'}>
+        <Label color={REMEDIATION_LABEL_COLORS[status] ?? 'grey'}>
           {STATUS_LABELS[status] ?? status}
         </Label>
         {isOverdue && (
@@ -233,34 +218,63 @@ export function Remediations() {
         </Toolbar>
 
         {isLoading ? (
-          <Spinner aria-label={t('common.loading')} />
+          <Table variant="compact" isStickyHeader>
+            <Thead>
+              <Tr>
+                <Th>{t('remediations.cve')}</Th>
+                <Th>{t('remediations.namespace')}</Th>
+                <Th>{t('remediations.status')}</Th>
+                <Th>{t('remediations.assignedTo')}</Th>
+                <Th>{t('remediations.dueDate')}</Th>
+                <Th>{t('remediations.created')}</Th>
+                <Th>{t('remediations.createdBy')}</Th>
+                <Th width={10}>{t('common.actions')}</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {[1, 2, 3, 4, 5].map(i => (
+                <Tr key={i}>
+                  <Td><Skeleton width="120px" /></Td>
+                  <Td><Skeleton width="150px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="100px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="80px" /></Td>
+                  <Td><Skeleton width="60px" /></Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
         ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !filtered.length ? (
-          <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-            <p style={{ fontSize: 14, margin: 0 }}>
+          <EmptyState>
+            <EmptyStateBody>
               {statusFilter || overdueFilter ? t('remediations.noFilterResults') : t('remediations.noRemediations')}
-            </p>
-            <p style={{ fontSize: 12, margin: '8px 0 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-              {t('remediations.createHint')}
-            </p>
-          </div>
+            </EmptyStateBody>
+            <EmptyStateBody>
+              <span style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                {t('remediations.createHint')}
+              </span>
+            </EmptyStateBody>
+          </EmptyState>
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={TH_STYLE}>{t('remediations.cve')}</th>
-                  <th style={TH_STYLE}>{t('remediations.namespace')}</th>
-                  <th style={TH_STYLE}>{t('remediations.status')}</th>
-                  <th style={TH_STYLE}>{t('remediations.assignedTo')}</th>
-                  <th style={TH_STYLE}>{t('remediations.dueDate')}</th>
-                  <th style={TH_STYLE}>{t('remediations.created')}</th>
-                  <th style={TH_STYLE}>{t('remediations.createdBy')}</th>
-                  <th style={{ ...TH_STYLE, width: 120 }}>{t('common.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table variant="compact" isStickyHeader>
+              <Thead>
+                <Tr>
+                  <Th>{t('remediations.cve')}</Th>
+                  <Th>{t('remediations.namespace')}</Th>
+                  <Th>{t('remediations.status')}</Th>
+                  <Th>{t('remediations.assignedTo')}</Th>
+                  <Th>{t('remediations.dueDate')}</Th>
+                  <Th>{t('remediations.created')}</Th>
+                  <Th>{t('remediations.createdBy')}</Th>
+                  <Th width={10}>{t('common.actions')}</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
                 {paged.map(r => (
                   <RemediationRow
                     key={r.id}
@@ -272,8 +286,8 @@ export function Remediations() {
                     t={t}
                   />
                 ))}
-              </tbody>
-            </table>
+              </Tbody>
+            </Table>
             {total > PER_PAGE && (
               <div style={{ marginTop: 12 }}>
                 <Pagination
@@ -315,28 +329,27 @@ function RemediationRow({
   const canReopen = item.status === RemediationStatus.wont_fix
 
   return (
-    <tr
+    <Tr
       style={{
-        borderBottom: ROW_BORDER,
-        background: item.is_overdue ? 'rgba(201, 25, 11, 0.06)' : 'transparent',
+        background: item.is_overdue ? 'rgba(201, 25, 11, 0.06)' : undefined,
       }}
     >
-      <td style={TD_STYLE}>
+      <Td>
         <Link
           to={`/vulnerabilities/${item.cve_id}`}
-          style={{ fontFamily: 'monospace', color: 'var(--pf-t--global--color--brand--default)', fontSize: 12 }}
+          style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
         >
           {item.cve_id}
         </Link>
-      </td>
-      <td style={TD_STYLE}>{item.cluster_name}/{item.namespace}</td>
-      <td style={TD_STYLE}>
+      </Td>
+      <Td>{item.cluster_name}/{item.namespace}</Td>
+      <Td>
         <StatusBadge status={item.status} isOverdue={item.is_overdue} />
-      </td>
-      <td style={TD_STYLE}>
+      </Td>
+      <Td>
         {item.assigned_to_name ?? <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>}
-      </td>
-      <td style={TD_STYLE}>
+      </Td>
+      <Td>
         {item.target_date ? (
           <span style={{
             color: item.is_overdue ? '#c9190b' : 'var(--pf-t--global--text--color--regular)',
@@ -348,14 +361,14 @@ function RemediationRow({
         ) : (
           <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
         )}
-      </td>
-      <td style={{ ...TD_STYLE, fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+      </Td>
+      <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
         {new Date(item.created_at).toLocaleDateString(localeDateFormat)}
-      </td>
-      <td style={TD_STYLE}>
+      </Td>
+      <Td>
         <span style={{ fontSize: 12 }}>{item.created_by_name}</span>
-      </td>
-      <td style={{ ...TD_STYLE, whiteSpace: 'nowrap' }}>
+      </Td>
+      <Td style={{ whiteSpace: 'nowrap' }}>
         {canProgress && (
           <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
             {t('remediations.start')}
@@ -376,7 +389,7 @@ function RemediationRow({
             {t('remediations.reopen')}
           </Button>
         )}
-      </td>
-    </tr>
+      </Td>
+    </Tr>
   )
 }

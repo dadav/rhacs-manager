@@ -4,16 +4,19 @@ import {
   Card,
   CardBody,
   CardTitle,
+  EmptyState,
+  EmptyStateBody,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   PageSection,
-  Spinner,
+  Skeleton,
   TextArea,
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { ListIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
@@ -22,13 +25,7 @@ import { useCurrentUser } from '../api/auth'
 import { PriorityLevel } from '../types'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-
-const PRIORITY_COLORS: Record<PriorityLevel, string> = {
-  [PriorityLevel.critical]: '#c9190b',
-  [PriorityLevel.high]: '#ec7a08',
-  [PriorityLevel.medium]: '#f0ab00',
-  [PriorityLevel.low]: '#0066cc',
-}
+import { PRIORITY_COLORS, BRAND_BLUE } from '../tokens'
 
 const PRIORITY_LEVEL_KEYS: { key: string; value: PriorityLevel }[] = [
   { key: 'priority.critical', value: PriorityLevel.critical },
@@ -53,6 +50,20 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
     }}>
       {option ? t(option.key) : level}
     </span>
+  )
+}
+
+function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
+  return (
+    <Tbody>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Tr key={i}>
+          {Array.from({ length: columns }).map((_, j) => (
+            <Td key={j}><Skeleton /></Td>
+          ))}
+        </Tr>
+      ))}
+    </Tbody>
   )
 }
 
@@ -98,6 +109,8 @@ export function Priorities() {
     }
   }
 
+  const columnCount = me?.is_sec_team ? 7 : 6
+
   return (
     <>
       <PageSection variant="default">
@@ -112,61 +125,65 @@ export function Priorities() {
       </PageSection>
 
       <PageSection>
-        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+        {error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
-        ) : !data?.length ? (
-          <div style={{ textAlign: 'center', padding: '64px 0', color: '#8a8d90' }}>
-            <ListIcon style={{ fontSize: 32, marginBottom: 12, display: 'block', margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 14, margin: 0 }}>{t('priorities.noPriorities')}</p>
-          </div>
+        ) : !isLoading && !data?.length ? (
+          <EmptyState>
+            <ListIcon style={{ fontSize: 32, marginBottom: 12, color: '#8a8d90' }} />
+            <EmptyStateBody>{t('priorities.noPriorities')}</EmptyStateBody>
+          </EmptyState>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: 'var(--pf-v6-global--BackgroundColor--200)' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.cveId')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.priority')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.reason')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.setBy')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.deadline')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('priorities.createdAt')}</th>
-                {me?.is_sec_team && <th style={{ padding: '8px 12px' }}></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map(p => (
-                <tr key={p.id} style={{ borderBottom: '1px solid var(--pf-v6-global--BorderColor--100)' }}>
-                  <td style={{ padding: '8px 12px' }}>
-                    <Link to={`/vulnerabilities/${p.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc', fontSize: 12 }}>
-                      {p.cve_id}
-                    </Link>
-                  </td>
-                  <td style={{ padding: '8px 12px' }}>
-                    <PriorityBadge level={p.priority} />
-                  </td>
-                  <td style={{ padding: '8px 12px', maxWidth: 400 }}>{p.reason}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12 }}>{p.set_by_name}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-v6-global--Color--200)' }}>
-                    {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
-                  </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--pf-v6-global--Color--200)' }}>
-                    {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
-                  </td>
-                  {me?.is_sec_team && (
-                    <td style={{ padding: '8px 12px' }}>
-                      <Button
-                        variant="plain"
-                        size="sm"
-                        onClick={() => deletePriority.mutate(p.id)}
-                        style={{ color: '#c9190b', fontSize: 11 }}
-                      >
-                        {t('common.remove')}
-                      </Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table variant="compact" isStickyHeader>
+            <Thead>
+              <Tr>
+                <Th>{t('priorities.cveId')}</Th>
+                <Th>{t('priorities.priority')}</Th>
+                <Th>{t('priorities.reason')}</Th>
+                <Th>{t('priorities.setBy')}</Th>
+                <Th>{t('priorities.deadline')}</Th>
+                <Th>{t('priorities.createdAt')}</Th>
+                {me?.is_sec_team && <Th></Th>}
+              </Tr>
+            </Thead>
+            {isLoading ? (
+              <SkeletonRows columns={columnCount} />
+            ) : (
+              <Tbody>
+                {data!.map(p => (
+                  <Tr key={p.id}>
+                    <Td>
+                      <Link to={`/vulnerabilities/${p.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
+                        {p.cve_id}
+                      </Link>
+                    </Td>
+                    <Td>
+                      <PriorityBadge level={p.priority} />
+                    </Td>
+                    <Td style={{ maxWidth: 400 }}>{p.reason}</Td>
+                    <Td style={{ fontSize: 12 }}>{p.set_by_name}</Td>
+                    <Td style={{ fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-v6-global--Color--200)' }}>
+                      {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
+                    </Td>
+                    <Td style={{ fontSize: 12, color: 'var(--pf-v6-global--Color--200)' }}>
+                      {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
+                    </Td>
+                    {me?.is_sec_team && (
+                      <Td>
+                        <Button
+                          variant="plain"
+                          size="sm"
+                          onClick={() => deletePriority.mutate(p.id)}
+                          style={{ color: '#c9190b', fontSize: 11 }}
+                        >
+                          {t('common.remove')}
+                        </Button>
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+              </Tbody>
+            )}
+          </Table>
         )}
       </PageSection>
 

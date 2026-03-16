@@ -5,17 +5,20 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  EmptyState,
+  EmptyStateBody,
   Label,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   PageSection,
-  Spinner,
+  Skeleton,
   TextArea,
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -29,18 +32,27 @@ import {
 import { api } from '../api/client'
 import type { SuppressionRule, SuppressionType } from '../types'
 import { SuppressionStatus } from '../types'
+import { STATUS_COLORS, BRAND_BLUE } from '../tokens'
 
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected'] as const
-
-const STATUS_COLORS: Record<string, string> = {
-  requested: '#0066cc',
-  approved: '#1e8f19',
-  rejected: '#c9190b',
-}
 
 function normalizeStatusFilter(raw: string | null): string {
   if (!raw) return ''
   return (STATUS_KEYS as readonly string[]).includes(raw) ? raw : ''
+}
+
+function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
+  return (
+    <Tbody>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Tr key={i}>
+          {Array.from({ length: columns }).map((_, j) => (
+            <Td key={j}><Skeleton /></Td>
+          ))}
+        </Tr>
+      ))}
+    </Tbody>
+  )
 }
 
 export function SuppressionRules() {
@@ -63,7 +75,6 @@ export function SuppressionRules() {
   const { data, isLoading, error } = useSuppressionRules(statusFilter || undefined)
   const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
-  // Create form state
   const [createType, setCreateType] = useState<SuppressionType>('component')
   const [createComponentName, setCreateComponentName] = useState('')
   const [createVersionPattern, setCreateVersionPattern] = useState('')
@@ -138,7 +149,7 @@ export function SuppressionRules() {
                   border: '1px solid #d2d2d2',
                   borderRadius: 3,
                   cursor: 'pointer',
-                  background: statusFilter === value ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                  background: statusFilter === value ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
                   color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
                   fontSize: 13,
                 }}
@@ -151,139 +162,145 @@ export function SuppressionRules() {
             {t('suppressionRules.create')}
           </Button>
         </div>
-        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+        {error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
-        ) : !data?.length ? (
-          <Alert variant="info" isInline title={t('suppressionRules.noRules')} />
+        ) : !isLoading && !data?.length ? (
+          <EmptyState>
+            <EmptyStateBody>{t('suppressionRules.noRules')}</EmptyStateBody>
+          </EmptyState>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
-            <thead>
-              <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.type')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.target')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.scopeLabel')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.status')}</th>
-<th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdBy')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('suppressionRules.createdAt')}</th>
-                <th style={{ padding: '8px 12px', textAlign: 'right' }}>{t('suppressionRules.matchedCves')}</th>
-                <th style={{ padding: '8px 12px', width: '1%', whiteSpace: 'nowrap' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((rule: SuppressionRule) => (
-                <tr
-                  key={rule.id}
-                  style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)', cursor: 'pointer' }}
-                  onClick={() => setDetailRule(rule)}
-                >
-                  <td style={{ padding: '8px 12px' }}>
-                    <Label color={rule.type === 'component' ? 'purple' : 'blue'}>
-                      {rule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
-                    </Label>
-                  </td>
-                  <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {rule.type === 'component' ? (
-                      <span>
-                        {rule.component_name}
-                        {rule.version_pattern && (
-                          <span style={{ color: 'var(--pf-t--global--text--color--subtle)', marginLeft: 4 }}>
-                            @ {rule.version_pattern}
+            <Table variant="compact" isStickyHeader>
+              <Thead>
+                <Tr>
+                  <Th>{t('suppressionRules.type')}</Th>
+                  <Th>{t('suppressionRules.target')}</Th>
+                  <Th>{t('suppressionRules.scopeLabel')}</Th>
+                  <Th>{t('suppressionRules.status')}</Th>
+                  <Th>{t('suppressionRules.createdBy')}</Th>
+                  <Th>{t('suppressionRules.createdAt')}</Th>
+                  <Th style={{ textAlign: 'right' }}>{t('suppressionRules.matchedCves')}</Th>
+                  <Th style={{ width: '1%', whiteSpace: 'nowrap' }}></Th>
+                </Tr>
+              </Thead>
+              {isLoading ? (
+                <SkeletonRows columns={8} />
+              ) : (
+                <Tbody>
+                  {data!.map((rule: SuppressionRule) => (
+                    <Tr
+                      key={rule.id}
+                      isClickable
+                      onRowClick={() => setDetailRule(rule)}
+                    >
+                      <Td>
+                        <Label color={rule.type === 'component' ? 'purple' : 'blue'}>
+                          {rule.type === 'component' ? t('suppressionRules.typeComponent') : t('suppressionRules.typeCve')}
+                        </Label>
+                      </Td>
+                      <Td style={{ fontFamily: 'monospace', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {rule.type === 'component' ? (
+                          <span>
+                            {rule.component_name}
+                            {rule.version_pattern && (
+                              <span style={{ color: 'var(--pf-t--global--text--color--subtle)', marginLeft: 4 }}>
+                                @ {rule.version_pattern}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <Link to={`/vulnerabilities/${rule.cve_id}`} style={{ color: BRAND_BLUE }}>
+                            {rule.cve_id}
+                          </Link>
+                        )}
+                        {rule.reference_url && (
+                          <a
+                            href={rule.reference_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ marginLeft: 8, fontSize: 11, color: BRAND_BLUE }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            [{t('suppressionRules.reference')}]
+                          </a>
+                        )}
+                      </Td>
+                      <Td style={{ fontSize: 12 }}>
+                        {rule.type === 'cve' && rule.scope ? (
+                          rule.scope.mode === 'all' ? (
+                            <Label color="blue">{t('suppressionRules.scopeAll')}</Label>
+                          ) : (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {rule.scope.targets.map((target) => (
+                                <Label key={`${target.namespace}:${target.cluster_name}`} color="teal">
+                                  {target.namespace} ({target.cluster_name})
+                                </Label>
+                              ))}
+                            </div>
+                          )
+                        ) : (
+                          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: 3,
+                          background: STATUS_COLORS[rule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90',
+                          color: '#fff',
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}>
+                          {statusLabels[rule.status] ?? rule.status}
+                        </span>
+                        {rule.review_comment && (
+                          <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                            ({rule.review_comment})
                           </span>
                         )}
-                      </span>
-                    ) : (
-                      <Link to={`/vulnerabilities/${rule.cve_id}`} style={{ color: '#0066cc' }}>
-                        {rule.cve_id}
-                      </Link>
-                    )}
-                    {rule.reference_url && (
-                      <a
-                        href={rule.reference_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ marginLeft: 8, fontSize: 11, color: '#0066cc' }}
-                      >
-                        [{t('suppressionRules.reference')}]
-                      </a>
-                    )}
-                  </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12 }}>
-                    {rule.type === 'cve' && rule.scope ? (
-                      rule.scope.mode === 'all' ? (
-                        <Label color="blue">{t('suppressionRules.scopeAll')}</Label>
-                      ) : (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {rule.scope.targets.map((target) => (
-                            <Label key={`${target.namespace}:${target.cluster_name}`} color="teal">
-                              {target.namespace} ({target.cluster_name})
-                            </Label>
-                          ))}
+                      </Td>
+                      <Td style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rule.created_by_name}</Td>
+                      <Td style={{ fontSize: 12, whiteSpace: 'nowrap', color: 'var(--pf-t--global--text--color--subtle)' }}>
+                        {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
+                      </Td>
+                      <Td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {rule.matched_cve_count}
+                      </Td>
+                      <Td style={{ whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {isSecTeam && rule.status === SuppressionStatus.requested && (
+                            <>
+                              <Button variant="primary" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(true) }}>
+                                {t('suppressionRules.approve')}
+                              </Button>
+                              <Button variant="danger" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(false) }}>
+                                {t('suppressionRules.reject')}
+                              </Button>
+                            </>
+                          )}
+                          {isSecTeam && (
+                            <Button variant="secondary" size="sm" isDanger onClick={() => {
+                              if (confirm(t('suppressionRules.deleteConfirm'))) {
+                                api.delete(`/suppression-rules/${rule.id}`).then(() => {
+                                  window.location.reload()
+                                })
+                              }
+                            }}>
+                              {t('common.delete')}
+                            </Button>
+                          )}
                         </div>
-                      )
-                    ) : (
-                      <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '8px 12px' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: 3,
-                      background: STATUS_COLORS[rule.status] ?? '#8a8d90',
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}>
-                      {statusLabels[rule.status] ?? rule.status}
-                    </span>
-                    {rule.review_comment && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                        ({rule.review_comment})
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rule.created_by_name}</td>
-                  <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap', color: 'var(--pf-t--global--text--color--subtle)' }}>
-                    {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
-                  </td>
-                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>
-                    {rule.matched_cve_count}
-                  </td>
-                  <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {isSecTeam && rule.status === SuppressionStatus.requested && (
-                        <>
-                          <Button variant="primary" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(true) }}>
-                            {t('suppressionRules.approve')}
-                          </Button>
-                          <Button variant="danger" size="sm" onClick={() => { setReviewId(rule.id); setReviewApprove(false) }}>
-                            {t('suppressionRules.reject')}
-                          </Button>
-                        </>
-                      )}
-                      {isSecTeam && (
-                        <Button variant="secondary" size="sm" isDanger onClick={() => {
-                          if (confirm(t('suppressionRules.deleteConfirm'))) {
-                            api.delete(`/suppression-rules/${rule.id}`).then(() => {
-                              window.location.reload()
-                            })
-                          }
-                        }}>
-                          {t('common.delete')}
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              )}
+            </Table>
           </div>
         )}
       </PageSection>
 
-      {/* Create modal */}
       <Modal
         isOpen={showCreate}
         onClose={() => { setShowCreate(false); resetCreateForm() }}
@@ -302,7 +319,7 @@ export function SuppressionRules() {
                   onClick={() => setCreateType('component')}
                   style={{
                     padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
-                    background: createType === 'component' ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                    background: createType === 'component' ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
                     color: createType === 'component' ? '#fff' : 'var(--pf-v6-global--Color--100)',
                   }}
                 >
@@ -312,7 +329,7 @@ export function SuppressionRules() {
                   onClick={() => setCreateType('cve')}
                   style={{
                     padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
-                    background: createType === 'cve' ? '#0066cc' : 'var(--pf-v6-global--BackgroundColor--100)',
+                    background: createType === 'cve' ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
                     color: createType === 'cve' ? '#fff' : 'var(--pf-v6-global--Color--100)',
                   }}
                 >
@@ -438,7 +455,6 @@ export function SuppressionRules() {
         </ModalFooter>
       </Modal>
 
-      {/* Review modal */}
       <Modal
         isOpen={!!reviewId}
         onClose={() => { setReviewId(null); setReviewComment('') }}
@@ -473,7 +489,6 @@ export function SuppressionRules() {
         </ModalFooter>
       </Modal>
 
-      {/* Detail modal */}
       <Modal
         isOpen={!!detailRule}
         onClose={() => setDetailRule(null)}
@@ -506,7 +521,7 @@ export function SuppressionRules() {
                       )}
                     </span>
                   ) : (
-                    <Link to={`/vulnerabilities/${detailRule.cve_id}`} style={{ color: '#0066cc', fontFamily: 'monospace', fontSize: 13 }}>
+                    <Link to={`/vulnerabilities/${detailRule.cve_id}`} style={{ color: BRAND_BLUE, fontFamily: 'monospace', fontSize: 13 }}>
                       {detailRule.cve_id}
                     </Link>
                   )}
@@ -520,7 +535,7 @@ export function SuppressionRules() {
                     display: 'inline-block',
                     padding: '2px 8px',
                     borderRadius: 3,
-                    background: STATUS_COLORS[detailRule.status] ?? '#8a8d90',
+                    background: STATUS_COLORS[detailRule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90',
                     color: '#fff',
                     fontSize: 12,
                     fontWeight: 600,
@@ -547,7 +562,7 @@ export function SuppressionRules() {
                       href={detailRule.reference_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#0066cc', wordBreak: 'break-all' }}
+                      style={{ color: BRAND_BLUE, wordBreak: 'break-all' }}
                     >
                       {detailRule.reference_url}
                     </a>

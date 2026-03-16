@@ -12,6 +12,7 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
@@ -52,8 +53,8 @@ function EscalationRuleRow({
   severityOptions: { value: number; label: string }[]
 }) {
   return (
-    <tr>
-      <td style={{ padding: '6px 8px' }}>
+    <Tr>
+      <Td>
         <select
           value={rule.severity_min}
           onChange={e => onChange({ ...rule, severity_min: Number(e.target.value) })}
@@ -63,8 +64,8 @@ function EscalationRuleRow({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-      </td>
-      <td style={{ padding: '6px 8px' }}>
+      </Td>
+      <Td>
         <select
           value={rule.epss_threshold}
           onChange={e => onChange({ ...rule, epss_threshold: Number(e.target.value) })}
@@ -74,35 +75,35 @@ function EscalationRuleRow({
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
-      </td>
-      <td style={{ padding: '6px 8px' }}>
+      </Td>
+      <Td>
         <input
           type="number" min={1}
           value={rule.days_to_level1}
           onChange={e => onChange({ ...rule, days_to_level1: Number(e.target.value) })}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
-      </td>
-      <td style={{ padding: '6px 8px' }}>
+      </Td>
+      <Td>
         <input
           type="number" min={1}
           value={rule.days_to_level2}
           onChange={e => onChange({ ...rule, days_to_level2: Number(e.target.value) })}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
-      </td>
-      <td style={{ padding: '6px 8px' }}>
+      </Td>
+      <Td>
         <input
           type="number" min={1}
           value={rule.days_to_level3}
           onChange={e => onChange({ ...rule, days_to_level3: Number(e.target.value) })}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
-      </td>
-      <td style={{ padding: '6px 8px' }}>
+      </Td>
+      <Td>
         <Button variant="plain" onClick={onDelete} style={{ color: '#c9190b', fontSize: 12 }}>✕</Button>
-      </td>
-    </tr>
+      </Td>
+    </Tr>
   )
 }
 
@@ -235,18 +236,18 @@ export function Settings() {
               </CardTitle>
               <CardBody>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: 'var(--pf-t--global--background--color--secondary--default)' }}>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.severityMin')}</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.minEpssCol')}</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel1')}</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel2')}</th>
-                        <th style={{ padding: '8px 12px', textAlign: 'left' }}>{t('settings.daysToLevel3')}</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table variant="compact">
+                    <Thead>
+                      <Tr>
+                        <Th>{t('settings.severityMin')}</Th>
+                        <Th>{t('settings.minEpssCol')}</Th>
+                        <Th>{t('settings.daysToLevel1')}</Th>
+                        <Th>{t('settings.daysToLevel2')}</Th>
+                        <Th>{t('settings.daysToLevel3')}</Th>
+                        <Th></Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
                       {escalationRules.map((rule, i) => (
                         <EscalationRuleRow
                           key={i}
@@ -256,8 +257,8 @@ export function Settings() {
                           onDelete={() => setEscalationRules(rs => rs.filter((_, j) => j !== i))}
                         />
                       ))}
-                    </tbody>
-                  </table>
+                    </Tbody>
+                  </Table>
                 </div>
                 <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>{t('settings.addRule')}</Button>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>

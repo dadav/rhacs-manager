@@ -13,6 +13,7 @@
   "dependencies": {
     "@patternfly/react-core": "^6.1.0",
     "@patternfly/react-icons": "^6.1.0",
+    "@patternfly/react-table": "^6.4.1",
     "@tanstack/react-query": "^5.62.0",
     "date-fns": "^4.1.0",
     "i18next": "^25.8.18",
