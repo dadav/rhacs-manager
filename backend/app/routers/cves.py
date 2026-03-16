@@ -57,6 +57,7 @@ async def list_cves(
     age_max: int | None = Query(None, ge=0),
     deployment: str | None = Query(None),
     show_suppressed: bool = Query(False),
+    remediation_status: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -81,6 +82,7 @@ async def list_cves(
         age_max=age_max,
         deployment=deployment,
         show_suppressed=show_suppressed,
+        remediation_status=remediation_status,
     )
 
     total = len(items)

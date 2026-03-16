@@ -200,6 +200,13 @@ export function CveList() {
     { label: t('cves.riskStatusApproved'), value: 'approved' },
   ]
 
+  const REMEDIATION_STATUS_OPTIONS = [
+    { label: t('cves.remediationAll'), value: '' },
+    { label: t('cves.remediationUnremediated'), value: 'unremediated' },
+    { label: t('cves.remediationInProgress'), value: 'in_progress' },
+    { label: t('cves.remediationRemediated'), value: 'remediated' },
+  ]
+
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -216,6 +223,7 @@ export function CveList() {
   const urlEpssMin    = Number(searchParams.get('epss_min')) || 0
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
+  const urlRemediationStatus = searchParams.get('remediation_status') || ''
   const urlCluster    = searchParams.get('cluster') || ''
   const urlNamespace  = searchParams.get('namespace') || ''
   const urlAgeMin     = searchParams.get('age_min') || ''
@@ -291,19 +299,20 @@ export function CveList() {
     setCvssMin(0); setEpssMin(0); setComponentInput('')
     updateParams({
       cvss_min: null, epss_min: null,
-      component: null, risk_status: null,
+      component: null, risk_status: null, remediation_status: null,
     })
   }
 
   const hasActiveAdvanced =
     debouncedCvssMin > 0 || debouncedEpssMin > 0 ||
-    debouncedComponent || urlRiskStatus
+    debouncedComponent || urlRiskStatus || urlRemediationStatus
 
   const activeFilterCount = [
     debouncedCvssMin > 0,
     debouncedEpssMin > 0,
     Boolean(debouncedComponent),
     Boolean(urlRiskStatus),
+    Boolean(urlRemediationStatus),
   ].filter(Boolean).length
 
   // --- API params ---
@@ -320,6 +329,7 @@ export function CveList() {
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
     risk_status: urlRiskStatus || undefined,
+    remediation_status: urlRemediationStatus || undefined,
     age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
     age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
     deployment: urlDeployment || undefined,
@@ -358,6 +368,7 @@ export function CveList() {
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
     risk_status: urlRiskStatus || undefined,
+    remediation_status: urlRemediationStatus || undefined,
   }
 
   async function handleExport(type: 'pdf' | 'excel') {
@@ -729,6 +740,20 @@ export function CveList() {
                 style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
               >
                 {RISK_STATUS_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Remediation status */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterRemediationStatus')}</div>
+              <select
+                value={urlRemediationStatus}
+                onChange={e => updateParams({ remediation_status: e.target.value || null })}
+                style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+              >
+                {REMEDIATION_STATUS_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth.middleware import CurrentUser
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
+from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.suppression_rule import (
     SuppressionRule,
@@ -258,6 +259,7 @@ async def fetch_filtered_cves(
     age_max: int | None = None,
     deployment: str | None = None,
     show_suppressed: bool = False,
+    remediation_status: str | None = None,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -391,6 +393,68 @@ async def fetch_filtered_cves(
     # Filter out suppressed CVEs by default (unless show_suppressed is True)
     if not show_suppressed:
         items = [i for i in items if not i.is_suppressed]
+
+    # Compute remediation_status for each CVE
+    if items:
+        item_cve_ids = [i.cve_id for i in items]
+        rem_result = await app_db.execute(
+            select(Remediation).where(Remediation.cve_id.in_(item_cve_ids))
+        )
+        all_remediations = rem_result.scalars().all()
+
+        # Build {cve_id: [(cluster, namespace, status), ...]}
+        rem_by_cve: dict[str, list[tuple[str, str, RemediationStatus]]] = {}
+        for rem in all_remediations:
+            rem_by_cve.setdefault(rem.cve_id, []).append(
+                (rem.cluster_name, rem.namespace, rem.status)
+            )
+
+        # Get (namespace, cluster) map for affected CVEs from StackRox
+        cve_ns_map = await sx.get_cve_namespace_cluster_map(
+            sx_db, item_cve_ids, ns_for_components or None
+        )
+
+        terminal_statuses = {
+            RemediationStatus.resolved,
+            RemediationStatus.verified,
+            RemediationStatus.wont_fix,
+        }
+
+        for item in items:
+            rems = rem_by_cve.get(item.cve_id, [])
+            affected_pairs = cve_ns_map.get(item.cve_id, set())
+
+            if not rems or not affected_pairs:
+                item.remediation_status = "unremediated"
+                continue
+
+            # Only consider remediations that match currently affected pairs
+            rem_lookup: dict[tuple[str, str], RemediationStatus] = {}
+            for cluster, ns, status in rems:
+                if (cluster, ns) in affected_pairs:
+                    rem_lookup[(cluster, ns)] = status
+
+            if not rem_lookup:
+                # Remediations exist but for pairs no longer affected
+                item.remediation_status = "unremediated"
+                continue
+
+            # Check for any non-terminal (actively worked) remediation
+            has_non_terminal = any(
+                s not in terminal_statuses for s in rem_lookup.values()
+            )
+            if has_non_terminal:
+                item.remediation_status = "in_progress"
+            elif rem_lookup.keys() >= affected_pairs:
+                # All affected pairs have terminal remediations
+                item.remediation_status = "remediated"
+            else:
+                # Some pairs covered terminally, rest have no remediation
+                item.remediation_status = "unremediated"
+
+        # Apply remediation_status filter
+        if remediation_status:
+            items = [i for i in items if i.remediation_status == remediation_status]
 
     # Filter
     if search:

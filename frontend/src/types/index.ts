@@ -60,6 +60,7 @@ export interface CveListItem {
   risk_acceptance_id: string | null
   is_suppressed: boolean
   suppression_requested: boolean
+  remediation_status?: string | null
 }
 
 export enum SuppressionStatus {

@@ -50,6 +50,7 @@ class CveListItem(BaseModel):
     risk_acceptance_id: str | None = None
     is_suppressed: bool = False
     suppression_requested: bool = False
+    remediation_status: str | None = None
 
 
 class CveDetail(CveListItem):

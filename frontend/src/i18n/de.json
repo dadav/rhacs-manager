@@ -209,7 +209,12 @@
     "riskStatusAll": "Alle",
     "riskStatusAny": "Beliebig (vorhanden)",
     "riskStatusRequested": "Angefragt",
-    "riskStatusApproved": "Akzeptiert"
+    "riskStatusApproved": "Akzeptiert",
+    "filterRemediationStatus": "Behebungsstatus",
+    "remediationAll": "Alle",
+    "remediationUnremediated": "Nicht behoben",
+    "remediationInProgress": "In Bearbeitung",
+    "remediationRemediated": "Behoben"
   },
   "cveDetail": {
     "published": "Veröffentlicht",
