@@ -24,8 +24,8 @@
     "recharts": "^3.8.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^6",
     "typescript": "^5.7.2",
     "vite": "^8"
