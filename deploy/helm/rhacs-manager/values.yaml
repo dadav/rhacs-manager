@@ -1,125 +1,442 @@
 # yaml-language-server: $schema=values.schema.json
 
+# @schema.root
+# title: RHACS Manager Helm Values
+# description: Configuration values for the RHACS Manager Helm chart.
+# @schema.root
+
+# @schema
+# type: string
+# @schema
+# -- Override the chart name used in resource names.
 nameOverride: ""
+
+# @schema
+# type: string
+# @schema
+# -- Override the full release name used in resource names.
 fullnameOverride: ""
 
-# Supported modes: hub, spoke
+# @schema
+# type: string
+# enum: [hub, spoke]
+# @schema
+# -- Deployment mode. Hub runs the full stack; spoke runs a frontend proxy to a remote hub.
 mode: hub
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Namespace configuration for the chart.
 namespace:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Create the namespace if it does not exist.
   create: true
+  # @schema
+  # type: string
+  # @schema
+  # -- Namespace name to deploy into.
   name: rhacs-manager
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Database configuration (hub mode only).
 database:
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- CloudNativePG cluster configuration.
   cnpg:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Enable the CloudNativePG database cluster.
     enabled: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the CNPG Cluster resource.
     clusterName: rhacs-manager-db
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Number of PostgreSQL instances in the cluster.
     instances: 2
+    # @schema
+    # type: string
+    # @schema
+    # -- Database name to create.
     database: rhacs_manager
+    # @schema
+    # type: string
+    # @schema
+    # -- Database owner user.
     owner: rhacs_manager
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Storage configuration for the CNPG cluster.
     storage:
+      # @schema
+      # type: string
+      # pattern: ^\d+(Gi|Mi|Ti)$
+      # @schema
+      # -- PVC size for each instance.
       size: 5Gi
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
     # -- Barman Object Store backup configuration (hub mode only).
     # Requires a pre-existing secret with provider credentials.
     backup:
+      # @schema
+      # type: boolean
+      # @schema
       # -- Enable continuous backup and WAL archiving to an object store.
       enabled: false
-      # -- Object store provider: s3, azure, or gcs.
+      # @schema
+      # type: string
+      # enum: [s3, azure, gcs]
+      # @schema
+      # -- Object store provider.
       provider: s3
+      # @schema
+      # type: string
+      # @schema
       # -- Backup destination path (e.g. s3://bucket/path, gs://bucket/path,
       # or https://<account>.blob.core.windows.net/<container>/<path>).
       destinationPath: ""
+      # @schema
+      # type: string
+      # @schema
       # -- Retention policy using recovery window semantics (e.g. "30d").
       retentionPolicy: "30d"
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- S3 / S3-compatible credentials.
       s3:
+        # @schema
+        # type: string
+        # @schema
         # -- Name of the secret containing ACCESS_KEY_ID and ACCESS_SECRET_KEY.
         secretName: ""
+        # @schema
+        # type: string
+        # @schema
+        # -- Key in the secret for the access key ID.
         accessKeyIdKey: ACCESS_KEY_ID
+        # @schema
+        # type: string
+        # @schema
+        # -- Key in the secret for the secret access key.
         secretAccessKeyKey: ACCESS_SECRET_KEY
+        # @schema
+        # type: string
+        # @schema
         # -- Custom S3 endpoint URL for MinIO or other S3-compatible stores.
         endpointURL: ""
+        # @schema
+        # type: object
+        # additionalProperties: false
+        # @schema
         # -- Secret reference for a custom CA certificate (optional).
         endpointCA:
+          # @schema
+          # type: string
+          # @schema
           # -- Name of the secret containing the CA certificate.
           name: ""
+          # @schema
+          # type: string
+          # @schema
           # -- Key within the secret.
           key: ca.crt
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- Azure Blob Storage credentials.
       azure:
+        # @schema
+        # type: string
+        # @schema
         # -- Name of the secret containing AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY.
         secretName: ""
+        # @schema
+        # type: string
+        # @schema
+        # -- Key in the secret for the storage account name.
         storageAccountKey: AZURE_STORAGE_ACCOUNT
+        # @schema
+        # type: string
+        # @schema
+        # -- Key in the secret for the storage key.
         storageKeyKey: AZURE_STORAGE_KEY
+        # @schema
+        # type: boolean
+        # @schema
         # -- Use Azure AD Workload Identity instead of explicit credentials.
         inheritFromAzureAD: false
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- Google Cloud Storage credentials.
       gcs:
+        # @schema
+        # type: string
+        # @schema
         # -- Name of the secret containing a GCS service account JSON key.
         secretName: ""
+        # @schema
+        # type: string
+        # @schema
+        # -- Key in the secret for the application credentials.
         applicationCredentialsKey: gcsCredentials
+        # @schema
+        # type: boolean
+        # @schema
         # -- Use GKE Workload Identity instead of explicit credentials.
         gkeEnvironment: false
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- WAL archiving options.
       wal:
-        # -- Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.
+        # @schema
+        # type: string
+        # enum: [gzip, bzip2, lz4, snappy, xz, zstd]
+        # @schema
+        # -- Compression algorithm for WAL files.
         compression: gzip
+        # @schema
+        # type: array
+        # items:
+        #   type: string
+        # @schema
         # -- Additional barman-cloud-wal-archive command args.
         additionalCommandArgs: []
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- Base backup (data) options.
       data:
-        # -- Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.
+        # @schema
+        # type: string
+        # enum: [gzip, bzip2, lz4, snappy, xz, zstd]
+        # @schema
+        # -- Compression algorithm for data backups.
         compression: gzip
+        # @schema
+        # type: array
+        # items:
+        #   type: string
+        # @schema
         # -- Additional barman-cloud-backup command args.
         additionalCommandArgs: []
+      # @schema
+      # type: object
+      # additionalProperties: false
+      # @schema
       # -- Scheduled backup configuration.
       scheduledBackup:
+        # @schema
+        # type: boolean
+        # @schema
         # -- Enable the ScheduledBackup resource.
         enabled: true
-        # -- Cron schedule in 6-field format (seconds included).
-        # Default: daily at midnight.
+        # @schema
+        # type: string
+        # @schema
+        # -- Cron schedule in 6-field format (seconds included). Default: daily at midnight.
         schedule: "0 0 0 * * *"
+        # @schema
+        # type: boolean
+        # @schema
         # -- Trigger an immediate backup when the ScheduledBackup is created.
         immediate: true
-        # -- Owner reference mode for backup objects: self, cluster, or none.
+        # @schema
+        # type: string
+        # enum: [self, cluster, none]
+        # @schema
+        # -- Owner reference mode for backup objects.
         backupOwnerReference: self
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Global settings shared across all sub-charts.
 global:
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Image pull secrets for private registries.
   imagePullSecrets: []
 
-# Optional NetworkPolicy for StackRox central-db access (hub only).
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Optional NetworkPolicy for StackRox central-db access (hub only).
 # Targets the stackrox namespace — review before enabling.
 networkPolicy:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable the NetworkPolicy allowing backend to reach central-db.
   enabled: false
+  # @schema
+  # type: string
+  # @schema
+  # -- Namespace where StackRox central-db runs.
   stackroxNamespace: stackrox
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod selector labels matching the central-db pods.
   centralDbPodSelector:
     app.kubernetes.io/name: central-db
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod selector labels matching the backend pods.
   backendPodSelector:
     app: rhacs-manager-backend
+  # @schema
+  # type: string
+  # @schema
+  # -- Namespace label used in the NetworkPolicy namespaceSelector.
   sourceNamespaceLabel: kubernetes.io/metadata.name
+  # @schema
+  # type: integer
+  # minimum: 1
+  # maximum: 65535
+  # @schema
+  # -- Port number for the central-db connection.
   port: 5432
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Backend API server configuration (hub mode).
 backend:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable the backend deployment.
   enabled: true
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the backend Deployment resource.
   deploymentName: rhacs-manager-backend
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the backend Service resource.
   serviceName: rhacs-manager-backend
+  # @schema
+  # type: string
+  # @schema
+  # -- ServiceAccount name for the backend pods.
   serviceAccountName: rhacs-manager-backend
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
+  # -- Number of backend replicas.
   replicaCount: 2
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Backend container image.
   image:
+    # @schema
+    # type: string
+    # @schema
+    # -- Image repository.
     repository: ghcr.io/dadav/rhacs-manager-backend
-    # Defaults to Chart.appVersion if not set
+    # @schema
+    # type: string
+    # @schema
+    # -- Image tag. Defaults to Chart.appVersion if not set.
     tag: ""
+    # @schema
+    # type: string
+    # enum: [Always, IfNotPresent, Never]
+    # @schema
+    # -- Image pull policy.
     pullPolicy: IfNotPresent
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Additional annotations for backend pods.
   podAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod-level security context for the backend.
   podSecurityContext:
     runAsNonRoot: true
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Container-level security context for the backend.
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
       drop: [ALL]
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Node selector for backend pods.
   nodeSelector: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Tolerations for backend pods.
   tolerations: []
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Affinity rules for backend pods.
   affinity: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Topology spread constraints for backend pods.
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -127,12 +444,47 @@ backend:
       labelSelector:
         matchLabels:
           app: rhacs-manager-backend
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Backend Service configuration.
   service:
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Service port.
     port: 8000
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Container target port.
     targetPort: 8000
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Backend Secret configuration.
   secret:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Create the backend Secret resource.
     create: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the backend Secret.
     name: rhacs-manager-backend-secret
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Secret string data entries. Override these in production.
     stringData:
       # REQUIRED: override in production with a strong random value
       SECRET_KEY: "change-me-to-a-random-secret"
@@ -158,18 +510,72 @@ backend:
       SPOKE_API_KEYS: "[]"
       SEC_TEAM_GROUP: "rhacs-sec-team"
       SCHEDULER_ENABLED: "false"
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Database connection environment variables for the backend.
   env:
+    # @schema
+    # type: string
+    # @schema
+    # -- Hostname of the app database (CNPG RW service).
     appDbHost: rhacs-manager-db-rw
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the secret containing app DB credentials.
     appDbSecretName: rhacs-manager-db-app
+    # @schema
+    # type: string
+    # @schema
+    # -- Key in the secret for the DB username.
     appDbUserKey: username
+    # @schema
+    # type: string
+    # @schema
+    # -- Key in the secret for the DB password.
     appDbPasswordKey: password
+    # @schema
+    # type: string
+    # @schema
+    # -- App database name.
     appDbName: rhacs_manager
+    # @schema
+    # type: string
+    # @schema
+    # -- Hostname of the StackRox central-db.
     stackroxDbHost: central-db.stackrox.svc
+    # @schema
+    # type: string
+    # @schema
+    # -- Port for the StackRox central-db.
     stackroxDbPort: "5432"
+    # @schema
+    # type: string
+    # @schema
+    # -- StackRox DB username.
     stackroxDbUser: postgres
+    # @schema
+    # type: string
+    # @schema
+    # -- StackRox database name.
     stackroxDbName: central_active
+    # @schema
+    # type: string
+    # @schema
+    # -- Secret name containing the StackRox DB password.
     stackroxDbPasswordSecretName: central-db-password
+    # @schema
+    # type: string
+    # @schema
+    # -- Key in the secret for the StackRox DB password.
     stackroxDbPasswordKey: password
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Resource requests and limits for the backend container.
   resources:
     requests:
       cpu: 500m
@@ -177,51 +583,225 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Startup probe for the backend container.
   startupProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /health
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 5
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 5
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Readiness probe for the backend container.
   readinessProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /ready
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 10
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 10
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Liveness probe for the backend container.
   livenessProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /health
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
 
-# Worker deployment — runs scheduler jobs (single replica only).
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Worker deployment — runs scheduler jobs (single replica only).
 # Shares backend image, secret, and DB config. Do NOT increase replicaCount
 # above 1 — the in-memory scheduler has no leader election and duplicate
 # cron runs will cause duplicate emails and race conditions.
 worker:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable the worker deployment.
   enabled: true
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the worker Deployment resource.
   deploymentName: rhacs-manager-worker
+  # @schema
+  # type: integer
+  # minimum: 1
+  # maximum: 1
+  # @schema
+  # -- Number of worker replicas. Must be 1 (no leader election).
   replicaCount: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Worker container image.
   image:
+    # @schema
+    # type: string
+    # @schema
+    # -- Image repository.
     repository: ghcr.io/dadav/rhacs-manager-backend
-    # Defaults to Chart.appVersion if not set
+    # @schema
+    # type: string
+    # @schema
+    # -- Image tag. Defaults to Chart.appVersion if not set.
     tag: ""
+    # @schema
+    # type: string
+    # enum: [Always, IfNotPresent, Never]
+    # @schema
+    # -- Image pull policy.
     pullPolicy: IfNotPresent
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Additional annotations for worker pods.
   podAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod-level security context for the worker.
   podSecurityContext:
     runAsNonRoot: true
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Container-level security context for the worker.
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
       drop: [ALL]
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Node selector for worker pods.
   nodeSelector: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Tolerations for worker pods.
   tolerations: []
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Affinity rules for worker pods.
   affinity: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Resource requests and limits for the worker container.
   resources:
     requests:
       cpu: 200m
@@ -229,43 +809,187 @@ worker:
     limits:
       cpu: 200m
       memory: 512Mi
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Startup probe for the worker container.
   startupProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /health
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 5
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 5
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Liveness probe for the worker container.
   livenessProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /health
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 30
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
 
-# Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx)
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx).
 frontend:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable the frontend deployment (hub mode).
   enabled: true
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the frontend Deployment resource.
   deploymentName: rhacs-manager-frontend
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the frontend Service resource.
   serviceName: rhacs-manager-frontend
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
+  # -- Number of frontend replicas.
   replicaCount: 2
-  # Spoke frontend image (nginx with envsubst + API proxy)
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Spoke frontend image (nginx with envsubst + API proxy).
   image:
+    # @schema
+    # type: string
+    # @schema
+    # -- Image repository.
     repository: ghcr.io/dadav/rhacs-manager-spoke
-    # Defaults to Chart.appVersion if not set
+    # @schema
+    # type: string
+    # @schema
+    # -- Image tag. Defaults to Chart.appVersion if not set.
     tag: ""
+    # @schema
+    # type: string
+    # enum: [Always, IfNotPresent, Never]
+    # @schema
+    # -- Image pull policy.
     pullPolicy: IfNotPresent
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Additional annotations for frontend pods.
   podAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod-level security context for the frontend.
   podSecurityContext:
     runAsNonRoot: true
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Container-level security context for the frontend.
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
       drop: [ALL]
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Node selector for frontend pods.
   nodeSelector: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Tolerations for frontend pods.
   tolerations: []
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Affinity rules for frontend pods.
   affinity: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Topology spread constraints for frontend pods.
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname
@@ -273,6 +997,11 @@ frontend:
       labelSelector:
         matchLabels:
           app: rhacs-manager-frontend
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Resource requests and limits for the frontend container.
   resources:
     requests:
       cpu: 200m
@@ -280,35 +1009,135 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Readiness probe for the frontend container.
   readinessProbe:
+    # @schema
+    # type: string
+    # @schema
+    # -- HTTP path for the probe.
     path: /
+    # @schema
+    # type: integer
+    # minimum: 0
+    # @schema
+    # -- Seconds before the first probe.
     initialDelaySeconds: 5
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds between probes.
     periodSeconds: 10
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Seconds before the probe times out.
     timeoutSeconds: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive failures before marking unhealthy.
     failureThreshold: 3
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Consecutive successes before marking healthy.
     successThreshold: 1
-  # Hub-local spoke secret (points /api/* to the local backend service)
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Hub-local spoke secret (points /api/* to the local backend service).
   secret:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Create the hub spoke Secret resource.
     create: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the hub spoke Secret.
     name: rhacs-manager-hub-spoke-secret
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Secret string data entries.
     stringData:
       HUB_API_URL: "http://rhacs-manager-backend:8000"
       # REQUIRED: override in production to match a hub SPOKE_API_KEYS entry
       SPOKE_API_KEY: "change-me-to-match-hub-key"
       CLUSTER_NAME: "hub"
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- OAuth proxy sidecar configuration (hub frontend).
   oauthProxy:
+    # @schema
+    # type: string
+    # @schema
+    # -- ServiceAccount name for the oauth-proxy.
     serviceAccountName: rhacs-manager-oauth-proxy
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- OAuth proxy container image.
     image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
       repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag.
       tag: "v4.14"
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the oauth-proxy.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop: [ALL]
+    # @schema
+    # type: string
+    # @schema
+    # -- OAuth proxy cookie encryption secret. Generate a random value for production.
     cookieSecret: ""
+    # @schema
+    # type: string
+    # @schema
+    # -- Cookie refresh interval.
     cookieRefresh: "12h"
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the TLS secret for the oauth-proxy.
     tlsSecretName: rhacs-manager-oauth-proxy-tls
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the oauth-proxy container.
     resources:
       requests:
         cpu: 100m
@@ -316,25 +1145,93 @@ frontend:
       limits:
         cpu: 100m
         memory: 64Mi
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRoleBinding for token review delegation.
     authDelegatorClusterRoleBindingName: rhacs-manager-oauth-proxy-review
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Auth header injector sidecar configuration (hub frontend).
   authHeaderInjector:
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Auth header injector container image.
     image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
-      # Defaults to Chart.appVersion if not set
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag. Defaults to Chart.appVersion if not set.
       tag: ""
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the auth-header-injector.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop: [ALL]
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for user mapping.
     namespaceAnnotation: rhacs-manager.io/users
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for group mapping.
     groupAnnotation: rhacs-manager.io/groups
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for escalation email.
     emailAnnotation: rhacs-manager.io/escalation-email
+    # @schema
+    # type: string
+    # @schema
+    # -- TTL in seconds for the namespace cache.
     cacheTtlSeconds: "300"
+    # @schema
+    # type: string
+    # @schema
+    # -- TTL in seconds for the group cache.
     groupCacheTtlSeconds: "60"
-    allNamespacesGroups: "" # comma-separated groups that get wildcard (*) namespace access
+    # @schema
+    # type: string
+    # @schema
+    # -- Comma-separated groups that get wildcard (*) namespace access.
+    allNamespacesGroups: ""
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRole for namespace reading.
     clusterRoleName: rhacs-manager-namespace-reader
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRoleBinding for namespace reading.
     clusterRoleBindingName: rhacs-manager-namespace-reader
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the auth-header-injector container.
     resources:
       requests:
         cpu: 100m
@@ -342,59 +1239,261 @@ frontend:
       limits:
         cpu: 100m
         memory: 64Mi
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Readiness probe for the auth-header-injector container.
     readinessProbe:
+      # @schema
+      # type: string
+      # @schema
+      # -- HTTP path for the probe.
       path: /healthz
+      # @schema
+      # type: integer
+      # minimum: 0
+      # @schema
+      # -- Seconds before the first probe.
       initialDelaySeconds: 5
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds between probes.
       periodSeconds: 10
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds before the probe times out.
       timeoutSeconds: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive failures before marking unhealthy.
       failureThreshold: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive successes before marking healthy.
       successThreshold: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Frontend Service configuration (hub mode).
   service:
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Service annotations.
     annotations:
       service.beta.openshift.io/serving-cert-secret-name: rhacs-manager-oauth-proxy-tls
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the service port.
     portName: oauth-proxy
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Service port.
     port: 8443
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Container target port.
     targetPort: 8443
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- OpenShift Route configuration (hub mode).
 route:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable OpenShift Routes.
   enabled: true
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Frontend route configuration.
   frontend:
+    # @schema
+    # type: string
+    # @schema
+    # -- Route resource name.
     name: rhacs-manager
+    # @schema
+    # type: string
+    # @schema
+    # -- Route hostname.
     host: rhacs-manager.apps.example.com
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Backend route configuration.
   backend:
+    # @schema
+    # type: string
+    # @schema
+    # -- Route resource name.
     name: rhacs-manager-api
+    # @schema
+    # type: string
+    # @schema
+    # -- Route hostname.
     host: rhacs-manager-api.apps.example.com
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- TLS configuration for routes.
   tls:
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Frontend route TLS settings.
     frontend:
+      # @schema
+      # type: string
+      # enum: [edge, reencrypt, passthrough]
+      # @schema
+      # -- TLS termination type.
       termination: reencrypt
+      # @schema
+      # type: string
+      # enum: [Allow, Redirect, None]
+      # @schema
+      # -- Insecure edge termination policy.
       insecureEdgeTerminationPolicy: Redirect
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Backend route TLS settings.
     backend:
+      # @schema
+      # type: string
+      # enum: [edge, reencrypt, passthrough]
+      # @schema
+      # -- TLS termination type.
       termination: edge
+      # @schema
+      # type: string
+      # enum: [Allow, Redirect, None]
+      # @schema
+      # -- Insecure edge termination policy.
       insecureEdgeTerminationPolicy: Redirect
 
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Spoke mode configuration. Used when mode=spoke.
 spoke:
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Spoke secret configuration.
   secret:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Create the spoke Secret resource.
     create: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the spoke Secret.
     name: rhacs-manager-spoke-secret
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Secret string data entries. Override these in production.
     stringData:
       HUB_API_URL: "https://rhacs-manager-api.hub.example.com"
       # REQUIRED: override in production to match a hub SPOKE_API_KEYS entry
       SPOKE_API_KEY: "change-me-to-match-hub-key"
       CLUSTER_NAME: "spoke-cluster-name"
 
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- OAuth proxy sidecar configuration (spoke mode).
   oauthProxy:
+    # @schema
+    # type: string
+    # @schema
+    # -- ServiceAccount name for the oauth-proxy.
     serviceAccountName: rhacs-manager-oauth-proxy
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- OAuth proxy container image.
     image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
       repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag.
       tag: "v4.14"
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the oauth-proxy.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop: [ALL]
+    # @schema
+    # type: string
+    # @schema
+    # -- OAuth proxy cookie encryption secret. Generate a random value for production.
     cookieSecret: ""
+    # @schema
+    # type: string
+    # @schema
+    # -- Cookie refresh interval.
     cookieRefresh: "12h"
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the TLS secret for the oauth-proxy.
     tlsSecretName: rhacs-manager-oauth-proxy-tls
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the oauth-proxy container.
     resources:
       requests:
         cpu: 100m
@@ -402,26 +1501,94 @@ spoke:
       limits:
         cpu: 100m
         memory: 64Mi
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRoleBinding for token review delegation.
     authDelegatorClusterRoleBindingName: rhacs-manager-oauth-proxy-review
 
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Auth header injector sidecar configuration (spoke mode).
   authHeaderInjector:
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Auth header injector container image.
     image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
       repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
-      # Defaults to Chart.appVersion if not set
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag. Defaults to Chart.appVersion if not set.
       tag: ""
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the auth-header-injector.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop: [ALL]
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for user mapping.
     namespaceAnnotation: rhacs-manager.io/users
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for group mapping.
     groupAnnotation: rhacs-manager.io/groups
+    # @schema
+    # type: string
+    # @schema
+    # -- Namespace annotation key for escalation email.
     emailAnnotation: rhacs-manager.io/escalation-email
+    # @schema
+    # type: string
+    # @schema
+    # -- TTL in seconds for the namespace cache.
     cacheTtlSeconds: "300"
+    # @schema
+    # type: string
+    # @schema
+    # -- TTL in seconds for the group cache.
     groupCacheTtlSeconds: "60"
-    allNamespacesGroups: "" # comma-separated groups that get wildcard (*) namespace access
+    # @schema
+    # type: string
+    # @schema
+    # -- Comma-separated groups that get wildcard (*) namespace access.
+    allNamespacesGroups: ""
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRole for namespace reading.
     clusterRoleName: rhacs-manager-namespace-reader
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the ClusterRoleBinding for namespace reading.
     clusterRoleBindingName: rhacs-manager-namespace-reader
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the auth-header-injector container.
     resources:
       requests:
         cpu: 100m
@@ -429,33 +1596,141 @@ spoke:
       limits:
         cpu: 100m
         memory: 64Mi
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Readiness probe for the auth-header-injector container.
     readinessProbe:
+      # @schema
+      # type: string
+      # @schema
+      # -- HTTP path for the probe.
       path: /healthz
+      # @schema
+      # type: integer
+      # minimum: 0
+      # @schema
+      # -- Seconds before the first probe.
       initialDelaySeconds: 5
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds between probes.
       periodSeconds: 10
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds before the probe times out.
       timeoutSeconds: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive failures before marking unhealthy.
       failureThreshold: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive successes before marking healthy.
       successThreshold: 1
 
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Spoke frontend deployment configuration.
   frontend:
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the frontend Deployment resource.
     deploymentName: rhacs-manager-frontend
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the frontend Service resource.
     serviceName: rhacs-manager-frontend
+    # @schema
+    # type: integer
+    # minimum: 1
+    # @schema
+    # -- Number of frontend replicas.
     replicaCount: 2
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Spoke frontend container image.
     image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
       repository: ghcr.io/dadav/rhacs-manager-spoke
-      # Defaults to Chart.appVersion if not set
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag. Defaults to Chart.appVersion if not set.
       tag: ""
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Additional annotations for frontend pods.
     podAnnotations: {}
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Pod-level security context for the frontend.
     podSecurityContext:
       runAsNonRoot: true
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the frontend.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop: [ALL]
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Node selector for frontend pods.
     nodeSelector: {}
+    # @schema
+    # type: array
+    # items:
+    #   type: object
+    #   additionalProperties: true
+    # @schema
+    # -- Tolerations for frontend pods.
     tolerations: []
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Affinity rules for frontend pods.
     affinity: {}
+    # @schema
+    # type: array
+    # items:
+    #   type: object
+    #   additionalProperties: true
+    # @schema
+    # -- Topology spread constraints for frontend pods.
     topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
@@ -463,6 +1738,11 @@ spoke:
         labelSelector:
           matchLabels:
             app: rhacs-manager-frontend
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the frontend container.
     resources:
       requests:
         cpu: 200m
@@ -470,25 +1750,117 @@ spoke:
       limits:
         cpu: 200m
         memory: 128Mi
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- Readiness probe for the frontend container.
     readinessProbe:
+      # @schema
+      # type: string
+      # @schema
+      # -- HTTP path for the probe.
       path: /
+      # @schema
+      # type: integer
+      # minimum: 0
+      # @schema
+      # -- Seconds before the first probe.
       initialDelaySeconds: 5
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds between probes.
       periodSeconds: 10
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Seconds before the probe times out.
       timeoutSeconds: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive failures before marking unhealthy.
       failureThreshold: 3
+      # @schema
+      # type: integer
+      # minimum: 1
+      # @schema
+      # -- Consecutive successes before marking healthy.
       successThreshold: 1
 
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Spoke frontend Service configuration.
   service:
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Service annotations.
     annotations:
       service.beta.openshift.io/serving-cert-secret-name: rhacs-manager-oauth-proxy-tls
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the service port.
     portName: oauth-proxy
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Service port.
     port: 8443
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Container target port.
     targetPort: 8443
 
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Spoke OpenShift Route configuration.
   route:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Enable the spoke Route.
     enabled: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Route resource name.
     name: rhacs-manager
+    # @schema
+    # type: string
+    # @schema
+    # -- Route hostname.
     host: rhacs-manager.spoke.example.com
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- TLS configuration for the spoke route.
     tls:
+      # @schema
+      # type: string
+      # enum: [edge, reencrypt, passthrough]
+      # @schema
+      # -- TLS termination type.
       termination: reencrypt
+      # @schema
+      # type: string
+      # enum: [Allow, Redirect, None]
+      # @schema
+      # -- Insecure edge termination policy.
       insecureEdgeTerminationPolicy: Redirect

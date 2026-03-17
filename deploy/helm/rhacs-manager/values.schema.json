@@ -1,188 +1,205 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
+  "description": "Configuration values for the RHACS Manager Helm chart.",
   "properties": {
     "backend": {
       "additionalProperties": false,
+      "description": "Backend API server configuration (hub mode).",
       "properties": {
         "affinity": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Affinity rules for backend pods.",
           "required": [],
           "title": "affinity",
           "type": "object"
         },
         "deploymentName": {
           "default": "rhacs-manager-backend",
+          "description": "Name of the backend Deployment resource.",
           "title": "deploymentName",
           "type": "string"
         },
         "enabled": {
           "default": true,
+          "description": "Enable the backend deployment.",
           "title": "enabled",
           "type": "boolean"
         },
         "env": {
           "additionalProperties": false,
+          "description": "Database connection environment variables for the backend.",
           "properties": {
             "appDbHost": {
               "default": "rhacs-manager-db-rw",
+              "description": "Hostname of the app database (CNPG RW service).",
               "title": "appDbHost",
               "type": "string"
             },
             "appDbName": {
               "default": "rhacs_manager",
+              "description": "App database name.",
               "title": "appDbName",
               "type": "string"
             },
             "appDbPasswordKey": {
               "default": "password",
+              "description": "Key in the secret for the DB password.",
               "title": "appDbPasswordKey",
               "type": "string"
             },
             "appDbSecretName": {
               "default": "rhacs-manager-db-app",
+              "description": "Name of the secret containing app DB credentials.",
               "title": "appDbSecretName",
               "type": "string"
             },
             "appDbUserKey": {
               "default": "username",
+              "description": "Key in the secret for the DB username.",
               "title": "appDbUserKey",
               "type": "string"
             },
             "stackroxDbHost": {
               "default": "central-db.stackrox.svc",
+              "description": "Hostname of the StackRox central-db.",
               "title": "stackroxDbHost",
               "type": "string"
             },
             "stackroxDbName": {
               "default": "central_active",
+              "description": "StackRox database name.",
               "title": "stackroxDbName",
               "type": "string"
             },
             "stackroxDbPasswordKey": {
               "default": "password",
+              "description": "Key in the secret for the StackRox DB password.",
               "title": "stackroxDbPasswordKey",
               "type": "string"
             },
             "stackroxDbPasswordSecretName": {
               "default": "central-db-password",
+              "description": "Secret name containing the StackRox DB password.",
               "title": "stackroxDbPasswordSecretName",
               "type": "string"
             },
             "stackroxDbPort": {
               "default": "5432",
+              "description": "Port for the StackRox central-db.",
               "title": "stackroxDbPort",
               "type": "string"
             },
             "stackroxDbUser": {
               "default": "postgres",
+              "description": "StackRox DB username.",
               "title": "stackroxDbUser",
               "type": "string"
             }
           },
-          "required": [
-            "appDbHost",
-            "appDbSecretName",
-            "appDbUserKey",
-            "appDbPasswordKey",
-            "appDbName",
-            "stackroxDbHost",
-            "stackroxDbPort",
-            "stackroxDbUser",
-            "stackroxDbName",
-            "stackroxDbPasswordSecretName",
-            "stackroxDbPasswordKey"
-          ],
+          "required": [],
           "title": "env",
           "type": "object"
         },
         "image": {
           "additionalProperties": false,
+          "description": "Backend container image.",
           "properties": {
             "pullPolicy": {
               "default": "IfNotPresent",
+              "description": "Image pull policy.",
+              "enum": [
+                "Always",
+                "IfNotPresent",
+                "Never"
+              ],
               "title": "pullPolicy",
               "type": "string"
             },
             "repository": {
               "default": "ghcr.io/dadav/rhacs-manager-backend",
+              "description": "Image repository.",
               "title": "repository",
               "type": "string"
             },
             "tag": {
               "default": "",
-              "description": "Defaults to Chart.appVersion if not set",
+              "description": "Image tag. Defaults to Chart.appVersion if not set.",
               "title": "tag",
               "type": "string"
             }
           },
-          "required": [
-            "repository",
-            "tag",
-            "pullPolicy"
-          ],
+          "required": [],
           "title": "image",
           "type": "object"
         },
         "livenessProbe": {
           "additionalProperties": false,
+          "description": "Liveness probe for the backend container.",
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 30,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/health",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 30,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "livenessProbe",
           "type": "object"
         },
         "nodeSelector": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Node selector for backend pods.",
           "required": [],
           "title": "nodeSelector",
           "type": "object"
         },
         "podAnnotations": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Additional annotations for backend pods.",
           "required": [],
           "title": "podAnnotations",
           "type": "object"
         },
         "podSecurityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Pod-level security context for the backend.",
           "properties": {
             "runAsNonRoot": {
               "default": true,
@@ -198,56 +215,64 @@
         },
         "readinessProbe": {
           "additionalProperties": false,
+          "description": "Readiness probe for the backend container.",
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 10,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/ready",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 10,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "readinessProbe",
           "type": "object"
         },
         "replicaCount": {
           "default": 2,
+          "description": "Number of backend replicas.",
+          "minimum": 1,
           "title": "replicaCount",
           "type": "integer"
         },
         "resources": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Resource requests and limits for the backend container.",
           "properties": {
             "limits": {
               "additionalProperties": false,
@@ -301,19 +326,23 @@
         },
         "secret": {
           "additionalProperties": false,
+          "description": "Backend Secret configuration.",
           "properties": {
             "create": {
               "default": true,
+              "description": "Create the backend Secret resource.",
               "title": "create",
               "type": "boolean"
             },
             "name": {
               "default": "rhacs-manager-backend-secret",
+              "description": "Name of the backend Secret.",
               "title": "name",
               "type": "string"
             },
             "stringData": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Secret string data entries. Override these in production.",
               "properties": {
                 "APP_BASE_URL": {
                   "default": "https://rhacs-manager.example.com",
@@ -456,16 +485,13 @@
               "type": "object"
             }
           },
-          "required": [
-            "create",
-            "name",
-            "stringData"
-          ],
+          "required": [],
           "title": "secret",
           "type": "object"
         },
         "securityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Container-level security context for the backend.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,
@@ -504,179 +530,123 @@
         },
         "service": {
           "additionalProperties": false,
+          "description": "Backend Service configuration.",
           "properties": {
             "port": {
               "default": 8000,
+              "description": "Service port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "port",
               "type": "integer"
             },
             "targetPort": {
               "default": 8000,
+              "description": "Container target port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "targetPort",
               "type": "integer"
             }
           },
-          "required": [
-            "port",
-            "targetPort"
-          ],
+          "required": [],
           "title": "service",
           "type": "object"
         },
         "serviceAccountName": {
           "default": "rhacs-manager-backend",
+          "description": "ServiceAccount name for the backend pods.",
           "title": "serviceAccountName",
           "type": "string"
         },
         "serviceName": {
           "default": "rhacs-manager-backend",
+          "description": "Name of the backend Service resource.",
           "title": "serviceName",
           "type": "string"
         },
         "startupProbe": {
           "additionalProperties": false,
+          "description": "Startup probe for the backend container.",
           "properties": {
             "failureThreshold": {
               "default": 30,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 5,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/health",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 5,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "startupProbe",
           "type": "object"
         },
         "tolerations": {
+          "description": "Tolerations for backend pods.",
           "items": {
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "tolerations",
           "type": "array"
         },
         "topologySpreadConstraints": {
+          "description": "Topology spread constraints for backend pods.",
           "items": {
-            "anyOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "labelSelector": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "matchLabels": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "app": {
-                            "default": "rhacs-manager-backend",
-                            "title": "app",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "app"
-                        ],
-                        "title": "matchLabels",
-                        "type": "object"
-                      }
-                    },
-                    "required": [
-                      "matchLabels"
-                    ],
-                    "title": "labelSelector",
-                    "type": "object"
-                  },
-                  "maxSkew": {
-                    "default": 1,
-                    "title": "maxSkew",
-                    "type": "integer"
-                  },
-                  "topologyKey": {
-                    "default": "kubernetes.io/hostname",
-                    "title": "topologyKey",
-                    "type": "string"
-                  },
-                  "whenUnsatisfiable": {
-                    "default": "ScheduleAnyway",
-                    "title": "whenUnsatisfiable",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "maxSkew",
-                  "topologyKey",
-                  "whenUnsatisfiable",
-                  "labelSelector"
-                ],
-                "type": "object"
-              }
-            ],
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "topologySpreadConstraints",
           "type": "array"
         }
       },
-      "required": [
-        "enabled",
-        "deploymentName",
-        "serviceName",
-        "serviceAccountName",
-        "replicaCount",
-        "image",
-        "podAnnotations",
-        "podSecurityContext",
-        "securityContext",
-        "nodeSelector",
-        "tolerations",
-        "affinity",
-        "topologySpreadConstraints",
-        "service",
-        "secret",
-        "env",
-        "resources",
-        "startupProbe",
-        "readinessProbe",
-        "livenessProbe"
-      ],
+      "required": [],
       "title": "backend",
       "type": "object"
     },
     "database": {
       "additionalProperties": false,
+      "description": "Database configuration (hub mode only).",
       "properties": {
         "cnpg": {
           "additionalProperties": false,
+          "description": "CloudNativePG cluster configuration.",
           "properties": {
             "backup": {
               "additionalProperties": false,
@@ -700,21 +670,18 @@
                     },
                     "storageAccountKey": {
                       "default": "AZURE_STORAGE_ACCOUNT",
+                      "description": "Key in the secret for the storage account name.",
                       "title": "storageAccountKey",
                       "type": "string"
                     },
                     "storageKeyKey": {
                       "default": "AZURE_STORAGE_KEY",
+                      "description": "Key in the secret for the storage key.",
                       "title": "storageKeyKey",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secretName",
-                    "storageAccountKey",
-                    "storageKeyKey",
-                    "inheritFromAzureAD"
-                  ],
+                  "required": [],
                   "title": "azure",
                   "type": "object"
                 },
@@ -725,22 +692,27 @@
                     "additionalCommandArgs": {
                       "description": "Additional barman-cloud-backup command args.",
                       "items": {
-                        "required": []
+                        "type": "string"
                       },
                       "title": "additionalCommandArgs",
                       "type": "array"
                     },
                     "compression": {
                       "default": "gzip",
-                      "description": "Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.",
+                      "description": "Compression algorithm for data backups.",
+                      "enum": [
+                        "gzip",
+                        "bzip2",
+                        "lz4",
+                        "snappy",
+                        "xz",
+                        "zstd"
+                      ],
                       "title": "compression",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "compression",
-                    "additionalCommandArgs"
-                  ],
+                  "required": [],
                   "title": "data",
                   "type": "object"
                 },
@@ -762,6 +734,7 @@
                   "properties": {
                     "applicationCredentialsKey": {
                       "default": "gcsCredentials",
+                      "description": "Key in the secret for the application credentials.",
                       "title": "applicationCredentialsKey",
                       "type": "string"
                     },
@@ -778,17 +751,18 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secretName",
-                    "applicationCredentialsKey",
-                    "gkeEnvironment"
-                  ],
+                  "required": [],
                   "title": "gcs",
                   "type": "object"
                 },
                 "provider": {
                   "default": "s3",
-                  "description": "Object store provider: s3, azure, or gcs.",
+                  "description": "Object store provider.",
+                  "enum": [
+                    "s3",
+                    "azure",
+                    "gcs"
+                  ],
                   "title": "provider",
                   "type": "string"
                 },
@@ -804,6 +778,7 @@
                   "properties": {
                     "accessKeyIdKey": {
                       "default": "ACCESS_KEY_ID",
+                      "description": "Key in the secret for the access key ID.",
                       "title": "accessKeyIdKey",
                       "type": "string"
                     },
@@ -824,10 +799,7 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "name",
-                        "key"
-                      ],
+                      "required": [],
                       "title": "endpointCA",
                       "type": "object"
                     },
@@ -839,6 +811,7 @@
                     },
                     "secretAccessKeyKey": {
                       "default": "ACCESS_SECRET_KEY",
+                      "description": "Key in the secret for the secret access key.",
                       "title": "secretAccessKeyKey",
                       "type": "string"
                     },
@@ -849,13 +822,7 @@
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "secretName",
-                    "accessKeyIdKey",
-                    "secretAccessKeyKey",
-                    "endpointURL",
-                    "endpointCA"
-                  ],
+                  "required": [],
                   "title": "s3",
                   "type": "object"
                 },
@@ -865,7 +832,12 @@
                   "properties": {
                     "backupOwnerReference": {
                       "default": "self",
-                      "description": "Owner reference mode for backup objects: self, cluster, or none.",
+                      "description": "Owner reference mode for backup objects.",
+                      "enum": [
+                        "self",
+                        "cluster",
+                        "none"
+                      ],
                       "title": "backupOwnerReference",
                       "type": "string"
                     },
@@ -883,17 +855,12 @@
                     },
                     "schedule": {
                       "default": "0 0 0 * * *",
-                      "description": "Cron schedule in 6-field format (seconds included).\nDefault: daily at midnight.",
+                      "description": "Cron schedule in 6-field format (seconds included). Default: daily at midnight.",
                       "title": "schedule",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "enabled",
-                    "schedule",
-                    "immediate",
-                    "backupOwnerReference"
-                  ],
+                  "required": [],
                   "title": "scheduledBackup",
                   "type": "object"
                 },
@@ -904,229 +871,240 @@
                     "additionalCommandArgs": {
                       "description": "Additional barman-cloud-wal-archive command args.",
                       "items": {
-                        "required": []
+                        "type": "string"
                       },
                       "title": "additionalCommandArgs",
                       "type": "array"
                     },
                     "compression": {
                       "default": "gzip",
-                      "description": "Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.",
+                      "description": "Compression algorithm for WAL files.",
+                      "enum": [
+                        "gzip",
+                        "bzip2",
+                        "lz4",
+                        "snappy",
+                        "xz",
+                        "zstd"
+                      ],
                       "title": "compression",
                       "type": "string"
                     }
                   },
-                  "required": [
-                    "compression",
-                    "additionalCommandArgs"
-                  ],
+                  "required": [],
                   "title": "wal",
                   "type": "object"
                 }
               },
-              "required": [
-                "enabled",
-                "provider",
-                "destinationPath",
-                "retentionPolicy",
-                "s3",
-                "azure",
-                "gcs",
-                "wal",
-                "data",
-                "scheduledBackup"
-              ],
+              "required": [],
               "title": "backup",
               "type": "object"
             },
             "clusterName": {
               "default": "rhacs-manager-db",
+              "description": "Name of the CNPG Cluster resource.",
               "title": "clusterName",
               "type": "string"
             },
             "database": {
               "default": "rhacs_manager",
+              "description": "Database name to create.",
               "title": "database",
               "type": "string"
             },
             "enabled": {
               "default": true,
+              "description": "Enable the CloudNativePG database cluster.",
               "title": "enabled",
               "type": "boolean"
             },
             "instances": {
               "default": 2,
+              "description": "Number of PostgreSQL instances in the cluster.",
+              "minimum": 1,
               "title": "instances",
               "type": "integer"
             },
             "owner": {
               "default": "rhacs_manager",
+              "description": "Database owner user.",
               "title": "owner",
               "type": "string"
             },
             "storage": {
               "additionalProperties": false,
+              "description": "Storage configuration for the CNPG cluster.",
               "properties": {
                 "size": {
                   "default": "5Gi",
+                  "description": "PVC size for each instance.",
+                  "pattern": "^\\d+(Gi|Mi|Ti)$",
                   "title": "size",
                   "type": "string"
                 }
               },
-              "required": [
-                "size"
-              ],
+              "required": [],
               "title": "storage",
               "type": "object"
             }
           },
-          "required": [
-            "enabled",
-            "clusterName",
-            "instances",
-            "database",
-            "owner",
-            "storage",
-            "backup"
-          ],
+          "required": [],
           "title": "cnpg",
           "type": "object"
         }
       },
-      "required": [
-        "cnpg"
-      ],
+      "required": [],
       "title": "database",
       "type": "object"
     },
     "frontend": {
       "additionalProperties": false,
-      "description": "Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx)",
+      "description": "Hub frontend — spoke-style 3-container pod (oauth-proxy + auth-header-injector + spoke-nginx).",
       "properties": {
         "affinity": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Affinity rules for frontend pods.",
           "required": [],
           "title": "affinity",
           "type": "object"
         },
         "authHeaderInjector": {
           "additionalProperties": false,
+          "description": "Auth header injector sidecar configuration (hub frontend).",
           "properties": {
             "allNamespacesGroups": {
               "default": "",
+              "description": "Comma-separated groups that get wildcard (*) namespace access.",
               "title": "allNamespacesGroups",
               "type": "string"
             },
             "cacheTtlSeconds": {
               "default": "300",
+              "description": "TTL in seconds for the namespace cache.",
               "title": "cacheTtlSeconds",
               "type": "string"
             },
             "clusterRoleBindingName": {
               "default": "rhacs-manager-namespace-reader",
+              "description": "Name of the ClusterRoleBinding for namespace reading.",
               "title": "clusterRoleBindingName",
               "type": "string"
             },
             "clusterRoleName": {
               "default": "rhacs-manager-namespace-reader",
+              "description": "Name of the ClusterRole for namespace reading.",
               "title": "clusterRoleName",
               "type": "string"
             },
             "emailAnnotation": {
               "default": "rhacs-manager.io/escalation-email",
+              "description": "Namespace annotation key for escalation email.",
               "title": "emailAnnotation",
               "type": "string"
             },
             "groupAnnotation": {
               "default": "rhacs-manager.io/groups",
+              "description": "Namespace annotation key for group mapping.",
               "title": "groupAnnotation",
               "type": "string"
             },
             "groupCacheTtlSeconds": {
               "default": "60",
+              "description": "TTL in seconds for the group cache.",
               "title": "groupCacheTtlSeconds",
               "type": "string"
             },
             "image": {
               "additionalProperties": false,
+              "description": "Auth header injector container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
                   "title": "pullPolicy",
                   "type": "string"
                 },
                 "repository": {
                   "default": "ghcr.io/dadav/rhacs-manager-auth-header-injector",
+                  "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
                   "default": "",
-                  "description": "Defaults to Chart.appVersion if not set",
+                  "description": "Image tag. Defaults to Chart.appVersion if not set.",
                   "title": "tag",
                   "type": "string"
                 }
               },
-              "required": [
-                "repository",
-                "tag",
-                "pullPolicy"
-              ],
+              "required": [],
               "title": "image",
               "type": "object"
             },
             "namespaceAnnotation": {
               "default": "rhacs-manager.io/users",
+              "description": "Namespace annotation key for user mapping.",
               "title": "namespaceAnnotation",
               "type": "string"
             },
             "readinessProbe": {
               "additionalProperties": false,
+              "description": "Readiness probe for the auth-header-injector container.",
               "properties": {
                 "failureThreshold": {
                   "default": 3,
+                  "description": "Consecutive failures before marking unhealthy.",
+                  "minimum": 1,
                   "title": "failureThreshold",
                   "type": "integer"
                 },
                 "initialDelaySeconds": {
                   "default": 5,
+                  "description": "Seconds before the first probe.",
+                  "minimum": 0,
                   "title": "initialDelaySeconds",
                   "type": "integer"
                 },
                 "path": {
                   "default": "/healthz",
+                  "description": "HTTP path for the probe.",
                   "title": "path",
                   "type": "string"
                 },
                 "periodSeconds": {
                   "default": 10,
+                  "description": "Seconds between probes.",
+                  "minimum": 1,
                   "title": "periodSeconds",
                   "type": "integer"
                 },
                 "successThreshold": {
                   "default": 1,
+                  "description": "Consecutive successes before marking healthy.",
+                  "minimum": 1,
                   "title": "successThreshold",
                   "type": "integer"
                 },
                 "timeoutSeconds": {
                   "default": 3,
+                  "description": "Seconds before the probe times out.",
+                  "minimum": 1,
                   "title": "timeoutSeconds",
                   "type": "integer"
                 }
               },
-              "required": [
-                "path",
-                "initialDelaySeconds",
-                "periodSeconds",
-                "timeoutSeconds",
-                "failureThreshold",
-                "successThreshold"
-              ],
+              "required": [],
               "title": "readinessProbe",
               "type": "object"
             },
             "resources": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the auth-header-injector container.",
               "properties": {
                 "limits": {
                   "additionalProperties": false,
@@ -1179,7 +1157,8 @@
               "type": "object"
             },
             "securityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Container-level security context for the auth-header-injector.",
               "properties": {
                 "allowPrivilegeEscalation": {
                   "default": false,
@@ -1217,115 +1196,118 @@
               "type": "object"
             }
           },
-          "required": [
-            "image",
-            "securityContext",
-            "namespaceAnnotation",
-            "groupAnnotation",
-            "emailAnnotation",
-            "cacheTtlSeconds",
-            "groupCacheTtlSeconds",
-            "allNamespacesGroups",
-            "clusterRoleName",
-            "clusterRoleBindingName",
-            "resources",
-            "readinessProbe"
-          ],
+          "required": [],
           "title": "authHeaderInjector",
           "type": "object"
         },
         "deploymentName": {
           "default": "rhacs-manager-frontend",
+          "description": "Name of the frontend Deployment resource.",
           "title": "deploymentName",
           "type": "string"
         },
         "enabled": {
           "default": true,
+          "description": "Enable the frontend deployment (hub mode).",
           "title": "enabled",
           "type": "boolean"
         },
         "image": {
           "additionalProperties": false,
-          "description": "Spoke frontend image (nginx with envsubst + API proxy)",
+          "description": "Spoke frontend image (nginx with envsubst + API proxy).",
           "properties": {
             "pullPolicy": {
               "default": "IfNotPresent",
+              "description": "Image pull policy.",
+              "enum": [
+                "Always",
+                "IfNotPresent",
+                "Never"
+              ],
               "title": "pullPolicy",
               "type": "string"
             },
             "repository": {
               "default": "ghcr.io/dadav/rhacs-manager-spoke",
+              "description": "Image repository.",
               "title": "repository",
               "type": "string"
             },
             "tag": {
               "default": "",
-              "description": "Defaults to Chart.appVersion if not set",
+              "description": "Image tag. Defaults to Chart.appVersion if not set.",
               "title": "tag",
               "type": "string"
             }
           },
-          "required": [
-            "repository",
-            "tag",
-            "pullPolicy"
-          ],
+          "required": [],
           "title": "image",
           "type": "object"
         },
         "nodeSelector": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Node selector for frontend pods.",
           "required": [],
           "title": "nodeSelector",
           "type": "object"
         },
         "oauthProxy": {
           "additionalProperties": false,
+          "description": "OAuth proxy sidecar configuration (hub frontend).",
           "properties": {
             "authDelegatorClusterRoleBindingName": {
               "default": "rhacs-manager-oauth-proxy-review",
+              "description": "Name of the ClusterRoleBinding for token review delegation.",
               "title": "authDelegatorClusterRoleBindingName",
               "type": "string"
             },
             "cookieRefresh": {
               "default": "12h",
+              "description": "Cookie refresh interval.",
               "title": "cookieRefresh",
               "type": "string"
             },
             "cookieSecret": {
               "default": "",
+              "description": "OAuth proxy cookie encryption secret. Generate a random value for production.",
               "title": "cookieSecret",
               "type": "string"
             },
             "image": {
               "additionalProperties": false,
+              "description": "OAuth proxy container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
                   "title": "pullPolicy",
                   "type": "string"
                 },
                 "repository": {
                   "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
                   "default": "v4.14",
+                  "description": "Image tag.",
                   "title": "tag",
                   "type": "string"
                 }
               },
-              "required": [
-                "repository",
-                "tag",
-                "pullPolicy"
-              ],
+              "required": [],
               "title": "image",
               "type": "object"
             },
             "resources": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the oauth-proxy container.",
               "properties": {
                 "limits": {
                   "additionalProperties": false,
@@ -1378,7 +1360,8 @@
               "type": "object"
             },
             "securityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Container-level security context for the oauth-proxy.",
               "properties": {
                 "allowPrivilegeEscalation": {
                   "default": false,
@@ -1417,36 +1400,31 @@
             },
             "serviceAccountName": {
               "default": "rhacs-manager-oauth-proxy",
+              "description": "ServiceAccount name for the oauth-proxy.",
               "title": "serviceAccountName",
               "type": "string"
             },
             "tlsSecretName": {
               "default": "rhacs-manager-oauth-proxy-tls",
+              "description": "Name of the TLS secret for the oauth-proxy.",
               "title": "tlsSecretName",
               "type": "string"
             }
           },
-          "required": [
-            "serviceAccountName",
-            "image",
-            "securityContext",
-            "cookieSecret",
-            "cookieRefresh",
-            "tlsSecretName",
-            "resources",
-            "authDelegatorClusterRoleBindingName"
-          ],
+          "required": [],
           "title": "oauthProxy",
           "type": "object"
         },
         "podAnnotations": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Additional annotations for frontend pods.",
           "required": [],
           "title": "podAnnotations",
           "type": "object"
         },
         "podSecurityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Pod-level security context for the frontend.",
           "properties": {
             "runAsNonRoot": {
               "default": true,
@@ -1462,56 +1440,64 @@
         },
         "readinessProbe": {
           "additionalProperties": false,
+          "description": "Readiness probe for the frontend container.",
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 5,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 10,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "readinessProbe",
           "type": "object"
         },
         "replicaCount": {
           "default": 2,
+          "description": "Number of frontend replicas.",
+          "minimum": 1,
           "title": "replicaCount",
           "type": "integer"
         },
         "resources": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Resource requests and limits for the frontend container.",
           "properties": {
             "limits": {
               "additionalProperties": false,
@@ -1565,20 +1551,23 @@
         },
         "secret": {
           "additionalProperties": false,
-          "description": "Hub-local spoke secret (points /api/* to the local backend service)",
+          "description": "Hub-local spoke secret (points /api/* to the local backend service).",
           "properties": {
             "create": {
               "default": true,
+              "description": "Create the hub spoke Secret resource.",
               "title": "create",
               "type": "boolean"
             },
             "name": {
               "default": "rhacs-manager-hub-spoke-secret",
+              "description": "Name of the hub spoke Secret.",
               "title": "name",
               "type": "string"
             },
             "stringData": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Secret string data entries.",
               "properties": {
                 "CLUSTER_NAME": {
                   "default": "hub",
@@ -1606,16 +1595,13 @@
               "type": "object"
             }
           },
-          "required": [
-            "create",
-            "name",
-            "stringData"
-          ],
+          "required": [],
           "title": "secret",
           "type": "object"
         },
         "securityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Container-level security context for the frontend.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,
@@ -1654,9 +1640,11 @@
         },
         "service": {
           "additionalProperties": false,
+          "description": "Frontend Service configuration (hub mode).",
           "properties": {
             "annotations": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Service annotations.",
               "properties": {
                 "service.beta.openshift.io/serving-cert-secret-name": {
                   "default": "rhacs-manager-oauth-proxy-tls",
@@ -1672,177 +1660,121 @@
             },
             "port": {
               "default": 8443,
+              "description": "Service port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "port",
               "type": "integer"
             },
             "portName": {
               "default": "oauth-proxy",
+              "description": "Name of the service port.",
               "title": "portName",
               "type": "string"
             },
             "targetPort": {
               "default": 8443,
+              "description": "Container target port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "targetPort",
               "type": "integer"
             }
           },
-          "required": [
-            "annotations",
-            "portName",
-            "port",
-            "targetPort"
-          ],
+          "required": [],
           "title": "service",
           "type": "object"
         },
         "serviceName": {
           "default": "rhacs-manager-frontend",
+          "description": "Name of the frontend Service resource.",
           "title": "serviceName",
           "type": "string"
         },
         "tolerations": {
+          "description": "Tolerations for frontend pods.",
           "items": {
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "tolerations",
           "type": "array"
         },
         "topologySpreadConstraints": {
+          "description": "Topology spread constraints for frontend pods.",
           "items": {
-            "anyOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "labelSelector": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "matchLabels": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "app": {
-                            "default": "rhacs-manager-frontend",
-                            "title": "app",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "app"
-                        ],
-                        "title": "matchLabels",
-                        "type": "object"
-                      }
-                    },
-                    "required": [
-                      "matchLabels"
-                    ],
-                    "title": "labelSelector",
-                    "type": "object"
-                  },
-                  "maxSkew": {
-                    "default": 1,
-                    "title": "maxSkew",
-                    "type": "integer"
-                  },
-                  "topologyKey": {
-                    "default": "kubernetes.io/hostname",
-                    "title": "topologyKey",
-                    "type": "string"
-                  },
-                  "whenUnsatisfiable": {
-                    "default": "ScheduleAnyway",
-                    "title": "whenUnsatisfiable",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "maxSkew",
-                  "topologyKey",
-                  "whenUnsatisfiable",
-                  "labelSelector"
-                ],
-                "type": "object"
-              }
-            ],
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "topologySpreadConstraints",
           "type": "array"
         }
       },
-      "required": [
-        "enabled",
-        "deploymentName",
-        "serviceName",
-        "replicaCount",
-        "image",
-        "podAnnotations",
-        "podSecurityContext",
-        "securityContext",
-        "nodeSelector",
-        "tolerations",
-        "affinity",
-        "topologySpreadConstraints",
-        "resources",
-        "readinessProbe",
-        "secret",
-        "oauthProxy",
-        "authHeaderInjector",
-        "service"
-      ],
+      "required": [],
       "title": "frontend",
       "type": "object"
     },
     "fullnameOverride": {
       "default": "",
+      "description": "Override the full release name used in resource names.",
       "title": "fullnameOverride",
       "type": "string"
     },
     "global": {
       "additionalProperties": false,
+      "description": "Global settings shared across all sub-charts.",
       "properties": {
         "imagePullSecrets": {
+          "description": "Image pull secrets for private registries.",
           "items": {
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "imagePullSecrets",
           "type": "array"
         }
       },
-      "required": [
-        "imagePullSecrets"
-      ],
+      "required": [],
       "title": "global",
       "type": "object"
     },
     "mode": {
       "default": "hub",
-      "description": "Supported modes: hub, spoke",
+      "description": "Deployment mode. Hub runs the full stack; spoke runs a frontend proxy to a remote hub.",
+      "enum": [
+        "hub",
+        "spoke"
+      ],
       "title": "mode",
       "type": "string"
     },
     "nameOverride": {
       "default": "",
+      "description": "Override the chart name used in resource names.",
       "title": "nameOverride",
       "type": "string"
     },
     "namespace": {
       "additionalProperties": false,
+      "description": "Namespace configuration for the chart.",
       "properties": {
         "create": {
           "default": true,
+          "description": "Create the namespace if it does not exist.",
           "title": "create",
           "type": "boolean"
         },
         "name": {
           "default": "rhacs-manager",
+          "description": "Namespace name to deploy into.",
           "title": "name",
           "type": "string"
         }
       },
-      "required": [
-        "create",
-        "name"
-      ],
+      "required": [],
       "title": "namespace",
       "type": "object"
     },
@@ -1851,7 +1783,8 @@
       "description": "Optional NetworkPolicy for StackRox central-db access (hub only).\nTargets the stackrox namespace — review before enabling.",
       "properties": {
         "backendPodSelector": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Pod selector labels matching the backend pods.",
           "properties": {
             "app": {
               "default": "rhacs-manager-backend",
@@ -1866,7 +1799,8 @@
           "type": "object"
         },
         "centralDbPodSelector": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Pod selector labels matching the central-db pods.",
           "properties": {
             "app.kubernetes.io/name": {
               "default": "central-db",
@@ -1882,270 +1816,304 @@
         },
         "enabled": {
           "default": false,
+          "description": "Enable the NetworkPolicy allowing backend to reach central-db.",
           "title": "enabled",
           "type": "boolean"
         },
         "port": {
           "default": 5432,
+          "description": "Port number for the central-db connection.",
+          "maximum": 65535,
+          "minimum": 1,
           "title": "port",
           "type": "integer"
         },
         "sourceNamespaceLabel": {
           "default": "kubernetes.io/metadata.name",
+          "description": "Namespace label used in the NetworkPolicy namespaceSelector.",
           "title": "sourceNamespaceLabel",
           "type": "string"
         },
         "stackroxNamespace": {
           "default": "stackrox",
+          "description": "Namespace where StackRox central-db runs.",
           "title": "stackroxNamespace",
           "type": "string"
         }
       },
-      "required": [
-        "enabled",
-        "stackroxNamespace",
-        "centralDbPodSelector",
-        "backendPodSelector",
-        "sourceNamespaceLabel",
-        "port"
-      ],
+      "required": [],
       "title": "networkPolicy",
       "type": "object"
     },
     "route": {
       "additionalProperties": false,
+      "description": "OpenShift Route configuration (hub mode).",
       "properties": {
         "backend": {
           "additionalProperties": false,
+          "description": "Backend route configuration.",
           "properties": {
             "host": {
               "default": "rhacs-manager-api.apps.example.com",
+              "description": "Route hostname.",
               "title": "host",
               "type": "string"
             },
             "name": {
               "default": "rhacs-manager-api",
+              "description": "Route resource name.",
               "title": "name",
               "type": "string"
             }
           },
-          "required": [
-            "name",
-            "host"
-          ],
+          "required": [],
           "title": "backend",
           "type": "object"
         },
         "enabled": {
           "default": true,
+          "description": "Enable OpenShift Routes.",
           "title": "enabled",
           "type": "boolean"
         },
         "frontend": {
           "additionalProperties": false,
+          "description": "Frontend route configuration.",
           "properties": {
             "host": {
               "default": "rhacs-manager.apps.example.com",
+              "description": "Route hostname.",
               "title": "host",
               "type": "string"
             },
             "name": {
               "default": "rhacs-manager",
+              "description": "Route resource name.",
               "title": "name",
               "type": "string"
             }
           },
-          "required": [
-            "name",
-            "host"
-          ],
+          "required": [],
           "title": "frontend",
           "type": "object"
         },
         "tls": {
           "additionalProperties": false,
+          "description": "TLS configuration for routes.",
           "properties": {
             "backend": {
               "additionalProperties": false,
+              "description": "Backend route TLS settings.",
               "properties": {
                 "insecureEdgeTerminationPolicy": {
                   "default": "Redirect",
+                  "description": "Insecure edge termination policy.",
+                  "enum": [
+                    "Allow",
+                    "Redirect",
+                    "None"
+                  ],
                   "title": "insecureEdgeTerminationPolicy",
                   "type": "string"
                 },
                 "termination": {
                   "default": "edge",
+                  "description": "TLS termination type.",
+                  "enum": [
+                    "edge",
+                    "reencrypt",
+                    "passthrough"
+                  ],
                   "title": "termination",
                   "type": "string"
                 }
               },
-              "required": [
-                "termination",
-                "insecureEdgeTerminationPolicy"
-              ],
+              "required": [],
               "title": "backend",
               "type": "object"
             },
             "frontend": {
               "additionalProperties": false,
+              "description": "Frontend route TLS settings.",
               "properties": {
                 "insecureEdgeTerminationPolicy": {
                   "default": "Redirect",
+                  "description": "Insecure edge termination policy.",
+                  "enum": [
+                    "Allow",
+                    "Redirect",
+                    "None"
+                  ],
                   "title": "insecureEdgeTerminationPolicy",
                   "type": "string"
                 },
                 "termination": {
                   "default": "reencrypt",
+                  "description": "TLS termination type.",
+                  "enum": [
+                    "edge",
+                    "reencrypt",
+                    "passthrough"
+                  ],
                   "title": "termination",
                   "type": "string"
                 }
               },
-              "required": [
-                "termination",
-                "insecureEdgeTerminationPolicy"
-              ],
+              "required": [],
               "title": "frontend",
               "type": "object"
             }
           },
-          "required": [
-            "frontend",
-            "backend"
-          ],
+          "required": [],
           "title": "tls",
           "type": "object"
         }
       },
-      "required": [
-        "enabled",
-        "frontend",
-        "backend",
-        "tls"
-      ],
+      "required": [],
       "title": "route",
       "type": "object"
     },
     "spoke": {
       "additionalProperties": false,
+      "description": "Spoke mode configuration. Used when mode=spoke.",
       "properties": {
         "authHeaderInjector": {
           "additionalProperties": false,
+          "description": "Auth header injector sidecar configuration (spoke mode).",
           "properties": {
             "allNamespacesGroups": {
               "default": "",
+              "description": "Comma-separated groups that get wildcard (*) namespace access.",
               "title": "allNamespacesGroups",
               "type": "string"
             },
             "cacheTtlSeconds": {
               "default": "300",
+              "description": "TTL in seconds for the namespace cache.",
               "title": "cacheTtlSeconds",
               "type": "string"
             },
             "clusterRoleBindingName": {
               "default": "rhacs-manager-namespace-reader",
+              "description": "Name of the ClusterRoleBinding for namespace reading.",
               "title": "clusterRoleBindingName",
               "type": "string"
             },
             "clusterRoleName": {
               "default": "rhacs-manager-namespace-reader",
+              "description": "Name of the ClusterRole for namespace reading.",
               "title": "clusterRoleName",
               "type": "string"
             },
             "emailAnnotation": {
               "default": "rhacs-manager.io/escalation-email",
+              "description": "Namespace annotation key for escalation email.",
               "title": "emailAnnotation",
               "type": "string"
             },
             "groupAnnotation": {
               "default": "rhacs-manager.io/groups",
+              "description": "Namespace annotation key for group mapping.",
               "title": "groupAnnotation",
               "type": "string"
             },
             "groupCacheTtlSeconds": {
               "default": "60",
+              "description": "TTL in seconds for the group cache.",
               "title": "groupCacheTtlSeconds",
               "type": "string"
             },
             "image": {
               "additionalProperties": false,
+              "description": "Auth header injector container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
                   "title": "pullPolicy",
                   "type": "string"
                 },
                 "repository": {
                   "default": "ghcr.io/dadav/rhacs-manager-auth-header-injector",
+                  "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
                   "default": "",
-                  "description": "Defaults to Chart.appVersion if not set",
+                  "description": "Image tag. Defaults to Chart.appVersion if not set.",
                   "title": "tag",
                   "type": "string"
                 }
               },
-              "required": [
-                "repository",
-                "tag",
-                "pullPolicy"
-              ],
+              "required": [],
               "title": "image",
               "type": "object"
             },
             "namespaceAnnotation": {
               "default": "rhacs-manager.io/users",
+              "description": "Namespace annotation key for user mapping.",
               "title": "namespaceAnnotation",
               "type": "string"
             },
             "readinessProbe": {
               "additionalProperties": false,
+              "description": "Readiness probe for the auth-header-injector container.",
               "properties": {
                 "failureThreshold": {
                   "default": 3,
+                  "description": "Consecutive failures before marking unhealthy.",
+                  "minimum": 1,
                   "title": "failureThreshold",
                   "type": "integer"
                 },
                 "initialDelaySeconds": {
                   "default": 5,
+                  "description": "Seconds before the first probe.",
+                  "minimum": 0,
                   "title": "initialDelaySeconds",
                   "type": "integer"
                 },
                 "path": {
                   "default": "/healthz",
+                  "description": "HTTP path for the probe.",
                   "title": "path",
                   "type": "string"
                 },
                 "periodSeconds": {
                   "default": 10,
+                  "description": "Seconds between probes.",
+                  "minimum": 1,
                   "title": "periodSeconds",
                   "type": "integer"
                 },
                 "successThreshold": {
                   "default": 1,
+                  "description": "Consecutive successes before marking healthy.",
+                  "minimum": 1,
                   "title": "successThreshold",
                   "type": "integer"
                 },
                 "timeoutSeconds": {
                   "default": 3,
+                  "description": "Seconds before the probe times out.",
+                  "minimum": 1,
                   "title": "timeoutSeconds",
                   "type": "integer"
                 }
               },
-              "required": [
-                "path",
-                "initialDelaySeconds",
-                "periodSeconds",
-                "timeoutSeconds",
-                "failureThreshold",
-                "successThreshold"
-              ],
+              "required": [],
               "title": "readinessProbe",
               "type": "object"
             },
             "resources": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the auth-header-injector container.",
               "properties": {
                 "limits": {
                   "additionalProperties": false,
@@ -2198,7 +2166,8 @@
               "type": "object"
             },
             "securityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Container-level security context for the auth-header-injector.",
               "properties": {
                 "allowPrivilegeEscalation": {
                   "default": false,
@@ -2236,79 +2205,76 @@
               "type": "object"
             }
           },
-          "required": [
-            "image",
-            "securityContext",
-            "namespaceAnnotation",
-            "groupAnnotation",
-            "emailAnnotation",
-            "cacheTtlSeconds",
-            "groupCacheTtlSeconds",
-            "allNamespacesGroups",
-            "clusterRoleName",
-            "clusterRoleBindingName",
-            "resources",
-            "readinessProbe"
-          ],
+          "required": [],
           "title": "authHeaderInjector",
           "type": "object"
         },
         "frontend": {
           "additionalProperties": false,
+          "description": "Spoke frontend deployment configuration.",
           "properties": {
             "affinity": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Affinity rules for frontend pods.",
               "required": [],
               "title": "affinity",
               "type": "object"
             },
             "deploymentName": {
               "default": "rhacs-manager-frontend",
+              "description": "Name of the frontend Deployment resource.",
               "title": "deploymentName",
               "type": "string"
             },
             "image": {
               "additionalProperties": false,
+              "description": "Spoke frontend container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
                   "title": "pullPolicy",
                   "type": "string"
                 },
                 "repository": {
                   "default": "ghcr.io/dadav/rhacs-manager-spoke",
+                  "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
                   "default": "",
-                  "description": "Defaults to Chart.appVersion if not set",
+                  "description": "Image tag. Defaults to Chart.appVersion if not set.",
                   "title": "tag",
                   "type": "string"
                 }
               },
-              "required": [
-                "repository",
-                "tag",
-                "pullPolicy"
-              ],
+              "required": [],
               "title": "image",
               "type": "object"
             },
             "nodeSelector": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Node selector for frontend pods.",
               "required": [],
               "title": "nodeSelector",
               "type": "object"
             },
             "podAnnotations": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Additional annotations for frontend pods.",
               "required": [],
               "title": "podAnnotations",
               "type": "object"
             },
             "podSecurityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Pod-level security context for the frontend.",
               "properties": {
                 "runAsNonRoot": {
                   "default": true,
@@ -2324,56 +2290,64 @@
             },
             "readinessProbe": {
               "additionalProperties": false,
+              "description": "Readiness probe for the frontend container.",
               "properties": {
                 "failureThreshold": {
                   "default": 3,
+                  "description": "Consecutive failures before marking unhealthy.",
+                  "minimum": 1,
                   "title": "failureThreshold",
                   "type": "integer"
                 },
                 "initialDelaySeconds": {
                   "default": 5,
+                  "description": "Seconds before the first probe.",
+                  "minimum": 0,
                   "title": "initialDelaySeconds",
                   "type": "integer"
                 },
                 "path": {
                   "default": "/",
+                  "description": "HTTP path for the probe.",
                   "title": "path",
                   "type": "string"
                 },
                 "periodSeconds": {
                   "default": 10,
+                  "description": "Seconds between probes.",
+                  "minimum": 1,
                   "title": "periodSeconds",
                   "type": "integer"
                 },
                 "successThreshold": {
                   "default": 1,
+                  "description": "Consecutive successes before marking healthy.",
+                  "minimum": 1,
                   "title": "successThreshold",
                   "type": "integer"
                 },
                 "timeoutSeconds": {
                   "default": 3,
+                  "description": "Seconds before the probe times out.",
+                  "minimum": 1,
                   "title": "timeoutSeconds",
                   "type": "integer"
                 }
               },
-              "required": [
-                "path",
-                "initialDelaySeconds",
-                "periodSeconds",
-                "timeoutSeconds",
-                "failureThreshold",
-                "successThreshold"
-              ],
+              "required": [],
               "title": "readinessProbe",
               "type": "object"
             },
             "replicaCount": {
               "default": 2,
+              "description": "Number of frontend replicas.",
+              "minimum": 1,
               "title": "replicaCount",
               "type": "integer"
             },
             "resources": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the frontend container.",
               "properties": {
                 "limits": {
                   "additionalProperties": false,
@@ -2426,7 +2400,8 @@
               "type": "object"
             },
             "securityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Container-level security context for the frontend.",
               "properties": {
                 "allowPrivilegeEscalation": {
                   "default": false,
@@ -2465,143 +2440,92 @@
             },
             "serviceName": {
               "default": "rhacs-manager-frontend",
+              "description": "Name of the frontend Service resource.",
               "title": "serviceName",
               "type": "string"
             },
             "tolerations": {
+              "description": "Tolerations for frontend pods.",
               "items": {
-                "required": []
+                "additionalProperties": true,
+                "required": [],
+                "type": "object"
               },
               "title": "tolerations",
               "type": "array"
             },
             "topologySpreadConstraints": {
+              "description": "Topology spread constraints for frontend pods.",
               "items": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "labelSelector": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "matchLabels": {
-                            "additionalProperties": false,
-                            "properties": {
-                              "app": {
-                                "default": "rhacs-manager-frontend",
-                                "title": "app",
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "app"
-                            ],
-                            "title": "matchLabels",
-                            "type": "object"
-                          }
-                        },
-                        "required": [
-                          "matchLabels"
-                        ],
-                        "title": "labelSelector",
-                        "type": "object"
-                      },
-                      "maxSkew": {
-                        "default": 1,
-                        "title": "maxSkew",
-                        "type": "integer"
-                      },
-                      "topologyKey": {
-                        "default": "kubernetes.io/hostname",
-                        "title": "topologyKey",
-                        "type": "string"
-                      },
-                      "whenUnsatisfiable": {
-                        "default": "ScheduleAnyway",
-                        "title": "whenUnsatisfiable",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "maxSkew",
-                      "topologyKey",
-                      "whenUnsatisfiable",
-                      "labelSelector"
-                    ],
-                    "type": "object"
-                  }
-                ],
-                "required": []
+                "additionalProperties": true,
+                "required": [],
+                "type": "object"
               },
               "title": "topologySpreadConstraints",
               "type": "array"
             }
           },
-          "required": [
-            "deploymentName",
-            "serviceName",
-            "replicaCount",
-            "image",
-            "podAnnotations",
-            "podSecurityContext",
-            "securityContext",
-            "nodeSelector",
-            "tolerations",
-            "affinity",
-            "topologySpreadConstraints",
-            "resources",
-            "readinessProbe"
-          ],
+          "required": [],
           "title": "frontend",
           "type": "object"
         },
         "oauthProxy": {
           "additionalProperties": false,
+          "description": "OAuth proxy sidecar configuration (spoke mode).",
           "properties": {
             "authDelegatorClusterRoleBindingName": {
               "default": "rhacs-manager-oauth-proxy-review",
+              "description": "Name of the ClusterRoleBinding for token review delegation.",
               "title": "authDelegatorClusterRoleBindingName",
               "type": "string"
             },
             "cookieRefresh": {
               "default": "12h",
+              "description": "Cookie refresh interval.",
               "title": "cookieRefresh",
               "type": "string"
             },
             "cookieSecret": {
               "default": "",
+              "description": "OAuth proxy cookie encryption secret. Generate a random value for production.",
               "title": "cookieSecret",
               "type": "string"
             },
             "image": {
               "additionalProperties": false,
+              "description": "OAuth proxy container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
                   "title": "pullPolicy",
                   "type": "string"
                 },
                 "repository": {
                   "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
                   "default": "v4.14",
+                  "description": "Image tag.",
                   "title": "tag",
                   "type": "string"
                 }
               },
-              "required": [
-                "repository",
-                "tag",
-                "pullPolicy"
-              ],
+              "required": [],
               "title": "image",
               "type": "object"
             },
             "resources": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the oauth-proxy container.",
               "properties": {
                 "limits": {
                   "additionalProperties": false,
@@ -2654,7 +2578,8 @@
               "type": "object"
             },
             "securityContext": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Container-level security context for the oauth-proxy.",
               "properties": {
                 "allowPrivilegeEscalation": {
                   "default": false,
@@ -2693,92 +2618,98 @@
             },
             "serviceAccountName": {
               "default": "rhacs-manager-oauth-proxy",
+              "description": "ServiceAccount name for the oauth-proxy.",
               "title": "serviceAccountName",
               "type": "string"
             },
             "tlsSecretName": {
               "default": "rhacs-manager-oauth-proxy-tls",
+              "description": "Name of the TLS secret for the oauth-proxy.",
               "title": "tlsSecretName",
               "type": "string"
             }
           },
-          "required": [
-            "serviceAccountName",
-            "image",
-            "securityContext",
-            "cookieSecret",
-            "cookieRefresh",
-            "tlsSecretName",
-            "resources",
-            "authDelegatorClusterRoleBindingName"
-          ],
+          "required": [],
           "title": "oauthProxy",
           "type": "object"
         },
         "route": {
           "additionalProperties": false,
+          "description": "Spoke OpenShift Route configuration.",
           "properties": {
             "enabled": {
               "default": true,
+              "description": "Enable the spoke Route.",
               "title": "enabled",
               "type": "boolean"
             },
             "host": {
               "default": "rhacs-manager.spoke.example.com",
+              "description": "Route hostname.",
               "title": "host",
               "type": "string"
             },
             "name": {
               "default": "rhacs-manager",
+              "description": "Route resource name.",
               "title": "name",
               "type": "string"
             },
             "tls": {
               "additionalProperties": false,
+              "description": "TLS configuration for the spoke route.",
               "properties": {
                 "insecureEdgeTerminationPolicy": {
                   "default": "Redirect",
+                  "description": "Insecure edge termination policy.",
+                  "enum": [
+                    "Allow",
+                    "Redirect",
+                    "None"
+                  ],
                   "title": "insecureEdgeTerminationPolicy",
                   "type": "string"
                 },
                 "termination": {
                   "default": "reencrypt",
+                  "description": "TLS termination type.",
+                  "enum": [
+                    "edge",
+                    "reencrypt",
+                    "passthrough"
+                  ],
                   "title": "termination",
                   "type": "string"
                 }
               },
-              "required": [
-                "termination",
-                "insecureEdgeTerminationPolicy"
-              ],
+              "required": [],
               "title": "tls",
               "type": "object"
             }
           },
-          "required": [
-            "enabled",
-            "name",
-            "host",
-            "tls"
-          ],
+          "required": [],
           "title": "route",
           "type": "object"
         },
         "secret": {
           "additionalProperties": false,
+          "description": "Spoke secret configuration.",
           "properties": {
             "create": {
               "default": true,
+              "description": "Create the spoke Secret resource.",
               "title": "create",
               "type": "boolean"
             },
             "name": {
               "default": "rhacs-manager-spoke-secret",
+              "description": "Name of the spoke Secret.",
               "title": "name",
               "type": "string"
             },
             "stringData": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Secret string data entries. Override these in production.",
               "properties": {
                 "CLUSTER_NAME": {
                   "default": "spoke-cluster-name",
@@ -2806,19 +2737,17 @@
               "type": "object"
             }
           },
-          "required": [
-            "create",
-            "name",
-            "stringData"
-          ],
+          "required": [],
           "title": "secret",
           "type": "object"
         },
         "service": {
           "additionalProperties": false,
+          "description": "Spoke frontend Service configuration.",
           "properties": {
             "annotations": {
-              "additionalProperties": false,
+              "additionalProperties": true,
+              "description": "Service annotations.",
               "properties": {
                 "service.beta.openshift.io/serving-cert-secret-name": {
                   "default": "rhacs-manager-oauth-proxy-tls",
@@ -2834,38 +2763,33 @@
             },
             "port": {
               "default": 8443,
+              "description": "Service port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "port",
               "type": "integer"
             },
             "portName": {
               "default": "oauth-proxy",
+              "description": "Name of the service port.",
               "title": "portName",
               "type": "string"
             },
             "targetPort": {
               "default": 8443,
+              "description": "Container target port.",
+              "maximum": 65535,
+              "minimum": 1,
               "title": "targetPort",
               "type": "integer"
             }
           },
-          "required": [
-            "annotations",
-            "portName",
-            "port",
-            "targetPort"
-          ],
+          "required": [],
           "title": "service",
           "type": "object"
         }
       },
-      "required": [
-        "secret",
-        "oauthProxy",
-        "authHeaderInjector",
-        "frontend",
-        "service",
-        "route"
-      ],
+      "required": [],
       "title": "spoke",
       "type": "object"
     },
@@ -2874,108 +2798,123 @@
       "description": "Worker deployment — runs scheduler jobs (single replica only).\nShares backend image, secret, and DB config. Do NOT increase replicaCount\nabove 1 — the in-memory scheduler has no leader election and duplicate\ncron runs will cause duplicate emails and race conditions.",
       "properties": {
         "affinity": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Affinity rules for worker pods.",
           "required": [],
           "title": "affinity",
           "type": "object"
         },
         "deploymentName": {
           "default": "rhacs-manager-worker",
+          "description": "Name of the worker Deployment resource.",
           "title": "deploymentName",
           "type": "string"
         },
         "enabled": {
           "default": true,
+          "description": "Enable the worker deployment.",
           "title": "enabled",
           "type": "boolean"
         },
         "image": {
           "additionalProperties": false,
+          "description": "Worker container image.",
           "properties": {
             "pullPolicy": {
               "default": "IfNotPresent",
+              "description": "Image pull policy.",
+              "enum": [
+                "Always",
+                "IfNotPresent",
+                "Never"
+              ],
               "title": "pullPolicy",
               "type": "string"
             },
             "repository": {
               "default": "ghcr.io/dadav/rhacs-manager-backend",
+              "description": "Image repository.",
               "title": "repository",
               "type": "string"
             },
             "tag": {
               "default": "",
-              "description": "Defaults to Chart.appVersion if not set",
+              "description": "Image tag. Defaults to Chart.appVersion if not set.",
               "title": "tag",
               "type": "string"
             }
           },
-          "required": [
-            "repository",
-            "tag",
-            "pullPolicy"
-          ],
+          "required": [],
           "title": "image",
           "type": "object"
         },
         "livenessProbe": {
           "additionalProperties": false,
+          "description": "Liveness probe for the worker container.",
           "properties": {
             "failureThreshold": {
               "default": 3,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 30,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/health",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 30,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "livenessProbe",
           "type": "object"
         },
         "nodeSelector": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Node selector for worker pods.",
           "required": [],
           "title": "nodeSelector",
           "type": "object"
         },
         "podAnnotations": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Additional annotations for worker pods.",
           "required": [],
           "title": "podAnnotations",
           "type": "object"
         },
         "podSecurityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Pod-level security context for the worker.",
           "properties": {
             "runAsNonRoot": {
               "default": true,
@@ -2991,11 +2930,15 @@
         },
         "replicaCount": {
           "default": 1,
+          "description": "Number of worker replicas. Must be 1 (no leader election).",
+          "maximum": 1,
+          "minimum": 1,
           "title": "replicaCount",
           "type": "integer"
         },
         "resources": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Resource requests and limits for the worker container.",
           "properties": {
             "limits": {
               "additionalProperties": false,
@@ -3048,7 +2991,8 @@
           "type": "object"
         },
         "securityContext": {
-          "additionalProperties": false,
+          "additionalProperties": true,
+          "description": "Container-level security context for the worker.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,
@@ -3087,89 +3031,71 @@
         },
         "startupProbe": {
           "additionalProperties": false,
+          "description": "Startup probe for the worker container.",
           "properties": {
             "failureThreshold": {
               "default": 30,
+              "description": "Consecutive failures before marking unhealthy.",
+              "minimum": 1,
               "title": "failureThreshold",
               "type": "integer"
             },
             "initialDelaySeconds": {
               "default": 5,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
               "title": "initialDelaySeconds",
               "type": "integer"
             },
             "path": {
               "default": "/health",
+              "description": "HTTP path for the probe.",
               "title": "path",
               "type": "string"
             },
             "periodSeconds": {
               "default": 5,
+              "description": "Seconds between probes.",
+              "minimum": 1,
               "title": "periodSeconds",
               "type": "integer"
             },
             "successThreshold": {
               "default": 1,
+              "description": "Consecutive successes before marking healthy.",
+              "minimum": 1,
               "title": "successThreshold",
               "type": "integer"
             },
             "timeoutSeconds": {
               "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
               "title": "timeoutSeconds",
               "type": "integer"
             }
           },
-          "required": [
-            "path",
-            "initialDelaySeconds",
-            "periodSeconds",
-            "timeoutSeconds",
-            "failureThreshold",
-            "successThreshold"
-          ],
+          "required": [],
           "title": "startupProbe",
           "type": "object"
         },
         "tolerations": {
+          "description": "Tolerations for worker pods.",
           "items": {
-            "required": []
+            "additionalProperties": true,
+            "required": [],
+            "type": "object"
           },
           "title": "tolerations",
           "type": "array"
         }
       },
-      "required": [
-        "enabled",
-        "deploymentName",
-        "replicaCount",
-        "image",
-        "podAnnotations",
-        "podSecurityContext",
-        "securityContext",
-        "nodeSelector",
-        "tolerations",
-        "affinity",
-        "resources",
-        "startupProbe",
-        "livenessProbe"
-      ],
+      "required": [],
       "title": "worker",
       "type": "object"
     }
   },
-  "required": [
-    "nameOverride",
-    "fullnameOverride",
-    "mode",
-    "namespace",
-    "database",
-    "global",
-    "networkPolicy",
-    "backend",
-    "worker",
-    "frontend",
-    "route",
-    "spoke"
-  ],
+  "required": [],
+  "title": "RHACS Manager Helm Values",
   "type": "object"
 }
