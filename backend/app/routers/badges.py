@@ -19,6 +19,22 @@ router = APIRouter(prefix="/badges", tags=["badges"])
 # Server-side SVG cache: token -> (svg_string, timestamp)
 _svg_cache: dict[str, tuple[str, float]] = {}
 _SVG_CACHE_TTL = 300  # 5 minutes, matches Cache-Control max-age
+_SVG_CACHE_MAX_SIZE = 10_000
+
+
+def _evict_svg_cache() -> None:
+    """Evict expired entries; if still over max size, evict oldest entries."""
+    now = time.monotonic()
+    # Remove expired entries
+    expired = [k for k, (_, ts) in _svg_cache.items() if (now - ts) >= _SVG_CACHE_TTL]
+    for k in expired:
+        del _svg_cache[k]
+    # If still over limit, evict oldest
+    if len(_svg_cache) >= _SVG_CACHE_MAX_SIZE:
+        by_age = sorted(_svg_cache.items(), key=lambda item: item[1][1])
+        to_remove = len(_svg_cache) - _SVG_CACHE_MAX_SIZE + 1
+        for k, _ in by_age[:to_remove]:
+            del _svg_cache[k]
 
 
 def _badge_url(token: str) -> str:
@@ -95,6 +111,8 @@ async def get_badge_svg(
     low = sum(1 for c in cves if c.get("severity") <= 1)
 
     svg = generate_badge_svg(critical, high, moderate, low, badge.label)
+    if len(_svg_cache) >= _SVG_CACHE_MAX_SIZE:
+        _evict_svg_cache()
     _svg_cache[token] = (svg, time.monotonic())
     return Response(
         svg,
@@ -113,7 +131,11 @@ async def list_badges(
     if current_user.can_see_all_namespaces:
         query = select(BadgeToken).order_by(BadgeToken.created_at.desc())
     else:
-        query = select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
+        query = (
+            select(BadgeToken)
+            .where(BadgeToken.created_by == current_user.id)
+            .order_by(BadgeToken.created_at.desc())
+        )
 
     if cluster:
         query = query.where(
@@ -143,10 +165,14 @@ async def create_badge(
     if body.namespace and not current_user.has_all_namespaces:
         if body.cluster_name:
             if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
-                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+                raise HTTPException(
+                    400, "Namespace nicht in Ihren zugänglichen Namespaces"
+                )
         else:
             if not any(ns == body.namespace for ns, _ in current_user.namespaces):
-                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+                raise HTTPException(
+                    400, "Namespace nicht in Ihren zugänglichen Namespaces"
+                )
 
     # When no namespace filter specified, store all user's namespaces
     # so the public SVG endpoint can query the right scope.

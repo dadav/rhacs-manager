@@ -9,6 +9,26 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
+def _namespace_filter(
+    namespaces: list[tuple[str, str]], prefix: str = "ns"
+) -> tuple[str, dict[str, str]]:
+    """Build a parameterized SQL fragment for namespace filtering.
+
+    Returns (sql_fragment, params) where sql_fragment is like:
+    "(d.namespace, d.clustername) IN (VALUES (:ns_0_ns, :ns_0_cl), (:ns_1_ns, :ns_1_cl))"
+    """
+    placeholders = []
+    params: dict[str, str] = {}
+    for i, (ns, cl) in enumerate(namespaces):
+        ns_key = f"{prefix}_{i}_ns"
+        cl_key = f"{prefix}_{i}_cl"
+        placeholders.append(f"(:{ns_key}, :{cl_key})")
+        params[ns_key] = ns
+        params[cl_key] = cl
+    fragment = f"(d.namespace, d.clustername) IN (VALUES {', '.join(placeholders)})"
+    return fragment, params
+
+
 async def get_cves_for_namespaces(
     session: AsyncSession,
     namespaces: list[tuple[str, str]],  # (namespace, cluster_name)
@@ -22,9 +42,7 @@ async def get_cves_for_namespaces(
 
     always_show = list(always_show_cve_ids or [])
 
-    # Build namespace pairs for the ANY(ARRAY[...]) clause
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT
@@ -44,7 +62,7 @@ async def get_cves_for_namespaces(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
             (
@@ -58,7 +76,12 @@ async def get_cves_for_namespaces(
 
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -71,8 +94,7 @@ async def get_cve_detail(
     if not namespaces:
         return None
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT
@@ -92,12 +114,12 @@ async def get_cve_detail(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
         GROUP BY ic.cvebaseinfo_cve
     """)
 
-    result = await session.execute(sql, {"cve_id": cve_id})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
     row = result.fetchone()
     return dict(row._mapping) if row else None
 
@@ -110,8 +132,7 @@ async def get_affected_deployments(
     if not namespaces:
         return []
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT DISTINCT
@@ -123,11 +144,11 @@ async def get_affected_deployments(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
         ORDER BY d.namespace, d.name
     """)
-    result = await session.execute(sql, {"cve_id": cve_id})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
     return [dict(row._mapping) for row in result]
 
 
@@ -139,8 +160,7 @@ async def get_affected_components(
     if not namespaces:
         return []
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT DISTINCT
@@ -152,12 +172,12 @@ async def get_affected_components(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
           AND comp.name IS NOT NULL
         ORDER BY comp.name, comp.version
     """)
-    result = await session.execute(sql, {"cve_id": cve_id})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
     return [dict(row._mapping) for row in result]
 
 
@@ -216,10 +236,10 @@ async def get_severity_distribution(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -248,7 +268,12 @@ async def get_severity_distribution(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -265,10 +290,10 @@ async def get_cves_per_namespace(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -312,7 +337,12 @@ async def get_cves_per_namespace(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -335,8 +365,7 @@ async def get_cves_by_namespace_detail(
 
     always_show = list(always_show_cve_ids or [])
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT
@@ -350,7 +379,7 @@ async def get_cves_by_namespace_detail(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve, d.namespace, d.clustername
         HAVING (
             (
@@ -363,7 +392,12 @@ async def get_cves_by_namespace_detail(
 
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -384,10 +418,10 @@ async def get_cve_trend(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"AND {ns_fragment}"
     else:
         where_clause = ""
 
@@ -428,6 +462,7 @@ async def get_cve_trend(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            **ns_params,
         },
     )
     return [
@@ -455,10 +490,10 @@ async def get_epss_risk_matrix(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -484,7 +519,12 @@ async def get_epss_risk_matrix(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     return [dict(row._mapping) for row in result]
 
@@ -502,10 +542,10 @@ async def get_cluster_heatmap(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -541,7 +581,12 @@ async def get_cluster_heatmap(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     rows = [dict(row._mapping) for row in result]
 
@@ -581,8 +626,7 @@ async def get_fixability_stats(
     if not namespaces:
         return {"fixable": 0, "unfixable": 0}
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT
@@ -591,10 +635,10 @@ async def get_fixability_stats(
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve
     """)
-    result = await session.execute(sql)
+    result = await session.execute(sql, ns_params)
     rows = result.fetchall()
     fixable = sum(1 for r in rows if r.any_fixable)
     unfixable = sum(1 for r in rows if not r.any_fixable)
@@ -614,10 +658,10 @@ async def get_fixability_breakdown(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -639,7 +683,12 @@ async def get_fixability_breakdown(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     rows = result.fetchall()
     fixable = sum(1 for r in rows if r.any_fixable)
@@ -661,10 +710,10 @@ async def get_top_affected_deployments(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -693,7 +742,7 @@ async def get_top_affected_deployments(
         JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
         JOIN deployments_containers dc ON dc.image_id = ic.imageid
         JOIN deployments d ON d.id = dc.deployments_id
-        {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+        {("WHERE " + ns_fragment) if namespaces else ""}
         GROUP BY d.name, d.namespace, d.clustername
         ORDER BY cve_count DESC
         LIMIT :limit
@@ -705,6 +754,7 @@ async def get_top_affected_deployments(
             "min_epss": min_epss,
             "always_show": always_show,
             "limit": limit,
+            **ns_params,
         },
     )
     return [dict(row._mapping) for row in result]
@@ -719,8 +769,7 @@ async def get_cve_ids_for_deployment(
     if not namespaces:
         return []
 
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
@@ -728,9 +777,11 @@ async def get_cve_ids_for_deployment(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         WHERE d.name = :deployment_name
-          AND (d.namespace, d.clustername) IN ({ns_values})
+          AND {ns_fragment}
     """)
-    result = await session.execute(sql, {"deployment_name": deployment_name})
+    result = await session.execute(
+        sql, {"deployment_name": deployment_name, **ns_params}
+    )
     return [row.cve_id for row in result]
 
 
@@ -750,10 +801,10 @@ async def get_fixable_trend(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"AND {ns_fragment}"
     else:
         where_clause = ""
 
@@ -792,6 +843,7 @@ async def get_fixable_trend(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            **ns_params,
         },
     )
     return [
@@ -813,10 +865,10 @@ async def get_cve_aging(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -838,7 +890,12 @@ async def get_cve_aging(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            **ns_params,
+        },
     )
     rows = [r.age_days for r in result if r.age_days is not None]
 
@@ -937,10 +994,10 @@ async def get_cves_grouped_by_image(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
     else:
         where_clause = ""
 
@@ -951,6 +1008,7 @@ async def get_cves_grouped_by_image(
         "min_cvss": min_cvss,
         "min_epss": min_epss,
         "always_show": always_show,
+        **ns_params,
     }
 
     if search:
@@ -1015,7 +1073,7 @@ async def get_cves_grouped_by_image(
             AND ic.imageid = vc.imageid
         JOIN deployments_containers dc ON dc.image_id = ic.imageid
         JOIN deployments d ON d.id = dc.deployments_id
-        {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+        {("WHERE " + ns_fragment) if namespaces else ""}
         GROUP BY dc.image_name_fullname, dc.image_id
         ORDER BY total_cves DESC
     """)
@@ -1044,10 +1102,10 @@ async def get_cves_for_image(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"AND {ns_fragment}"
     else:
         where_clause = ""
 
@@ -1058,6 +1116,7 @@ async def get_cves_for_image(
         "min_cvss": min_cvss,
         "min_epss": min_epss,
         "always_show": always_show,
+        **ns_params,
     }
 
     if search:
@@ -1097,7 +1156,7 @@ async def get_cves_for_image(
             FROM deployments d
             JOIN deployments_containers dc ON dc.deployments_id = d.id
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-            {"WHERE (d.namespace, d.clustername) IN (" + ns_values + ")" if namespaces else ""}
+            {("WHERE " + ns_fragment) if namespaces else ""}
             GROUP BY ic.cvebaseinfo_cve
             HAVING (
                 (
@@ -1189,17 +1248,16 @@ async def get_cve_namespace_map(
     """Returns {cve_id: [namespace, ...]} for the given CVEs within the given namespaces."""
     if not cve_ids or not namespaces:
         return {}
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, d.namespace
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
     mapping: dict[str, list[str]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(row.namespace)
@@ -1220,10 +1278,10 @@ async def get_cve_namespace_cluster_map(
     if namespaces is not None and not namespaces:
         return {}
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        ns_filter = f"AND (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        ns_filter = f"AND {ns_fragment}"
     else:
         ns_filter = ""
 
@@ -1235,7 +1293,7 @@ async def get_cve_namespace_cluster_map(
         WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
           {ns_filter}
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
     mapping: dict[str, set[tuple[str, str]]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, set()).add((row.clustername, row.namespace))
@@ -1256,16 +1314,13 @@ async def get_top_vulnerable_components(
 
     always_show = list(always_show_cve_ids or [])
 
+    ns_params: dict = {}
     if namespaces:
-        ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-        ns_values = ", ".join(ns_pairs)
-        where_clause = f"WHERE (d.namespace, d.clustername) IN ({ns_values})"
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        where_clause = f"WHERE {ns_fragment}"
+        ns_filter = f"AND {ns_fragment}"
     else:
         where_clause = ""
-
-    if namespaces:
-        ns_filter = f"AND (d.namespace, d.clustername) IN ({ns_values})"
-    else:
         ns_filter = ""
 
     sql = text(f"""
@@ -1310,6 +1365,7 @@ async def get_top_vulnerable_components(
             "min_epss": min_epss,
             "always_show": always_show,
             "limit": limit,
+            **ns_params,
         },
     )
     return [dict(row._mapping) for row in result]
@@ -1323,19 +1379,18 @@ async def get_cve_component_map(
     """Returns {cve_id: [component_name, ...]} for the given CVEs within the given namespaces."""
     if not cve_ids or not namespaces:
         return {}
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, comp.name AS component_name
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
           AND comp.name IS NOT NULL
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
     mapping: dict[str, list[str]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(row.component_name)
@@ -1350,8 +1405,7 @@ async def get_cve_component_version_map(
     """Returns {cve_id: [(component_name, component_version), ...]} for suppression rule matching."""
     if not cve_ids or not namespaces:
         return {}
-    ns_pairs = [f"('{ns}','{cl}')" for ns, cl in namespaces]
-    ns_values = ", ".join(ns_pairs)
+    ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
         SELECT DISTINCT
             ic.cvebaseinfo_cve AS cve_id,
@@ -1361,11 +1415,11 @@ async def get_cve_component_version_map(
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE (d.namespace, d.clustername) IN ({ns_values})
+        WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
           AND comp.name IS NOT NULL
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
     mapping: dict[str, list[tuple[str, str]]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(

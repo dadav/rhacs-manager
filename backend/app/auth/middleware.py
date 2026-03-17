@@ -1,6 +1,8 @@
 import logging
 import secrets
+import time
 
+import httpx
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +13,11 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.user import User, UserRole
 
 logger = logging.getLogger(__name__)
+
+
+# OIDC JWKS cache: {"keys": [...], "fetched_at": float}
+_jwks_cache: dict[str, object] = {}
+_JWKS_CACHE_TTL = 3600  # 1 hour
 
 
 def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
@@ -26,6 +33,11 @@ def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
         ns, cluster = ns.strip(), cluster.strip()
         if ns and cluster:
             pairs.append((ns, cluster))
+    if len(pairs) > settings.max_namespace_count:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Zu viele Namespaces ({len(pairs)} > {settings.max_namespace_count})",
+        )
     return pairs
 
 
@@ -67,14 +79,27 @@ async def _upsert_namespace_contacts(
             if existing.escalation_email != email:
                 existing.escalation_email = email
         else:
-            session.add(NamespaceContact(
-                namespace=ns, cluster_name=cluster, escalation_email=email,
-            ))
+            session.add(
+                NamespaceContact(
+                    namespace=ns,
+                    cluster_name=cluster,
+                    escalation_email=email,
+                )
+            )
     await session.commit()
 
 
 class CurrentUser:
-    def __init__(self, id: str, username: str, email: str, role: UserRole, namespaces: list[tuple[str, str]], onboarding_completed: bool = False, has_all_namespaces: bool = False):
+    def __init__(
+        self,
+        id: str,
+        username: str,
+        email: str,
+        role: UserRole,
+        namespaces: list[tuple[str, str]],
+        onboarding_completed: bool = False,
+        has_all_namespaces: bool = False,
+    ):
         self.id = id
         self.username = username
         self.email = email
@@ -132,7 +157,9 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     return user
 
 
-def _to_current_user(user: User, namespaces: list[tuple[str, str]], has_all_namespaces: bool = False) -> CurrentUser:
+def _to_current_user(
+    user: User, namespaces: list[tuple[str, str]], has_all_namespaces: bool = False
+) -> CurrentUser:
     return CurrentUser(
         id=user.id,
         username=user.username,
@@ -146,7 +173,11 @@ def _to_current_user(user: User, namespaces: list[tuple[str, str]], has_all_name
 
 async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
     has_all_namespaces = settings.dev_user_namespaces.strip() == "*"
-    namespaces = [] if has_all_namespaces else _parse_namespaces_header(settings.dev_user_namespaces)
+    namespaces = (
+        []
+        if has_all_namespaces
+        else _parse_namespaces_header(settings.dev_user_namespaces)
+    )
 
     # Upsert dev namespace email contacts
     ns_emails = _parse_namespace_emails_header(settings.dev_namespace_emails)
@@ -176,10 +207,14 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
 
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
     has_all_namespaces = forwarded_namespaces_raw.strip() == "*"
-    namespaces = [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
+    namespaces = (
+        [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
+    )
 
     # Determine role from groups
-    role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
+    role = (
+        UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
+    )
 
     # Use spoke:<username> as user ID to avoid collisions across clusters
     user_id = f"spoke:{forwarded_user}"
@@ -199,8 +234,61 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     if ns_emails:
         await _upsert_namespace_contacts(session, ns_emails)
 
-    logger.info("Spoke proxy auth: user=%s, role=%s, namespaces=%d, all_ns=%s", user_id, role.value, len(namespaces), has_all_namespaces)
+    logger.info(
+        "Spoke proxy auth: user=%s, role=%s, namespaces=%d, all_ns=%s",
+        user_id,
+        role.value,
+        len(namespaces),
+        has_all_namespaces,
+    )
     return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)
+
+
+async def _get_oidc_signing_key(token: str) -> object:
+    """Fetch OIDC JWKS and return the RSA public key matching the token's kid header."""
+    from jose import jwt as jose_jwt
+
+    # Decode header to get kid
+    header = jose_jwt.get_unverified_header(token)
+    kid = header.get("kid")
+    if not kid:
+        raise HTTPException(status_code=401, detail="Token hat kein kid im Header")
+
+    # Check cache
+    now = time.monotonic()
+    cached_keys = _jwks_cache.get("keys")
+    cached_at = _jwks_cache.get("fetched_at", 0.0)
+    if cached_keys and (now - cached_at) < _JWKS_CACHE_TTL:
+        for key in cached_keys:
+            if key.get("kid") == kid:
+                return key
+        # kid not found in cache — refetch in case keys rotated
+        logger.info("OIDC kid %s not in cached JWKS, refetching", kid)
+
+    # Fetch OIDC discovery document
+    discovery_url = (
+        f"{settings.oidc_issuer.rstrip('/')}/.well-known/openid-configuration"
+    )
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        disco_resp = await client.get(discovery_url)
+        disco_resp.raise_for_status()
+        jwks_uri = disco_resp.json()["jwks_uri"]
+
+        jwks_resp = await client.get(jwks_uri)
+        jwks_resp.raise_for_status()
+        jwks = jwks_resp.json()
+
+    # Cache the keys
+    _jwks_cache["keys"] = jwks.get("keys", [])
+    _jwks_cache["fetched_at"] = now
+
+    for key in _jwks_cache["keys"]:
+        if key.get("kid") == kid:
+            return key
+
+    raise HTTPException(
+        status_code=401, detail="Kein passender OIDC-Schlüssel gefunden"
+    )
 
 
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:
@@ -212,28 +300,64 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
     try:
         from jose import jwt
 
+        # Fetch the correct RSA public key from OIDC JWKS
+        rsa_key = await _get_oidc_signing_key(token)
+
         payload = jwt.decode(
             token,
-            settings.secret_key,
+            rsa_key,
             algorithms=["RS256"],
             audience=settings.oidc_client_id,
+            issuer=settings.oidc_issuer,
         )
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Ungültiges Token")
 
-        result = await session.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if user is None:
-            raise HTTPException(status_code=401, detail="Benutzer nicht gefunden")
+        # Validate issuer matches configured issuer
+        if payload.get("iss") != settings.oidc_issuer:
+            raise HTTPException(
+                status_code=401, detail="Token-Issuer stimmt nicht überein"
+            )
+
+        # Extract standard OIDC claims
+        username = payload.get("preferred_username", payload.get("sub", ""))
+        email = payload.get("email", "")
+        groups = payload.get("groups", [])
+        if isinstance(groups, str):
+            groups = [g.strip() for g in groups.split(",") if g.strip()]
+
+        # Determine role from groups
+        role = (
+            UserRole.sec_team
+            if settings.sec_team_group in groups
+            else UserRole.team_member
+        )
 
         # Namespaces from JWT claims (if available)
         ns_claim = payload.get("namespaces", "")
-        namespaces = _parse_namespaces_header(ns_claim) if ns_claim else []
+        has_all_namespaces = ns_claim.strip() == "*" if ns_claim else False
+        namespaces = (
+            []
+            if has_all_namespaces
+            else (_parse_namespaces_header(ns_claim) if ns_claim else [])
+        )
 
-        return _to_current_user(user, namespaces)
+        # Auto-create/upsert user on first OIDC login
+        user_data = {
+            "id": user_id,
+            "username": username,
+            "email": email,
+            "role": role.value,
+        }
+        user = await _get_or_create_user(session, user_data)
+        user = await _sync_user_fields(session, user, user_data)
+
+        return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning("Auth failed: %s", e)
+        logger.warning("OIDC auth failed: %s", e)
         raise HTTPException(status_code=401, detail="Authentifizierung fehlgeschlagen")
 
 
@@ -262,7 +386,11 @@ async def get_current_user(request: Request) -> CurrentUser:
         return await _handle_oidc_jwt(session, request)
 
 
-def require_sec_team(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+def require_sec_team(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
     if not current_user.is_sec_team:
-        raise HTTPException(status_code=403, detail="Nur für das Security-Team zugänglich")
+        raise HTTPException(
+            status_code=403, detail="Nur für das Security-Team zugänglich"
+        )
     return current_user

@@ -70,6 +70,7 @@ backend:
     create: true
     name: rhacs-manager-backend-secret
     stringData:
+      # REQUIRED: override in production with a strong random value
       SECRET_KEY: "change-me-to-a-random-secret"
       DEV_MODE: "false"
       DEV_USER_ID: ""
@@ -89,6 +90,7 @@ backend:
       BADGE_BASE_URL: "https://rhacs-manager-api.example.com"
       MANAGEMENT_EMAIL: ""
       DEFAULT_ESCALATION_EMAIL: ""
+      # REQUIRED: override in production with a list of allowed spoke API keys
       SPOKE_API_KEYS: "[]"
       SEC_TEAM_GROUP: "rhacs-sec-team"
       SCHEDULER_ENABLED: "false"
@@ -227,6 +229,7 @@ frontend:
     name: rhacs-manager-hub-spoke-secret
     stringData:
       HUB_API_URL: "http://rhacs-manager-backend:8000"
+      # REQUIRED: override in production to match a hub SPOKE_API_KEYS entry
       SPOKE_API_KEY: "change-me-to-match-hub-key"
       CLUSTER_NAME: "hub"
   oauthProxy:
@@ -311,6 +314,7 @@ spoke:
     name: rhacs-manager-spoke-secret
     stringData:
       HUB_API_URL: "https://rhacs-manager-api.hub.example.com"
+      # REQUIRED: override in production to match a hub SPOKE_API_KEYS entry
       SPOKE_API_KEY: "change-me-to-match-hub-key"
       CLUSTER_NAME: "spoke-cluster-name"
 

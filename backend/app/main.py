@@ -27,12 +27,45 @@ from .routers import (
 )
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=getattr(logging, app_settings.log_level.upper(), logging.INFO)
+)
 logger = logging.getLogger(__name__)
+
+_INSECURE_SECRET_KEYS = {
+    "",
+    "dev-secret-key-change-in-production",
+    "change-me-to-a-random-secret",
+}
+
+
+def _validate_production_config() -> None:
+    """Validate configuration for production (dev_mode=False). Raises on fatal misconfiguration."""
+    if app_settings.secret_key in _INSECURE_SECRET_KEYS:
+        raise RuntimeError(
+            "SECRET_KEY must be set to a strong random value in production. "
+            "Current value is empty or a known default."
+        )
+    if not app_settings.oidc_issuer and not app_settings.spoke_api_keys:
+        raise RuntimeError(
+            "No working auth path configured: OIDC_ISSUER is empty and SPOKE_API_KEYS is empty. "
+            "At least one must be set when DEV_MODE=false."
+        )
+    if not app_settings.management_email:
+        logger.warning(
+            "MANAGEMENT_EMAIL is not set — org-wide digest emails will not be sent"
+        )
+    if not app_settings.default_escalation_email:
+        logger.warning(
+            "DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing"
+        )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not app_settings.dev_mode:
+        _validate_production_config()
+
     active_scheduler = None
     if app_settings.scheduler_enabled:
         active_scheduler = setup_scheduler()
@@ -58,13 +91,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: dev mode allows all origins; production uses configured origins or app_base_url
+if app_settings.dev_mode:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    _cors_origins = app_settings.cors_origins or [app_settings.app_base_url]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Register all routers under /api prefix
 for router_module in [

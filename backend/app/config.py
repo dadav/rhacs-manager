@@ -50,7 +50,7 @@ class Settings(BaseSettings):
         return f"postgresql+asyncpg://{cred}@{self.stackrox_db_host}:{self.stackrox_db_port}/{self.stackrox_db_name}"
 
     # Auth — set dev_mode=true to skip OIDC and use mock user
-    dev_mode: bool = Field(default=True)
+    dev_mode: bool = Field(default=False)
     dev_user_id: str = Field(default="dev-user-1")
     dev_user_name: str = Field(default="Dev User")
     dev_user_email: str = Field(default="dev@example.com")
@@ -90,11 +90,20 @@ class Settings(BaseSettings):
     badge_base_url: str = Field(
         default=""
     )  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
-    secret_key: str = Field(default="dev-secret-key-change-in-production")
+    secret_key: str = Field(default="")
     management_email: str = Field(default="")  # org-wide digest recipient
     default_escalation_email: str = Field(
         default=""
     )  # fallback escalation email for unannotated namespaces
+
+    # CORS — configurable allowed origins (empty = app_base_url only in production)
+    cors_origins: list[str] = Field(default_factory=list)
+
+    # Logging
+    log_level: str = Field(default="INFO")
+
+    # Namespace header safety limit
+    max_namespace_count: int = Field(default=500)
 
 
 settings = Settings()
