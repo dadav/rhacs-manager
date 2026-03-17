@@ -119,7 +119,7 @@ backend:
     failureThreshold: 30
     successThreshold: 1
   readinessProbe:
-    path: /health
+    path: /ready
     initialDelaySeconds: 10
     periodSeconds: 10
     timeoutSeconds: 3

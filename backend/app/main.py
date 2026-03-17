@@ -1,10 +1,14 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from .config import settings as app_settings
+from .database import app_engine, stackrox_engine
 from .routers import (
     audit,
     auth,
@@ -92,3 +96,22 @@ if app_settings.dev_mode:
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def readiness() -> JSONResponse:
+    checks: dict[str, str] = {}
+    for name, engine in [("app_db", app_engine), ("stackrox_db", stackrox_engine)]:
+        try:
+            async with engine.connect() as conn:
+                await asyncio.wait_for(conn.execute(text("SELECT 1")), timeout=3.0)
+            checks[name] = "ok"
+        except Exception as exc:
+            checks[name] = str(exc)
+
+    if all(v == "ok" for v in checks.values()):
+        return JSONResponse({"status": "ok", "checks": checks})
+    return JSONResponse(
+        {"status": "degraded", "checks": checks},
+        status_code=503,
+    )
