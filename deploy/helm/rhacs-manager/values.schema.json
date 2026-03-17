@@ -210,7 +210,7 @@
               "type": "integer"
             },
             "path": {
-              "default": "/health",
+              "default": "/ready",
               "title": "path",
               "type": "string"
             },
@@ -372,6 +372,7 @@
                 },
                 "SECRET_KEY": {
                   "default": "change-me-to-a-random-secret",
+                  "description": "REQUIRED: override in production with a strong random value",
                   "title": "SECRET_KEY",
                   "type": "string"
                 },
@@ -422,6 +423,7 @@
                 },
                 "SPOKE_API_KEYS": {
                   "default": "[]",
+                  "description": "REQUIRED: override in production with a list of allowed spoke API keys",
                   "title": "SPOKE_API_KEYS",
                   "type": "string"
                 }
@@ -676,6 +678,267 @@
         "cnpg": {
           "additionalProperties": false,
           "properties": {
+            "backup": {
+              "additionalProperties": false,
+              "description": "Barman Object Store backup configuration (hub mode only).\nRequires a pre-existing secret with provider credentials.",
+              "properties": {
+                "azure": {
+                  "additionalProperties": false,
+                  "description": "Azure Blob Storage credentials.",
+                  "properties": {
+                    "inheritFromAzureAD": {
+                      "default": false,
+                      "description": "Use Azure AD Workload Identity instead of explicit credentials.",
+                      "title": "inheritFromAzureAD",
+                      "type": "boolean"
+                    },
+                    "secretName": {
+                      "default": "",
+                      "description": "Name of the secret containing AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY.",
+                      "title": "secretName",
+                      "type": "string"
+                    },
+                    "storageAccountKey": {
+                      "default": "AZURE_STORAGE_ACCOUNT",
+                      "title": "storageAccountKey",
+                      "type": "string"
+                    },
+                    "storageKeyKey": {
+                      "default": "AZURE_STORAGE_KEY",
+                      "title": "storageKeyKey",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secretName",
+                    "storageAccountKey",
+                    "storageKeyKey",
+                    "inheritFromAzureAD"
+                  ],
+                  "title": "azure",
+                  "type": "object"
+                },
+                "data": {
+                  "additionalProperties": false,
+                  "description": "Base backup (data) options.",
+                  "properties": {
+                    "additionalCommandArgs": {
+                      "description": "Additional barman-cloud-backup command args.",
+                      "items": {
+                        "required": []
+                      },
+                      "title": "additionalCommandArgs",
+                      "type": "array"
+                    },
+                    "compression": {
+                      "default": "gzip",
+                      "description": "Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.",
+                      "title": "compression",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "compression",
+                    "additionalCommandArgs"
+                  ],
+                  "title": "data",
+                  "type": "object"
+                },
+                "destinationPath": {
+                  "default": "",
+                  "description": "Backup destination path (e.g. s3://bucket/path, gs://bucket/path,\nor https://\u003caccount\u003e.blob.core.windows.net/\u003ccontainer\u003e/\u003cpath\u003e).",
+                  "title": "destinationPath",
+                  "type": "string"
+                },
+                "enabled": {
+                  "default": false,
+                  "description": "Enable continuous backup and WAL archiving to an object store.",
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "gcs": {
+                  "additionalProperties": false,
+                  "description": "Google Cloud Storage credentials.",
+                  "properties": {
+                    "applicationCredentialsKey": {
+                      "default": "gcsCredentials",
+                      "title": "applicationCredentialsKey",
+                      "type": "string"
+                    },
+                    "gkeEnvironment": {
+                      "default": false,
+                      "description": "Use GKE Workload Identity instead of explicit credentials.",
+                      "title": "gkeEnvironment",
+                      "type": "boolean"
+                    },
+                    "secretName": {
+                      "default": "",
+                      "description": "Name of the secret containing a GCS service account JSON key.",
+                      "title": "secretName",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secretName",
+                    "applicationCredentialsKey",
+                    "gkeEnvironment"
+                  ],
+                  "title": "gcs",
+                  "type": "object"
+                },
+                "provider": {
+                  "default": "s3",
+                  "description": "Object store provider: s3, azure, or gcs.",
+                  "title": "provider",
+                  "type": "string"
+                },
+                "retentionPolicy": {
+                  "default": "30d",
+                  "description": "Retention policy using recovery window semantics (e.g. \"30d\").",
+                  "title": "retentionPolicy",
+                  "type": "string"
+                },
+                "s3": {
+                  "additionalProperties": false,
+                  "description": "S3 / S3-compatible credentials.",
+                  "properties": {
+                    "accessKeyIdKey": {
+                      "default": "ACCESS_KEY_ID",
+                      "title": "accessKeyIdKey",
+                      "type": "string"
+                    },
+                    "endpointCA": {
+                      "additionalProperties": false,
+                      "description": "Secret reference for a custom CA certificate (optional).",
+                      "properties": {
+                        "key": {
+                          "default": "ca.crt",
+                          "description": "Key within the secret.",
+                          "title": "key",
+                          "type": "string"
+                        },
+                        "name": {
+                          "default": "",
+                          "description": "Name of the secret containing the CA certificate.",
+                          "title": "name",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "key"
+                      ],
+                      "title": "endpointCA",
+                      "type": "object"
+                    },
+                    "endpointURL": {
+                      "default": "",
+                      "description": "Custom S3 endpoint URL for MinIO or other S3-compatible stores.",
+                      "title": "endpointURL",
+                      "type": "string"
+                    },
+                    "secretAccessKeyKey": {
+                      "default": "ACCESS_SECRET_KEY",
+                      "title": "secretAccessKeyKey",
+                      "type": "string"
+                    },
+                    "secretName": {
+                      "default": "",
+                      "description": "Name of the secret containing ACCESS_KEY_ID and ACCESS_SECRET_KEY.",
+                      "title": "secretName",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secretName",
+                    "accessKeyIdKey",
+                    "secretAccessKeyKey",
+                    "endpointURL",
+                    "endpointCA"
+                  ],
+                  "title": "s3",
+                  "type": "object"
+                },
+                "scheduledBackup": {
+                  "additionalProperties": false,
+                  "description": "Scheduled backup configuration.",
+                  "properties": {
+                    "backupOwnerReference": {
+                      "default": "self",
+                      "description": "Owner reference mode for backup objects: self, cluster, or none.",
+                      "title": "backupOwnerReference",
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "default": true,
+                      "description": "Enable the ScheduledBackup resource.",
+                      "title": "enabled",
+                      "type": "boolean"
+                    },
+                    "immediate": {
+                      "default": true,
+                      "description": "Trigger an immediate backup when the ScheduledBackup is created.",
+                      "title": "immediate",
+                      "type": "boolean"
+                    },
+                    "schedule": {
+                      "default": "0 0 0 * * *",
+                      "description": "Cron schedule in 6-field format (seconds included).\nDefault: daily at midnight.",
+                      "title": "schedule",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "schedule",
+                    "immediate",
+                    "backupOwnerReference"
+                  ],
+                  "title": "scheduledBackup",
+                  "type": "object"
+                },
+                "wal": {
+                  "additionalProperties": false,
+                  "description": "WAL archiving options.",
+                  "properties": {
+                    "additionalCommandArgs": {
+                      "description": "Additional barman-cloud-wal-archive command args.",
+                      "items": {
+                        "required": []
+                      },
+                      "title": "additionalCommandArgs",
+                      "type": "array"
+                    },
+                    "compression": {
+                      "default": "gzip",
+                      "description": "Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.",
+                      "title": "compression",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "compression",
+                    "additionalCommandArgs"
+                  ],
+                  "title": "wal",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "enabled",
+                "provider",
+                "destinationPath",
+                "retentionPolicy",
+                "s3",
+                "azure",
+                "gcs",
+                "wal",
+                "data",
+                "scheduledBackup"
+              ],
+              "title": "backup",
+              "type": "object"
+            },
             "clusterName": {
               "default": "rhacs-manager-db",
               "title": "clusterName",
@@ -723,7 +986,8 @@
             "instances",
             "database",
             "owner",
-            "storage"
+            "storage",
+            "backup"
           ],
           "title": "cnpg",
           "type": "object"
@@ -1328,6 +1592,7 @@
                 },
                 "SPOKE_API_KEY": {
                   "default": "change-me-to-match-hub-key",
+                  "description": "REQUIRED: override in production to match a hub SPOKE_API_KEYS entry",
                   "title": "SPOKE_API_KEY",
                   "type": "string"
                 }
@@ -2527,6 +2792,7 @@
                 },
                 "SPOKE_API_KEY": {
                   "default": "change-me-to-match-hub-key",
+                  "description": "REQUIRED: override in production to match a hub SPOKE_API_KEYS entry",
                   "title": "SPOKE_API_KEY",
                   "type": "string"
                 }

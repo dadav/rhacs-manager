@@ -14,4 +14,71 @@ spec:
       owner: {{ .Values.database.cnpg.owner }}
   storage:
     size: {{ .Values.database.cnpg.storage.size }}
+  {{- if .Values.database.cnpg.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.database.cnpg.backup.destinationPath | quote }}
+      {{- $provider := .Values.database.cnpg.backup.provider }}
+      {{- if eq $provider "s3" }}
+      {{- with .Values.database.cnpg.backup.s3 }}
+      {{- if .endpointURL }}
+      endpointURL: {{ .endpointURL | quote }}
+      {{- end }}
+      {{- if .endpointCA.name }}
+      endpointCA:
+        name: {{ .endpointCA.name }}
+        key: {{ .endpointCA.key }}
+      {{- end }}
+      {{- if .secretName }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ .secretName }}
+          key: {{ .accessKeyIdKey }}
+        secretAccessKey:
+          name: {{ .secretName }}
+          key: {{ .secretAccessKeyKey }}
+      {{- else }}
+      s3Credentials: {}
+      {{- end }}
+      {{- end }}
+      {{- else if eq $provider "azure" }}
+      {{- with .Values.database.cnpg.backup.azure }}
+      azureCredentials:
+        {{- if .inheritFromAzureAD }}
+        inheritFromAzureAD: true
+        {{- else }}
+        storageAccount:
+          name: {{ .secretName }}
+          key: {{ .storageAccountKey }}
+        storageKey:
+          name: {{ .secretName }}
+          key: {{ .storageKeyKey }}
+        {{- end }}
+      {{- end }}
+      {{- else if eq $provider "gcs" }}
+      {{- with .Values.database.cnpg.backup.gcs }}
+      googleCredentials:
+        {{- if .gkeEnvironment }}
+        gkeEnvironment: true
+        {{- else }}
+        applicationCredentials:
+          name: {{ .secretName }}
+          key: {{ .applicationCredentialsKey }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+      wal:
+        compression: {{ .Values.database.cnpg.backup.wal.compression }}
+        {{- with .Values.database.cnpg.backup.wal.additionalCommandArgs }}
+        additionalCommandArgs:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      data:
+        compression: {{ .Values.database.cnpg.backup.data.compression }}
+        {{- with .Values.database.cnpg.backup.data.additionalCommandArgs }}
+        additionalCommandArgs:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+    retentionPolicy: {{ .Values.database.cnpg.backup.retentionPolicy | quote }}
+  {{- end }}
 {{- end }}

@@ -19,6 +19,70 @@ database:
     owner: rhacs_manager
     storage:
       size: 5Gi
+    # -- Barman Object Store backup configuration (hub mode only).
+    # Requires a pre-existing secret with provider credentials.
+    backup:
+      # -- Enable continuous backup and WAL archiving to an object store.
+      enabled: false
+      # -- Object store provider: s3, azure, or gcs.
+      provider: s3
+      # -- Backup destination path (e.g. s3://bucket/path, gs://bucket/path,
+      # or https://<account>.blob.core.windows.net/<container>/<path>).
+      destinationPath: ""
+      # -- Retention policy using recovery window semantics (e.g. "30d").
+      retentionPolicy: "30d"
+      # -- S3 / S3-compatible credentials.
+      s3:
+        # -- Name of the secret containing ACCESS_KEY_ID and ACCESS_SECRET_KEY.
+        secretName: ""
+        accessKeyIdKey: ACCESS_KEY_ID
+        secretAccessKeyKey: ACCESS_SECRET_KEY
+        # -- Custom S3 endpoint URL for MinIO or other S3-compatible stores.
+        endpointURL: ""
+        # -- Secret reference for a custom CA certificate (optional).
+        endpointCA:
+          # -- Name of the secret containing the CA certificate.
+          name: ""
+          # -- Key within the secret.
+          key: ca.crt
+      # -- Azure Blob Storage credentials.
+      azure:
+        # -- Name of the secret containing AZURE_STORAGE_ACCOUNT and AZURE_STORAGE_KEY.
+        secretName: ""
+        storageAccountKey: AZURE_STORAGE_ACCOUNT
+        storageKeyKey: AZURE_STORAGE_KEY
+        # -- Use Azure AD Workload Identity instead of explicit credentials.
+        inheritFromAzureAD: false
+      # -- Google Cloud Storage credentials.
+      gcs:
+        # -- Name of the secret containing a GCS service account JSON key.
+        secretName: ""
+        applicationCredentialsKey: gcsCredentials
+        # -- Use GKE Workload Identity instead of explicit credentials.
+        gkeEnvironment: false
+      # -- WAL archiving options.
+      wal:
+        # -- Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.
+        compression: gzip
+        # -- Additional barman-cloud-wal-archive command args.
+        additionalCommandArgs: []
+      # -- Base backup (data) options.
+      data:
+        # -- Compression algorithm: gzip, bzip2, lz4, snappy, xz, or zstd.
+        compression: gzip
+        # -- Additional barman-cloud-backup command args.
+        additionalCommandArgs: []
+      # -- Scheduled backup configuration.
+      scheduledBackup:
+        # -- Enable the ScheduledBackup resource.
+        enabled: true
+        # -- Cron schedule in 6-field format (seconds included).
+        # Default: daily at midnight.
+        schedule: "0 0 0 * * *"
+        # -- Trigger an immediate backup when the ScheduledBackup is created.
+        immediate: true
+        # -- Owner reference mode for backup objects: self, cluster, or none.
+        backupOwnerReference: self
 
 global:
   imagePullSecrets: []

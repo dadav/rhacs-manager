@@ -1,0 +1,16 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.database.cnpg.enabled .Values.database.cnpg.backup.enabled .Values.database.cnpg.backup.scheduledBackup.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Values.database.cnpg.clusterName }}-backup
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.database.cnpg.backup.scheduledBackup.schedule | quote }}
+  backupOwnerReference: {{ .Values.database.cnpg.backup.scheduledBackup.backupOwnerReference }}
+  immediate: {{ .Values.database.cnpg.backup.scheduledBackup.immediate }}
+  method: barmanObjectStore
+  cluster:
+    name: {{ .Values.database.cnpg.clusterName }}
+{{- end }}
