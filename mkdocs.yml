@@ -87,6 +87,7 @@ nav:
       - Hub Cluster: deployment/hub.md
       - Spoke Cluster: deployment/spoke.md
       - Database Backups: deployment/backup.md
+      - Database Restore: deployment/restore.md
       - Container Images: deployment/containers.md
   - API:
       - Overview: api/index.md
