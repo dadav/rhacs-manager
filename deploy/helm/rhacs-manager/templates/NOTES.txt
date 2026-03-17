@@ -7,9 +7,9 @@ Prerequisites (verify before first use):
   2. central-db-password secret must exist in {{ include "rhacs-manager.namespace" . }} namespace:
        kubectl get secret central-db-password -n {{ include "rhacs-manager.namespace" . }}
      If missing, copy from stackrox namespace:
-       kubectl get secret central-db-password -n stackrox -o json \
+       oc get secret central-db-password -n stackrox -o json \
          | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp)' \
-         | kubectl apply -n {{ include "rhacs-manager.namespace" . }} -f -
+         | oc apply -n {{ include "rhacs-manager.namespace" . }} -f -
 
 {{- if .Values.route.enabled }}
 
