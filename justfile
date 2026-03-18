@@ -290,6 +290,19 @@ deploy-status:
     echo "==> Routes"
     oc get routes -n rhacs-manager 2>/dev/null || echo "  (none)"
 
+# Port-forward central-db for local access (run in background)
+port-forward-central-db:
+    oc port-forward -n rhacs-manager svc/central-db-rw 5433:5432
+
+# Generate random StackRox data from cluster deployments (requires port-forward)
+generate-data *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    central_pw="$(oc get secret central-db-superuser -n rhacs-manager -o jsonpath='{.data.password}' | base64 -d)"
+    cd random-data-generator && go run main.go \
+      --db-url "postgresql://postgres:${central_pw}@localhost:5433/central_active?sslmode=disable" \
+      {{ args }}
+
 # Prepare a release: update Chart.yaml appVersion, commit, and tag (e.g. just release v0.11.0)
 release version:
     #!/usr/bin/env bash
