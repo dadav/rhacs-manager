@@ -196,9 +196,15 @@ deploy:
       helm repo add cnpg https://cloudnative-pg.github.io/charts
       helm repo update cnpg
 
+      echo "==> Installing CNPG CRDs (server-side apply to avoid managedFields conflicts)"
+      helm template cnpg-operator cnpg/cloudnative-pg \
+        --namespace cnpg-system \
+        --include-crds | oc apply --server-side --force-conflicts -f - 2>/dev/null || true
+
       echo "==> Installing CNPG operator (OpenShift-compatible)"
       helm upgrade --install cnpg-operator cnpg/cloudnative-pg \
         --namespace cnpg-system --create-namespace \
+        --skip-crds \
         --set containerSecurityContext.runAsUser=null \
         --set containerSecurityContext.runAsGroup=null \
         --set containerSecurityContext.seccompProfile=null \
