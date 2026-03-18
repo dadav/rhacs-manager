@@ -40,6 +40,8 @@ spec:
             - secretRef:
                 name: {{ .Values.backend.secret.name }}
           env:
+            - name: UV_CACHE_DIR
+              value: /tmp/uv-cache
             - name: APP_DB_HOST
               value: {{ .Values.backend.env.appDbHost | quote }}
             - name: APP_DB_USER

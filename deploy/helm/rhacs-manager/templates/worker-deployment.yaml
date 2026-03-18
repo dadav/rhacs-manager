@@ -40,6 +40,8 @@ spec:
             - secretRef:
                 name: {{ .Values.backend.secret.name }}
           env:
+            - name: UV_CACHE_DIR
+              value: /tmp/uv-cache
             - name: SCHEDULER_ENABLED
               value: "true"
             - name: APP_DB_HOST

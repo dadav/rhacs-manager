@@ -941,6 +941,12 @@
                   "pattern": "^\\d+(Gi|Mi|Ti)$",
                   "title": "size",
                   "type": "string"
+                },
+                "storageClass": {
+                  "default": "",
+                  "description": "StorageClass name for PVCs. Leave empty for cluster default.",
+                  "title": "storageClass",
+                  "type": "string"
                 }
               },
               "required": [],

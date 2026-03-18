@@ -6,6 +6,8 @@ LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
 
 WORKDIR /app
 
+ENV UV_CACHE_DIR=/tmp/uv-cache
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 

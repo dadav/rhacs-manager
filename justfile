@@ -182,6 +182,114 @@ docs:
 docs-build:
     uv run --with mkdocs-material mkdocs build
 
+# Deploy to local CRC cluster (installs CNPG operator, stand-in StackRox DB, and rhacs-manager)
+deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Skip CNPG operator install if a running operator is already present
+    if oc get deployment -n cnpg-system -l app.kubernetes.io/name=cloudnative-pg &>/dev/null \
+       && [ "$(oc get deployment -n cnpg-system -l app.kubernetes.io/name=cloudnative-pg -o name 2>/dev/null)" != "" ]; then
+      echo "==> CNPG operator already present, skipping install"
+    else
+      echo "==> Adding CNPG Helm repo"
+      helm repo add cnpg https://cloudnative-pg.github.io/charts
+      helm repo update cnpg
+
+      echo "==> Installing CNPG operator (OpenShift-compatible)"
+      helm upgrade --install cnpg-operator cnpg/cloudnative-pg \
+        --namespace cnpg-system --create-namespace \
+        --set containerSecurityContext.runAsUser=null \
+        --set containerSecurityContext.runAsGroup=null \
+        --set containerSecurityContext.seccompProfile=null \
+        --set podSecurityContext.seccompProfile=null \
+        --wait --timeout 5m
+    fi
+
+    echo "==> Waiting for CNPG CRD to be established"
+    oc wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=60s
+
+    echo "==> Waiting for CNPG operator to be ready"
+    oc rollout status deployment/cnpg-operator-cloudnative-pg -n cnpg-system --timeout=120s
+
+    echo "==> Ensuring Immediate-binding StorageClass for CNPG"
+    oc apply -f deploy/storageclass-immediate.yaml
+
+    echo "==> Ensuring rhacs-manager namespace"
+    oc create namespace rhacs-manager --dry-run=client -o yaml | oc apply -f -
+
+    echo "==> Creating stand-in StackRox central-db (with retry for API discovery)"
+    for attempt in $(seq 1 6); do
+      oc delete cluster central-db -n rhacs-manager --ignore-not-found &>/dev/null
+      oc delete pvc -l cnpg.io/cluster=central-db -n rhacs-manager --ignore-not-found &>/dev/null
+      oc delete secret -l cnpg.io/cluster=central-db -n rhacs-manager --ignore-not-found &>/dev/null
+      oc apply -f deploy/central-db-cluster.yaml -n rhacs-manager
+      sleep 10
+      if oc get pods -n rhacs-manager -l cnpg.io/cluster=central-db --no-headers 2>/dev/null | grep -q .; then
+        echo "    central-db pod detected"
+        break
+      fi
+      echo "    Attempt ${attempt}/6: waiting for API discovery cache refresh..."
+      sleep 20
+    done
+
+    echo "==> Waiting for central-db to become ready (up to 5m)"
+    oc wait --for=condition=Ready cluster/central-db -n rhacs-manager --timeout=300s
+
+    echo "==> Syncing central-db superuser password"
+    central_pw="$(oc get secret central-db-superuser -n rhacs-manager -o jsonpath='{.data.password}' | base64 -d)"
+    oc exec central-db-1 -n rhacs-manager -c postgres -- \
+      psql -U postgres -c "ALTER USER postgres PASSWORD '${central_pw}'"
+
+    echo "==> Generating oauth-proxy cookie secret"
+    cookie_secret="$(openssl rand -base64 24)"
+
+    echo "==> Installing rhacs-manager"
+    helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+      -n rhacs-manager \
+      -f deploy/local-values.yaml \
+      --set "frontend.oauthProxy.cookieSecret=${cookie_secret}" \
+      --wait
+
+    frontend_host="$(oc get route rhacs-manager -n rhacs-manager -o jsonpath='{.spec.host}' 2>/dev/null || echo 'unknown')"
+    echo "==> Done! Frontend: https://${frontend_host}"
+
+# Remove rhacs-manager, stand-in DB, and CNPG operator from local cluster
+undeploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "==> Uninstalling rhacs-manager"
+    helm uninstall rhacs-manager -n rhacs-manager --ignore-not-found || true
+
+    echo "==> Deleting stand-in central-db"
+    oc delete -f deploy/central-db-cluster.yaml -n rhacs-manager --ignore-not-found || true
+
+    echo "==> Deleting leftover PVCs"
+    oc delete pvc -l cnpg.io/cluster=central-db -n rhacs-manager --ignore-not-found || true
+    oc delete pvc -l cnpg.io/cluster=rhacs-manager-db -n rhacs-manager --ignore-not-found || true
+
+    echo "==> Uninstalling CNPG operator (if Helm-managed)"
+    helm uninstall cnpg-operator -n cnpg-system --ignore-not-found 2>/dev/null || true
+
+    echo "==> Deleting Immediate StorageClass"
+    oc delete -f deploy/storageclass-immediate.yaml --ignore-not-found || true
+
+    echo "==> Done"
+
+# Show deployment status for rhacs-manager on local cluster
+deploy-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> CNPG Clusters"
+    oc get clusters.postgresql.cnpg.io -n rhacs-manager 2>/dev/null || echo "  (none)"
+    echo ""
+    echo "==> Pods"
+    oc get pods -n rhacs-manager 2>/dev/null || echo "  (none)"
+    echo ""
+    echo "==> Routes"
+    oc get routes -n rhacs-manager 2>/dev/null || echo "  (none)"
+
 # Prepare a release: update Chart.yaml appVersion, commit, and tag (e.g. just release v0.11.0)
 release version:
     #!/usr/bin/env bash

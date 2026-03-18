@@ -91,6 +91,11 @@ database:
       # @schema
       # -- PVC size for each instance.
       size: 5Gi
+      # @schema
+      # type: string
+      # @schema
+      # -- StorageClass name for PVCs. Leave empty for cluster default.
+      storageClass: ""
     # @schema
     # type: object
     # additionalProperties: false

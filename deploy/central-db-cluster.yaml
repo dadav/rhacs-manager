@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: central-db
+spec:
+  instances: 1
+  enableSuperuserAccess: true
+  bootstrap:
+    initdb:
+      database: central_active
+      owner: postgres
+  storage:
+    size: 2Gi
+    storageClass: topolvm-provisioner-immediate

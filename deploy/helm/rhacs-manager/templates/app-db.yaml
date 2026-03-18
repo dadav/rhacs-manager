@@ -14,6 +14,9 @@ spec:
       owner: {{ .Values.database.cnpg.owner }}
   storage:
     size: {{ .Values.database.cnpg.storage.size }}
+    {{- if .Values.database.cnpg.storage.storageClass }}
+    storageClass: {{ .Values.database.cnpg.storage.storageClass }}
+    {{- end }}
   {{- if .Values.database.cnpg.backup.enabled }}
   backup:
     barmanObjectStore:

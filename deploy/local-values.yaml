@@ -1,0 +1,40 @@
+namespace:
+  create: false
+
+database:
+  cnpg:
+    instances: 1
+    storage:
+      size: 2Gi
+      storageClass: topolvm-provisioner-immediate
+    backup:
+      enabled: false
+
+backend:
+  replicaCount: 1
+  secret:
+    stringData:
+      DEV_MODE: "true"
+      DEV_USER_ID: "dev-sec-1"
+      DEV_USER_NAME: "Dev Security User"
+      DEV_USER_EMAIL: "dev-sec@example.com"
+      DEV_USER_ROLE: "sec_team"
+      SCHEDULER_ENABLED: "false"
+  env:
+    stackroxDbHost: central-db-rw
+    stackroxDbPasswordSecretName: central-db-superuser
+    stackroxDbPasswordKey: password
+
+frontend:
+  replicaCount: 1
+
+route:
+  frontend:
+    host: rhacs-manager.apps-crc.testing
+  backend:
+    host: rhacs-manager-api.apps-crc.testing
+  tls:
+    frontend:
+      termination: reencrypt
+    backend:
+      termination: edge
