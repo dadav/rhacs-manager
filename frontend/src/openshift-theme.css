@@ -150,7 +150,7 @@
   background-color: #f0f0f0;
 }
 
-:root(.pf-v6-theme-dark) .pf-v6-c-table thead tr {
+:root.pf-v6-theme-dark .pf-v6-c-table thead tr {
   background-color: transparent;
 }
 
