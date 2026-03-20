@@ -107,3 +107,37 @@ export const chartTooltipWrapperStyle: React.CSSProperties = { zIndex: 10 };
 export const CHART_TICK_FILL = "currentColor";
 export const CHART_GRID_STROKE =
   "var(--pf-t--global--border--color--default, #d2d2d2)";
+
+// Common inline style patterns extracted from page components
+export const monoText: React.CSSProperties = { fontFamily: 'monospace' }
+export const monoTextSm: React.CSSProperties = { fontFamily: 'monospace', fontSize: 11 }
+export const subtleText: React.CSSProperties = { color: 'var(--pf-t--global--text--color--subtle)' }
+export const subtleTextSm: React.CSSProperties = { fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }
+export const subtleTextXs: React.CSSProperties = { fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }
+export const truncateCell: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+export const statusBadge = (bgColor: string): React.CSSProperties => ({
+  display: 'inline-block',
+  padding: '2px 8px',
+  borderRadius: 3,
+  background: bgColor,
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: 600,
+})
+export const filterButton = (active: boolean): React.CSSProperties => ({
+  padding: '4px 12px',
+  border: '1px solid #d2d2d2',
+  borderRadius: 3,
+  cursor: 'pointer',
+  background: active ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
+  color: active ? '#fff' : 'var(--pf-v6-global--Color--100)',
+  fontSize: 13,
+})
+export const formLabel: React.CSSProperties = { fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }
+export const flexColumn: React.CSSProperties = { display: 'flex', flexDirection: 'column' }
+export const dangerColor = '#c9190b'
+export const urlDisplay: React.CSSProperties = {
+  padding: '6px 10px',
+  background: 'var(--pf-t--global--background--color--secondary--default)',
+  borderRadius: 3,
+}

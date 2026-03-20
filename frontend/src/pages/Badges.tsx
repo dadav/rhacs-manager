@@ -114,6 +114,7 @@ export function Badges() {
                         variant="plain"
                         size="sm"
                         onClick={() => deleteBadge.mutate(badge.id)}
+                        aria-label={`${t('common.delete')} ${badge.label || t('badges.cveBadge')}`}
                         style={{ color: '#c9190b', fontSize: 12 }}
                       >
                         {t('common.delete')}

@@ -50,6 +50,7 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
           </pre>
           <button
             onClick={() => setExpanded(false)}
+            aria-label={t('common.less')}
             style={{ background: 'none', border: 'none', color: BRAND_BLUE, cursor: 'pointer', padding: 0, fontSize: 11 }}
           >
             {t('common.less')}
@@ -61,6 +62,7 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
           {' '}
           <button
             onClick={() => setExpanded(true)}
+            aria-label={t('common.more')}
             style={{ background: 'none', border: 'none', color: BRAND_BLUE, cursor: 'pointer', padding: 0, fontSize: 11 }}
           >
             {t('common.more')}

@@ -21,9 +21,10 @@ import { useTranslation } from 'react-i18next'
 import type { EscalationRule } from '../types'
 
 function HelpButton({ header, body, label }: { header: string; body: string; label?: string }) {
+  const { t } = useTranslation()
   return (
     <Popover headerContent={header} bodyContent={body}>
-      <button type="button" aria-label={label || `Hilfe zu ${header}`} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
+      <button type="button" aria-label={label || t('settings.helpFor', { topic: header })} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex' }}>
         <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 14 }} />
       </button>
     </Popover>
@@ -52,12 +53,14 @@ function EscalationRuleRow({
   onDelete: () => void
   severityOptions: { value: number; label: string }[]
 }) {
+  const { t } = useTranslation()
   return (
     <Tr>
       <Td>
         <select
           value={rule.severity_min}
           onChange={e => onChange({ ...rule, severity_min: Number(e.target.value) })}
+          aria-label={t('settings.severityMin')}
           style={{ width: 120, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         >
           {severityOptions.map(o => (
@@ -69,6 +72,7 @@ function EscalationRuleRow({
         <select
           value={rule.epss_threshold}
           onChange={e => onChange({ ...rule, epss_threshold: Number(e.target.value) })}
+          aria-label={t('settings.minEpssCol')}
           style={{ width: 90, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         >
           {EPSS_OPTIONS.map(o => (
@@ -81,6 +85,7 @@ function EscalationRuleRow({
           type="number" min={1}
           value={rule.days_to_level1}
           onChange={e => onChange({ ...rule, days_to_level1: Number(e.target.value) })}
+          aria-label={t('settings.daysToLevel1')}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
       </Td>
@@ -89,6 +94,7 @@ function EscalationRuleRow({
           type="number" min={1}
           value={rule.days_to_level2}
           onChange={e => onChange({ ...rule, days_to_level2: Number(e.target.value) })}
+          aria-label={t('settings.daysToLevel2')}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
       </Td>
@@ -97,6 +103,7 @@ function EscalationRuleRow({
           type="number" min={1}
           value={rule.days_to_level3}
           onChange={e => onChange({ ...rule, days_to_level3: Number(e.target.value) })}
+          aria-label={t('settings.daysToLevel3')}
           style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
         />
       </Td>
@@ -197,6 +204,7 @@ export function Settings() {
                       type="range" min={0} max={10} step={0.1}
                       value={minCvss}
                       onChange={e => setMinCvss(parseFloat(e.target.value))}
+                      aria-label={t('settings.minCvssLabel', { value: minCvss.toFixed(1) })}
                       style={{ width: '100%', marginTop: 8 }}
                     />
                   </GridItem>
@@ -206,6 +214,7 @@ export function Settings() {
                       type="range" min={0} max={1} step={0.01}
                       value={minEpss}
                       onChange={e => setMinEpss(parseFloat(e.target.value))}
+                      aria-label={t('settings.minEpssLabel', { value: (minEpss * 100).toFixed(1) })}
                       style={{ width: '100%', marginTop: 8 }}
                     />
                   </GridItem>
@@ -270,6 +279,7 @@ export function Settings() {
                     type="number" min={1} max={14} step={1}
                     value={escalationWarningDays}
                     onChange={e => setEscalationWarningDays(Number(e.target.value))}
+                    aria-label={t('settings.warningDays')}
                     style={{ width: 80, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
                   />
                 </div>
@@ -290,6 +300,7 @@ export function Settings() {
                   <select
                     value={digestDay}
                     onChange={e => setDigestDay(Number(e.target.value))}
+                    aria-label={t('settings.digestDayLabel')}
                     style={{ display: 'block', width: '100%', height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4, marginTop: 4 }}
                   >
                     {DAYS.map((day, i) => (

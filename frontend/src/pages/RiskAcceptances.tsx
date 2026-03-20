@@ -17,7 +17,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useRiskAcceptances } from '../api/riskAcceptances'
 import { useScope } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
-import { STATUS_COLORS, BRAND_BLUE } from '../tokens'
+import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, subtleTextSm, monoText } from '../tokens'
 
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected', 'expired'] as const
 
@@ -81,15 +81,8 @@ export function RiskAcceptances() {
                   <button
                     key={value}
                     onClick={() => handleStatusFilterChange(value)}
-                    style={{
-                      padding: '4px 12px',
-                      border: '1px solid #d2d2d2',
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      background: statusFilter === value ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
-                      color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                      fontSize: 13,
-                    }}
+                    aria-label={`${t('riskAcceptance.filterByStatus')}: ${statusLabels[value]}`}
+                    style={filterButton(statusFilter === value)}
                   >
                     {statusLabels[value]}
                   </button>
@@ -154,20 +147,12 @@ export function RiskAcceptances() {
               {data.map(ra => (
                 <Tr key={ra.id}>
                   <Td>
-                    <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
+                    <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ ...monoText, color: BRAND_BLUE, fontSize: 12 }}>
                       {ra.cve_id}
                     </Link>
                   </Td>
                   <Td>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: 3,
-                      background: STATUS_COLORS[ra.status as keyof typeof STATUS_COLORS] ?? '#8a8d90',
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}>
+                    <span style={statusBadge(STATUS_COLORS[ra.status as keyof typeof STATUS_COLORS] ?? '#8a8d90')}>
                       {statusLabels[ra.status] ?? ra.status}
                     </span>
                   </Td>
@@ -177,10 +162,10 @@ export function RiskAcceptances() {
                     </span>
                   </Td>
                   <Td style={{ fontSize: 12 }}>{ra.created_by_name}</Td>
-                  <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <Td style={subtleTextSm}>
                     {new Date(ra.created_at).toLocaleDateString(localeDateLocale)}
                   </Td>
-                  <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <Td style={subtleTextSm}>
                     {ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(localeDateLocale) : '–'}
                   </Td>
                   <Td style={{ textAlign: 'right' }}>

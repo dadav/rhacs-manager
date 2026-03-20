@@ -342,7 +342,8 @@
     "withdrawFinal": "Permanently withdraw",
     "whyAcceptable": "Why is this risk acceptable?",
     "noAcceptancesFound": "No risk acceptances found.",
-    "commentsCount": "Comments ({{count}})"
+    "commentsCount": "Comments ({{count}})",
+    "filterByStatus": "Filter by status"
   },
   "priorities": {
     "title": "CVE Priorities",
@@ -507,7 +508,8 @@
     "saveSettings": "Save settings",
     "preview": "Preview: {{visible}} of {{total}} CVEs visible ({{hidden}} hidden)",
     "minCvssLabel": "Minimum CVSS Score: {{value}}",
-    "minEpssLabel": "Minimum EPSS Score: {{value}}%"
+    "minEpssLabel": "Minimum EPSS Score: {{value}}%",
+    "helpFor": "Help for {{topic}}"
   },
   "auditLog": {
     "title": "Audit Log",
@@ -652,7 +654,8 @@
     "reviewedAt": "Reviewed at",
     "reviewComment": "Review comment",
     "matchedCves": "Suppressed CVEs",
-    "noReviewComment": "No comment"
+    "noReviewComment": "No comment",
+    "filterByStatus": "Filter by status"
   },
   "scope": {
     "title": "Scope",

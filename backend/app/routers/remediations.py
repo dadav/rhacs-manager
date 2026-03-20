@@ -2,13 +2,13 @@ from datetime import date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..models.remediation import Remediation, RemediationStatus
-from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.remediation import (
     RemediationCreate,
@@ -25,11 +25,25 @@ router = APIRouter(prefix="/remediations", tags=["remediations"])
 # Valid status transitions
 _TRANSITIONS: dict[RemediationStatus, set[RemediationStatus]] = {
     RemediationStatus.open: {RemediationStatus.in_progress, RemediationStatus.wont_fix},
-    RemediationStatus.in_progress: {RemediationStatus.resolved, RemediationStatus.wont_fix, RemediationStatus.open},
-    RemediationStatus.resolved: {RemediationStatus.verified, RemediationStatus.in_progress},
+    RemediationStatus.in_progress: {
+        RemediationStatus.resolved,
+        RemediationStatus.wont_fix,
+        RemediationStatus.open,
+    },
+    RemediationStatus.resolved: {
+        RemediationStatus.verified,
+        RemediationStatus.in_progress,
+    },
     RemediationStatus.verified: {RemediationStatus.in_progress},  # reopen
     RemediationStatus.wont_fix: {RemediationStatus.open},  # reopen
 }
+
+# Shared selectinload options for list and single-item queries
+_REM_LOAD_OPTIONS = [
+    selectinload(Remediation.creator),
+    selectinload(Remediation.assignee),
+    selectinload(Remediation.resolver),
+]
 
 
 def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
@@ -38,21 +52,14 @@ def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
     return (r.namespace, r.cluster_name) in user.namespaces
 
 
-async def _build_response(r: Remediation, db: AsyncSession) -> RemediationResponse:
-    creator_result = await db.execute(select(User).where(User.id == r.created_by))
-    creator = creator_result.scalar_one_or_none()
-
+def _build_response(r: Remediation) -> RemediationResponse:
     assignee_name = None
     if r.assigned_to:
-        assignee_result = await db.execute(select(User).where(User.id == r.assigned_to))
-        assignee = assignee_result.scalar_one_or_none()
-        assignee_name = assignee.username if assignee else r.assigned_to
+        assignee_name = r.assignee.username if r.assignee else r.assigned_to
 
     resolver_name = None
     if r.resolved_by:
-        resolver_result = await db.execute(select(User).where(User.id == r.resolved_by))
-        resolver = resolver_result.scalar_one_or_none()
-        resolver_name = resolver.username if resolver else r.resolved_by
+        resolver_name = r.resolver.username if r.resolver else r.resolved_by
 
     is_overdue = (
         r.target_date is not None
@@ -69,7 +76,7 @@ async def _build_response(r: Remediation, db: AsyncSession) -> RemediationRespon
         assigned_to=r.assigned_to,
         assigned_to_name=assignee_name,
         created_by=r.created_by,
-        created_by_name=creator.username if creator else r.created_by,
+        created_by_name=r.creator.username if r.creator else r.created_by,
         resolved_by=r.resolved_by,
         resolved_by_name=resolver_name,
         target_date=r.target_date,
@@ -96,7 +103,9 @@ async def create_remediation(
 
     # Verify the CVE exists in this namespace
     deployments = await sx.get_affected_deployments(
-        sx_db, body.cve_id, [(body.namespace, body.cluster_name)],
+        sx_db,
+        body.cve_id,
+        [(body.namespace, body.cluster_name)],
     )
     if not deployments:
         raise HTTPException(404, "CVE in diesem Namespace nicht gefunden")
@@ -110,7 +119,9 @@ async def create_remediation(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "Für diese CVE existiert bereits eine Behebung in diesem Namespace")
+        raise HTTPException(
+            409, "Für diese CVE existiert bereits eine Behebung in diesem Namespace"
+        )
 
     remediation = Remediation(
         cve_id=body.cve_id,
@@ -125,16 +136,25 @@ async def create_remediation(
     db.add(remediation)
     await db.flush()
 
-    await log_action(db, current_user.id, "remediation_created", "remediation", str(remediation.id), {
-        "cve_id": body.cve_id, "namespace": body.namespace, "cluster_name": body.cluster_name,
-    })
+    await log_action(
+        db,
+        current_user.id,
+        "remediation_created",
+        "remediation",
+        str(remediation.id),
+        {
+            "cve_id": body.cve_id,
+            "namespace": body.namespace,
+            "cluster_name": body.cluster_name,
+        },
+    )
 
     # Notify sec team about new remediation
     await notif_svc.notify_remediation_created(db, remediation, current_user)
 
     await db.commit()
-    await db.refresh(remediation)
-    return await _build_response(remediation, db)
+    await db.refresh(remediation, ["creator", "assignee", "resolver"])
+    return _build_response(remediation)
 
 
 @router.get("", response_model=list[RemediationResponse])
@@ -148,7 +168,11 @@ async def list_remediations(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[RemediationResponse]:
-    query = select(Remediation).order_by(Remediation.created_at.desc())
+    query = (
+        select(Remediation)
+        .options(*_REM_LOAD_OPTIONS)
+        .order_by(Remediation.created_at.desc())
+    )
 
     # Namespace scoping
     if not current_user.can_see_all_namespaces:
@@ -183,13 +207,14 @@ async def list_remediations(
     if overdue is True:
         today = date.today()
         remediations = [
-            r for r in remediations
+            r
+            for r in remediations
             if r.target_date is not None
             and r.target_date < today
             and r.status in (RemediationStatus.open, RemediationStatus.in_progress)
         ]
 
-    return [await _build_response(r, db) for r in remediations]
+    return [_build_response(r) for r in remediations]
 
 
 @router.get("/stats", response_model=RemediationStats)
@@ -247,13 +272,17 @@ async def get_remediation(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> RemediationResponse:
-    result = await db.execute(select(Remediation).where(Remediation.id == remediation_id))
+    result = await db.execute(
+        select(Remediation)
+        .options(*_REM_LOAD_OPTIONS)
+        .where(Remediation.id == remediation_id)
+    )
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(404, "Nicht gefunden")
     if not _user_can_access(current_user, r):
         raise HTTPException(403, "Kein Zugriff")
-    return await _build_response(r, db)
+    return _build_response(r)
 
 
 @router.patch("/{remediation_id}", response_model=RemediationResponse)
@@ -263,7 +292,9 @@ async def update_remediation(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> RemediationResponse:
-    result = await db.execute(select(Remediation).where(Remediation.id == remediation_id))
+    result = await db.execute(
+        select(Remediation).where(Remediation.id == remediation_id)
+    )
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(404, "Nicht gefunden")
@@ -278,7 +309,9 @@ async def update_remediation(
 
         # Only sec team can verify
         if new_status == RemediationStatus.verified and not current_user.is_sec_team:
-            raise HTTPException(403, "Nur das Security-Team kann Behebungen verifizieren")
+            raise HTTPException(
+                403, "Nur das Security-Team kann Behebungen verifizieren"
+            )
 
         allowed = _TRANSITIONS.get(r.status, set())
         if new_status not in allowed:
@@ -289,7 +322,9 @@ async def update_remediation(
 
         # wont_fix requires a reason
         if new_status == RemediationStatus.wont_fix and not body.wont_fix_reason:
-            raise HTTPException(400, "Für 'Wird nicht behoben' ist eine Begründung erforderlich")
+            raise HTTPException(
+                400, "Für 'Wird nicht behoben' ist eine Begründung erforderlich"
+            )
 
         old_status = r.status.value
         r.status = new_status
@@ -323,17 +358,23 @@ async def update_remediation(
     if body.notes is not None and body.status != "wont_fix":
         r.notes = body.notes
 
-    await log_action(db, current_user.id, "remediation_updated", "remediation", str(r.id), details)
+    await log_action(
+        db, current_user.id, "remediation_updated", "remediation", str(r.id), details
+    )
 
     # Send notifications for status changes
     if "new_status" in details:
         await notif_svc.notify_remediation_status_change(
-            db, r, current_user, details["old_status"], details["new_status"],
+            db,
+            r,
+            current_user,
+            details["old_status"],
+            details["new_status"],
         )
 
     await db.commit()
-    await db.refresh(r)
-    return await _build_response(r, db)
+    await db.refresh(r, ["creator", "assignee", "resolver"])
+    return _build_response(r)
 
 
 @router.delete("/{remediation_id}", status_code=204)
@@ -343,17 +384,25 @@ async def delete_remediation(
     db: AsyncSession = Depends(get_app_db),
 ) -> None:
     """Only the creator or sec team can delete an open remediation."""
-    result = await db.execute(select(Remediation).where(Remediation.id == remediation_id))
+    result = await db.execute(
+        select(Remediation).where(Remediation.id == remediation_id)
+    )
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(404, "Nicht gefunden")
 
     if not current_user.is_sec_team and r.created_by != current_user.id:
-        raise HTTPException(403, "Nur der Ersteller oder das Security-Team kann Behebungen löschen")
+        raise HTTPException(
+            403, "Nur der Ersteller oder das Security-Team kann Behebungen löschen"
+        )
 
     if r.status not in (RemediationStatus.open, RemediationStatus.wont_fix):
-        raise HTTPException(400, "Nur offene oder abgelehnte Behebungen können gelöscht werden")
+        raise HTTPException(
+            400, "Nur offene oder abgelehnte Behebungen können gelöscht werden"
+        )
 
-    await log_action(db, current_user.id, "remediation_deleted", "remediation", str(r.id))
+    await log_action(
+        db, current_user.id, "remediation_deleted", "remediation", str(r.id)
+    )
     await db.delete(r)
     await db.commit()

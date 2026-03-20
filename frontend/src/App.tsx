@@ -40,6 +40,7 @@ import { Badges } from "./pages/Badges";
 import { Remediations } from "./pages/Remediations";
 import { SuppressionRules } from "./pages/SuppressionRules";
 import { OnboardingModal } from "./components/OnboardingModal";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 interface NavEntry {
   to: string;
@@ -302,35 +303,37 @@ export function App() {
         isFirstTime={false}
         onClose={() => setShowOnboarding(false)}
       />
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/vulnerabilities" element={<CveList />} />
-        <Route path="/vulnerabilities/:cveId" element={<CveDetail />} />
-        <Route path="/remediations" element={<Remediations />} />
-        <Route path="/risk-acceptances" element={<RiskAcceptances />} />
-        <Route
-          path="/risk-acceptances/:id"
-          element={<RiskAcceptanceDetail />}
-        />
-        <Route path="/priorities" element={<Priorities />} />
-        <Route path="/escalations" element={<Escalations />} />
-        <Route
-          path="/settings"
-          element={
-            isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />
-          }
-        />
-        <Route
-          path="/audit-log"
-          element={
-            isSecTeam ? <AuditLog /> : <Navigate to="/dashboard" replace />
-          }
-        />
-        <Route path="/badges" element={<Badges />} />
-        <Route path="/suppression-rules" element={<SuppressionRules />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/vulnerabilities" element={<CveList />} />
+          <Route path="/vulnerabilities/:cveId" element={<CveDetail />} />
+          <Route path="/remediations" element={<Remediations />} />
+          <Route path="/risk-acceptances" element={<RiskAcceptances />} />
+          <Route
+            path="/risk-acceptances/:id"
+            element={<RiskAcceptanceDetail />}
+          />
+          <Route path="/priorities" element={<Priorities />} />
+          <Route path="/escalations" element={<Escalations />} />
+          <Route
+            path="/settings"
+            element={
+              isSecTeam ? <Settings /> : <Navigate to="/dashboard" replace />
+            }
+          />
+          <Route
+            path="/audit-log"
+            element={
+              isSecTeam ? <AuditLog /> : <Navigate to="/dashboard" replace />
+            }
+          />
+          <Route path="/badges" element={<Badges />} />
+          <Route path="/suppression-rules" element={<SuppressionRules />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </ErrorBoundary>
     </Page>
   );
 }

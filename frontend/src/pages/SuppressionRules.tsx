@@ -32,7 +32,7 @@ import {
 import { api } from '../api/client'
 import type { SuppressionRule, SuppressionType } from '../types'
 import { SuppressionStatus } from '../types'
-import { STATUS_COLORS, BRAND_BLUE } from '../tokens'
+import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, formLabel } from '../tokens'
 
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected'] as const
 
@@ -144,15 +144,8 @@ export function SuppressionRules() {
               <button
                 key={value}
                 onClick={() => setStatusFilter(value)}
-                style={{
-                  padding: '4px 12px',
-                  border: '1px solid #d2d2d2',
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                  background: statusFilter === value ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
-                  color: statusFilter === value ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                  fontSize: 13,
-                }}
+                aria-label={`${t('suppressionRules.filterByStatus')}: ${statusLabels[value]}`}
+                style={filterButton(statusFilter === value)}
               >
                 {statusLabels[value]}
               </button>
@@ -243,15 +236,7 @@ export function SuppressionRules() {
                         )}
                       </Td>
                       <Td>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: 3,
-                          background: STATUS_COLORS[rule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90',
-                          color: '#fff',
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}>
+                        <span style={statusBadge(STATUS_COLORS[rule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90')}>
                           {statusLabels[rule.status] ?? rule.status}
                         </span>
                         {rule.review_comment && (
@@ -311,27 +296,21 @@ export function SuppressionRules() {
         <ModalBody>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+              <label style={formLabel}>
                 {t('suppressionRules.type')}
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => setCreateType('component')}
-                  style={{
-                    padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
-                    background: createType === 'component' ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
-                    color: createType === 'component' ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                  }}
+                  aria-label={t('suppressionRules.typeComponent')}
+                  style={{ ...filterButton(createType === 'component'), padding: '6px 16px', borderRadius: 4 }}
                 >
                   {t('suppressionRules.typeComponent')}
                 </button>
                 <button
                   onClick={() => setCreateType('cve')}
-                  style={{
-                    padding: '6px 16px', borderRadius: 4, border: '1px solid #d2d2d2', cursor: 'pointer',
-                    background: createType === 'cve' ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
-                    color: createType === 'cve' ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                  }}
+                  aria-label={t('suppressionRules.typeCve')}
+                  style={{ ...filterButton(createType === 'cve'), padding: '6px 16px', borderRadius: 4 }}
                 >
                   {t('suppressionRules.typeCve')}
                 </button>
@@ -341,7 +320,7 @@ export function SuppressionRules() {
             {createType === 'component' ? (
               <>
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  <label style={formLabel}>
                     {t('suppressionRules.componentName')} *
                   </label>
                   <TextInput
@@ -351,7 +330,7 @@ export function SuppressionRules() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  <label style={formLabel}>
                     {t('suppressionRules.versionPattern')}
                   </label>
                   <TextInput
@@ -367,7 +346,7 @@ export function SuppressionRules() {
             ) : (
               <>
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+                  <label style={formLabel}>
                     {t('suppressionRules.cveId')} *
                   </label>
                   <TextInput
@@ -377,7 +356,7 @@ export function SuppressionRules() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 8 }}>
+                  <label style={{ ...formLabel, marginBottom: 8 }}>
                     {t('suppressionRules.scopeLabel')}
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -410,7 +389,7 @@ export function SuppressionRules() {
             )}
 
             <div>
-              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+              <label style={formLabel}>
                 {t('suppressionRules.reason')} *
               </label>
               <TextArea
@@ -422,7 +401,7 @@ export function SuppressionRules() {
             </div>
 
             <div>
-              <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+              <label style={formLabel}>
                 {t('suppressionRules.referenceUrl')}
               </label>
               <TextInput
@@ -464,7 +443,7 @@ export function SuppressionRules() {
         <ModalHeader title={reviewApprove ? t('suppressionRules.approveConfirm') : t('suppressionRules.rejectConfirm')} />
         <ModalBody>
           <div>
-            <label style={{ fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }}>
+            <label style={formLabel}>
               {t('suppressionRules.reviewComment')}
             </label>
             <TextArea
@@ -531,15 +510,7 @@ export function SuppressionRules() {
               <DescriptionListGroup>
                 <DescriptionListTerm>{t('suppressionRules.status')}</DescriptionListTerm>
                 <DescriptionListDescription>
-                  <span style={{
-                    display: 'inline-block',
-                    padding: '2px 8px',
-                    borderRadius: 3,
-                    background: STATUS_COLORS[detailRule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90',
-                    color: '#fff',
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}>
+                  <span style={statusBadge(STATUS_COLORS[detailRule.status as keyof typeof STATUS_COLORS] ?? '#8a8d90')}>
                     {statusLabels[detailRule.status] ?? detailRule.status}
                   </span>
                 </DescriptionListDescription>

@@ -4,11 +4,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
 from ..models.cve_priority import CvePriority
-from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.priority import PriorityCreate, PriorityResponse, PriorityUpdate
 from ..services.audit_service import log_action
@@ -16,16 +16,14 @@ from ..services.audit_service import log_action
 router = APIRouter(prefix="/priorities", tags=["priorities"])
 
 
-async def _build_response(p: CvePriority, db: AsyncSession) -> PriorityResponse:
-    user_result = await db.execute(select(User).where(User.id == p.set_by))
-    user = user_result.scalar_one_or_none()
+def _build_response(p: CvePriority) -> PriorityResponse:
     return PriorityResponse(
         id=p.id,
         cve_id=p.cve_id,
         priority=p.priority,
         reason=p.reason,
         set_by=p.set_by,
-        set_by_name=user.username if user else p.set_by,
+        set_by_name=p.setter.username if p.setter else p.set_by,
         deadline=p.deadline,
         created_at=p.created_at,
         updated_at=p.updated_at,
@@ -37,8 +35,12 @@ async def list_priorities(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[PriorityResponse]:
-    result = await db.execute(select(CvePriority).order_by(CvePriority.created_at.desc()))
-    return [await _build_response(p, db) for p in result.scalars().all()]
+    result = await db.execute(
+        select(CvePriority)
+        .options(selectinload(CvePriority.setter))
+        .order_by(CvePriority.created_at.desc())
+    )
+    return [_build_response(p) for p in result.scalars().all()]
 
 
 @router.post("", response_model=PriorityResponse, status_code=201)
@@ -67,10 +69,12 @@ async def create_priority(
     # Notify sec team about new priority
     await notif_svc.notify_new_priority(db, body.cve_id, body.priority.value)
 
-    await log_action(db, current_user.id, "priority_created", "cve_priority", str(priority.id))
+    await log_action(
+        db, current_user.id, "priority_created", "cve_priority", str(priority.id)
+    )
     await db.commit()
-    await db.refresh(priority)
-    return await _build_response(priority, db)
+    await db.refresh(priority, ["setter"])
+    return _build_response(priority)
 
 
 @router.patch("/{priority_id}", response_model=PriorityResponse)
@@ -93,10 +97,12 @@ async def update_priority(
         priority.deadline = body.deadline
     priority.updated_at = datetime.utcnow()
 
-    await log_action(db, current_user.id, "priority_updated", "cve_priority", str(priority.id))
+    await log_action(
+        db, current_user.id, "priority_updated", "cve_priority", str(priority.id)
+    )
     await db.commit()
-    await db.refresh(priority)
-    return await _build_response(priority, db)
+    await db.refresh(priority, ["setter"])
+    return _build_response(priority)
 
 
 @router.delete("/{priority_id}", status_code=204)
@@ -110,6 +116,8 @@ async def delete_priority(
     if not priority:
         raise HTTPException(404, "Nicht gefunden")
 
-    await log_action(db, current_user.id, "priority_deleted", "cve_priority", str(priority.id))
+    await log_action(
+        db, current_user.id, "priority_deleted", "cve_priority", str(priority.id)
+    )
     await db.delete(priority)
     await db.commit()
