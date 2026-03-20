@@ -1,114 +1,131 @@
 # Getting Started
 
+This guide walks you through deploying RHACS CVE Manager on OpenShift.
+
 ## Prerequisites
 
-- Python 3.12+ with [uv](https://docs.astral.sh/uv/)
-- Bun 1.3+ for frontend package management
-- PostgreSQL with:
-  - `rhacs_manager` (application DB, read-write)
-  - `central_active` (StackRox DB, read-only)
-- [just](https://github.com/casey/just) (recommended)
+- OpenShift cluster with RHACS (StackRox) installed
+- Helm 3
+- `oc` CLI authenticated to the target cluster
+- Access to a container registry for the RHACS Manager images
+- SMTP server for email notifications
 
-## Install Dependencies
+## Step 1: Build and Push Container Images
 
-```bash
-git clone <repo-url> rhacs-manager
-cd rhacs-manager
-
-just install
-# or manually:
-uv --directory backend sync
-cd frontend && bun install
-```
-
-## Create App Database
-
-```sql
-CREATE DATABASE rhacs_manager;
-```
-
-Run migrations:
+Build the three container images and push them to your registry:
 
 ```bash
-just migrate
+# Backend
+just build-backend-image tag=registry.example.com/rhacs-manager-backend:latest
 
-# or manually:
-APP_DB_URL="postgresql+asyncpg://postgres@localhost/rhacs_manager" \
-  uv --directory backend run alembic upgrade head
+# Frontend (hub)
+just build-frontend-image tag=registry.example.com/rhacs-manager-frontend:latest
+
+# Frontend (spoke, if using spoke clusters)
+just build-spoke-image tag=registry.example.com/rhacs-manager-spoke:latest
 ```
 
-## Start Development
-
-`just dev` starts backend (`:8000`) and frontend (`:5173`) with hot reload.
-
-=== "Security Team Session"
-
-    ```bash
-    just dev
-    # same as: just dev sec
-    ```
-
-=== "Team Member Session"
-
-    ```bash
-    just dev user
-    just dev user payments:cluster-a
-    just dev user payments:cluster-a inventory:cluster-a
-    just dev user '*'
-    ```
-
-In user mode, namespace scopes are translated into `DEV_USER_NAMESPACES`. Use `*` to simulate a non-sec-team user who can see all namespaces.
-
-## Verify Changes
+Push the images to your registry:
 
 ```bash
-just check
-
-# individual commands:
-just test           # backend tests
-just lint           # frontend lint
-just build-frontend # frontend type-check + build
+podman push registry.example.com/rhacs-manager-backend:latest
+podman push registry.example.com/rhacs-manager-frontend:latest
+podman push registry.example.com/rhacs-manager-spoke:latest
 ```
 
-!!! warning
-    Backend tests and frontend build must pass before merging.
+See [Container Images](deployment/containers.md) for details on each image.
 
-## Local Docs Preview
+## Step 2: Prepare the Hub Cluster
+
+### Copy the StackRox DB Password
+
+The backend needs read-only access to the StackRox central database. Copy the password secret into the `rhacs-manager` namespace:
 
 ```bash
-just docs
-# build static output:
-just docs-build
+oc create namespace rhacs-manager
+
+oc get secret central-db-password -n stackrox -o json \
+  | jq 'del(.metadata.namespace, .metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp)' \
+  | oc apply -n rhacs-manager -f -
 ```
 
-## Project Layout
+### Create a Values File
 
-```text
-rhacs-manager/
-  auth-header-injector/
-    main.go
-    Containerfile
-  backend/
-    app/
-      main.py
-      config.py
-      database.py
-      routers/
-      models/
-      stackrox/queries.py
-      tasks/scheduler.py
-    alembic/
-    tests/
-  frontend/
-    src/
-      pages/
-      components/
-      api/client.ts
-      utils/errors.ts
-  deploy/
-    helm/
-      rhacs-manager/
-  docs/
-  mkdocs.yml
-  justfile
+Create a `my-hub-values.yaml` with your environment-specific configuration:
+
+```yaml
+backend:
+  image:
+    repository: registry.example.com/rhacs-manager-backend
+    tag: latest
+  secret:
+    stringData:
+      SECRET_KEY: "<random-secret-key>"
+      DEV_MODE: "false"
+      SMTP_HOST: "smtp.example.com"
+      SMTP_PORT: "587"
+      SMTP_FROM: "rhacs-manager@example.com"
+      SMTP_USER: "user"
+      SMTP_PASSWORD: "password"
+      SMTP_TLS: "false"
+      SMTP_STARTTLS: "true"
+      SMTP_VALIDATE_CERTS: "true"
+      APP_BASE_URL: "https://rhacs-manager.apps.hub.example.com"
+      SPOKE_API_KEYS: "<key-for-spoke-clusters>"
+      SEC_TEAM_GROUP: "rhacs-security-team"
+      MANAGEMENT_EMAIL: "security@example.com"
+
+frontend:
+  image:
+    repository: registry.example.com/rhacs-manager-frontend
+    tag: latest
 ```
+
+See `examples/helm-values-hub-minimal.yaml` for a minimal example and [Configuration](configuration.md) for all available settings.
+
+## Step 3: Deploy the Hub
+
+```bash
+helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  -f my-hub-values.yaml
+```
+
+Verify the deployment:
+
+```bash
+oc -n rhacs-manager get pods
+oc -n rhacs-manager get routes
+curl https://rhacs-manager-api.apps.hub.example.com/health
+```
+
+Expected health response:
+
+```json
+{ "status": "ok" }
+```
+
+## Step 4: Deploy Spoke Clusters (Optional)
+
+Spoke clusters provide namespace-scoped access to the hub via OpenShift OAuth. Each spoke runs a frontend pod with an oauth-proxy sidecar -- no backend or database is needed on spoke clusters.
+
+```bash
+helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
+  -n rhacs-manager --create-namespace \
+  --set mode=spoke \
+  --set spoke.oauthProxy.cookieSecret="$(openssl rand -base64 32)" \
+  --set spoke.frontend.image.repository=registry.example.com/rhacs-manager-spoke \
+  --set spoke.frontend.image.tag=latest \
+  --set spoke.frontend.hubApiUrl=https://rhacs-manager-api.apps.hub.example.com \
+  --set spoke.frontend.spokeApiKey="<key-matching-hub-SPOKE_API_KEYS>"
+```
+
+See [Spoke Deployment](deployment/spoke.md) for namespace annotation setup and full configuration.
+
+## What's Next?
+
+- [Architecture](architecture.md) -- understand the hub-spoke model
+- [Security Model](security.md) -- namespace scoping and role model
+- [User Guide](user-guide.md) -- how to use the application
+- [Configuration](configuration.md) -- all configuration options
+- [Deployment Overview](deployment/index.md) -- detailed deployment reference
