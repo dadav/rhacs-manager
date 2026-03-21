@@ -20,6 +20,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { completeOnboarding, authKeys } from "../api/auth";
 import type { ComponentType, SVGAttributes } from "react";
 
+interface WorkflowStep {
+  labelKey: string;
+  color: string;
+}
+
+const WORKFLOW_STEPS: WorkflowStep[] = [
+  { labelKey: "onboarding.workflow.step1", color: "#0066cc" },
+  { labelKey: "onboarding.workflow.step2", color: "#ec7a08" },
+  { labelKey: "onboarding.workflow.step3", color: "#3e8635" },
+  { labelKey: "onboarding.workflow.step4", color: "#6753ac" },
+];
+
 interface FeatureItem {
   icon: ComponentType<SVGAttributes<SVGElement>>;
   color: string;
@@ -82,12 +94,14 @@ interface OnboardingModalProps {
   isOpen: boolean;
   onClose?: () => void;
   isFirstTime?: boolean;
+  onDismiss?: () => void;
 }
 
 export function OnboardingModal({
   isOpen,
   onClose,
   isFirstTime = true,
+  onDismiss,
 }: OnboardingModalProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -96,6 +110,7 @@ export function OnboardingModal({
     mutationFn: completeOnboarding,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });
+      onDismiss?.();
     },
   });
 
@@ -106,6 +121,7 @@ export function OnboardingModal({
       mutation.mutate();
     } else {
       onClose?.();
+      onDismiss?.();
     }
   };
 
@@ -127,6 +143,33 @@ export function OnboardingModal({
         >
           {t("onboarding.description")}
         </p>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 8 }}>
+            {t("onboarding.workflow.title")}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
+            {WORKFLOW_STEPS.map((step, i) => (
+              <div key={step.labelKey} style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: `${step.color}18`, border: `2px solid ${step.color}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 14, fontWeight: 700, color: step.color,
+                  }}>
+                    {i + 1}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--pf-t--global--text--color--regular)', whiteSpace: 'nowrap' }}>
+                    {t(step.labelKey)}
+                  </span>
+                </div>
+                {i < WORKFLOW_STEPS.length - 1 && (
+                  <div style={{ width: 40, height: 2, background: 'var(--pf-t--global--border--color--default)', margin: '0 4px', marginBottom: 20 }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
         <div
           style={{
             display: "grid",

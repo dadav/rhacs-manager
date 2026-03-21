@@ -32,6 +32,7 @@ import { useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";
+import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
 import { useAuth } from "../hooks/useAuth";
@@ -199,8 +200,10 @@ export function CveDetail() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
+  const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
+  const { data: workflowRemediations } = useRemediationsByCve(cveId ?? "", scopeParams);
   const addComment = useAddCveComment(cveId ?? "");
   const [newComment, setNewComment] = useState("");
   const [deploymentFilter, setDeploymentFilter] = useState("");
@@ -389,6 +392,10 @@ export function CveDetail() {
           </Alert>
         </PageSection>
       )}
+
+      <PageSection variant="default" style={{ paddingTop: 0 }}>
+        <CveWorkflowStepper cve={cve} remediations={workflowRemediations} />
+      </PageSection>
 
       <PageSection variant="default" style={{ paddingTop: 0 }}>
         <Card>

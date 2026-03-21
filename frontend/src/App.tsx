@@ -40,6 +40,7 @@ import { Badges } from "./pages/Badges";
 import { Remediations } from "./pages/Remediations";
 import { SuppressionRules } from "./pages/SuppressionRules";
 import { OnboardingModal } from "./components/OnboardingModal";
+import { GuidedTour } from "./components/GuidedTour";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 interface NavEntry {
@@ -70,6 +71,7 @@ export function App() {
   const { t, i18n } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [runTour, setRunTour] = useState(false);
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("pf-theme") === "dark",
   );
@@ -225,7 +227,8 @@ export function App() {
             <Button
               variant="plain"
               aria-label={t("app.showHelp")}
-              onClick={() => setShowOnboarding(true)}
+              onClick={() => setRunTour(true)}
+              data-tour="help-button"
               style={{ color: "#e0e0e0" }}
             >
               <OutlinedQuestionCircleIcon />
@@ -240,18 +243,20 @@ export function App() {
   const sidebar = (
     <PageSidebar isSidebarOpen={sidebarOpen}>
       <PageSidebarBody>
-        <ScopeSelector />
-        <Nav aria-label="Navigation">
+        <div data-tour="scope-selector">
+          <ScopeSelector />
+        </div>
+        <Nav aria-label="Navigation" data-tour="sidebar-nav">
           <NavList>
             <NavGroup title={t("nav.general")}>
               {TEAM_NAV_ITEMS.map((item) => (
-                <NavItem
-                  key={item.to}
-                  isActive={location.pathname.startsWith(item.to)}
-                >
-                  <Link to={scopedLink(item.to)}>{t(item.labelKey)}</Link>
-                </NavItem>
-              ))}
+                  <NavItem
+                    key={item.to}
+                    isActive={location.pathname.startsWith(item.to)}
+                  >
+                    <Link to={scopedLink(item.to)} data-tour={`nav-${item.to.slice(1)}`}>{t(item.labelKey)}</Link>
+                  </NavItem>
+                ))}
             </NavGroup>
             {isSecTeam && (
               <NavGroup title={t("nav.admin")}>
@@ -260,7 +265,7 @@ export function App() {
                     key={item.to}
                     isActive={location.pathname.startsWith(item.to)}
                   >
-                    <Link to={scopedLink(item.to)}>{t(item.labelKey)}</Link>
+                    <Link to={scopedLink(item.to)} data-tour={`nav-${item.to.slice(1)}`}>{t(item.labelKey)}</Link>
                   </NavItem>
                 ))}
               </NavGroup>
@@ -297,12 +302,12 @@ export function App() {
 
   return (
     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
-      <OnboardingModal isOpen={!user.onboarding_completed} isFirstTime />
       <OnboardingModal
-        isOpen={showOnboarding}
-        isFirstTime={false}
-        onClose={() => setShowOnboarding(false)}
+        isOpen={!user.onboarding_completed}
+        isFirstTime
+        onDismiss={() => setRunTour(true)}
       />
+      <GuidedTour run={runTour} onComplete={() => setRunTour(false)} isSecTeam={isSecTeam} />
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

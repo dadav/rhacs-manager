@@ -1,4 +1,4 @@
-import { Label } from '@patternfly/react-core'
+import { Label, Tooltip } from '@patternfly/react-core'
 import { useTranslation } from 'react-i18next'
 import { Severity } from '../../types'
 
@@ -18,8 +18,10 @@ export function SeverityBadge({ severity }: Props) {
   const { t } = useTranslation()
   const config = SEVERITY_CONFIG[severity] ?? SEVERITY_CONFIG[Severity.UNKNOWN]
   return (
-    <Label color={config.color} isCompact>
-      {t(config.labelKey)}
-    </Label>
+    <Tooltip content={t('severity.tooltip')}>
+      <Label color={config.color} isCompact>
+        {t(config.labelKey)}
+      </Label>
+    </Tooltip>
   )
 }

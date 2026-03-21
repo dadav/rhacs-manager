@@ -11,13 +11,14 @@ import {
   ModalFooter,
   ModalHeader,
   PageSection,
+  Popover,
   Skeleton,
   TextArea,
   TextInput,
   Title,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { ListIcon } from '@patternfly/react-icons'
+import { ListIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useCreatePriority, useDeletePriority, usePriorities, useUpdatePriority } from '../api/priorities'
@@ -115,7 +116,33 @@ export function Priorities() {
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title headingLevel="h1" size="xl">{t('priorities.title')}</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Title headingLevel="h1" size="xl">{t('priorities.title')}</Title>
+            <Popover
+              headerContent={t('priorities.whatAre')}
+              bodyContent={
+                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  <p style={{ margin: '0 0 8px' }}>
+                    {t('priorities.helpBody1')}
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong>{t('priorities.helpBody2Critical')}</strong> — {t('priorities.helpBody2CriticalDesc')}<br />
+                    <strong>{t('priorities.helpBody2High')}</strong> — {t('priorities.helpBody2HighDesc')}<br />
+                    <strong>{t('priorities.helpBody2Medium')}</strong> — {t('priorities.helpBody2MediumDesc')}<br />
+                    <strong>{t('priorities.helpBody2Low')}</strong> — {t('priorities.helpBody2LowDesc')}
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    {t('priorities.helpBody3')}
+                  </p>
+                </div>
+              }
+              position="right"
+            >
+              <Button variant="plain" aria-label={t('priorities.helpLabel')} style={{ padding: '4px 6px' }}>
+                <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+              </Button>
+            </Popover>
+          </div>
           {me?.is_sec_team && (
             <Button variant="primary" onClick={() => setShowCreate(true)}>
               {t('priorities.create')}
@@ -131,6 +158,11 @@ export function Priorities() {
           <EmptyState>
             <ListIcon style={{ fontSize: 32, marginBottom: 12, color: '#8a8d90' }} />
             <EmptyStateBody>{t('priorities.noPriorities')}</EmptyStateBody>
+            <EmptyStateBody>
+              <span style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+                {t('priorities.noPrioritiesHint')}
+              </span>
+            </EmptyStateBody>
           </EmptyState>
         ) : (
           <Table variant="compact" isStickyHeader>

@@ -4,12 +4,14 @@ import {
   EmptyState,
   EmptyStateBody,
   PageSection,
+  Popover,
   Skeleton,
   Title,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
@@ -69,10 +71,36 @@ export function RiskAcceptances() {
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">{t('riskAcceptance.title')}</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Title headingLevel="h1" size="xl">{t('riskAcceptance.title')}</Title>
+          <Popover
+            headerContent={t('riskAcceptance.whatAre')}
+            bodyContent={
+              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>
+                  {t('riskAcceptance.helpBody1')}
+                </p>
+                <p style={{ margin: '0 0 8px' }}>
+                  <strong>{t('riskAcceptance.helpBody2Requested')}</strong> — {t('riskAcceptance.helpBody2RequestedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Approved')}</strong> — {t('riskAcceptance.helpBody2ApprovedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Rejected')}</strong> — {t('riskAcceptance.helpBody2RejectedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Expired')}</strong> — {t('riskAcceptance.helpBody2ExpiredDesc')}
+                </p>
+                <p style={{ margin: 0 }}>
+                  {t('riskAcceptance.helpBody3')}
+                </p>
+              </div>
+            }
+            position="right"
+          >
+            <Button variant="plain" aria-label={t('riskAcceptance.helpLabel')} style={{ padding: '4px 6px' }}>
+              <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+            </Button>
+          </Popover>
+        </div>
       </PageSection>
 
-      <PageSection variant="default" padding={{ default: 'noPadding' }}>
+      <PageSection variant="default">
         <Toolbar>
           <ToolbarContent>
             <ToolbarItem>
@@ -128,6 +156,11 @@ export function RiskAcceptances() {
         ) : !data?.length ? (
           <EmptyState>
             <EmptyStateBody>{t('riskAcceptance.noAcceptancesFound')}</EmptyStateBody>
+            <EmptyStateBody>
+              <span style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+                {t('riskAcceptance.noAcceptancesHint')}
+              </span>
+            </EmptyStateBody>
           </EmptyState>
         ) : (
           <Table variant="compact" isStickyHeader>

@@ -1,5 +1,6 @@
 import {
   Alert,
+  Button,
   Checkbox,
   Dropdown,
   DropdownItem,
@@ -9,6 +10,7 @@ import {
   MenuToggle,
   PageSection,
   Pagination,
+  Popover,
   Skeleton,
   Spinner,
   TextInput,
@@ -16,9 +18,10 @@ import {
   Toolbar,
   ToolbarContent,
   ToolbarItem,
+  Tooltip,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, AngleRightIcon, AngleDownIcon, SearchIcon } from '@patternfly/react-icons'
+import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, AngleRightIcon, AngleDownIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -467,7 +470,32 @@ export function CveList() {
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">{t('cves.title')}</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Title headingLevel="h1" size="xl">{t('cves.title')}</Title>
+          <Popover
+            headerContent={t('cves.whatIs')}
+            bodyContent={
+              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>
+                  {t('cves.helpBody1')}
+                </p>
+                <p style={{ margin: '0 0 8px' }}>
+                  <strong>{t('cves.helpBody2ByCve')}</strong> — {t('cves.helpBody2ByCveDesc')}<br />
+                  <strong>{t('cves.helpBody2ByImage')}</strong> — {t('cves.helpBody2ByImageDesc')}<br />
+                  <strong>{t('cves.helpBody2Actions')}</strong> — {t('cves.helpBody2ActionsDesc')}
+                </p>
+                <p style={{ margin: 0 }}>
+                  {t('cves.helpBody3')}
+                </p>
+              </div>
+            }
+            position="right"
+          >
+            <Button variant="plain" aria-label={t('cves.helpLabel')} style={{ padding: '4px 6px' }}>
+              <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+            </Button>
+          </Popover>
+        </div>
       </PageSection>
 
       {hasActiveThresholds && (
@@ -829,7 +857,11 @@ export function CveList() {
               icon={SearchIcon}
               variant="sm"
             >
-              <EmptyStateBody />
+              <EmptyStateBody>
+                <span style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+                  {t('cves.noResultsHint')}
+                </span>
+              </EmptyStateBody>
             </EmptyState>
           ) : (
             <>
@@ -856,11 +888,13 @@ export function CveList() {
                             {cve.cve_id}
                           </Link>
                           {cve.has_priority && (
-                            <span style={{
-                              marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                              background: 'rgba(236, 122, 8, 0.18)', color: '#ec7a08',
-                              border: '1px solid rgba(236, 122, 8, 0.45)', padding: '1px 5px', borderRadius: 3,
-                            }}>PRIO</span>
+                            <Tooltip content={t('priorities.badgeTooltip')}>
+                              <span style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                                background: 'rgba(236, 122, 8, 0.18)', color: '#ec7a08',
+                                border: '1px solid rgba(236, 122, 8, 0.45)', padding: '1px 5px', borderRadius: 3,
+                              }}>PRIO</span>
+                            </Tooltip>
                           )}
                           {cve.has_risk_acceptance && cve.risk_acceptance_status === 'approved' && (
                             <span style={{

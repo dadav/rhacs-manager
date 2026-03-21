@@ -3,6 +3,7 @@ import {
   Select,
   SelectList,
   SelectOption,
+  Tooltip,
 } from '@patternfly/react-core'
 import { FilterIcon } from '@patternfly/react-icons'
 import { useState, useMemo } from 'react'
@@ -52,10 +53,12 @@ export function ScopeSelector() {
 
   return (
     <div style={{ padding: '12px 16px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
-        <FilterIcon style={{ fontSize: 11 }} />
-        {t('scope.title')}
-      </div>
+      <Tooltip content={t('scope.tooltip')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
+          <FilterIcon style={{ fontSize: 11 }} />
+          {t('scope.title')}
+        </div>
+      </Tooltip>
       <Select
         isOpen={clusterOpen}
         onOpenChange={setClusterOpen}

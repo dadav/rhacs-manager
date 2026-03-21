@@ -13,11 +13,13 @@ import {
   ModalFooter,
   ModalHeader,
   PageSection,
+  Popover,
   Skeleton,
   TextArea,
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
@@ -131,10 +133,32 @@ export function SuppressionRules() {
   return (
     <>
       <PageSection variant="default">
-        <Title headingLevel="h1" size="xl">{t('suppressionRules.title')}</Title>
-        <p style={{ marginTop: 8, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)' }}>
-          {t('suppressionRules.description')}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Title headingLevel="h1" size="xl">{t('suppressionRules.title')}</Title>
+          <Popover
+            headerContent={t('suppressionRules.whatAre')}
+            bodyContent={
+              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>
+                  {t('suppressionRules.helpBody1')}
+                </p>
+                <p style={{ margin: '0 0 8px' }}>
+                  <strong>{t('suppressionRules.helpBody2Component')}</strong> — {t('suppressionRules.helpBody2ComponentDesc')}<br />
+                  <strong>{t('suppressionRules.helpBody2Cve')}</strong> — {t('suppressionRules.helpBody2CveDesc')}<br />
+                  <strong>{t('suppressionRules.helpBody2Scope')}</strong> — {t('suppressionRules.helpBody2ScopeDesc2')}
+                </p>
+                <p style={{ margin: 0 }}>
+                  {t('suppressionRules.helpBody3')}
+                </p>
+              </div>
+            }
+            position="right"
+          >
+            <Button variant="plain" aria-label={t('suppressionRules.helpLabel')} style={{ padding: '4px 6px' }}>
+              <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+            </Button>
+          </Popover>
+        </div>
       </PageSection>
 
       <PageSection>
@@ -160,6 +184,11 @@ export function SuppressionRules() {
         ) : !isLoading && !data?.length ? (
           <EmptyState>
             <EmptyStateBody>{t('suppressionRules.noRules')}</EmptyStateBody>
+            <EmptyStateBody>
+              <span style={{ color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+                {t('suppressionRules.noRulesHint')}
+              </span>
+            </EmptyStateBody>
           </EmptyState>
         ) : (
           <div style={{ overflowX: 'auto' }}>

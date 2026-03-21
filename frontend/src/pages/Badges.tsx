@@ -9,10 +9,12 @@ import {
   ModalFooter,
   ModalHeader,
   PageSection,
+  Popover,
   Spinner,
   TextInput,
   Title,
 } from '@patternfly/react-core'
+import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useBadges, useCreateBadge, useDeleteBadge } from '../api/badges'
@@ -62,7 +64,32 @@ export function Badges() {
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title headingLevel="h1" size="xl">{t('badges.title')}</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Title headingLevel="h1" size="xl">{t('badges.title')}</Title>
+            <Popover
+              headerContent={t('badges.whatAre')}
+              bodyContent={
+                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  <p style={{ margin: '0 0 8px' }}>
+                    {t('badges.helpBody1')}
+                  </p>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong>{t('badges.helpBody2Scope')}</strong> — {t('badges.helpBody2ScopeDesc')}<br />
+                    <strong>{t('badges.helpBody2Token')}</strong> — {t('badges.helpBody2TokenDesc')}<br />
+                    <strong>{t('badges.helpBody2Embed')}</strong> — {t('badges.helpBody2EmbedDesc')}
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    {t('badges.helpBody3')}
+                  </p>
+                </div>
+              }
+              position="right"
+            >
+              <Button variant="plain" aria-label={t('badges.helpLabel')} style={{ padding: '4px 6px' }}>
+                <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+              </Button>
+            </Popover>
+          </div>
           <Button variant="primary" onClick={() => setShowCreate(true)}>{t('badges.create')}</Button>
         </div>
       </PageSection>
@@ -73,7 +100,12 @@ export function Badges() {
         {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !badges?.length ? (
-          <Alert variant="info" isInline title={t('badges.noBadgesAvailable')} />
+          <div>
+            <Alert variant="info" isInline title={t('badges.noBadgesAvailable')} />
+            <p style={{ marginTop: 8, color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
+              {t('badges.noBadgesHint')}
+            </p>
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {badges.map(badge => (
