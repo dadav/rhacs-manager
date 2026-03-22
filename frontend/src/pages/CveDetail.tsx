@@ -200,6 +200,7 @@ export function CveDetail() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
+  const { isSecTeam } = useAuth();
   const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
@@ -570,7 +571,7 @@ export function CveDetail() {
                         {t('cveDetail.riskAccepted')}
                       </span>
                     </div>
-                  ) : (
+                  ) : !isSecTeam ? (
                     <Button
                       variant="primary"
                       isDisabled={
@@ -582,7 +583,7 @@ export function CveDetail() {
                     >
                       {t('cveDetail.requestRiskAcceptance')}
                     </Button>
-                  )}
+                  ) : null}
                   {cve.has_risk_acceptance && (
                     <div>
                       <p
@@ -687,6 +688,14 @@ export function CveDetail() {
                     </Button>
                   )}
 
+                  {!isSecTeam && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => document.getElementById('remediation-section')?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      {t('cveDetail.createRemediationBtn')}
+                    </Button>
+                  )}
                   <Button
                     variant="link"
                     onClick={() => navigate("/vulnerabilities")}
@@ -1173,7 +1182,7 @@ function CveRemediationSection({
   }
 
   return (
-    <Card>
+    <Card id="remediation-section">
       <CardTitle>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{t('cveDetail.remediationsCount', { count: remediations?.length ?? 0 })}</span>

@@ -35,9 +35,9 @@ export function StatCard({
           {value}
         </div>
         <div
+          className="stat-card-label"
           style={{
             fontSize: 13,
-            color: "var(--pf-v6-global--Color--200)",
             marginTop: 4,
           }}
         >

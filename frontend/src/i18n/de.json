@@ -288,6 +288,7 @@
     "noDeployments": "Keine Deployments gefunden.",
     "noRemediationsForCve": "Keine Behebungen für diese CVE.",
     "startRemediationBtn": "Behebung starten",
+    "createRemediationBtn": "Behebung erstellen",
     "remediationsCount": "Behebungen ({{count}})",
     "commentsCount": "Kommentare ({{count}})",
     "notes": "Notizen",

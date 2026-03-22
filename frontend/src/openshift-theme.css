@@ -286,3 +286,39 @@
   border-left: 4px solid #f0ab00;
   background: var(--pf-t--global--background--color--primary--default);
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Stat card label contrast ────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+.stat-card-label {
+  color: var(--pf-v6-global--Color--200);
+}
+
+:root.pf-v6-theme-dark .stat-card-label {
+  color: var(--pf-v6-global--Color--100);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════ */
+/* ── Sidebar scope dropdown readability ──────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════ */
+
+.pf-v6-c-page__sidebar .pf-v6-c-menu-toggle {
+  color: #c7c7c7;
+  --pf-v6-c-menu-toggle--Color: #c7c7c7;
+}
+
+.pf-v6-c-page__sidebar .pf-v6-c-menu-toggle:hover {
+  color: #ffffff;
+}
+
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-menu-toggle {
+  color: #4f5255;
+  --pf-v6-c-menu-toggle--Color: #4f5255;
+}
+
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-menu-toggle:hover {
+  color: #151515;
+}
