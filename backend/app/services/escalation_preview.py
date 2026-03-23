@@ -1,4 +1,5 @@
 """Compute upcoming escalations (CVEs approaching escalation thresholds)."""
+
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -62,9 +63,7 @@ async def compute_upcoming_escalations(
     always_show |= {row[0] for row in active_ra_result}
 
     # Get existing escalations to skip already-escalated levels
-    existing_result = await app_db.execute(
-        select(Escalation.cve_id, Escalation.level)
-    )
+    existing_result = await app_db.execute(select(Escalation.cve_id, Escalation.level))
     existing_escalations: dict[str, set[int]] = {}
     for cve_id, level in existing_result:
         existing_escalations.setdefault(cve_id, set()).add(level)
@@ -108,14 +107,16 @@ async def compute_upcoming_escalations(
                     continue
                 days_remaining = threshold_days - age_days
                 if 0 < days_remaining <= warning_days:
-                    upcoming.append(UpcomingEscalation(
-                        cve_id=cve_id,
-                        severity=severity,
-                        epss_probability=float(epss),
-                        current_age_days=age_days,
-                        next_level=level,
-                        days_until_escalation=days_remaining,
-                    ))
+                    upcoming.append(
+                        UpcomingEscalation(
+                            cve_id=cve_id,
+                            severity=severity,
+                            epss_probability=float(epss),
+                            current_age_days=age_days,
+                            next_level=level,
+                            days_until_escalation=days_remaining,
+                        )
+                    )
                     break  # only report the nearest upcoming level per rule
             break  # apply first matching rule only
 

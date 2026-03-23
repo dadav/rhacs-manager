@@ -13,6 +13,11 @@ from ..models.suppression_rule import (
     SuppressionType,
 )
 from ..models.user import User
+from ..notifications.service import (
+    notify_suppression_requested,
+    notify_suppression_status_change,
+)
+from ..schemas.risk_acceptance import RiskScope
 from ..schemas.suppression_rule import (
     SuppressionRuleCreate,
     SuppressionRuleResponse,
@@ -20,14 +25,9 @@ from ..schemas.suppression_rule import (
     SuppressionRuleUpdate,
     SuppressionScope,
 )
-from ..notifications.service import (
-    notify_suppression_requested,
-    notify_suppression_status_change,
-)
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import compute_per_rule_matched_counts
 from ..services.risk_acceptance_service import scope_key, validate_and_resolve_scope
-from ..schemas.risk_acceptance import RiskScope
 from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/suppression-rules", tags=["suppression-rules"])
@@ -108,11 +108,7 @@ async def create_suppression_rule(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> SuppressionRuleResponse:
     # Sec team creates directly as approved, team members as requested
-    initial_status = (
-        SuppressionStatus.approved
-        if current_user.is_sec_team
-        else SuppressionStatus.requested
-    )
+    initial_status = SuppressionStatus.approved if current_user.is_sec_team else SuppressionStatus.requested
 
     rule_scope_dict: dict = {"mode": "all", "targets": []}
     rule_scope_key: str = ""
@@ -124,17 +120,13 @@ async def create_suppression_rule(
                 SuppressionRule.type == SuppressionType.component,
                 SuppressionRule.component_name == body.component_name,
                 SuppressionRule.version_pattern == body.version_pattern,
-                SuppressionRule.status.in_(
-                    [SuppressionStatus.requested, SuppressionStatus.approved]
-                ),
+                SuppressionRule.status.in_([SuppressionStatus.requested, SuppressionStatus.approved]),
             )
         )
     else:
         # Validate and resolve scope
         assert body.scope is not None  # guaranteed by schema validator
-        resolved_scope, rule_scope_key = await _resolve_cve_scope(
-            body.scope, body.cve_id, current_user, sx_db
-        )
+        resolved_scope, rule_scope_key = await _resolve_cve_scope(body.scope, body.cve_id, current_user, sx_db)
         rule_scope_dict = resolved_scope.model_dump(mode="json")
 
         existing = await db.execute(
@@ -142,16 +134,12 @@ async def create_suppression_rule(
                 SuppressionRule.type == SuppressionType.cve,
                 SuppressionRule.cve_id == body.cve_id,
                 SuppressionRule.scope_key == rule_scope_key,
-                SuppressionRule.status.in_(
-                    [SuppressionStatus.requested, SuppressionStatus.approved]
-                ),
+                SuppressionRule.status.in_([SuppressionStatus.requested, SuppressionStatus.approved]),
             )
         )
 
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            409, "Für dieses Ziel existiert bereits eine aktive Unterdrückungsregel"
-        )
+        raise HTTPException(409, "Für dieses Ziel existiert bereits eine aktive Unterdrückungsregel")
 
     rule = SuppressionRule(
         status=initial_status,
@@ -180,9 +168,7 @@ async def create_suppression_rule(
 
     # Notify sec team about new request from team members
     if initial_status == SuppressionStatus.requested:
-        creator_result = await db.execute(
-            select(User).where(User.id == current_user.id)
-        )
+        creator_result = await db.execute(select(User).where(User.id == current_user.id))
         creator = creator_result.scalar_one()
         await notify_suppression_requested(db, rule, creator)
 
@@ -205,13 +191,13 @@ async def list_suppression_rules(
         try:
             query = query.where(SuppressionRule.status == SuppressionStatus[status])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Status: {status}")
+            raise HTTPException(400, f"Ungültiger Status: {status}") from None
 
     if type:
         try:
             query = query.where(SuppressionRule.type == SuppressionType[type])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Typ: {type}")
+            raise HTTPException(400, f"Ungültiger Typ: {type}") from None
 
     result = await db.execute(query)
     rules = list(result.scalars().all())
@@ -225,14 +211,9 @@ async def list_suppression_rules(
     if has_component_rules:
         component_version_map = await sx.get_global_component_version_map(sx_db)
 
-    counts = compute_per_rule_matched_counts(
-        rules, all_cve_id_set, component_version_map
-    )
+    counts = compute_per_rule_matched_counts(rules, all_cve_id_set, component_version_map)
 
-    return [
-        await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0))
-        for rule in rules
-    ]
+    return [await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0)) for rule in rules]
 
 
 @router.get("/{rule_id}", response_model=SuppressionRuleResponse)
@@ -242,9 +223,7 @@ async def get_suppression_rule(
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> SuppressionRuleResponse:
-    result = await db.execute(
-        select(SuppressionRule).where(SuppressionRule.id == rule_id)
-    )
+    result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "Nicht gefunden")
@@ -256,9 +235,7 @@ async def get_suppression_rule(
     if rule.type == SuppressionType.component:
         component_version_map = await sx.get_global_component_version_map(sx_db)
 
-    counts = compute_per_rule_matched_counts(
-        [rule], all_cve_id_set, component_version_map
-    )
+    counts = compute_per_rule_matched_counts([rule], all_cve_id_set, component_version_map)
     return await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0))
 
 
@@ -270,9 +247,7 @@ async def update_suppression_rule(
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> SuppressionRuleResponse:
-    result = await db.execute(
-        select(SuppressionRule).where(SuppressionRule.id == rule_id)
-    )
+    result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "Nicht gefunden")
@@ -289,9 +264,7 @@ async def update_suppression_rule(
 
     # Update scope for CVE-type rules if provided
     if body.scope is not None and rule.type == SuppressionType.cve:
-        resolved_scope, new_scope_key = await _resolve_cve_scope(
-            body.scope, rule.cve_id, current_user, sx_db
-        )
+        resolved_scope, new_scope_key = await _resolve_cve_scope(body.scope, rule.cve_id, current_user, sx_db)
         # Check for conflicting active rule with new scope_key
         if new_scope_key != rule.scope_key:
             conflict = await db.execute(
@@ -300,9 +273,7 @@ async def update_suppression_rule(
                     SuppressionRule.cve_id == rule.cve_id,
                     SuppressionRule.scope_key == new_scope_key,
                     SuppressionRule.id != rule.id,
-                    SuppressionRule.status.in_(
-                        [SuppressionStatus.requested, SuppressionStatus.approved]
-                    ),
+                    SuppressionRule.status.in_([SuppressionStatus.requested, SuppressionStatus.approved]),
                 )
             )
             if conflict.scalar_one_or_none():
@@ -335,9 +306,7 @@ async def update_suppression_rule(
 
     # Notify sec team if status was reset to requested
     if reset_to_requested:
-        creator_result = await db.execute(
-            select(User).where(User.id == current_user.id)
-        )
+        creator_result = await db.execute(select(User).where(User.id == current_user.id))
         creator = creator_result.scalar_one()
         await notify_suppression_requested(db, rule, creator)
 
@@ -354,22 +323,16 @@ async def review_suppression_rule(
     db: AsyncSession = Depends(get_app_db),
 ) -> SuppressionRuleResponse:
     if not current_user.is_sec_team:
-        raise HTTPException(
-            403, "Nur das Security-Team kann Unterdrückungsregeln überprüfen"
-        )
+        raise HTTPException(403, "Nur das Security-Team kann Unterdrückungsregeln überprüfen")
 
-    result = await db.execute(
-        select(SuppressionRule).where(SuppressionRule.id == rule_id)
-    )
+    result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "Nicht gefunden")
     if rule.status != SuppressionStatus.requested:
         raise HTTPException(400, "Nur beantragte Regeln können überprüft werden")
 
-    rule.status = (
-        SuppressionStatus.approved if body.approved else SuppressionStatus.rejected
-    )
+    rule.status = SuppressionStatus.approved if body.approved else SuppressionStatus.rejected
     rule.reviewed_by = current_user.id
     rule.reviewed_at = datetime.utcnow()
     rule.review_comment = body.comment
@@ -399,9 +362,7 @@ async def delete_suppression_rule(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> None:
-    result = await db.execute(
-        select(SuppressionRule).where(SuppressionRule.id == rule_id)
-    )
+    result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "Nicht gefunden")
@@ -411,9 +372,7 @@ async def delete_suppression_rule(
         if rule.created_by != current_user.id:
             raise HTTPException(403, "Nur der Ersteller kann die Regel zurückziehen")
         if rule.status != SuppressionStatus.requested:
-            raise HTTPException(
-                400, "Nur beantragte Regeln können zurückgezogen werden"
-            )
+            raise HTTPException(400, "Nur beantragte Regeln können zurückgezogen werden")
 
     await log_action(
         db,

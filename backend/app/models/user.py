@@ -1,8 +1,8 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Enum as SQLEnum
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base

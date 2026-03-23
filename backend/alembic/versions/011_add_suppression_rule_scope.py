@@ -8,9 +8,10 @@ Create Date: 2026-03-14 00:00:00.000000
 import hashlib
 import json
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
+
+from alembic import op
 
 revision = "011"
 down_revision = "010"
@@ -45,9 +46,7 @@ def upgrade() -> None:
         ),
     )
 
-    op.create_index(
-        "ix_suppression_rules_scope_key", "suppression_rules", ["scope_key"]
-    )
+    op.create_index("ix_suppression_rules_scope_key", "suppression_rules", ["scope_key"])
 
     # Drop old unique CVE index and create new one that includes scope_key
     op.drop_index("uq_suppression_rules_active_cve", table_name="suppression_rules")
@@ -56,9 +55,7 @@ def upgrade() -> None:
         "suppression_rules",
         ["cve_id", "scope_key"],
         unique=True,
-        postgresql_where=sa.text(
-            "type = 'cve' AND status IN ('requested', 'approved')"
-        ),
+        postgresql_where=sa.text("type = 'cve' AND status IN ('requested', 'approved')"),
     )
 
     # Remove server defaults now that backfill is done
@@ -67,9 +64,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "uq_suppression_rules_active_cve_scope", table_name="suppression_rules"
-    )
+    op.drop_index("uq_suppression_rules_active_cve_scope", table_name="suppression_rules")
     op.drop_index("ix_suppression_rules_scope_key", table_name="suppression_rules")
 
     op.create_index(
@@ -77,9 +72,7 @@ def downgrade() -> None:
         "suppression_rules",
         ["cve_id"],
         unique=True,
-        postgresql_where=sa.text(
-            "type = 'cve' AND status IN ('requested', 'approved')"
-        ),
+        postgresql_where=sa.text("type = 'cve' AND status IN ('requested', 'approved')"),
     )
 
     op.drop_column("suppression_rules", "scope_key")

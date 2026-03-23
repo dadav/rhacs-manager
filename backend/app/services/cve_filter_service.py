@@ -1,6 +1,6 @@
 """Shared CVE list fetching and filtering logic used by cves.py and exports.py."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from fnmatch import fnmatch
 from uuid import UUID
 
@@ -27,9 +27,7 @@ async def _get_settings(db: AsyncSession) -> GlobalSettings | None:
     return r.scalar_one_or_none()
 
 
-def _matches_component_rule(
-    rule: SuppressionRule, components: list[tuple[str, str]]
-) -> bool:
+def _matches_component_rule(rule: SuppressionRule, components: list[tuple[str, str]]) -> bool:
     """Check if any (name, version) pair matches a component suppression rule."""
     for comp_name, comp_version in components:
         if comp_name != rule.component_name:
@@ -76,10 +74,7 @@ def _is_cve_suppressed_by_rules(
         return False
 
     # Narrow to user's visible namespaces
-    if user_namespaces is not None:
-        visible_locations = cve_locations & user_namespaces
-    else:
-        visible_locations = cve_locations
+    visible_locations = cve_locations & user_namespaces if user_namespaces is not None else cve_locations
 
     if not visible_locations:
         return False
@@ -106,9 +101,7 @@ def _compute_suppressed_cves(
 
         if cve_namespace_map is not None:
             for cve_id in candidate_cves:
-                if _is_cve_suppressed_by_rules(
-                    cve_id, cve_rules, cve_namespace_map, user_namespaces
-                ):
+                if _is_cve_suppressed_by_rules(cve_id, cve_rules, cve_namespace_map, user_namespaces):
                     suppressed.add(cve_id)
         else:
             # Fallback for cases without namespace context (backwards compat)
@@ -171,9 +164,7 @@ def _build_cve_item(
         first_seen=c.get("first_seen"),
         published_on=c.get("published_on"),
         operating_system=c.get("operating_system"),
-        component_names=sorted(set(component_map.get(c["cve_id"], [])))
-        if component_map
-        else [],
+        component_names=sorted(set(component_map.get(c["cve_id"], []))) if component_map else [],
         has_priority=p is not None,
         priority_level=p.priority.value if p else None,
         priority_deadline=p.deadline if p else None,
@@ -200,34 +191,20 @@ async def _load_suppression_sets(
     """
     result = await app_db.execute(
         select(SuppressionRule).where(
-            SuppressionRule.status.in_(
-                [SuppressionStatus.approved, SuppressionStatus.requested]
-            )
+            SuppressionRule.status.in_([SuppressionStatus.approved, SuppressionStatus.requested])
         )
     )
     rules = result.scalars().all()
 
-    approved_cve_rules = [
-        r
-        for r in rules
-        if r.type == SuppressionType.cve and r.status == SuppressionStatus.approved
-    ]
+    approved_cve_rules = [r for r in rules if r.type == SuppressionType.cve and r.status == SuppressionStatus.approved]
     approved_component_rules = [
-        r
-        for r in rules
-        if r.type == SuppressionType.component
-        and r.status == SuppressionStatus.approved
+        r for r in rules if r.type == SuppressionType.component and r.status == SuppressionStatus.approved
     ]
     requested_cve_rules = [
-        r
-        for r in rules
-        if r.type == SuppressionType.cve and r.status == SuppressionStatus.requested
+        r for r in rules if r.type == SuppressionType.cve and r.status == SuppressionStatus.requested
     ]
     requested_component_rules = [
-        r
-        for r in rules
-        if r.type == SuppressionType.component
-        and r.status == SuppressionStatus.requested
+        r for r in rules if r.type == SuppressionType.component and r.status == SuppressionStatus.requested
     ]
 
     return (
@@ -279,9 +256,7 @@ async def fetch_filtered_cves(
     prio_result = await app_db.execute(select(CvePriority))
     priorities = {p.cve_id: p for p in prio_result.scalars().all()}
 
-    ra_query = select(RiskAcceptance).where(
-        RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved])
-    )
+    ra_query = select(RiskAcceptance).where(RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]))
     ra_result = await app_db.execute(ra_query)
     acceptances = {ra.cve_id: ra for ra in ra_result.scalars().all()}
 
@@ -297,9 +272,7 @@ async def fetch_filtered_cves(
                 namespace,
             )
             ns_for_components = scoped_ns
-            cves = await sx.get_cves_for_namespaces(
-                sx_db, scoped_ns, min_cvss, min_epss, always_show
-            )
+            cves = await sx.get_cves_for_namespaces(sx_db, scoped_ns, min_cvss, min_epss, always_show)
         else:
             all_ns = await sx.list_namespaces(sx_db)
             ns_for_components = [(r["namespace"], r["cluster_name"]) for r in all_ns]
@@ -307,20 +280,12 @@ async def fetch_filtered_cves(
     else:
         if not current_user.has_namespaces:
             return []
-        ns_for_components = narrow_namespaces(
-            current_user.namespaces, cluster, namespace
-        )
-        cves = await sx.get_cves_for_namespaces(
-            sx_db, ns_for_components, min_cvss, min_epss, always_show
-        )
+        ns_for_components = narrow_namespaces(current_user.namespaces, cluster, namespace)
+        cves = await sx.get_cves_for_namespaces(sx_db, ns_for_components, min_cvss, min_epss, always_show)
 
     # Batch fetch component names for all CVEs
     cve_ids_all = [c["cve_id"] for c in cves]
-    component_map = (
-        await sx.get_cve_component_map(sx_db, cve_ids_all, ns_for_components)
-        if cve_ids_all
-        else {}
-    )
+    component_map = await sx.get_cve_component_map(sx_db, cve_ids_all, ns_for_components) if cve_ids_all else {}
 
     # Load suppression rules and compute suppressed CVE sets
     (
@@ -330,28 +295,19 @@ async def fetch_filtered_cves(
         requested_component_rules,
     ) = await _load_suppression_sets(app_db)
 
-    has_component_rules = bool(approved_component_rules) or bool(
-        requested_component_rules
-    )
+    has_component_rules = bool(approved_component_rules) or bool(requested_component_rules)
     component_version_map: dict[str, list[tuple[str, str]]] = {}
     if has_component_rules and cve_ids_all:
-        component_version_map = await sx.get_cve_component_version_map(
-            sx_db, cve_ids_all, ns_for_components
-        )
+        component_version_map = await sx.get_cve_component_version_map(sx_db, cve_ids_all, ns_for_components)
 
     # Build namespace map for scope-aware suppression
     has_scoped_cve_rules = any(
-        (r.scope or {}).get("mode") == "namespace"
-        for r in approved_cve_rules + requested_cve_rules
+        (r.scope or {}).get("mode") == "namespace" for r in approved_cve_rules + requested_cve_rules
     )
     cve_namespace_map: dict[str, set[tuple[str, str]]] | None = None
     if has_scoped_cve_rules and cve_ids_all:
-        cve_rule_cve_ids = list(
-            {r.cve_id for r in approved_cve_rules + requested_cve_rules if r.cve_id}
-        )
-        cve_namespace_map = await sx.get_cve_namespace_cluster_map(
-            sx_db, cve_rule_cve_ids, ns_for_components
-        )
+        cve_rule_cve_ids = list({r.cve_id for r in approved_cve_rules + requested_cve_rules if r.cve_id})
+        cve_namespace_map = await sx.get_cve_namespace_cluster_map(sx_db, cve_rule_cve_ids, ns_for_components)
 
     # Build user namespace set for scope comparison
     user_ns_set: set[tuple[str, str]] | None = None
@@ -397,22 +353,16 @@ async def fetch_filtered_cves(
     # Compute remediation_status for each CVE
     if items:
         item_cve_ids = [i.cve_id for i in items]
-        rem_result = await app_db.execute(
-            select(Remediation).where(Remediation.cve_id.in_(item_cve_ids))
-        )
+        rem_result = await app_db.execute(select(Remediation).where(Remediation.cve_id.in_(item_cve_ids)))
         all_remediations = rem_result.scalars().all()
 
         # Build {cve_id: [(cluster, namespace, status), ...]}
         rem_by_cve: dict[str, list[tuple[str, str, RemediationStatus]]] = {}
         for rem in all_remediations:
-            rem_by_cve.setdefault(rem.cve_id, []).append(
-                (rem.cluster_name, rem.namespace, rem.status)
-            )
+            rem_by_cve.setdefault(rem.cve_id, []).append((rem.cluster_name, rem.namespace, rem.status))
 
         # Get (namespace, cluster) map for affected CVEs from StackRox
-        cve_ns_map = await sx.get_cve_namespace_cluster_map(
-            sx_db, item_cve_ids, ns_for_components or None
-        )
+        cve_ns_map = await sx.get_cve_namespace_cluster_map(sx_db, item_cve_ids, ns_for_components or None)
 
         terminal_statuses = {
             RemediationStatus.resolved,
@@ -440,9 +390,7 @@ async def fetch_filtered_cves(
                 continue
 
             # Check for any non-terminal (actively worked) remediation
-            has_non_terminal = any(
-                s not in terminal_statuses for s in rem_lookup.values()
-            )
+            has_non_terminal = any(s not in terminal_statuses for s in rem_lookup.values())
             if has_non_terminal:
                 item.remediation_status = "in_progress"
             elif rem_lookup.keys() >= affected_pairs:
@@ -481,30 +429,20 @@ async def fetch_filtered_cves(
         cve_ids = [i.cve_id for i in items]
         if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
-            ns_list: list[tuple[str, str]] = [
-                (r["namespace"], r["cluster_name"]) for r in all_ns
-            ]
+            ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
             ns_list = current_user.namespaces
         comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
-        items = [
-            i
-            for i in items
-            if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))
-        ]
+        items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
 
     # Age filter (days since first_seen)
     if age_min is not None or age_max is not None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         def _age_days(item: CveListItem) -> int | None:
             if not item.first_seen:
                 return None
-            fs = (
-                item.first_seen
-                if item.first_seen.tzinfo
-                else item.first_seen.replace(tzinfo=timezone.utc)
-            )
+            fs = item.first_seen if item.first_seen.tzinfo else item.first_seen.replace(tzinfo=UTC)
             return (now - fs).days
 
         filtered = []
@@ -524,9 +462,7 @@ async def fetch_filtered_cves(
         cve_ids = [i.cve_id for i in items]
         if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
-            dep_ns: list[tuple[str, str]] = [
-                (r["namespace"], r["cluster_name"]) for r in all_ns
-            ]
+            dep_ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
             dep_ns = current_user.namespaces
         dep_ns = narrow_namespaces(dep_ns, cluster, namespace)

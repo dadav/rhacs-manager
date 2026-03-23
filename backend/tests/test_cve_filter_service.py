@@ -235,9 +235,7 @@ class TestComputeSuppressedCves:
 class TestComputePerRuleMatchedCounts:
     def test_cve_rule_present(self):
         rule = _make_rule(cve_id="CVE-2024-0001")
-        counts = compute_per_rule_matched_counts(
-            [rule], {"CVE-2024-0001", "CVE-2024-0002"}, {}
-        )
+        counts = compute_per_rule_matched_counts([rule], {"CVE-2024-0001", "CVE-2024-0002"}, {})
         assert counts[rule.id] == 1
 
     def test_cve_rule_absent(self):

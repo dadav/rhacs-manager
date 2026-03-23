@@ -3,7 +3,6 @@
 Only registered when DEV_MODE=true (see main.py).
 """
 
-import asyncio
 import logging
 
 from fastapi import APIRouter

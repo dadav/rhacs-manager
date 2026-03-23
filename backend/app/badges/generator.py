@@ -25,7 +25,7 @@ def generate_badge_svg(
         right_color = "#dfb317"  # yellow
         parts = [f"{moderate} mittel"]
     else:
-        right_color = "#4c1"    # green
+        right_color = "#4c1"  # green
         parts = ["Keine Kritischen"]
 
     right_text = " · ".join(parts)

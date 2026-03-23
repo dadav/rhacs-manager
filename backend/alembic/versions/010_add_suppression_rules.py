@@ -5,8 +5,9 @@ Revises: 009
 Create Date: 2026-03-14 00:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "010"
 down_revision = "009"
@@ -64,9 +65,7 @@ def upgrade() -> None:
         "suppression_rules",
         ["component_name", "version_pattern"],
         unique=True,
-        postgresql_where=sa.text(
-            "type = 'component' AND status IN ('requested', 'approved')"
-        ),
+        postgresql_where=sa.text("type = 'component' AND status IN ('requested', 'approved')"),
     )
 
     # Unique active CVE rule per cve_id
@@ -75,9 +74,7 @@ def upgrade() -> None:
         "suppression_rules",
         ["cve_id"],
         unique=True,
-        postgresql_where=sa.text(
-            "type = 'cve' AND status IN ('requested', 'approved')"
-        ),
+        postgresql_where=sa.text("type = 'cve' AND status IN ('requested', 'approved')"),
     )
 
 

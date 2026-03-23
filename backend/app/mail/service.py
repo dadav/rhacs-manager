@@ -1,9 +1,9 @@
 import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 import aiosmtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from jinja2 import Environment, FileSystemLoader
 
 from ..config import settings
@@ -23,20 +23,17 @@ async def send_email(to: str, subject: str, html_body: str) -> None:
     msg["To"] = to
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    try:
-        await aiosmtplib.send(
-            msg,
-            hostname=settings.smtp_host,
-            port=settings.smtp_port,
-            username=settings.smtp_user or None,
-            password=settings.smtp_password or None,
-            use_tls=settings.smtp_tls,
-            start_tls=settings.smtp_starttls,
-            validate_certs=settings.smtp_validate_certs,
-        )
-        logger.info("Email sent to %s: %s", to, subject)
-    except Exception as e:
-        logger.error("Failed to send email to %s: %s", to, e)
+    await aiosmtplib.send(
+        msg,
+        hostname=settings.smtp_host,
+        port=settings.smtp_port,
+        username=settings.smtp_user or None,
+        password=settings.smtp_password or None,
+        use_tls=settings.smtp_tls,
+        start_tls=settings.smtp_starttls,
+        validate_certs=settings.smtp_validate_certs,
+    )
+    logger.info("Email sent to %s: %s", to, subject)
 
 
 async def send_risk_comment_email(
@@ -77,9 +74,7 @@ async def send_risk_status_email(
         comment=comment,
         link=f"{base_url}/risikoakzeptanzen/{acceptance_id}",
     )
-    await send_email(
-        to_email, f"Risikoakzeptanz {status_de}: {cve_id}", html
-    )
+    await send_email(to_email, f"Risikoakzeptanz {status_de}: {cve_id}", html)
 
 
 async def send_escalation_email(

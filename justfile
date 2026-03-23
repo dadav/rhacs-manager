@@ -11,19 +11,34 @@ default:
 test:
     uv --directory backend run pytest
 
-# Run frontend linter
+# Run frontend tests
+test-frontend:
+    cd frontend && bun run test
+
+# Run frontend and backend linters
 lint:
     cd frontend && bun run lint
+    uv --directory backend run ruff check .
+
+# Run backend linter only
+lint-backend:
+    uv --directory backend run ruff check .
+
+# Format backend code
+format-backend:
+    uv --directory backend run ruff format .
 
 # Type-check and build frontend
 build-frontend:
     cd frontend && bun run build
 
-# Check everything (tests + lint + frontend build)
+# Check everything (tests + lint + frontend build + docs)
 check:
     just test
+    just test-frontend
     just lint
     just build-frontend
+    just docs-build
 
 # Run alembic migration (upgrade to head)
 migrate:
@@ -180,7 +195,7 @@ docs:
 
 # Build docs to site/ directory
 docs-build:
-    uv run --with mkdocs-material mkdocs build
+    uv run --with mkdocs-material mkdocs build --strict
 
 # Deploy to local CRC cluster (installs CNPG operator, stand-in StackRox DB, and rhacs-manager)
 deploy:

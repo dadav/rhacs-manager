@@ -1,6 +1,5 @@
 from collections.abc import AsyncGenerator
 
-from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth.middleware import CurrentUser, get_current_user, require_sec_team

@@ -36,9 +36,7 @@ async def list_priorities(
     db: AsyncSession = Depends(get_app_db),
 ) -> list[PriorityResponse]:
     result = await db.execute(
-        select(CvePriority)
-        .options(selectinload(CvePriority.setter))
-        .order_by(CvePriority.created_at.desc())
+        select(CvePriority).options(selectinload(CvePriority.setter)).order_by(CvePriority.created_at.desc())
     )
     return [_build_response(p) for p in result.scalars().all()]
 
@@ -50,9 +48,7 @@ async def create_priority(
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> PriorityResponse:
-    existing = await db.execute(
-        select(CvePriority).where(CvePriority.cve_id == body.cve_id)
-    )
+    existing = await db.execute(select(CvePriority).where(CvePriority.cve_id == body.cve_id))
     if existing.scalar_one_or_none():
         raise HTTPException(409, f"{body.cve_id} ist bereits priorisiert")
 
@@ -69,9 +65,7 @@ async def create_priority(
     # Notify sec team about new priority
     await notif_svc.notify_new_priority(db, body.cve_id, body.priority.value)
 
-    await log_action(
-        db, current_user.id, "priority_created", "cve_priority", str(priority.id)
-    )
+    await log_action(db, current_user.id, "priority_created", "cve_priority", str(priority.id))
     await db.commit()
     await db.refresh(priority, ["setter"])
     return _build_response(priority)
@@ -97,9 +91,7 @@ async def update_priority(
         priority.deadline = body.deadline
     priority.updated_at = datetime.utcnow()
 
-    await log_action(
-        db, current_user.id, "priority_updated", "cve_priority", str(priority.id)
-    )
+    await log_action(db, current_user.id, "priority_updated", "cve_priority", str(priority.id))
     await db.commit()
     await db.refresh(priority, ["setter"])
     return _build_response(priority)
@@ -116,8 +108,6 @@ async def delete_priority(
     if not priority:
         raise HTTPException(404, "Nicht gefunden")
 
-    await log_action(
-        db, current_user.id, "priority_deleted", "cve_priority", str(priority.id)
-    )
+    await log_action(db, current_user.id, "priority_deleted", "cve_priority", str(priority.id))
     await db.delete(priority)
     await db.commit()

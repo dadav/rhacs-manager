@@ -14,13 +14,9 @@ class SuppressionScope(BaseModel):
     @model_validator(mode="after")
     def validate_mode_targets(self) -> "SuppressionScope":
         if self.mode == "all" and self.targets:
-            raise ValueError(
-                "Für Scope-Modus 'all' dürfen keine Targets angegeben werden"
-            )
+            raise ValueError("Für Scope-Modus 'all' dürfen keine Targets angegeben werden")
         if self.mode == "namespace" and not self.targets:
-            raise ValueError(
-                "Für den Scope-Modus 'namespace' sind Targets erforderlich"
-            )
+            raise ValueError("Für den Scope-Modus 'namespace' sind Targets erforderlich")
         return self
 
 
@@ -44,9 +40,7 @@ class SuppressionRuleCreate(BaseModel):
             if not self.cve_id:
                 raise ValueError("cve_id ist erforderlich für Typ 'cve'")
             if self.component_name or self.version_pattern:
-                raise ValueError(
-                    "component_name und version_pattern sind für Typ 'cve' nicht erlaubt"
-                )
+                raise ValueError("component_name und version_pattern sind für Typ 'cve' nicht erlaubt")
             if self.scope is None:
                 self.scope = SuppressionScope(mode="all", targets=[])
         return self

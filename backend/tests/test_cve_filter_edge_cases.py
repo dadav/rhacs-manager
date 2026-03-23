@@ -64,10 +64,7 @@ class TestMatchesComponentRuleEdgeCases:
             component_name="openssl",
             version_pattern=None,
         )
-        assert (
-            _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")])
-            is True
-        )
+        assert _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")]) is True
 
     def test_multiple_components_second_matches(self):
         """Rule matches when only a later component matches."""
@@ -76,10 +73,7 @@ class TestMatchesComponentRuleEdgeCases:
             component_name="libcurl",
             version_pattern=None,
         )
-        assert (
-            _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")])
-            is True
-        )
+        assert _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")]) is True
 
     def test_multiple_components_none_match(self):
         rule = _make_rule(
@@ -87,10 +81,7 @@ class TestMatchesComponentRuleEdgeCases:
             component_name="zlib",
             version_pattern=None,
         )
-        assert (
-            _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")])
-            is False
-        )
+        assert _matches_component_rule(rule, [("openssl", "1.0"), ("libcurl", "7.0")]) is False
 
     def test_version_pattern_question_mark_wildcard(self):
         """fnmatch ? matches single character."""
@@ -134,9 +125,7 @@ class TestIsCveSuppressedEdgeCases:
             },
         )
         ns_map = {"CVE-2024-0001": {("c1", "ns1"), ("c1", "ns2")}}
-        result = _is_cve_suppressed_by_rules(
-            "CVE-2024-0001", [rule1, rule2], ns_map, None
-        )
+        result = _is_cve_suppressed_by_rules("CVE-2024-0001", [rule1, rule2], ns_map, None)
         assert result is True
 
     def test_rule_without_scope_defaults_to_global(self):
@@ -193,9 +182,7 @@ class TestComputeSuppressedCvesEdgeCases:
 
     def test_component_rule_skips_already_suppressed(self):
         """CVEs already suppressed by CVE rules are not re-checked by component rules."""
-        cve_rule = _make_rule(
-            cve_id="CVE-2024-0001", scope={"mode": "all", "targets": []}
-        )
+        cve_rule = _make_rule(cve_id="CVE-2024-0001", scope={"mode": "all", "targets": []})
         comp_rule = _make_rule(
             type=SuppressionType.component,
             component_name="openssl",

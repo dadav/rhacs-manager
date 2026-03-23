@@ -7,7 +7,6 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-
 SEVERITY_LABELS = {0: "Unbekannt", 1: "Gering", 2: "Mittel", 3: "Hoch", 4: "Kritisch"}
 
 PRIORITY_LABELS = {
@@ -127,7 +126,8 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
             first_seen.strftime("%Y-%m-%d") if isinstance(first_seen, datetime) else str(first_seen or ""),
             published_on.strftime("%Y-%m-%d") if isinstance(published_on, datetime) else str(published_on or ""),
             PRIORITY_LABELS.get(row_data.get("priority_level", ""), row_data.get("priority_level", "")) or "",
-            RA_STATUS_LABELS.get(row_data.get("risk_acceptance_status", ""), row_data.get("risk_acceptance_status", "")) or "",
+            RA_STATUS_LABELS.get(row_data.get("risk_acceptance_status", ""), row_data.get("risk_acceptance_status", ""))
+            or "",
             "",  # Begründung (empty for user to fill)
             "",  # Ablaufdatum (empty for user to fill)
         ]
@@ -136,7 +136,7 @@ def generate_cve_excel(rows: list[dict]) -> bytes:
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
             # Apply percentage format to EPSS column
             if col_idx == epss_col:
-                cell.number_format = '0.00%'
+                cell.number_format = "0.00%"
             # Highlight editable cells
             if col_idx in editable_cols:
                 cell.fill = editable_fill
@@ -207,11 +207,13 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
 
         cve_id = str(row[col_map["CVE-ID"]] or "").strip()
 
-        results.append({
-            "cve_id": cve_id,
-            "justification": justification,
-            "expires_at": expires_at,
-        })
+        results.append(
+            {
+                "cve_id": cve_id,
+                "justification": justification,
+                "expires_at": expires_at,
+            }
+        )
 
     wb.close()
     return results

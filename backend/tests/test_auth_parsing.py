@@ -47,9 +47,7 @@ class TestParseNamespacesHeader:
 
 class TestParseNamespaceEmailsHeader:
     def test_valid_triples(self):
-        result = _parse_namespace_emails_header(
-            "ns1:cluster1=a@x.com,ns2:cluster2=b@y.com"
-        )
+        result = _parse_namespace_emails_header("ns1:cluster1=a@x.com,ns2:cluster2=b@y.com")
         assert result == [
             ("ns1", "cluster1", "a@x.com"),
             ("ns2", "cluster2", "b@y.com"),

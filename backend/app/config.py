@@ -3,9 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # App database (read-write)
     # Either set app_db_url directly, or set individual params below.
@@ -21,11 +19,7 @@ class Settings(BaseSettings):
     def effective_app_db_url(self) -> str:
         if self.app_db_url:
             return self.app_db_url
-        cred = (
-            f"{self.app_db_user}:{self.app_db_password}"
-            if self.app_db_password
-            else self.app_db_user
-        )
+        cred = f"{self.app_db_user}:{self.app_db_password}" if self.app_db_password else self.app_db_user
         return f"postgresql+asyncpg://{cred}@{self.app_db_host}:{self.app_db_port}/{self.app_db_name}"
 
     # StackRox Central database (read-only)
@@ -75,12 +69,8 @@ class Settings(BaseSettings):
     smtp_validate_certs: bool = Field(default=True)  # TLS certificate validation
 
     # Spoke proxy auth (hub-spoke architecture)
-    spoke_api_keys: list[str] = Field(
-        default_factory=list
-    )  # allowed API keys from spoke proxies
-    sec_team_group: str = Field(
-        default="rhacs-sec-team"
-    )  # group granting sec_team role
+    spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies
+    sec_team_group: str = Field(default="rhacs-sec-team")  # group granting sec_team role
 
     # Scheduler
     scheduler_enabled: bool = Field(default=True)
@@ -92,9 +82,7 @@ class Settings(BaseSettings):
     )  # Public base URL for badge SVGs (e.g. API route URL); empty = relative paths
     secret_key: str = Field(default="")
     management_email: str = Field(default="")  # org-wide digest recipient
-    default_escalation_email: str = Field(
-        default=""
-    )  # fallback escalation email for unannotated namespaces
+    default_escalation_email: str = Field(default="")  # fallback escalation email for unannotated namespaces
 
     # CORS — configurable allowed origins (empty = app_base_url only in production)
     cors_origins: list[str] = Field(default_factory=list)

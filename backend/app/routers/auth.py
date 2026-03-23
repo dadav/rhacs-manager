@@ -19,10 +19,7 @@ async def get_me(current_user: CurrentUser = Depends(get_current_user)) -> dict:
         "is_sec_team": current_user.is_sec_team,
         "has_all_namespaces": current_user.has_all_namespaces,
         "onboarding_completed": current_user.onboarding_completed,
-        "namespaces": [
-            {"namespace": ns, "cluster_name": cluster}
-            for ns, cluster in current_user.namespaces
-        ],
+        "namespaces": [{"namespace": ns, "cluster_name": cluster} for ns, cluster in current_user.namespaces],
     }
 
 

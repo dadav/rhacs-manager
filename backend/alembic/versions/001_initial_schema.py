@@ -4,9 +4,11 @@ Revision ID: 001
 Revises:
 Create Date: 2024-01-01 00:00:00.000000
 """
-from alembic import op
+
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "001"
 down_revision = None
@@ -26,7 +28,9 @@ def upgrade() -> None:
     op.create_table(
         "team_namespaces",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("namespace", sa.String(255), nullable=False),
         sa.Column("cluster_name", sa.String(255), nullable=False),
         sa.UniqueConstraint("team_id", "namespace", "cluster_name", name="uq_team_namespace_cluster"),
@@ -38,7 +42,9 @@ def upgrade() -> None:
         sa.Column("username", sa.String(255), nullable=False),
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("role", sa.Enum("team_member", "sec_team", name="userrole"), nullable=False),
-        sa.Column("team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="SET NULL"), nullable=True
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
     )
 
@@ -46,7 +52,9 @@ def upgrade() -> None:
         "risk_acceptances",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("cve_id", sa.String(50), nullable=False, index=True),
-        sa.Column("team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("status", sa.Enum("requested", "approved", "rejected", "expired", name="riskstatus"), nullable=False),
         sa.Column("justification", sa.Text(), nullable=False),
         sa.Column("scope", postgresql.JSONB(), nullable=False),
@@ -60,7 +68,12 @@ def upgrade() -> None:
     op.create_table(
         "risk_acceptance_comments",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("risk_acceptance_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("risk_acceptances.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "risk_acceptance_id",
+            postgresql.UUID(as_uuid=True),
+            sa.ForeignKey("risk_acceptances.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("user_id", sa.String(255), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
@@ -94,7 +107,9 @@ def upgrade() -> None:
         "escalations",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("cve_id", sa.String(50), nullable=False),
-        sa.Column("team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("level", sa.Integer(), nullable=False),
         sa.Column("triggered_at", sa.DateTime(), nullable=False),
         sa.Column("notified", sa.Boolean(), nullable=False, server_default="false"),
@@ -103,7 +118,9 @@ def upgrade() -> None:
     op.create_table(
         "badge_tokens",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "team_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("namespace", sa.String(255), nullable=True),
         sa.Column("cluster_name", sa.String(255), nullable=True),
         sa.Column("token", sa.String(64), nullable=False, unique=True),
@@ -115,11 +132,20 @@ def upgrade() -> None:
         "notifications",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("user_id", sa.String(255), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("type", sa.Enum(
-            "risk_comment", "risk_approved", "risk_rejected", "risk_expiring",
-            "new_priority", "escalation", "new_critical_cve",
-            name="notificationtype"
-        ), nullable=False),
+        sa.Column(
+            "type",
+            sa.Enum(
+                "risk_comment",
+                "risk_approved",
+                "risk_rejected",
+                "risk_expiring",
+                "new_priority",
+                "escalation",
+                "new_critical_cve",
+                name="notificationtype",
+            ),
+            nullable=False,
+        ),
         sa.Column("title", sa.String(255), nullable=False),
         sa.Column("message", sa.Text(), nullable=False),
         sa.Column("link", sa.String(512), nullable=True),
@@ -141,9 +167,17 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     for table in [
-        "audit_log", "notifications", "badge_tokens", "escalations",
-        "global_settings", "cve_priorities", "risk_acceptance_comments",
-        "risk_acceptances", "users", "team_namespaces", "teams",
+        "audit_log",
+        "notifications",
+        "badge_tokens",
+        "escalations",
+        "global_settings",
+        "cve_priorities",
+        "risk_acceptance_comments",
+        "risk_acceptances",
+        "users",
+        "team_namespaces",
+        "teams",
     ]:
         op.drop_table(table)
 

@@ -49,9 +49,7 @@ async def notify_risk_comment(
     if author.role == UserRole.team_member:
         # Notify sec team
         for user in await _get_sec_team_users(session):
-            await create_notification(
-                session, user.id, NotificationType.risk_comment, title, msg, link
-            )
+            await create_notification(session, user.id, NotificationType.risk_comment, title, msg, link)
     else:
         # Notify the RA creator
         if acceptance.created_by != author.id:
@@ -76,11 +74,7 @@ async def notify_risk_status_change(
     )
     title = f"Risikoakzeptanz {status_label}: {acceptance.cve_id}"
     msg = f"Ihre Risikoakzeptanz für {acceptance.cve_id} wurde {status_label}."
-    ntype = (
-        NotificationType.risk_approved
-        if acceptance.status.value == "approved"
-        else NotificationType.risk_rejected
-    )
+    ntype = NotificationType.risk_approved if acceptance.status.value == "approved" else NotificationType.risk_rejected
 
     # Notify the RA creator
     await create_notification(session, acceptance.created_by, ntype, title, msg, link)
@@ -95,9 +89,7 @@ async def notify_risk_expiring(
     msg = f"Die Risikoakzeptanz für {acceptance.cve_id} läuft in 7 Tagen ab."
 
     # Notify the RA creator
-    await create_notification(
-        session, acceptance.created_by, NotificationType.risk_expiring, title, msg, link
-    )
+    await create_notification(session, acceptance.created_by, NotificationType.risk_expiring, title, msg, link)
 
 
 async def notify_new_priority(
@@ -111,9 +103,7 @@ async def notify_new_priority(
     msg = f"{cve_id} wurde als '{priority_level}' priorisiert."
 
     for user in await _get_sec_team_users(session):
-        await create_notification(
-            session, user.id, NotificationType.new_priority, title, msg, link
-        )
+        await create_notification(session, user.id, NotificationType.new_priority, title, msg, link)
 
 
 async def notify_escalation(
@@ -129,9 +119,7 @@ async def notify_escalation(
     msg = f"CVE {cve_id} in {namespace}/{cluster_name} wurde auf Eskalationsstufe {level} hochgestuft."
 
     for user in await _get_sec_team_users(session):
-        await create_notification(
-            session, user.id, NotificationType.escalation, title, msg, link
-        )
+        await create_notification(session, user.id, NotificationType.escalation, title, msg, link)
 
 
 async def notify_remediation_created(
@@ -140,15 +128,16 @@ async def notify_remediation_created(
     creator: "User",  # type: ignore[name-defined]
 ) -> None:
     """Notify sec team about a new remediation."""
-    link = f"/behebungen"
+    link = "/behebungen"
     title = f"Neue Behebung: {remediation.cve_id}"
-    msg = f"{creator.username} hat eine Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} erstellt."
+    msg = (
+        f"{creator.username} hat eine Behebung für {remediation.cve_id}"
+        f" in {remediation.namespace}/{remediation.cluster_name} erstellt."
+    )
 
     for user in await _get_sec_team_users(session):
         if user.id != creator.id:
-            await create_notification(
-                session, user.id, NotificationType.remediation_created, title, msg, link
-            )
+            await create_notification(session, user.id, NotificationType.remediation_created, title, msg, link)
 
 
 async def notify_remediation_status_change(
@@ -166,7 +155,7 @@ async def notify_remediation_status_change(
         "verified": "Verifiziert",
         "wont_fix": "Wird nicht behoben",
     }
-    link = f"/behebungen"
+    link = "/behebungen"
     new_label = status_labels.get(new_status, new_status)
     title = f"Behebung {new_label}: {remediation.cve_id}"
     msg = f"Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name}: {new_label}"
@@ -193,9 +182,7 @@ async def notify_remediation_status_change(
     recipients.discard(actor.id)
 
     for user_id in recipients:
-        await create_notification(
-            session, user_id, NotificationType.remediation_status, title, msg, link
-        )
+        await create_notification(session, user_id, NotificationType.remediation_status, title, msg, link)
 
 
 async def notify_remediation_overdue(
@@ -203,7 +190,7 @@ async def notify_remediation_overdue(
     remediation: "Remediation",  # type: ignore[name-defined]
 ) -> None:
     """Notify creator, assignee, and sec team about overdue remediation."""
-    link = f"/behebungen"
+    link = "/behebungen"
     title = f"Behebung überfällig: {remediation.cve_id}"
     msg = f"Die Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} ist überfällig."
 
@@ -215,9 +202,7 @@ async def notify_remediation_overdue(
         recipients.add(user.id)
 
     for user_id in recipients:
-        await create_notification(
-            session, user_id, NotificationType.remediation_overdue, title, msg, link
-        )
+        await create_notification(session, user_id, NotificationType.remediation_overdue, title, msg, link)
 
 
 async def notify_suppression_requested(
@@ -251,9 +236,7 @@ async def notify_suppression_status_change(
     """Notify the suppression rule creator about approval/rejection."""
     target = rule.cve_id if rule.cve_id else rule.component_name
     link = "/unterdrueckungsregeln"
-    status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(
-        rule.status.value, rule.status.value
-    )
+    status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(rule.status.value, rule.status.value)
     title = f"Unterdrückungsregel {status_label}: {target}"
     msg = f"Ihre Unterdrückungsregel für {target} wurde {status_label}."
     ntype = (

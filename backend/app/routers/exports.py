@@ -66,11 +66,21 @@ async def export_pdf(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> Response:
     items = await fetch_filtered_cves(
-        current_user, app_db, sx_db,
-        search=search, severity=severity, fixable=fixable,
-        prioritized_only=prioritized_only, sort_by=sort_by, sort_desc=sort_desc,
-        cvss_min=cvss_min, epss_min=epss_min, component=component,
-        risk_status=risk_status, cluster=cluster, namespace=namespace,
+        current_user,
+        app_db,
+        sx_db,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        prioritized_only=prioritized_only,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        component=component,
+        risk_status=risk_status,
+        cluster=cluster,
+        namespace=namespace,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -81,37 +91,39 @@ async def export_pdf(
         deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
         components = await sx.get_affected_components(sx_db, item.cve_id, ns_list)
 
-        cve_dicts.append({
-            "cve_id": item.cve_id,
-            "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-            "cvss": item.cvss,
-            "epss_probability": item.epss_probability,
-            "fixable": item.fixable,
-            "fixed_by": item.fixed_by,
-            "first_seen": item.first_seen,
-            "published_on": item.published_on,
-            "components": [
-                {
-                    "component_name": c.get("component_name", ""),
-                    "component_version": c.get("component_version", ""),
-                    "fixable": c.get("fixable", False),
-                    "fixed_by": c.get("fixed_by"),
-                }
-                for c in components
-            ],
-            "deployments": [
-                {
-                    "deployment_name": d.get("deployment_name", ""),
-                    "namespace": d.get("namespace", ""),
-                    "cluster_name": d.get("cluster_name", ""),
-                    "image_name": d.get("image_name", ""),
-                }
-                for d in deployments
-            ],
-            "priority_level": item.priority_level,
-            "priority_deadline": item.priority_deadline,
-            "risk_acceptance_status": item.risk_acceptance_status,
-        })
+        cve_dicts.append(
+            {
+                "cve_id": item.cve_id,
+                "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
+                "cvss": item.cvss,
+                "epss_probability": item.epss_probability,
+                "fixable": item.fixable,
+                "fixed_by": item.fixed_by,
+                "first_seen": item.first_seen,
+                "published_on": item.published_on,
+                "components": [
+                    {
+                        "component_name": c.get("component_name", ""),
+                        "component_version": c.get("component_version", ""),
+                        "fixable": c.get("fixable", False),
+                        "fixed_by": c.get("fixed_by"),
+                    }
+                    for c in components
+                ],
+                "deployments": [
+                    {
+                        "deployment_name": d.get("deployment_name", ""),
+                        "namespace": d.get("namespace", ""),
+                        "cluster_name": d.get("cluster_name", ""),
+                        "image_name": d.get("image_name", ""),
+                    }
+                    for d in deployments
+                ],
+                "priority_level": item.priority_level,
+                "priority_deadline": item.priority_deadline,
+                "risk_acceptance_status": item.risk_acceptance_status,
+            }
+        )
 
     now = datetime.utcnow()
     pdf_metadata = {
@@ -159,11 +171,21 @@ async def export_excel(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> Response:
     items = await fetch_filtered_cves(
-        current_user, app_db, sx_db,
-        search=search, severity=severity, fixable=fixable,
-        prioritized_only=prioritized_only, sort_by=sort_by, sort_desc=sort_desc,
-        cvss_min=cvss_min, epss_min=epss_min, component=component,
-        risk_status=risk_status, cluster=cluster, namespace=namespace,
+        current_user,
+        app_db,
+        sx_db,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        prioritized_only=prioritized_only,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        component=component,
+        risk_status=risk_status,
+        cluster=cluster,
+        namespace=namespace,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -182,23 +204,31 @@ async def export_excel(
 
         # Collect unique image names for summary
         image_names = sorted({d.get("image_name", "") for d in deployments if d.get("image_name")})
-        image_summary = image_names[0] if len(image_names) == 1 else f"{image_names[0]} (+{len(image_names) - 1})" if image_names else ""
+        image_summary = (
+            image_names[0]
+            if len(image_names) == 1
+            else f"{image_names[0]} (+{len(image_names) - 1})"
+            if image_names
+            else ""
+        )
 
-        excel_rows.append({
-            "cve_id": item.cve_id,
-            "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-            "cvss": item.cvss,
-            "epss_probability": item.epss_probability,
-            "component_name": comp_name,
-            "component_version": comp_version,
-            "fixable": item.fixable,
-            "fixed_by": item.fixed_by,
-            "image_name": image_summary,
-            "first_seen": item.first_seen,
-            "published_on": item.published_on,
-            "priority_level": item.priority_level or "",
-            "risk_acceptance_status": item.risk_acceptance_status or "",
-        })
+        excel_rows.append(
+            {
+                "cve_id": item.cve_id,
+                "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
+                "cvss": item.cvss,
+                "epss_probability": item.epss_probability,
+                "component_name": comp_name,
+                "component_version": comp_version,
+                "fixable": item.fixable,
+                "fixed_by": item.fixed_by,
+                "image_name": image_summary,
+                "first_seen": item.first_seen,
+                "published_on": item.published_on,
+                "priority_level": item.priority_level or "",
+                "risk_acceptance_status": item.risk_acceptance_status or "",
+            }
+        )
 
     xlsx_bytes = generate_cve_excel(excel_rows)
     today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -227,13 +257,13 @@ async def import_excel(
     # Validate file size
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(400, f"Datei zu groß (max. {MAX_UPLOAD_SIZE // (1024*1024)} MB)")
+        raise HTTPException(400, f"Datei zu groß (max. {MAX_UPLOAD_SIZE // (1024 * 1024)} MB)")
 
     # Parse
     try:
         parsed_rows = parse_import_excel(content)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from None
 
     if not parsed_rows:
         return {"items": [], "total_valid": 0, "total_invalid": 0}
@@ -274,10 +304,7 @@ async def import_excel(
                 else:
                     # Always use namespace scope covering all affected namespaces
                     ns_set = {(d["cluster_name"], d["namespace"]) for d in deployments}
-                    scope_targets = [
-                        RiskScopeTarget(cluster_name=cl, namespace=ns)
-                        for cl, ns in sorted(ns_set)
-                    ]
+                    scope_targets = [RiskScopeTarget(cluster_name=cl, namespace=ns) for cl, ns in sorted(ns_set)]
                     resolved_scope = RiskScope(mode="namespace", targets=scope_targets)
                     scope_summary = f"namespace ({len(ns_set)} Namespace(s))"
 
@@ -315,10 +342,7 @@ async def import_excel(
     if not confirm:
         # Preview mode — strip internal fields
         return {
-            "items": [
-                {k: v for k, v in item.items() if not k.startswith("_")}
-                for item in preview_items
-            ],
+            "items": [{k: v for k, v in item.items() if not k.startswith("_")} for item in preview_items],
             "total_valid": total_valid,
             "total_invalid": total_invalid,
         }
@@ -348,10 +372,12 @@ async def import_excel(
             )
         )
         if existing.scalar_one_or_none():
-            failed.append({
-                "cve_id": item["cve_id"],
-                "error": "Aktive Risikoakzeptanz für diesen Scope existiert bereits",
-            })
+            failed.append(
+                {
+                    "cve_id": item["cve_id"],
+                    "error": "Aktive Risikoakzeptanz für diesen Scope existiert bereits",
+                }
+            )
             continue
 
         ra = RiskAcceptance(
@@ -374,7 +400,9 @@ async def import_excel(
 
     logger.info(
         "Excel import by %s: %d created, %d failed",
-        current_user.id, len(created), len(failed),
+        current_user.id,
+        len(created),
+        len(failed),
     )
 
     return {"created": created, "failed": failed}

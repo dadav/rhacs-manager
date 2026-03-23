@@ -132,19 +132,13 @@ async def list_badges(
         query = select(BadgeToken).order_by(BadgeToken.created_at.desc())
     else:
         query = (
-            select(BadgeToken)
-            .where(BadgeToken.created_by == current_user.id)
-            .order_by(BadgeToken.created_at.desc())
+            select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
         )
 
     if cluster:
-        query = query.where(
-            or_(BadgeToken.cluster_name == cluster, BadgeToken.cluster_name.is_(None))
-        )
+        query = query.where(or_(BadgeToken.cluster_name == cluster, BadgeToken.cluster_name.is_(None)))
     if namespace:
-        query = query.where(
-            or_(BadgeToken.namespace == namespace, BadgeToken.namespace.is_(None))
-        )
+        query = query.where(or_(BadgeToken.namespace == namespace, BadgeToken.namespace.is_(None)))
 
     result = await db.execute(query)
     return [await _build_response(b, db) for b in result.scalars().all()]
@@ -163,14 +157,10 @@ async def create_badge(
     if body.namespace and not current_user.has_all_namespaces:
         if body.cluster_name:
             if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
-                raise HTTPException(
-                    400, "Namespace nicht in Ihren zugänglichen Namespaces"
-                )
+                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
         else:
             if not any(ns == body.namespace for ns, _ in current_user.namespaces):
-                raise HTTPException(
-                    400, "Namespace nicht in Ihren zugänglichen Namespaces"
-                )
+                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
 
     # When no namespace filter specified, store all user's namespaces
     # so the public SVG endpoint can query the right scope.

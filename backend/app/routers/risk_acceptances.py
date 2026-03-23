@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -8,9 +9,9 @@ from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..mail import service as mail_svc
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from ..models.user import User
-from ..mail import service as mail_svc
 from ..notifications import service as notif_svc
 from ..schemas.risk_acceptance import (
     CommentCreate,
@@ -24,9 +25,13 @@ from ..schemas.risk_acceptance import (
 from ..services.audit_service import log_action
 from ..services.risk_acceptance_service import (
     scope_key as _scope_key,
+)
+from ..services.risk_acceptance_service import (
     validate_and_resolve_scope as _validate_and_resolve_scope,
 )
 from ..stackrox import queries as sx
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/risk-acceptances", tags=["risk-acceptances"])
 
@@ -85,15 +90,11 @@ _RA_LOAD_OPTIONS = [
 ]
 
 
-async def _single_ra_response(
-    ra: RiskAcceptance, db: AsyncSession
-) -> RiskAcceptanceResponse:
+async def _single_ra_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanceResponse:
     """Build response for a single RA, loading relationships and comment count."""
     await db.refresh(ra, ["creator", "reviewer"])
     count_result = await db.execute(
-        select(func.count(RiskAcceptanceComment.id)).where(
-            RiskAcceptanceComment.risk_acceptance_id == ra.id
-        )
+        select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
     )
     return _build_response(ra, count_result.scalar() or 0)
 
@@ -106,15 +107,11 @@ async def create_risk_acceptance(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RiskAcceptanceResponse:
     if current_user.is_sec_team:
-        raise HTTPException(
-            403, "Security-Team kann keine Risikoakzeptanzen beantragen"
-        )
+        raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen beantragen")
     if not current_user.has_namespaces:
         raise HTTPException(400, "Keine Namespaces zugeordnet")
 
-    deployments = await sx.get_affected_deployments(
-        sx_db, body.cve_id, current_user.namespaces
-    )
+    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, current_user.namespaces)
     if not deployments:
         raise HTTPException(404, "CVE in Ihren Namespaces nicht gefunden")
 
@@ -147,9 +144,7 @@ async def create_risk_acceptance(
     db.add(ra)
     await db.flush()
 
-    await log_action(
-        db, current_user.id, "risk_acceptance_created", "risk_acceptance", str(ra.id)
-    )
+    await log_action(db, current_user.id, "risk_acceptance_created", "risk_acceptance", str(ra.id))
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -162,17 +157,13 @@ async def list_risk_acceptances(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[RiskAcceptanceResponse]:
-    query = (
-        select(RiskAcceptance)
-        .options(*_RA_LOAD_OPTIONS)
-        .order_by(RiskAcceptance.created_at.desc())
-    )
+    query = select(RiskAcceptance).options(*_RA_LOAD_OPTIONS).order_by(RiskAcceptance.created_at.desc())
 
     if status:
         try:
             query = query.where(RiskAcceptance.status == RiskStatus[status])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Status: {status}")
+            raise HTTPException(400, f"Ungültiger Status: {status}") from None
 
     result = await db.execute(query)
     all_ras = result.scalars().all()
@@ -222,11 +213,7 @@ async def get_risk_acceptance(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> RiskAcceptanceResponse:
-    result = await db.execute(
-        select(RiskAcceptance)
-        .options(*_RA_LOAD_OPTIONS)
-        .where(RiskAcceptance.id == ra_id)
-    )
+    result = await db.execute(select(RiskAcceptance).options(*_RA_LOAD_OPTIONS).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
@@ -234,9 +221,7 @@ async def get_risk_acceptance(
         raise HTTPException(403, "Kein Zugriff")
 
     count_result = await db.execute(
-        select(func.count(RiskAcceptanceComment.id)).where(
-            RiskAcceptanceComment.risk_acceptance_id == ra.id
-        )
+        select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
     )
     return _build_response(ra, count_result.scalar() or 0)
 
@@ -268,9 +253,7 @@ async def update_risk_acceptance(
     if not current_user.has_namespaces:
         raise HTTPException(400, "Keine Namespaces zugeordnet")
 
-    deployments = await sx.get_affected_deployments(
-        sx_db, ra.cve_id, current_user.namespaces
-    )
+    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, current_user.namespaces)
     if not deployments:
         raise HTTPException(404, "CVE in Ihren Namespaces nicht mehr gefunden")
 
@@ -287,9 +270,7 @@ async def update_risk_acceptance(
             )
         )
         if existing.scalar_one_or_none():
-            raise HTTPException(
-                409, "Für diesen Scope existiert bereits eine aktive Risikoakzeptanz"
-            )
+            raise HTTPException(409, "Für diesen Scope existiert bereits eine aktive Risikoakzeptanz")
 
     ra.justification = body.justification
     ra.scope = normalized_scope.model_dump(mode="json")
@@ -299,9 +280,7 @@ async def update_risk_acceptance(
     ra.reviewed_by = None
     ra.reviewed_at = None
 
-    await log_action(
-        db, current_user.id, "risk_acceptance_updated", "risk_acceptance", str(ra.id)
-    )
+    await log_action(db, current_user.id, "risk_acceptance_updated", "risk_acceptance", str(ra.id))
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -314,22 +293,16 @@ async def review_risk_acceptance(
     db: AsyncSession = Depends(get_app_db),
 ) -> RiskAcceptanceResponse:
     if not current_user.is_sec_team:
-        raise HTTPException(
-            403, "Nur das Security-Team kann Risikoakzeptanzen bearbeiten"
-        )
+        raise HTTPException(403, "Nur das Security-Team kann Risikoakzeptanzen bearbeiten")
 
     result = await db.execute(
-        select(RiskAcceptance)
-        .options(selectinload(RiskAcceptance.creator))
-        .where(RiskAcceptance.id == ra_id)
+        select(RiskAcceptance).options(selectinload(RiskAcceptance.creator)).where(RiskAcceptance.id == ra_id)
     )
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
     if ra.status != RiskStatus.requested:
-        raise HTTPException(
-            400, "Nur beantragte Risikoakzeptanzen können bewertet werden"
-        )
+        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können bewertet werden")
 
     ra.status = RiskStatus.approved if body.approved else RiskStatus.rejected
     ra.reviewed_by = current_user.id
@@ -356,14 +329,17 @@ async def review_risk_acceptance(
 
     # Email to RA creator — use pre-loaded creator relationship
     if ra.creator and ra.creator.email:
-        await mail_svc.send_risk_status_email(
-            ra.creator.email,
-            ra.cve_id,
-            str(ra.id),
-            ra.status.value,
-            current_user.username,
-            body.comment,
-        )
+        try:
+            await mail_svc.send_risk_status_email(
+                ra.creator.email,
+                ra.cve_id,
+                str(ra.id),
+                ra.status.value,
+                current_user.username,
+                body.comment,
+            )
+        except Exception:
+            logger.exception("Failed to send risk status email for RA %s", ra.id)
 
     await db.commit()
     return await _single_ra_response(ra, db)
@@ -377,9 +353,7 @@ async def cancel_risk_acceptance(
 ) -> None:
     """Creator cancels their own pending (requested) risk acceptance."""
     if current_user.is_sec_team:
-        raise HTTPException(
-            403, "Security-Team kann keine eigenen Risikoakzeptanzen zurückziehen"
-        )
+        raise HTTPException(403, "Security-Team kann keine eigenen Risikoakzeptanzen zurückziehen")
 
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
@@ -388,13 +362,9 @@ async def cancel_risk_acceptance(
     if ra.created_by != current_user.id:
         raise HTTPException(403, "Nur der Ersteller kann den Antrag zurückziehen")
     if ra.status != RiskStatus.requested:
-        raise HTTPException(
-            400, "Nur beantragte Risikoakzeptanzen können zurückgezogen werden"
-        )
+        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können zurückgezogen werden")
 
-    await log_action(
-        db, current_user.id, "risk_acceptance_cancelled", "risk_acceptance", str(ra.id)
-    )
+    await log_action(db, current_user.id, "risk_acceptance_cancelled", "risk_acceptance", str(ra.id))
     await db.delete(ra)
     await db.commit()
 
@@ -407,9 +377,7 @@ async def add_comment(
     db: AsyncSession = Depends(get_app_db),
 ) -> CommentResponse:
     result = await db.execute(
-        select(RiskAcceptance)
-        .options(selectinload(RiskAcceptance.creator))
-        .where(RiskAcceptance.id == ra_id)
+        select(RiskAcceptance).options(selectinload(RiskAcceptance.creator)).where(RiskAcceptance.id == ra_id)
     )
     ra = result.scalar_one_or_none()
     if not ra:
@@ -429,9 +397,12 @@ async def add_comment(
 
     # Email to RA creator if sec team comments — use pre-loaded creator
     if current_user.is_sec_team and ra.creator and ra.creator.email:
-        await mail_svc.send_risk_comment_email(
-            ra.creator.email, ra.cve_id, str(ra.id), current_user.username, body.message
-        )
+        try:
+            await mail_svc.send_risk_comment_email(
+                ra.creator.email, ra.cve_id, str(ra.id), current_user.username, body.message
+            )
+        except Exception:
+            logger.exception("Failed to send risk comment email for RA %s", ra.id)
 
     await db.commit()
     await db.refresh(comment)
@@ -481,9 +452,7 @@ async def list_comments(
             username=users[c.user_id].username if c.user_id in users else c.user_id,
             message=c.message,
             created_at=c.created_at,
-            is_sec_team=users[c.user_id].role == UserRole.sec_team
-            if c.user_id in users
-            else False,
+            is_sec_team=users[c.user_id].role == UserRole.sec_team if c.user_id in users else False,
         )
         for c in comments
     ]

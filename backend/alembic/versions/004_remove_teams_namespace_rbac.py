@@ -4,8 +4,10 @@ Revision ID: 004
 Revises: 003
 Create Date: 2026-03-01 00:00:00.000000
 """
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "004"
 down_revision = "003"
@@ -62,8 +64,12 @@ def upgrade() -> None:
     op.execute("UPDATE badge_tokens SET created_by = 'system' WHERE created_by IS NULL")
     op.alter_column("badge_tokens", "created_by", nullable=False)
     op.create_foreign_key(
-        "badge_tokens_created_by_fkey", "badge_tokens", "users",
-        ["created_by"], ["id"], ondelete="SET NULL",
+        "badge_tokens_created_by_fkey",
+        "badge_tokens",
+        "users",
+        ["created_by"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_index("ix_badge_tokens_created_by", "badge_tokens", ["created_by"])
 
@@ -100,8 +106,12 @@ def downgrade() -> None:
     op.drop_column("badge_tokens", "created_by")
     op.add_column("badge_tokens", sa.Column("team_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
-        "badge_tokens_team_id_fkey", "badge_tokens", "teams",
-        ["team_id"], ["id"], ondelete="CASCADE",
+        "badge_tokens_team_id_fkey",
+        "badge_tokens",
+        "teams",
+        ["team_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_index("ix_badge_tokens_team_id", "badge_tokens", ["team_id"])
 
@@ -111,24 +121,36 @@ def downgrade() -> None:
     op.drop_column("escalations", "namespace")
     op.add_column("escalations", sa.Column("team_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
-        "escalations_team_id_fkey", "escalations", "teams",
-        ["team_id"], ["id"], ondelete="CASCADE",
+        "escalations_team_id_fkey",
+        "escalations",
+        "teams",
+        ["team_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_index("ix_escalations_team_id", "escalations", ["team_id"])
 
     # Restore users
     op.add_column("users", sa.Column("team_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
-        "users_team_id_fkey", "users", "teams",
-        ["team_id"], ["id"], ondelete="SET NULL",
+        "users_team_id_fkey",
+        "users",
+        "teams",
+        ["team_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
     # Restore risk_acceptances
     op.drop_index("uq_risk_acceptances_active_scope", table_name="risk_acceptances")
     op.add_column("risk_acceptances", sa.Column("team_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
-        "risk_acceptances_team_id_fkey", "risk_acceptances", "teams",
-        ["team_id"], ["id"], ondelete="CASCADE",
+        "risk_acceptances_team_id_fkey",
+        "risk_acceptances",
+        "teams",
+        ["team_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_index("ix_risk_acceptances_team_id", "risk_acceptances", ["team_id"])
     op.create_index(

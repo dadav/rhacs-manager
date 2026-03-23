@@ -2,7 +2,8 @@ import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, text as sa_text
+from sqlalchemy import func, select
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -13,12 +14,13 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
-from ._scope import narrow_namespaces
+from ..schemas.cve import CveListItem, SeverityLevel
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
     ComponentCveCount,
     CveTrendPoint,
+    DashboardData,
     EpssMatrixPoint,
     FixabilityCount,
     FixableTrendPoint,
@@ -26,11 +28,10 @@ from ..schemas.dashboard import (
     NamespaceCveCount,
     RiskAcceptancePipeline,
     SeverityCount,
-    DashboardData,
 )
-from ..schemas.cve import CveListItem, SeverityLevel
 from ..services.escalation_preview import compute_upcoming_escalations
 from ..stackrox import queries as sx
+from ._scope import narrow_namespaces
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -236,9 +237,7 @@ async def _ra_pipeline() -> RiskAcceptancePipeline:
         counts = {}
         for st in ["requested", "approved", "rejected", "expired"]:
             result = await db.execute(
-                select(func.count(RiskAcceptance.id)).where(
-                    RiskAcceptance.status == RiskStatus[st]
-                )
+                select(func.count(RiskAcceptance.id)).where(RiskAcceptance.status == RiskStatus[st])
             )
             counts[st] = result.scalar() or 0
         return RiskAcceptancePipeline(**counts)
@@ -265,9 +264,7 @@ async def _mttr_by_severity(
         if ns_list is not None and len(ns_list) > 0:
             from sqlalchemy import tuple_
 
-            q = q.where(
-                tuple_(Remediation.namespace, Remediation.cluster_name).in_(ns_list)
-            )
+            q = q.where(tuple_(Remediation.namespace, Remediation.cluster_name).in_(ns_list))
 
         result = await app_db.execute(q)
         rows = result.all()
@@ -290,9 +287,7 @@ async def _mttr_by_severity(
             ),
             {"cve_ids": cve_ids},
         )
-        cve_info = {
-            row[0]: (row[1], row[2]) for row in sx_rows.all()
-        }  # cve_id -> (severity, first_seen)
+        cve_info = {row[0]: (row[1], row[2]) for row in sx_rows.all()}  # cve_id -> (severity, first_seen)
 
     # Step 3: compute per-remediation MTTR using first_seen, aggregate by severity
     sev_totals: dict[int, list[float]] = defaultdict(list)
@@ -368,9 +363,7 @@ async def dashboard(
                 cluster_heatmap=[],
                 aging_distribution=[],
                 top_vulnerable_components=[],
-                risk_acceptance_pipeline=RiskAcceptancePipeline(
-                    requested=0, approved=0, rejected=0, expired=0
-                ),
+                risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
                 fixability_breakdown=FixabilityCount(fixable=0, unfixable=0),
                 fixable_trend=[],
                 mttr_by_severity=[],
@@ -382,9 +375,7 @@ async def dashboard(
     priorities = {p.cve_id: p for p in prio_result.scalars().all()}
 
     # Get active risk acceptances
-    ra_query = select(RiskAcceptance).where(
-        RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved])
-    )
+    ra_query = select(RiskAcceptance).where(RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]))
     ra_result = await app_db.execute(ra_query)
     acceptances = {ra.cve_id: ra for ra in ra_result.scalars().all()}
 
@@ -394,26 +385,20 @@ async def dashboard(
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
         ns_list_for_queries = None
     else:
-        cves = await sx.get_cves_for_namespaces(
-            sx_db, namespaces, min_cvss, min_epss, always_show
-        )
+        cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
         ns_list_for_queries = namespaces
 
     enriched = _enrich_cves(cves, priorities, acceptances)
 
     # Stat cards
     total = len(cves)
-    fixable_critical = sum(
-        1 for c in cves if c.get("severity") == 4 and c.get("fixable")
-    )
+    fixable_critical = sum(1 for c in cves if c.get("severity") == 4 and c.get("fixable"))
 
     # Escalation count: filter by scope-narrowed namespaces
     if current_user.can_see_all_namespaces and not has_scope:
         escalations_result = await app_db.execute(select(func.count(Escalation.id)))
     else:
-        esc_ns = (
-            namespaces if has_scope or not current_user.can_see_all_namespaces else []
-        )
+        esc_ns = namespaces if has_scope or not current_user.can_see_all_namespaces else []
         if esc_ns:
             ns_pairs_esc = [(ns, cl) for ns, cl in esc_ns]
             esc_query = select(func.count(Escalation.id)).where(
@@ -434,9 +419,7 @@ async def dashboard(
     open_ra = open_ra_result.scalar() or 0
 
     # Run all chart queries + upcoming escalations + RA pipeline concurrently
-    upcoming_ns = (
-        namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
-    )
+    upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
     (
         sev_dist,
         ns_counts,
@@ -457,9 +440,7 @@ async def dashboard(
         _sx_epss_risk_matrix(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_top_vulnerable_components(
-            ns_list_for_queries, min_cvss, min_epss, always_show
-        ),
+        _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show),
         _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show),
         _upcoming_escalations(upcoming_ns, settings),
@@ -477,9 +458,7 @@ async def dashboard(
         for r in matrix_rows
     ]
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
-    aging_distribution = [
-        AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows
-    ]
+    aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
     top_vulnerable_components = [
         ComponentCveCount(
             component_name=r["component_name"],
@@ -494,19 +473,12 @@ async def dashboard(
     # Keep the entry with the highest epss_probability for each unique CVE.
     seen_cve_ids: dict[str, CveListItem] = {}
     for item in enriched:
-        if (
-            item.cve_id not in seen_cve_ids
-            or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability
-        ):
+        if item.cve_id not in seen_cve_ids or item.epss_probability > seen_cve_ids[item.cve_id].epss_probability:
             seen_cve_ids[item.cve_id] = item
     unique_items = list(seen_cve_ids.values())
     top_epss = sorted(unique_items, key=lambda x: x.epss_probability, reverse=True)[:5]
     top_priorities = sorted(
-        (
-            item
-            for item in unique_items
-            if item.has_priority and not item.has_risk_acceptance
-        ),
+        (item for item in unique_items if item.has_priority and not item.has_risk_acceptance),
         key=lambda x: (
             x.priority_deadline is None,
             x.priority_deadline or x.first_seen or datetime.max,
@@ -522,8 +494,7 @@ async def dashboard(
         stat_fixable_critical_cves=fixable_critical,
         stat_open_risk_acceptances=open_ra,
         severity_distribution=[
-            SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"])
-            for r in sev_dist
+            SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"]) for r in sev_dist
         ],
         cves_per_namespace=[
             NamespaceCveCount(
@@ -557,9 +528,7 @@ async def dashboard(
         risk_acceptance_pipeline=risk_acceptance_pipeline,
         fixability_breakdown=FixabilityCount(**fixability_data),
         fixable_trend=[
-            FixableTrendPoint(
-                date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"]
-            )
+            FixableTrendPoint(date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"])
             for r in fixable_trend_rows
         ],
         mttr_by_severity=mttr_data,

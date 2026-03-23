@@ -11,7 +11,6 @@ import {
   PageSection,
   Pagination,
   Popover,
-  Skeleton,
   Spinner,
   TextInput,
   Title,
@@ -21,20 +20,23 @@ import {
   Tooltip,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, AngleRightIcon, AngleDownIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
+import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
-import { useCves, useCvesByImage, useCvesForImage } from '../api/cves'
+import { useCves, useCvesByImage } from '../api/cves'
 import { exportPdf, exportExcel } from '../api/exports'
 import { useThresholds } from '../api/settings'
 
 import { useScope, type ScopeParams } from '../hooks/useScope'
 import { useAuth } from '../hooks/useAuth'
+import { useDebounce } from '../hooks/useDebounce'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { ExcelImportModal } from '../components/ExcelImportModal'
+import { ImageRow } from '../components/ImageRow'
 import { SeverityBadge } from '../components/common/SeverityBadge'
+import { TableSkeleton } from '../components/TableSkeleton'
 import { Severity } from '../types'
 import type { ImageCveGroup } from '../types'
 import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
@@ -48,141 +50,6 @@ const IMAGE_SORT_COLUMNS = ['image_name', 'total_cves', 'critical_cves', 'high_c
 function columnIndex(columns: readonly string[], key: string): number | undefined {
   const idx = columns.indexOf(key)
   return idx >= 0 ? idx : undefined
-}
-
-/* ── Skeleton table for loading state ── */
-
-function TableSkeleton({ columns, rows = 5 }: { columns: number; rows?: number }) {
-  return (
-    <Table variant="compact">
-      <Thead>
-        <Tr>
-          {Array.from({ length: columns }, (_, i) => (
-            <Th key={i}><Skeleton width="80%" /></Th>
-          ))}
-        </Tr>
-      </Thead>
-      <Tbody>
-        {Array.from({ length: rows }, (_, ri) => (
-          <Tr key={ri}>
-            {Array.from({ length: columns }, (_, ci) => (
-              <Td key={ci}><Skeleton width={ci === 0 ? '60%' : '40%'} /></Td>
-            ))}
-          </Tr>
-        ))}
-      </Tbody>
-    </Table>
-  )
-}
-
-/* ── Image-grouped expandable row ── */
-
-function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
-  const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
-  const [expanded, setExpanded] = useState(false)
-  const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
-
-  return (
-    <>
-      <Tr isClickable onClick={() => setExpanded(!expanded)}>
-        <Td style={{ width: 28 }}>
-          {expanded ? <AngleDownIcon /> : <AngleRightIcon />}
-        </Td>
-        <Td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.image_name}>
-          {group.image_name}
-        </Td>
-        <Td style={{ textAlign: 'right', fontWeight: 600 }}>{group.total_cves}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.critical }}>{group.critical_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.important }}>{group.high_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.moderate }}>{group.medium_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.unknown }}>{group.low_cves || '–'}</Td>
-        <Td style={{ fontWeight: group.max_cvss >= 9 ? 700 : 400, color: group.max_cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-          {group.max_cvss.toFixed(1)}
-        </Td>
-        <Td><EpssBadge value={group.max_epss} /></Td>
-        <Td style={{ textAlign: 'right' }}>
-          {group.fixable_cves > 0 ? (
-            <span style={{ color: FIXABLE_COLOR }}>{group.fixable_cves}</span>
-          ) : '–'}
-        </Td>
-        <Td style={{ textAlign: 'right' }}>{group.affected_deployments}</Td>
-        <Td style={{ fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.namespaces.join(', ')}>
-          {group.namespaces.join(', ')}
-        </Td>
-      </Tr>
-      {expanded && (
-        <Tr>
-          <Td colSpan={12} style={{ padding: 0 }}>
-            <div style={{ padding: '8px 16px 12px 40px', background: 'var(--pf-v6-global--BackgroundColor--200)' }}>
-              {group.fixable_cves > 0 && (
-                <div style={{
-                  padding: '6px 12px', marginBottom: 8, fontSize: 12, fontWeight: 600,
-                  background: `rgba(30, 143, 25, 0.1)`, color: FIXABLE_COLOR,
-                  borderRadius: 4, display: 'inline-block',
-                }}>
-                  {t('cves.imageGroupFixHint', { count: group.fixable_cves })}
-                </div>
-              )}
-              {isLoading ? (
-                <Spinner size="md" aria-label={t('common.loading')} />
-              ) : !cves?.length ? (
-                <div style={{ color: SEVERITY_COLORS.unknown, fontSize: 13 }}>{t('cves.imageGroupNoCves')}</div>
-              ) : (
-                <Table variant="compact" isStickyHeader style={{ fontSize: 12 }}>
-                  <Thead>
-                    <Tr>
-                      <Th>{t('cves.cveId')}</Th>
-                      <Th>{t('cves.severity')}</Th>
-                      <Th>{t('cves.cvss')}</Th>
-                      <Th>{t('cves.epss')}</Th>
-                      <Th>{t('cves.fixable')}</Th>
-                      <Th>{t('cves.fixVersion')}</Th>
-                      <Th>{t('cves.affectedDeployments')}</Th>
-                      <Th>{t('cves.firstSeen')}</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {cves.map(cve => (
-                      <Tr key={cve.cve_id}>
-                        <Td>
-                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
-                            {cve.cve_id}
-                          </Link>
-                        </Td>
-                        <Td><SeverityBadge severity={cve.severity} /></Td>
-                        <Td style={{ fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-                          {cve.cvss.toFixed(1)}
-                        </Td>
-                        <Td><EpssBadge value={cve.epss_probability} /></Td>
-                        <Td>
-                          {cve.fixable ? <span style={{ color: FIXABLE_COLOR }}>✓</span> : <span style={{ color: SEVERITY_COLORS.unknown }}>✗</span>}
-                        </Td>
-                        <Td style={{ fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</Td>
-                        <Td style={{ textAlign: 'right' }}>{cve.affected_deployments}</Td>
-                        <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
-              )}
-            </div>
-          </Td>
-        </Tr>
-      )}
-    </>
-  )
-}
-
-function useDebounce<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delayMs)
-    return () => clearTimeout(t)
-  }, [value, delayMs])
-  return debounced
 }
 
 export function CveList() {

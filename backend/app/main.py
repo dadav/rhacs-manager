@@ -27,9 +27,7 @@ from .routers import (
 )
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
-logging.basicConfig(
-    level=getattr(logging, app_settings.log_level.upper(), logging.INFO)
-)
+logging.basicConfig(level=getattr(logging, app_settings.log_level.upper(), logging.INFO))
 logger = logging.getLogger(__name__)
 
 _INSECURE_SECRET_KEYS = {
@@ -43,8 +41,7 @@ def _validate_production_config() -> None:
     """Validate configuration for production (dev_mode=False). Raises on fatal misconfiguration."""
     if app_settings.secret_key in _INSECURE_SECRET_KEYS:
         raise RuntimeError(
-            "SECRET_KEY must be set to a strong random value in production. "
-            "Current value is empty or a known default."
+            "SECRET_KEY must be set to a strong random value in production. Current value is empty or a known default."
         )
     if not app_settings.oidc_issuer and not app_settings.spoke_api_keys:
         raise RuntimeError(
@@ -52,13 +49,9 @@ def _validate_production_config() -> None:
             "At least one must be set when DEV_MODE=false."
         )
     if not app_settings.management_email:
-        logger.warning(
-            "MANAGEMENT_EMAIL is not set — org-wide digest emails will not be sent"
-        )
+        logger.warning("MANAGEMENT_EMAIL is not set — org-wide digest emails will not be sent")
     if not app_settings.default_escalation_email:
-        logger.warning(
-            "DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing"
-        )
+        logger.warning("DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing")
 
 
 @asynccontextmanager

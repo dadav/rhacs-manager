@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 RemediationStatusType = Literal["open", "in_progress", "resolved", "verified", "wont_fix"]
 
 

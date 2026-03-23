@@ -30,8 +30,8 @@ import {
   useSuppressionRules,
   useCreateSuppressionRule,
   useReviewSuppressionRule,
+  useDeleteSuppressionRule,
 } from '../api/suppressionRules'
-import { api } from '../api/client'
 import type { SuppressionRule, SuppressionType } from '../types'
 import { SuppressionStatus } from '../types'
 import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, formLabel } from '../tokens'
@@ -54,6 +54,45 @@ function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number })
         </Tr>
       ))}
     </Tbody>
+  )
+}
+
+function DeleteRuleButton({ ruleId }: { ruleId: string }) {
+  const { t } = useTranslation()
+  const deleteMutation = useDeleteSuppressionRule(ruleId)
+  const [confirming, setConfirming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (confirming) {
+    return (
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <Button
+          variant="danger"
+          size="sm"
+          isLoading={deleteMutation.isPending}
+          onClick={async () => {
+            try {
+              await deleteMutation.mutateAsync()
+              setConfirming(false)
+            } catch (err) {
+              setError(getErrorMessage(err))
+            }
+          }}
+        >
+          {t('common.confirm')}
+        </Button>
+        <Button variant="link" size="sm" onClick={() => { setConfirming(false); setError(null) }}>
+          {t('common.cancel')}
+        </Button>
+        {error && <Alert variant="danger" isInline isPlain title={error} />}
+      </div>
+    )
+  }
+
+  return (
+    <Button variant="secondary" size="sm" isDanger onClick={() => setConfirming(true)}>
+      {t('common.delete')}
+    </Button>
   )
 }
 
@@ -294,15 +333,7 @@ export function SuppressionRules() {
                             </>
                           )}
                           {isSecTeam && (
-                            <Button variant="secondary" size="sm" isDanger onClick={() => {
-                              if (confirm(t('suppressionRules.deleteConfirm'))) {
-                                api.delete(`/suppression-rules/${rule.id}`).then(() => {
-                                  window.location.reload()
-                                })
-                              }
-                            }}>
-                              {t('common.delete')}
-                            </Button>
+                            <DeleteRuleButton ruleId={rule.id} />
                           )}
                         </div>
                       </Td>

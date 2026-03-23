@@ -16,7 +16,4 @@ async def list_namespaces(
     if current_user.can_see_all_namespaces:
         return await sx.list_namespaces(sx_db)
 
-    return [
-        {"namespace": ns, "cluster_name": cluster}
-        for ns, cluster in current_user.namespaces
-    ]
+    return [{"namespace": ns, "cluster_name": cluster} for ns, cluster in current_user.namespaces]

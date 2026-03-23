@@ -9,9 +9,7 @@ from .config import settings
 
 # App database — read-write
 app_engine = create_async_engine(settings.effective_app_db_url, echo=False, pool_pre_ping=True)
-AppSessionLocal = async_sessionmaker(
-    app_engine, class_=AsyncSession, expire_on_commit=False
-)
+AppSessionLocal = async_sessionmaker(app_engine, class_=AsyncSession, expire_on_commit=False)
 
 # StackRox Central database — read-only
 stackrox_engine = create_async_engine(
@@ -20,9 +18,7 @@ stackrox_engine = create_async_engine(
     pool_pre_ping=True,
     execution_options={"postgresql_readonly": True},
 )
-StackRoxSessionLocal = async_sessionmaker(
-    stackrox_engine, class_=AsyncSession, expire_on_commit=False
-)
+StackRoxSessionLocal = async_sessionmaker(stackrox_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):

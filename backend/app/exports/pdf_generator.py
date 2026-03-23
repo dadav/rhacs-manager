@@ -29,10 +29,10 @@ def _sanitize_text(text: str) -> str:
 
 SEVERITY_COLORS = {
     0: (150, 150, 150),  # grey
-    1: (59, 150, 61),    # green
-    2: (236, 122, 8),    # orange
-    3: (200, 80, 20),    # dark orange
-    4: (201, 25, 11),    # red
+    1: (59, 150, 61),  # green
+    2: (236, 122, 8),  # orange
+    3: (200, 80, 20),  # dark orange
+    4: (201, 25, 11),  # red
 }
 
 PRIORITY_LABELS = {
@@ -171,8 +171,9 @@ def _draw_table(pdf: CvePdf, headers: list[str], rows: list[list[str]], col_widt
                 row.cell(_sanitize_text(cell_text))
 
 
-def _draw_stat_card(pdf: CvePdf, x: float, y: float, w: float, h: float,
-                    value: str, label: str, color: tuple[int, int, int]):
+def _draw_stat_card(
+    pdf: CvePdf, x: float, y: float, w: float, h: float, value: str, label: str, color: tuple[int, int, int]
+):
     """Draw a rounded stat card with large value and small label."""
     # Card background
     with pdf.local_context(fill_opacity=0.08):
@@ -196,8 +197,9 @@ def _draw_stat_card(pdf: CvePdf, x: float, y: float, w: float, h: float,
     pdf.cell(w - 8, 6, _sanitize_text(label), new_x="LEFT")
 
 
-def _draw_severity_bar_horizontal(pdf: CvePdf, x: float, y: float, w: float, h: float,
-                                  severity_counts: dict[int, int], total: int):
+def _draw_severity_bar_horizontal(
+    pdf: CvePdf, x: float, y: float, w: float, h: float, severity_counts: dict[int, int], total: int
+):
     """Draw a stacked horizontal bar showing severity distribution."""
     if total == 0:
         return
@@ -219,8 +221,7 @@ def _draw_severity_bar_horizontal(pdf: CvePdf, x: float, y: float, w: float, h: 
         offset += seg_w
 
 
-def _draw_severity_legend_row(pdf: CvePdf, x: float, y: float, severity: int,
-                              count: int, total: int):
+def _draw_severity_legend_row(pdf: CvePdf, x: float, y: float, severity: int, count: int, total: int):
     """Draw one row of the severity legend with dot, label, count, percentage."""
     color = SEVERITY_COLORS.get(severity, (150, 150, 150))
     pct = f"{count / total * 100:.0f}%" if total else "0%"
@@ -346,20 +347,18 @@ def _draw_summary_page(pdf: CvePdf, cves: list[dict], metadata: dict):
     card_w = 44
     gap = 2.7
 
-    _draw_stat_card(pdf, 10, card_y, card_w, card_h,
-                    str(total), "CVEs gesamt", (45, 120, 215))
-    _draw_stat_card(pdf, 10 + card_w + gap, card_y, card_w, card_h,
-                    str(critical_count), "Hoch / Kritisch", (201, 25, 11))
-    _draw_stat_card(pdf, 10 + 2 * (card_w + gap), card_y, card_w, card_h,
-                    str(fixable_count), "Behebbar", (59, 150, 61))
-    _draw_stat_card(pdf, 10 + 3 * (card_w + gap), card_y, card_w, card_h,
-                    str(len(total_clusters)), "Cluster", (120, 80, 180))
+    _draw_stat_card(pdf, 10, card_y, card_w, card_h, str(total), "CVEs gesamt", (45, 120, 215))
+    _draw_stat_card(
+        pdf, 10 + card_w + gap, card_y, card_w, card_h, str(critical_count), "Hoch / Kritisch", (201, 25, 11)
+    )
+    _draw_stat_card(pdf, 10 + 2 * (card_w + gap), card_y, card_w, card_h, str(fixable_count), "Behebbar", (59, 150, 61))
+    _draw_stat_card(
+        pdf, 10 + 3 * (card_w + gap), card_y, card_w, card_h, str(len(total_clusters)), "Cluster", (120, 80, 180)
+    )
 
     pdf.set_y(card_y + card_h + 10)
 
     # --- Severity distribution section ---
-    section_y = pdf.get_y()
-
     # Section heading
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(30, 30, 30)
@@ -508,11 +507,15 @@ def generate_cve_pdf(cves: list[dict], metadata: dict | None = None) -> bytes:
         # Info section with metric explanations
         _draw_info_row(pdf, "Schweregrad:", severity_label)
         _draw_info_row(
-            pdf, "CVSS:", f"{cve.get('cvss', 0):.1f}",
+            pdf,
+            "CVSS:",
+            f"{cve.get('cvss', 0):.1f}",
             "Technischer Schweregrad (0-10)",
         )
         _draw_info_row(
-            pdf, "EPSS:", f"{cve.get('epss_probability', 0) * 100:.0f}%",
+            pdf,
+            "EPSS:",
+            f"{cve.get('epss_probability', 0) * 100:.0f}%",
             "Wahrscheinlichkeit aktiver Ausnutzung",
         )
         _draw_info_row(pdf, "Behebbar:", "Ja" if cve.get("fixable") else "Nein")

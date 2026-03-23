@@ -12,9 +12,7 @@ class CveComment(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     cve_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=False
-    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 

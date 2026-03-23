@@ -64,9 +64,7 @@ class TestValidateAndResolveScope:
     def test_image_mode_valid(self):
         scope = RiskScope(
             mode="image",
-            targets=[
-                RiskScopeTarget(cluster_name="c1", namespace="ns1", image_name="img1")
-            ],
+            targets=[RiskScopeTarget(cluster_name="c1", namespace="ns1", image_name="img1")],
         )
         result = validate_and_resolve_scope(scope, self.DEPLOYMENTS)
         assert result.mode == "image"

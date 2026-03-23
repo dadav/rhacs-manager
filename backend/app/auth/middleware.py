@@ -61,9 +61,7 @@ def _parse_namespace_emails_header(raw: str) -> list[tuple[str, str, str]]:
     return result
 
 
-async def _upsert_namespace_contacts(
-    session: AsyncSession, contacts: list[tuple[str, str, str]]
-) -> None:
+async def _upsert_namespace_contacts(session: AsyncSession, contacts: list[tuple[str, str, str]]) -> None:
     """Upsert namespace escalation email contacts. Only writes if data changed."""
     if not contacts:
         return
@@ -157,9 +155,7 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     return user
 
 
-def _to_current_user(
-    user: User, namespaces: list[tuple[str, str]], has_all_namespaces: bool = False
-) -> CurrentUser:
+def _to_current_user(user: User, namespaces: list[tuple[str, str]], has_all_namespaces: bool = False) -> CurrentUser:
     return CurrentUser(
         id=user.id,
         username=user.username,
@@ -173,11 +169,7 @@ def _to_current_user(
 
 async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
     has_all_namespaces = settings.dev_user_namespaces.strip() == "*"
-    namespaces = (
-        []
-        if has_all_namespaces
-        else _parse_namespaces_header(settings.dev_user_namespaces)
-    )
+    namespaces = [] if has_all_namespaces else _parse_namespaces_header(settings.dev_user_namespaces)
 
     # Upsert dev namespace email contacts
     ns_emails = _parse_namespace_emails_header(settings.dev_namespace_emails)
@@ -207,14 +199,10 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
 
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
     has_all_namespaces = forwarded_namespaces_raw.strip() == "*"
-    namespaces = (
-        [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
-    )
+    namespaces = [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
 
     # Determine role from groups
-    role = (
-        UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
-    )
+    role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
 
     # Use spoke:<username> as user ID to avoid collisions across clusters
     user_id = f"spoke:{forwarded_user}"
@@ -266,9 +254,7 @@ async def _get_oidc_signing_key(token: str) -> object:
         logger.info("OIDC kid %s not in cached JWKS, refetching", kid)
 
     # Fetch OIDC discovery document
-    discovery_url = (
-        f"{settings.oidc_issuer.rstrip('/')}/.well-known/openid-configuration"
-    )
+    discovery_url = f"{settings.oidc_issuer.rstrip('/')}/.well-known/openid-configuration"
     async with httpx.AsyncClient(timeout=10.0) as client:
         disco_resp = await client.get(discovery_url)
         disco_resp.raise_for_status()
@@ -286,9 +272,7 @@ async def _get_oidc_signing_key(token: str) -> object:
         if key.get("kid") == kid:
             return key
 
-    raise HTTPException(
-        status_code=401, detail="Kein passender OIDC-Schlüssel gefunden"
-    )
+    raise HTTPException(status_code=401, detail="Kein passender OIDC-Schlüssel gefunden")
 
 
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:
@@ -316,9 +300,7 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
 
         # Validate issuer matches configured issuer
         if payload.get("iss") != settings.oidc_issuer:
-            raise HTTPException(
-                status_code=401, detail="Token-Issuer stimmt nicht überein"
-            )
+            raise HTTPException(status_code=401, detail="Token-Issuer stimmt nicht überein")
 
         # Extract standard OIDC claims
         username = payload.get("preferred_username", payload.get("sub", ""))
@@ -328,20 +310,12 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
             groups = [g.strip() for g in groups.split(",") if g.strip()]
 
         # Determine role from groups
-        role = (
-            UserRole.sec_team
-            if settings.sec_team_group in groups
-            else UserRole.team_member
-        )
+        role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
 
         # Namespaces from JWT claims (if available)
         ns_claim = payload.get("namespaces", "")
         has_all_namespaces = ns_claim.strip() == "*" if ns_claim else False
-        namespaces = (
-            []
-            if has_all_namespaces
-            else (_parse_namespaces_header(ns_claim) if ns_claim else [])
-        )
+        namespaces = [] if has_all_namespaces else (_parse_namespaces_header(ns_claim) if ns_claim else [])
 
         # Auto-create/upsert user on first OIDC login
         user_data = {
@@ -358,7 +332,7 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         raise
     except Exception as e:
         logger.warning("OIDC auth failed: %s", e)
-        raise HTTPException(status_code=401, detail="Authentifizierung fehlgeschlagen")
+        raise HTTPException(status_code=401, detail="Authentifizierung fehlgeschlagen") from None
 
 
 def _validate_api_key(request: Request) -> bool:
@@ -366,10 +340,7 @@ def _validate_api_key(request: Request) -> bool:
     api_key = request.headers.get("X-Api-Key")
     if not api_key or not settings.spoke_api_keys:
         return False
-    return any(
-        secrets.compare_digest(api_key, allowed_key)
-        for allowed_key in settings.spoke_api_keys
-    )
+    return any(secrets.compare_digest(api_key, allowed_key) for allowed_key in settings.spoke_api_keys)
 
 
 async def get_current_user(request: Request) -> CurrentUser:
@@ -390,7 +361,5 @@ def require_sec_team(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:
     if not current_user.is_sec_team:
-        raise HTTPException(
-            status_code=403, detail="Nur für das Security-Team zugänglich"
-        )
+        raise HTTPException(status_code=403, detail="Nur für das Security-Team zugänglich")
     return current_user

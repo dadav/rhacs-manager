@@ -16,14 +16,10 @@ class BadgeToken(Base):
     __tablename__ = "badge_tokens"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    created_by: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
-    )
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
     namespace: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cluster_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    token: Mapped[str] = mapped_column(
-        String(64), unique=True, nullable=False, default=_generate_token
-    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, default=_generate_token)
     label: Mapped[str] = mapped_column(String(255), nullable=False, default="CVEs")
     scope_namespaces: Mapped[list | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

@@ -9,11 +9,12 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
-from ..models.global_settings import GlobalSettings
 from ..models.escalation import Escalation
+from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
+from ..schemas.common import PaginatedResponse
 from ..schemas.cve import (
     AffectedComponent,
     AffectedDeployment,
@@ -25,7 +26,6 @@ from ..schemas.cve import (
     ImageCveGroup,
     SeverityLevel,
 )
-from ..schemas.common import PaginatedResponse
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..stackrox import queries as sx
 
@@ -268,9 +268,7 @@ async def get_cve(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveDetail:
     prio_result = await app_db.execute(
-        select(CvePriority)
-        .options(selectinload(CvePriority.setter))
-        .where(CvePriority.cve_id == cve_id)
+        select(CvePriority).options(selectinload(CvePriority.setter)).where(CvePriority.cve_id == cve_id)
     )
     priority = prio_result.scalar_one_or_none()
 
@@ -289,9 +287,7 @@ async def get_cve(
     ra_result = await app_db.execute(ra_query)
     acceptance = ra_result.scalars().first()
 
-    esc_result = await app_db.execute(
-        select(Escalation).where(Escalation.cve_id == cve_id)
-    )
+    esc_result = await app_db.execute(select(Escalation).where(Escalation.cve_id == cve_id))
     escalations = esc_result.scalars().all()
     esc_dates: dict[int, datetime | None] = {1: None, 2: None, 3: None}
     for esc in escalations:
@@ -301,9 +297,7 @@ async def get_cve(
 
     if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
-        ns: list[tuple[str, str]] = [
-            (r["namespace"], r["cluster_name"]) for r in all_ns
-        ]
+        ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         cve_data = await sx.get_all_cves(sx_db)
         cve_data = next((c for c in cve_data if c["cve_id"] == cve_id), None)
     else:
@@ -327,15 +321,9 @@ async def get_cve(
                 severity_ok = severity >= rule.get("severity_min", 0)
                 epss_ok = epss >= rule.get("epss_threshold", 0)
                 if severity_ok or epss_ok:
-                    esc_expected[1] = first_seen + timedelta(
-                        days=rule.get("days_to_level1", 999)
-                    )
-                    esc_expected[2] = first_seen + timedelta(
-                        days=rule.get("days_to_level2", 999)
-                    )
-                    esc_expected[3] = first_seen + timedelta(
-                        days=rule.get("days_to_level3", 999)
-                    )
+                    esc_expected[1] = first_seen + timedelta(days=rule.get("days_to_level1", 999))
+                    esc_expected[2] = first_seen + timedelta(days=rule.get("days_to_level2", 999))
+                    esc_expected[3] = first_seen + timedelta(days=rule.get("days_to_level3", 999))
                     break  # first matching rule only
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
@@ -343,11 +331,7 @@ async def get_cve(
     contact_emails: list[str] = []
     if current_user.can_see_all_namespaces and deployments:
         ns_cluster_pairs = sorted(
-            {
-                (d["namespace"], d["cluster_name"])
-                for d in deployments
-                if d.get("namespace") and d.get("cluster_name")
-            }
+            {(d["namespace"], d["cluster_name"]) for d in deployments if d.get("namespace") and d.get("cluster_name")}
         )
         if ns_cluster_pairs:
             from ..config import settings as app_settings
@@ -362,16 +346,12 @@ async def get_cve(
             )
             contacts = contact_result.scalars().all()
             covered_pairs = {(c.namespace, c.cluster_name) for c in contacts}
-            contact_emails = sorted(
-                {c.escalation_email for c in contacts if c.escalation_email}
-            )
+            contact_emails = sorted({c.escalation_email for c in contacts if c.escalation_email})
 
             # Add default escalation email for namespaces without explicit contacts
             uncovered = set(ns_cluster_pairs) - covered_pairs
             if uncovered and app_settings.default_escalation_email:
-                contact_emails = sorted(
-                    set(contact_emails) | {app_settings.default_escalation_email}
-                )
+                contact_emails = sorted(set(contact_emails) | {app_settings.default_escalation_email})
 
     return CveDetail(
         cve_id=cve_data["cve_id"],
@@ -432,11 +412,7 @@ async def list_cve_comments(
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
 ) -> list[CveCommentResponse]:
-    result = await app_db.execute(
-        select(CveComment)
-        .where(CveComment.cve_id == cve_id)
-        .order_by(CveComment.created_at)
-    )
+    result = await app_db.execute(select(CveComment).where(CveComment.cve_id == cve_id).order_by(CveComment.created_at))
     comments = result.scalars().all()
 
     out = []

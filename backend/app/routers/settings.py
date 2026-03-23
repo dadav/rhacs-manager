@@ -65,7 +65,11 @@ async def update_settings(
     s.updated_by = current_user.id
 
     await log_action(
-        db, current_user.id, "settings_updated", "global_settings", str(s.id),
+        db,
+        current_user.id,
+        "settings_updated",
+        "global_settings",
+        str(s.id),
         {"min_cvss": body.min_cvss_score, "min_epss": body.min_epss_score},
     )
     await db.commit()
@@ -84,13 +88,17 @@ async def send_digest(
     try:
         await run_digest_now()
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         logger.exception("Failed to send digest")
-        raise HTTPException(status_code=500, detail="Digest-Versand fehlgeschlagen")
+        raise HTTPException(status_code=500, detail="Digest-Versand fehlgeschlagen") from None
 
     await log_action(
-        db, current_user.id, "digest_manual_send", "settings", "",
+        db,
+        current_user.id,
+        "digest_manual_send",
+        "settings",
+        "",
         {"triggered_by": current_user.username},
     )
     await db.commit()

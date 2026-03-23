@@ -29,9 +29,7 @@ async def list_escalations(
         if not current_user.has_namespaces:
             return []
         scoped = narrow_namespaces(current_user.namespaces, cluster, namespace)
-        query = query.where(
-            tuple_(Escalation.namespace, Escalation.cluster_name).in_(scoped)
-        )
+        query = query.where(tuple_(Escalation.namespace, Escalation.cluster_name).in_(scoped))
     else:
         if cluster:
             query = query.where(Escalation.cluster_name == cluster)
@@ -70,9 +68,12 @@ async def list_upcoming_escalations(
     if current_user.can_see_all_namespaces:
         if cluster or namespace:
             from ..stackrox import queries as sx
+
             all_ns = await sx.list_namespaces(sx_db)
             namespaces = narrow_namespaces(
-                [(r["namespace"], r["cluster_name"]) for r in all_ns], cluster, namespace,
+                [(r["namespace"], r["cluster_name"]) for r in all_ns],
+                cluster,
+                namespace,
             )
         else:
             namespaces = []  # empty = all for all-ns users

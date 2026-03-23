@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select
 
 from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
+from ..mail import service as mail_svc
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
@@ -15,7 +16,6 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
-from ..mail import service as mail_svc
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
@@ -133,9 +133,7 @@ async def run_escalation_check() -> None:
 
                 for rule in settings.escalation_rules:
                     severity_ok = row.get("severity", 0) >= rule.get("severity_min", 0)
-                    epss_ok = row.get("epss_probability", 0) >= rule.get(
-                        "epss_threshold", 0
-                    )
+                    epss_ok = row.get("epss_probability", 0) >= rule.get("epss_threshold", 0)
                     if not (severity_ok or epss_ok):
                         continue
 
@@ -175,9 +173,7 @@ async def run_escalation_check() -> None:
                     app_session.add(esc)
                     await app_session.flush()
 
-                    await notif_svc.notify_escalation(
-                        app_session, row["cve_id"], ns_name, cluster, level
-                    )
+                    await notif_svc.notify_escalation(app_session, row["cve_id"], ns_name, cluster, level)
                     esc.notified = True
 
                     # Fetch affected deployments for email context
@@ -206,21 +202,23 @@ async def run_escalation_check() -> None:
                         )
                     )
                     contact = contact_result.scalar_one_or_none()
+                    recipient = None
                     if contact:
-                        await mail_svc.send_escalation_email(
-                            contact.escalation_email,
-                            **email_kwargs,
-                        )
+                        recipient = contact.escalation_email
                     elif app_settings.default_escalation_email:
-                        await mail_svc.send_escalation_email(
-                            app_settings.default_escalation_email,
-                            **email_kwargs,
-                        )
+                        recipient = app_settings.default_escalation_email
                     elif app_settings.management_email:
-                        await mail_svc.send_escalation_email(
-                            app_settings.management_email,
-                            **email_kwargs,
-                        )
+                        recipient = app_settings.management_email
+
+                    if recipient:
+                        try:
+                            await mail_svc.send_escalation_email(recipient, **email_kwargs)
+                        except Exception:
+                            logger.exception(
+                                "Failed to send escalation email for %s to %s",
+                                row["cve_id"],
+                                recipient,
+                            )
 
                     break  # apply highest matching rule only
 
@@ -228,18 +226,12 @@ async def run_escalation_check() -> None:
         # Collect all CVE IDs that are currently visible (pass thresholds or always-show)
         visible_cve_ids = {row["cve_id"] for row in cve_rows} | always_show
 
-        all_esc_result = await app_session.execute(
-            select(Escalation.id, Escalation.cve_id)
-        )
+        all_esc_result = await app_session.execute(select(Escalation.id, Escalation.cve_id))
         stale_ids = [
-            esc_id
-            for esc_id, cve_id in all_esc_result
-            if cve_id not in visible_cve_ids and cve_id not in accepted_ids
+            esc_id for esc_id, cve_id in all_esc_result if cve_id not in visible_cve_ids and cve_id not in accepted_ids
         ]
         if stale_ids:
-            await app_session.execute(
-                delete(Escalation).where(Escalation.id.in_(stale_ids))
-            )
+            await app_session.execute(delete(Escalation).where(Escalation.id.in_(stale_ids)))
             logger.info(
                 "Cleaned up %d stale escalations for CVEs below thresholds",
                 len(stale_ids),
@@ -258,9 +250,7 @@ async def run_remediation_overdue_check() -> None:
             select(Remediation).where(
                 Remediation.target_date != None,
                 Remediation.target_date < today,
-                Remediation.status.in_(
-                    [RemediationStatus.open, RemediationStatus.in_progress]
-                ),
+                Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
             )
         )
         for remediation in result.scalars().all():
@@ -300,9 +290,8 @@ async def run_remediation_auto_resolve() -> None:
                     remediation.status = RemediationStatus.resolved
                     remediation.resolved_at = datetime.utcnow()
                     remediation.notes = (
-                        (remediation.notes or "")
-                        + "\n[Automatisch behoben: CVE nicht mehr in Deployments gefunden]"
-                    )
+                        remediation.notes or ""
+                    ) + "\n[Automatisch behoben: CVE nicht mehr in Deployments gefunden]"
                     logger.info(
                         "Auto-resolved remediation %s for CVE %s in %s/%s",
                         remediation.id,
@@ -323,16 +312,8 @@ async def _send_digest() -> None:
 
     async with AppSessionLocal() as app_session:
         settings = await _get_settings(app_session)
-        min_cvss = (
-            float(settings.min_cvss_score)
-            if settings and settings.min_cvss_score
-            else 0.0
-        )
-        min_epss = (
-            float(settings.min_epss_score)
-            if settings and settings.min_epss_score
-            else 0.0
-        )
+        min_cvss = float(settings.min_cvss_score) if settings and settings.min_cvss_score else 0.0
+        min_epss = float(settings.min_epss_score) if settings and settings.min_epss_score else 0.0
 
         # Build always_show from priorities and active RAs
         prio_result = await app_session.execute(select(CvePriority.cve_id))
@@ -351,16 +332,12 @@ async def _send_digest() -> None:
 
             # Risk acceptances with status == requested
             open_ra_result = await app_session.execute(
-                select(func.count())
-                .select_from(RiskAcceptance)
-                .where(RiskAcceptance.status == RiskStatus.requested)
+                select(func.count()).select_from(RiskAcceptance).where(RiskAcceptance.status == RiskStatus.requested)
             )
             open_ra = open_ra_result.scalar() or 0
 
             # Active escalations
-            esc_count_result = await app_session.execute(
-                select(func.count()).select_from(Escalation)
-            )
+            esc_count_result = await app_session.execute(select(func.count()).select_from(Escalation))
             pending_escalations = esc_count_result.scalar() or 0
 
             # Remediation stats
@@ -372,9 +349,7 @@ async def _send_digest() -> None:
                 select(func.count())
                 .select_from(Remediation)
                 .where(
-                    Remediation.status.in_(
-                        [RemediationStatus.open, RemediationStatus.in_progress]
-                    ),
+                    Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
                 )
             )
             remediations_open = rem_open_result.scalar() or 0
@@ -383,9 +358,7 @@ async def _send_digest() -> None:
                 select(func.count())
                 .select_from(Remediation)
                 .where(
-                    Remediation.status.in_(
-                        [RemediationStatus.open, RemediationStatus.in_progress]
-                    ),
+                    Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
                     Remediation.target_date != None,
                     Remediation.target_date < today_date,
                 )
@@ -393,9 +366,7 @@ async def _send_digest() -> None:
             remediations_overdue = rem_overdue_result.scalar() or 0
 
             rem_resolved_result = await app_session.execute(
-                select(func.count())
-                .select_from(Remediation)
-                .where(Remediation.resolved_at >= seven_days_ago)
+                select(func.count()).select_from(Remediation).where(Remediation.resolved_at >= seven_days_ago)
             )
             remediations_resolved_7d = rem_resolved_result.scalar() or 0
 
@@ -406,11 +377,7 @@ async def _send_digest() -> None:
                 if sev in severity_dist:
                     severity_dist[sev] += 1
 
-            new_cves_7d = sum(
-                1
-                for c in cves
-                if c.get("first_seen") and c["first_seen"] >= seven_days_ago
-            )
+            new_cves_7d = sum(1 for c in cves if c.get("first_seen") and c["first_seen"] >= seven_days_ago)
 
             top_epss_cves = sorted(
                 [c for c in cves if c.get("epss_probability", 0) > 0.1],
@@ -453,7 +420,10 @@ async def run_weekly_digest() -> None:
         today = datetime.utcnow().weekday()
         if settings and settings.digest_day != today:
             return
-    await _send_digest()
+    try:
+        await _send_digest()
+    except Exception:
+        logger.exception("Scheduled weekly digest failed")
 
 
 async def run_digest_now() -> None:

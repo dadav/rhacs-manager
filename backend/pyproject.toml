@@ -25,6 +25,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "httpx>=0.27.0",
+    "ruff>=0.11.0",
 ]
 
 [build-system]
@@ -40,3 +41,20 @@ package = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "B008",   # Depends() in function defaults is idiomatic FastAPI
+    "F821",   # Forward-ref "User" in SQLAlchemy relationship strings
+    "UP042",  # str+Enum pattern needed for SQLAlchemy column compatibility
+    "UP046",  # Generic[T] subclass is standard Pydantic pattern
+    "E711",   # != None is required for SQLAlchemy .where() clauses
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.middleware import require_sec_team, CurrentUser
+from ..auth.middleware import CurrentUser, require_sec_team
 from ..deps import get_app_db
 from ..models.audit_log import AuditLog
 from ..models.user import User
@@ -22,10 +22,7 @@ async def list_audit_log(
     total = count_result.scalar() or 0
 
     result = await db.execute(
-        select(AuditLog)
-        .order_by(AuditLog.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        select(AuditLog).order_by(AuditLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     entries = result.scalars().all()
 

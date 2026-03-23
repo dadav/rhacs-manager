@@ -31,8 +31,7 @@ def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -
                 raise HTTPException(400, "Scope enthält Namespaces ohne diese CVE")
             normalized.add(key)
         targets = [
-            RiskScopeTarget(cluster_name=cluster, namespace=namespace)
-            for cluster, namespace in sorted(normalized)
+            RiskScopeTarget(cluster_name=cluster, namespace=namespace) for cluster, namespace in sorted(normalized)
         ]
         return RiskScope(mode="namespace", targets=targets)
 
