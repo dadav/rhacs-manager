@@ -1,6 +1,6 @@
 {
   "name": "rhacs-manager-frontend",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.10",
