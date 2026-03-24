@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -404,12 +404,9 @@ async def dashboard(
     else:
         esc_ns = namespaces if has_scope or not current_user.can_see_all_namespaces else []
         if esc_ns:
-            ns_pairs_esc = [(ns, cl) for ns, cl in esc_ns]
             esc_query = select(func.count(Escalation.id)).where(
-                Escalation.namespace.in_([ns for ns, _ in ns_pairs_esc])
+                tuple_(Escalation.namespace, Escalation.cluster_name).in_(esc_ns)
             )
-            if cluster:
-                esc_query = esc_query.where(Escalation.cluster_name == cluster)
             escalations_result = await app_db.execute(esc_query)
         else:
             escalations_result = await app_db.execute(select(func.count(Escalation.id)))
