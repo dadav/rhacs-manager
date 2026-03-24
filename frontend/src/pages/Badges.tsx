@@ -177,15 +177,15 @@ export function Badges() {
               </p>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.namespace')}</label>
-                <TextInput value={namespace} onChange={(_, v) => setNamespace(v)} placeholder={t('badges.namspacePlaceholder')} style={{ marginTop: 4 }} />
+                <TextInput value={namespace} onChange={(_, v) => setNamespace(v)} placeholder={t('badges.namspacePlaceholder')} aria-label={t('badges.namespace')} style={{ marginTop: 4 }} />
               </div>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.cluster')}</label>
-                <TextInput value={cluster} onChange={(_, v) => setCluster(v)} placeholder={t('badges.clusterPlaceholder')} style={{ marginTop: 4 }} />
+                <TextInput value={cluster} onChange={(_, v) => setCluster(v)} placeholder={t('badges.clusterPlaceholder')} aria-label={t('badges.cluster')} style={{ marginTop: 4 }} />
               </div>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('badges.labelOptional')}</label>
-                <TextInput value={label} onChange={(_, v) => setLabel(v)} placeholder={t('badges.labelPlaceholder')} style={{ marginTop: 4 }} />
+                <TextInput value={label} onChange={(_, v) => setLabel(v)} placeholder={t('badges.labelPlaceholder')} aria-label={t('badges.labelOptional')} style={{ marginTop: 4 }} />
               </div>
               {formError && <Alert variant="danger" isInline title={formError} />}
             </div>

@@ -387,6 +387,7 @@ export function SuppressionRules() {
                     value={createComponentName}
                     onChange={(_e, v) => setCreateComponentName(v)}
                     placeholder="github.com/grafana/grafana"
+                    aria-label={t('suppressionRules.componentName')}
                   />
                 </div>
                 <div>
@@ -397,6 +398,7 @@ export function SuppressionRules() {
                     value={createVersionPattern}
                     onChange={(_e, v) => setCreateVersionPattern(v)}
                     placeholder="v0.0.0-*"
+                    aria-label={t('suppressionRules.versionPattern')}
                   />
                   <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
                     {t('suppressionRules.versionPatternHint')}
@@ -413,6 +415,7 @@ export function SuppressionRules() {
                     value={createCveId}
                     onChange={(_e, v) => setCreateCveId(v)}
                     placeholder="CVE-2024-12345"
+                    aria-label={t('suppressionRules.cveId')}
                   />
                 </div>
                 <div>
@@ -468,6 +471,7 @@ export function SuppressionRules() {
                 value={createRefUrl}
                 onChange={(_e, v) => setCreateRefUrl(v)}
                 placeholder="https://github.com/..."
+                aria-label={t('suppressionRules.referenceUrl')}
               />
             </div>
 

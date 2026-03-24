@@ -318,6 +318,7 @@ export function Settings() {
                     value={managementEmail}
                     onChange={(_, v) => setManagementEmail(v)}
                     placeholder={t('settings.managementEmailPlaceholder')}
+                    aria-label={t('settings.managementEmail')}
                     style={{ marginTop: 4 }}
                   />
                 </div>

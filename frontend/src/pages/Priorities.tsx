@@ -226,7 +226,7 @@ export function Priorities() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.cveId')} *</label>
-                <TextInput value={cveId} onChange={(_, v) => setCveId(v)} placeholder="CVE-2024-XXXXX" style={{ marginTop: 4 }} />
+                <TextInput value={cveId} onChange={(_, v) => setCveId(v)} placeholder="CVE-2024-XXXXX" aria-label={t('priorities.cveId')} style={{ marginTop: 4 }} />
               </div>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.priority')}</label>

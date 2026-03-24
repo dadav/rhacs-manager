@@ -56,16 +56,11 @@
   align-self: stretch;
 }
 
-/* ── PageSection default: white cards stand out on gray background ───── */
-.pf-v6-c-page__main-section {
-  background-color: transparent;
+/* ── PageSection default: white surface so titles/toolbars contrast ───── */
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__main-section {
+  background-color: #ffffff;
 }
-
-/* ── Filled sections get a white background to cover the full page ───── */
-:root:not(.pf-v6-theme-dark) .pf-v6-c-page__main-section.pf-m-fill {
-  background-color: #fff;
-}
-.pf-v6-theme-dark .pf-v6-c-page__main-section.pf-m-fill {
+.pf-v6-theme-dark .pf-v6-c-page__main-section {
   background-color: var(--pf-t--global--background--color--primary--default);
 }
 
@@ -121,6 +116,17 @@
 .pf-v6-c-masthead .pf-v6-c-button:hover {
   color: #ffffff;
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Mobile sidebar overlay: prevent content bleed-through ────────────── */
+@media (max-width: 1199.98px) {
+  .pf-v6-c-page:has(.pf-v6-c-page__sidebar.pf-m-expanded) .pf-v6-c-page__main::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
+  }
 }
 
 /* ── Wide-screen content centering: prevent dead whitespace at 1600px+ ── */

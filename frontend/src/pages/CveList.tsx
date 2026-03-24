@@ -389,6 +389,7 @@ export function CveList() {
                 value={searchInput}
                 onChange={(_, v) => setSearchInput(v)}
                 placeholder={t('cves.searchPlaceholder')}
+                aria-label={t('cves.searchPlaceholder')}
                 style={{ width: 220, height: 36 }}
               />
             </ToolbarItem>

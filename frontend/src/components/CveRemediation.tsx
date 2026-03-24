@@ -134,6 +134,7 @@ export function CveRemediationSection({
                   type="date"
                   value={targetDate}
                   onChange={(_, v) => setTargetDate(v)}
+                  aria-label={t('cveDetail.targetDate')}
                   style={{ marginTop: 4 }}
                 />
               </div>

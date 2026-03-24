@@ -907,6 +907,7 @@ export function CveDetail() {
                 value={fpRefUrl}
                 onChange={(_, v) => setFpRefUrl(v)}
                 placeholder="https://..."
+                aria-label={t('cveDetail.fpReferenceLabel')}
               />
             </div>
             <div>

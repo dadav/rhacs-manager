@@ -143,7 +143,7 @@ export function App() {
             <svg
               width="24"
               height="28"
-              viewBox="0 0 24 28"
+              viewBox="0 0 24 32"
               fill="none"
               aria-hidden="true"
             >
