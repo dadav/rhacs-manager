@@ -95,7 +95,7 @@ export function CveList() {
   const urlRiskStatus = searchParams.get('risk_status') || ''
   const urlRemediationStatus = searchParams.get('remediation_status') || ''
   const urlCluster    = searchParams.get('cluster') || ''
-  const urlNamespace  = searchParams.get('namespace') || ''
+  const urlNamespace  = searchParams.get('ns') || ''
   const urlAgeMin     = searchParams.get('age_min') || ''
   const urlAgeMax     = searchParams.get('age_max') || ''
   const urlDeployment = searchParams.get('deployment') || ''
