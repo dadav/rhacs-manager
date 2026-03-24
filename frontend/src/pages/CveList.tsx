@@ -556,7 +556,7 @@ export function CveList() {
               </span>
             )}
             <button
-              onClick={() => updateParams({ cluster: null, namespace: null, deployment: null, age_min: null, age_max: null })}
+              onClick={() => updateParams({ cluster: null, ns: null, deployment: null, age_min: null, age_max: null })}
               style={{
                 background: 'none', border: 'none', color: BRAND_BLUE,
                 cursor: 'pointer', fontSize: 13, padding: '2px 0', fontFamily: 'inherit',
