@@ -279,7 +279,7 @@ export function CveDetail() {
         </Card>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Grid hasGutter>
           <GridItem span={6}>
             <Card>

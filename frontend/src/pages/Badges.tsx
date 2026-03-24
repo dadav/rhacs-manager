@@ -94,7 +94,7 @@ export function Badges() {
         </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Alert variant="info" isInline title={t('badges.hint')} style={{ marginBottom: 16 }} />
 
         {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (

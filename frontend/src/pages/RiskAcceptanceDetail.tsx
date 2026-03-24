@@ -566,7 +566,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
         </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Grid hasGutter>
           {/* Details */}
           <GridItem span={6}>

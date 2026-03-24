@@ -294,7 +294,7 @@ export function Escalations() {
       </PageSection>
 
       {/* Active escalations section */}
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.active')}</Title>
         {isLoading ? (
           <Table variant="compact" isStickyHeader>

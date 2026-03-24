@@ -672,7 +672,7 @@ export function CveList() {
         )}
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         {urlViewMode === 'image' ? (
           /* ── Image-grouped view ── */
           imageLoading ? <TableSkeleton columns={12} /> : imageError ? (

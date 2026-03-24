@@ -96,7 +96,7 @@ export function Dashboard() {
         </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Grid hasGutter>
           {/* Stat cards */}
           <GridItem span={3}>

@@ -186,7 +186,7 @@ export function Remediations() {
       )}
 
       {/* List */}
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Toolbar style={{ padding: 0, marginBottom: 8 }}>
           <ToolbarContent>
             <ToolbarItem>

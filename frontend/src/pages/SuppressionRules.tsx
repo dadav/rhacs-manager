@@ -200,7 +200,7 @@ export function SuppressionRules() {
         </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 4 }}>
             {STATUS_KEYS.map((value) => (

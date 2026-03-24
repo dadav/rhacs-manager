@@ -185,7 +185,7 @@ export function Settings() {
         <Title headingLevel="h1" size="xl">{t('settings.title')}</Title>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         <Grid hasGutter>
           {/* Threshold config */}
           <GridItem span={12}>

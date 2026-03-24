@@ -51,9 +51,22 @@
   background-color: #f0f0f0;
 }
 
+/* ── Ensure main container stretches to fill the page grid cell ──────── */
+.pf-v6-c-page .pf-v6-c-page__main-container {
+  align-self: stretch;
+}
+
 /* ── PageSection default: white cards stand out on gray background ───── */
 .pf-v6-c-page__main-section {
   background-color: transparent;
+}
+
+/* ── Filled sections get a white background to cover the full page ───── */
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__main-section.pf-m-fill {
+  background-color: #fff;
+}
+.pf-v6-theme-dark .pf-v6-c-page__main-section.pf-m-fill {
+  background-color: var(--pf-t--global--background--color--primary--default);
 }
 
 /* ── Card styling: white cards with subtle shadow, no border ─────────── */

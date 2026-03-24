@@ -106,7 +106,7 @@ export function AuditLog() {
         <Title headingLevel="h1" size="xl">{t('auditLog.title')}</Title>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         {error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !isLoading && !data?.items.length ? (

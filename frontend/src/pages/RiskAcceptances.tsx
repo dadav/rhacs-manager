@@ -121,7 +121,7 @@ export function RiskAcceptances() {
         </Toolbar>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         {isLoading ? (
           <Table variant="compact" isStickyHeader>
             <Thead>

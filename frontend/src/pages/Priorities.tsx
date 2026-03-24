@@ -151,7 +151,7 @@ export function Priorities() {
         </div>
       </PageSection>
 
-      <PageSection>
+      <PageSection variant="default" isFilled>
         {error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !isLoading && !data?.length ? (
