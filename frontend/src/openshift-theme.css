@@ -58,6 +58,11 @@
   background-color: #f0f0f0;
 }
 
+/* ── Prevent layout shift when scrollbar appears/disappears ─────────── */
+.pf-v6-c-page__main {
+  scrollbar-gutter: stable;
+}
+
 /* ── Ensure main container stretches to fill the page grid cell ──────── */
 .pf-v6-c-page .pf-v6-c-page__main-container {
   align-self: stretch;
