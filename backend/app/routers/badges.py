@@ -10,7 +10,9 @@ from ..badges.generator import generate_badge_svg
 from ..config import settings
 from ..deps import get_app_db, get_stackrox_db
 from ..models.badge import BadgeToken
+from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
+from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..schemas.badge import BadgeCreate, BadgeResponse
 from ..stackrox import queries as sx
 
@@ -84,19 +86,33 @@ async def get_badge_svg(
 
     settings_result = await app_db.execute(select(GlobalSettings).limit(1))
     gs = settings_result.scalar_one_or_none()
-    min_cvss = float(gs.min_cvss_score) if gs else 0.0
-    min_epss = float(gs.min_epss_score) if gs else 0.0
+
+    # Sec team badges bypass thresholds (matching CVE list behavior)
+    if badge.is_sec_team:
+        min_cvss = 0.0
+        min_epss = 0.0
+    else:
+        min_cvss = float(gs.min_cvss_score) if gs else 0.0
+        min_epss = float(gs.min_epss_score) if gs else 0.0
+
+    # Build always_show set: prioritized CVEs + active risk acceptances
+    prio_result = await app_db.execute(select(CvePriority.cve_id))
+    always_show: set[str] = {row[0] for row in prio_result}
+    ra_result = await app_db.execute(
+        select(RiskAcceptance.cve_id).where(RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]))
+    )
+    always_show |= {row[0] for row in ra_result}
 
     # Badge scoped by its namespace/cluster, stored scope_namespaces, or all (None)
     if badge.namespace:
         ns = [(badge.namespace, badge.cluster_name or "")]
-        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
+        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show)
     elif badge.scope_namespaces:
         ns = [(entry[0], entry[1]) for entry in badge.scope_namespaces]
-        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss)
+        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show)
     elif badge.scope_namespaces is None:
         # All namespaces (has_all_namespaces user with no namespace filter)
-        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss)
+        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
     else:
         # Empty list — no scope
         return Response(
@@ -175,6 +191,7 @@ async def create_badge(
         cluster_name=body.cluster_name,
         label=body.label,
         scope_namespaces=scope_ns,
+        is_sec_team=current_user.is_sec_team,
     )
     db.add(badge)
     await db.commit()

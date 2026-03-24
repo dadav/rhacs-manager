@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, ForeignKey, String
+from sqlalchemy import JSON, Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -22,4 +22,5 @@ class BadgeToken(Base):
     token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, default=_generate_token)
     label: Mapped[str] = mapped_column(String(255), nullable=False, default="CVEs")
     scope_namespaces: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    is_sec_team: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
