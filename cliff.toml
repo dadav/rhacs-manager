@@ -14,7 +14,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | upper_first }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim }}{% if commit.remote.pr_number %} (#{{ commit.remote.pr_number }}){% endif %}{% if commit.remote.username %} by @{{ commit.remote.username }}{% endif %}
+- [`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/dadav/rhacs-manager/commit/{{ commit.id }}) {{ commit.message | split(pat="\n") | first | trim }}{% if commit.remote.pr_number %} (#{{ commit.remote.pr_number }}){% endif %}{% if commit.remote.username %} by @{{ commit.remote.username }}{% endif %}
 {% endfor %}
 {% endfor %}
 """
