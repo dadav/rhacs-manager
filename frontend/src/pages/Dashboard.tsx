@@ -300,11 +300,9 @@ export function Dashboard() {
           )}
 
           {/* MTTR by Severity */}
-          {data.mttr_by_severity.some((m) => m.count > 0) && (
-            <GridItem span={6}>
-              <MttrChart data={data.mttr_by_severity} />
-            </GridItem>
-          )}
+          <GridItem span={6}>
+            <MttrChart data={data.mttr_by_severity} />
+          </GridItem>
 
           {/* CVE Aging Distribution */}
           {data.aging_distribution.some((b) => b.count > 0) && (

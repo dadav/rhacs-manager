@@ -1,4 +1,4 @@
-import { Card, CardBody } from "@patternfly/react-core";
+import { Card, CardBody, EmptyState, EmptyStateBody } from "@patternfly/react-core";
 import {
   Bar,
   BarChart,
@@ -50,6 +50,8 @@ export function MttrChart({ data }: MttrChartProps) {
     return `${(hours * 60).toFixed(0)} min`;
   };
 
+  const hasData = data.some((m) => m.count > 0);
+
   const mttrData = data.map((m) => ({
     ...m,
     label: severityLabels[m.severity] || severityLabels[0],
@@ -57,12 +59,17 @@ export function MttrChart({ data }: MttrChartProps) {
   }));
 
   return (
-    <Card style={{ overflow: "visible" }}>
+    <Card style={{ overflow: "visible", height: "100%" }}>
       <ChartCardTitle
         title={t("dashboard.mttr")}
         helpKey="dashboard.help.mttr"
       />
       <CardBody>
+        {!hasData ? (
+          <EmptyState>
+            <EmptyStateBody>{t("common.noData")}</EmptyStateBody>
+          </EmptyState>
+        ) : (
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={mttrData}>
             <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
@@ -98,6 +105,7 @@ export function MttrChart({ data }: MttrChartProps) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        )}
       </CardBody>
     </Card>
   );
