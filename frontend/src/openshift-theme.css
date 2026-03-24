@@ -4,7 +4,7 @@
  */
 
 /* ── Typography: Red Hat Display for headings ────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&display=swap');
+/* Red Hat Display is bundled by PatternFly — no external font import needed */
 
 .pf-v6-c-title,
 .pf-v6-c-modal-box__title-text,
