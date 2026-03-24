@@ -26,6 +26,13 @@
   border-right: 1px solid #3c3f42;
 }
 
+/* ── Collapsed sidebar: fully hide to prevent background/border bleed ── */
+.pf-v6-c-page__sidebar.pf-m-collapsed {
+  background-color: transparent;
+  border-right: none;
+  visibility: hidden;
+}
+
 /* ── Nav links on dark background ────────────────────────────────────── */
 .pf-v6-c-page__sidebar .pf-v6-c-nav__link {
   color: #c7c7c7;
@@ -84,6 +91,11 @@
   border-right: 1px solid #d2d2d2;
 }
 
+:root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar.pf-m-collapsed {
+  background-color: transparent;
+  border-right: none;
+}
+
 :root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-nav__link {
   color: #4f5255;
 }
@@ -119,20 +131,13 @@
 }
 
 /* ── Mobile sidebar overlay: prevent content bleed-through ────────────── */
-/* Overlay is rendered as a React div (.sidebar-overlay) to avoid Edge
-   repaint bugs with :has() + ::before on repeated sidebar toggles.       */
-.sidebar-overlay {
-  display: none;
-}
-
 @media (max-width: 1199.98px) {
-  .sidebar-overlay.sidebar-overlay--visible {
-    display: block;
+  .pf-v6-c-page:has(.pf-v6-c-page__sidebar.pf-m-expanded) .pf-v6-c-page__main::before {
+    content: '';
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 199;
-    transition: opacity 0.2s ease;
   }
 }
 
