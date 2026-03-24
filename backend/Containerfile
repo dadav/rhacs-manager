@@ -15,7 +15,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 COPY pyproject.toml uv.lock ./
 
 # Install dependencies (no editable, no dev deps)
-RUN uv sync --frozen --no-dev --no-editable
+RUN uv sync --frozen --no-dev --no-editable && \
+    chgrp -R 0 /tmp/uv-cache && chmod -R g=u /tmp/uv-cache
 
 # Copy application code
 COPY app/ ./app/
