@@ -33,6 +33,10 @@ from ..services.escalation_preview import compute_upcoming_escalations
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
 
+# Limit concurrent StackRox DB sessions per request to avoid exhausting
+# Central DB's max_connections (100 shared with StackRox itself).
+_stackrox_semaphore = asyncio.Semaphore(4)
+
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
@@ -84,7 +88,7 @@ async def _sx_severity_distribution(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_severity_distribution(
             db,
             ns,
@@ -100,7 +104,7 @@ async def _sx_cves_per_namespace(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cves_per_namespace(
             db,
             ns,
@@ -116,7 +120,7 @@ async def _sx_cve_trend(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cve_trend(
             db,
             ns,
@@ -132,7 +136,7 @@ async def _sx_epss_risk_matrix(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_epss_risk_matrix(
             db,
             ns,
@@ -148,7 +152,7 @@ async def _sx_cluster_heatmap(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cluster_heatmap(
             db,
             ns,
@@ -164,7 +168,7 @@ async def _sx_cve_aging(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cve_aging(
             db,
             ns,
@@ -180,7 +184,7 @@ async def _sx_top_vulnerable_components(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_top_vulnerable_components(
             db,
             ns,
@@ -196,7 +200,7 @@ async def _sx_fixability_breakdown(
     min_epss: float,
     always_show: set[str],
 ) -> dict:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_fixability_breakdown(
             db,
             ns,
@@ -212,7 +216,7 @@ async def _sx_fixable_trend(
     min_epss: float,
     always_show: set[str],
 ) -> list[dict]:
-    async with StackRoxSessionLocal() as db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_fixable_trend(
             db,
             ns,
@@ -228,7 +232,7 @@ async def _upcoming_escalations(
 ) -> list:
     if not settings:
         return []
-    async with StackRoxSessionLocal() as sx_db, AppSessionLocal() as app_db:
+    async with _stackrox_semaphore, StackRoxSessionLocal() as sx_db, AppSessionLocal() as app_db:
         return await compute_upcoming_escalations(sx_db, app_db, namespaces, settings)
 
 
