@@ -393,7 +393,7 @@ export function Escalations() {
                         {isSecTeam && (
                           <Td style={{ fontSize: 12 }}>
                             {e.notified
-                              ? <span style={{ color: '#1e8f19' }}>✓ {t('escalations.yesNotified')}</span>
+                              ? <span style={{ color: '#1e8f19' }}>{t('escalations.yesNotified')}</span>
                               : <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>{t('common.pending')}</span>}
                           </Td>
                         )}
