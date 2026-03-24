@@ -110,17 +110,19 @@ async def get_affected_deployments(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
-        SELECT DISTINCT
+        SELECT
             d.id            AS deployment_id,
             d.name          AS deployment_name,
             d.namespace,
             d.clustername   AS cluster_name,
-            dc.image_name_fullname AS image_name
+            dc.image_name_fullname AS image_name,
+            MIN(ic.firstimageoccurrence) AS first_seen
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
+        GROUP BY d.id, d.name, d.namespace, d.clustername, dc.image_name_fullname
         ORDER BY d.namespace, d.name
     """)
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params})

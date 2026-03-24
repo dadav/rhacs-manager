@@ -101,7 +101,7 @@ function makeCveDetail(overrides: Partial<CveDetailType> = {}): CveDetailType {
     is_suppressed: false,
     suppression_requested: false,
     affected_deployments_list: [
-      { deployment_id: 'd1', deployment_name: 'api-server', namespace: 'prod', cluster_name: 'cluster-a', image_name: 'registry/api:v1' },
+      { deployment_id: 'd1', deployment_name: 'api-server', namespace: 'prod', cluster_name: 'cluster-a', image_name: 'registry/api:v1', first_seen: '2025-01-15T10:00:00Z' },
     ],
     components: [
       { component_name: 'openssl', component_version: '1.1.1', fixable: true, fixed_by: '2.0.0' },

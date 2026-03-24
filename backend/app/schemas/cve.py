@@ -19,6 +19,7 @@ class AffectedDeployment(BaseModel):
     namespace: str
     cluster_name: str
     image_name: str
+    first_seen: datetime | None = None
 
 
 class AffectedComponent(BaseModel):

@@ -109,6 +109,7 @@ export interface AffectedDeployment {
   namespace: string
   cluster_name: string
   image_name: string
+  first_seen: string | null
 }
 
 export interface AffectedComponent {

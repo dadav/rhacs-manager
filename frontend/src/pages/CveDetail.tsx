@@ -683,15 +683,16 @@ export function CveDetail() {
                         <Thead>
                           <Tr>
                             <Th width={20}>{t('cves.deploymentName')}</Th>
-                            <Th width={20}>{t('cves.namespace')}</Th>
-                            <Th width={15}>{t('cves.cluster')}</Th>
-                            <Th width={45}>{t('cves.imageName')}</Th>
+                            <Th width={15}>{t('cves.namespace')}</Th>
+                            <Th width={10}>{t('cves.cluster')}</Th>
+                            <Th width={40}>{t('cves.imageName')}</Th>
+                            <Th width={15}>{t('cves.firstSeen')}</Th>
                           </Tr>
                         </Thead>
                         <Tbody>
                           {pageItems.length > 0 ? (
                             pageItems.map((d) => (
-                              <Tr key={d.deployment_id}>
+                              <Tr key={`${d.deployment_id}-${d.image_name}`}>
                                 <Td
                                   style={{
                                     fontFamily: "monospace",
@@ -734,12 +735,22 @@ export function CveDetail() {
                                 >
                                   {d.image_name}
                                 </Td>
+                                <Td
+                                  style={{
+                                    fontSize: 11,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {d.first_seen
+                                    ? new Date(d.first_seen).toLocaleDateString(dateLocale)
+                                    : "–"}
+                                </Td>
                               </Tr>
                             ))
                           ) : (
                             <Tr>
                               <Td
-                                colSpan={4}
+                                colSpan={5}
                                 style={{
                                   textAlign: "center",
                                   color:
