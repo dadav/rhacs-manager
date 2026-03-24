@@ -119,13 +119,20 @@
 }
 
 /* ── Mobile sidebar overlay: prevent content bleed-through ────────────── */
+/* Overlay is rendered as a React div (.sidebar-overlay) to avoid Edge
+   repaint bugs with :has() + ::before on repeated sidebar toggles.       */
+.sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 1199.98px) {
-  .pf-v6-c-page:has(.pf-v6-c-page__sidebar.pf-m-expanded) .pf-v6-c-page__main::before {
-    content: '';
+  .sidebar-overlay.sidebar-overlay--visible {
+    display: block;
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 199;
+    transition: opacity 0.2s ease;
   }
 }
 

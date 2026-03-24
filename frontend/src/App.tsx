@@ -302,6 +302,11 @@ export function App() {
 
   return (
     <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
+      {/* Overlay div replaces CSS :has() pseudo-element to avoid Edge repaint bugs */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? " sidebar-overlay--visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
       <OnboardingModal
         isOpen={!user.onboarding_completed}
         isFirstTime
