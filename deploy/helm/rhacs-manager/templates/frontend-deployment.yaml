@@ -16,6 +16,9 @@
 {{- $affinity := ternary .Values.frontend.affinity .Values.spoke.frontend.affinity $isHub -}}
 {{- $topologySpreadConstraints := ternary .Values.frontend.topologySpreadConstraints .Values.spoke.frontend.topologySpreadConstraints $isHub -}}
 {{- $cookieSecretMsg := ternary "frontend.oauthProxy.cookieSecret is required" "spoke.oauthProxy.cookieSecret is required in spoke mode" $isHub -}}
+{{- /* Resolve MCP sidecar config */}}
+{{- $mcpEnabled := ternary .Values.mcp.enabled (and .Values.spoke.mcp .Values.spoke.mcp.enabled | default false) $isHub -}}
+{{- $mcpVals := ternary .Values.mcp .Values.spoke.mcp $isHub -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,6 +40,45 @@ spec:
       "readinessProbe" $feVals.readinessProbe
       "envFrom" (list (dict "secretRef" (dict "name" $secretName)))
     -}}
+    {{- /* Build MCP sidecar container when enabled */}}
+    {{- $extraContainers := list -}}
+    {{- if $mcpEnabled -}}
+      {{- $mcpBackendUrl := ternary
+        (printf "http://%s:%v" .Values.backend.serviceName .Values.backend.service.port)
+        ""
+        $isHub
+      -}}
+      {{- $mcpApiKeySecretName := ternary
+        (default "rhacs-manager-mcp" (dig "secret" "name" "" $mcpVals))
+        $secretName
+        $isHub
+      -}}
+      {{- $mcpApiKeySecretKey := ternary "MCP_API_KEY" "SPOKE_API_KEY" $isHub -}}
+      {{- $mcpEnv := list
+        (dict "name" "UV_CACHE_DIR" "value" "/tmp/uv-cache")
+        (dict "name" "MCP_PORT" "value" "8001")
+        (dict "name" "MCP_READONLY" "value" ($mcpVals.readonly | toString))
+        (dict "name" "MCP_API_KEY" "valueFrom" (dict "secretKeyRef" (dict "name" $mcpApiKeySecretName "key" $mcpApiKeySecretKey)))
+      -}}
+      {{- if $isHub -}}
+        {{- $mcpEnv = append $mcpEnv (dict "name" "MCP_BACKEND_URL" "value" $mcpBackendUrl) -}}
+      {{- else -}}
+        {{- $mcpEnv = append $mcpEnv (dict "name" "MCP_BACKEND_URL" "valueFrom" (dict "secretKeyRef" (dict "name" $secretName "key" "HUB_API_URL"))) -}}
+      {{- end -}}
+      {{- $mcpContainer := dict
+        "name" "mcp-server"
+        "image" (printf "%s:%s" $mcpVals.image.repository (include "rhacs-manager.imageTag" (dict "tag" $mcpVals.image.tag "chart" .Chart)))
+        "imagePullPolicy" $mcpVals.image.pullPolicy
+        "command" (list "uv" "run" "--offline" "--no-sync" "python" "-m" "mcp_server")
+        "ports" (list (dict "containerPort" 8001))
+        "env" $mcpEnv
+        "resources" $mcpVals.resources
+      -}}
+      {{- if $mcpVals.securityContext -}}
+        {{- $mcpContainer = merge $mcpContainer (dict "securityContext" $mcpVals.securityContext) -}}
+      {{- end -}}
+      {{- $extraContainers = list $mcpContainer -}}
+    {{- end -}}
     {{- $args := dict
       "deploymentName" $deploymentName
       "selectorLabels" (include "rhacs-manager.selectorLabels" .)
@@ -52,6 +94,7 @@ spec:
       "tolerations" $tolerations
       "affinity" $affinity
       "topologySpreadConstraints" $topologySpreadConstraints
+      "extraContainers" $extraContainers
       "chart" .Chart
     -}}
     {{- include "rhacs-manager.oauthProxyPodSpec" $args | nindent 4 }}

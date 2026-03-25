@@ -1801,6 +1801,66 @@ spoke:
   # type: object
   # additionalProperties: false
   # @schema
+  # -- MCP server sidecar configuration (spoke mode). When enabled, the MCP server
+  # runs as an additional container in the spoke frontend pod, reusing its auth chain.
+  mcp:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Enable the MCP server sidecar in the spoke frontend pod.
+    enabled: false
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Run in readonly mode (only read-only tools are exposed).
+    readonly: true
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- MCP server container image (uses the backend image).
+    image:
+      # @schema
+      # type: string
+      # @schema
+      # -- Image repository.
+      repository: ghcr.io/dadav/rhacs-manager-backend
+      # @schema
+      # type: string
+      # @schema
+      # -- Image tag. Defaults to Chart.appVersion if not set.
+      tag: ""
+      # @schema
+      # type: string
+      # enum: [Always, IfNotPresent, Never]
+      # @schema
+      # -- Image pull policy.
+      pullPolicy: IfNotPresent
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Container-level security context for the MCP server sidecar.
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Resource requests and limits for the MCP server sidecar.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
   # -- Spoke frontend Service configuration.
   service:
     # @schema
@@ -1879,29 +1939,13 @@ mcp:
   # @schema
   # type: boolean
   # @schema
-  # -- Enable the MCP server deployment.
+  # -- Enable the MCP server sidecar in the hub frontend pod.
   enabled: false
   # @schema
   # type: boolean
   # @schema
   # -- Run in readonly mode (only read-only tools are exposed).
   readonly: false
-  # @schema
-  # type: string
-  # @schema
-  # -- Name of the MCP server Deployment resource.
-  deploymentName: rhacs-manager-mcp
-  # @schema
-  # type: string
-  # @schema
-  # -- Name of the MCP server Service resource.
-  serviceName: rhacs-manager-mcp
-  # @schema
-  # type: integer
-  # minimum: 1
-  # @schema
-  # -- Number of MCP server replicas.
-  replicaCount: 1
   # @schema
   # type: object
   # additionalProperties: false
@@ -1928,20 +1972,7 @@ mcp:
   # type: object
   # additionalProperties: true
   # @schema
-  # -- Additional annotations for MCP server pods.
-  podAnnotations: {}
-  # @schema
-  # type: object
-  # additionalProperties: true
-  # @schema
-  # -- Pod-level security context for the MCP server.
-  podSecurityContext:
-    runAsNonRoot: true
-  # @schema
-  # type: object
-  # additionalProperties: true
-  # @schema
-  # -- Container-level security context for the MCP server.
+  # -- Container-level security context for the MCP server sidecar.
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -1950,7 +1981,7 @@ mcp:
   # type: object
   # additionalProperties: true
   # @schema
-  # -- Resource requests and limits for the MCP server container.
+  # -- Resource requests and limits for the MCP server sidecar.
   resources:
     requests:
       cpu: 100m
@@ -1961,360 +1992,10 @@ mcp:
   # type: object
   # additionalProperties: false
   # @schema
-  # -- MCP server Service configuration (internal port used by the MCP container).
-  service:
-    # @schema
-    # type: integer
-    # minimum: 1
-    # maximum: 65535
-    # @schema
-    # -- Service port.
-    port: 8001
-    # @schema
-    # type: integer
-    # minimum: 1
-    # maximum: 65535
-    # @schema
-    # -- Container target port for the MCP server process.
-    targetPort: 8001
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- Kubernetes secret containing MCP_API_KEY and CLUSTER_NAME.
+  # -- Kubernetes secret containing MCP_API_KEY for hub backend authentication.
   secret:
     # @schema
     # type: string
     # @schema
     # -- Name of the Kubernetes secret.
     name: rhacs-manager-mcp
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- OAuth proxy sidecar configuration for MCP server.
-  oauthProxy:
-    # @schema
-    # type: string
-    # @schema
-    # -- ServiceAccount name for the oauth-proxy (shared with frontend by default).
-    serviceAccountName: rhacs-manager-oauth-proxy
-    # @schema
-    # type: object
-    # additionalProperties: false
-    # @schema
-    # -- OAuth proxy container image.
-    image:
-      # @schema
-      # type: string
-      # @schema
-      # -- Image repository.
-      repository: registry.redhat.io/openshift4/ose-oauth-proxy
-      # @schema
-      # type: string
-      # @schema
-      # -- Image tag.
-      tag: "v4.14"
-      # @schema
-      # type: string
-      # enum: [Always, IfNotPresent, Never]
-      # @schema
-      # -- Image pull policy.
-      pullPolicy: IfNotPresent
-    # @schema
-    # type: object
-    # additionalProperties: true
-    # @schema
-    # -- Container-level security context for the oauth-proxy.
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: [ALL]
-    # @schema
-    # type: string
-    # @schema
-    # -- OAuth proxy cookie encryption secret. Generate a random value for production.
-    cookieSecret: ""
-    # @schema
-    # type: string
-    # @schema
-    # -- Cookie refresh interval.
-    cookieRefresh: "12h"
-    # @schema
-    # type: string
-    # @schema
-    # -- Name of the TLS secret for the oauth-proxy (auto-generated by OpenShift serving cert annotation).
-    tlsSecretName: rhacs-manager-mcp-oauth-proxy-tls
-    # @schema
-    # type: object
-    # additionalProperties: true
-    # @schema
-    # -- Resource requests and limits for the oauth-proxy container.
-    resources:
-      requests:
-        cpu: 100m
-        memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 64Mi
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- Auth header injector sidecar configuration for MCP server.
-  authHeaderInjector:
-    # @schema
-    # type: object
-    # additionalProperties: false
-    # @schema
-    # -- Auth header injector container image.
-    image:
-      # @schema
-      # type: string
-      # @schema
-      # -- Image repository.
-      repository: ghcr.io/dadav/rhacs-manager-auth-header-injector
-      # @schema
-      # type: string
-      # @schema
-      # -- Image tag. Defaults to Chart.appVersion if not set.
-      tag: ""
-      # @schema
-      # type: string
-      # enum: [Always, IfNotPresent, Never]
-      # @schema
-      # -- Image pull policy.
-      pullPolicy: IfNotPresent
-    # @schema
-    # type: object
-    # additionalProperties: true
-    # @schema
-    # -- Container-level security context for the auth-header-injector.
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: [ALL]
-    # @schema
-    # type: string
-    # @schema
-    # -- Namespace annotation key for user mapping.
-    namespaceAnnotation: rhacs-manager.io/users
-    # @schema
-    # type: string
-    # @schema
-    # -- Namespace annotation key for group mapping.
-    groupAnnotation: rhacs-manager.io/groups
-    # @schema
-    # type: string
-    # @schema
-    # -- Namespace annotation key for escalation email.
-    emailAnnotation: rhacs-manager.io/escalation-email
-    # @schema
-    # type: string
-    # @schema
-    # -- TTL in seconds for the namespace cache.
-    cacheTtlSeconds: "300"
-    # @schema
-    # type: string
-    # @schema
-    # -- TTL in seconds for the group cache.
-    groupCacheTtlSeconds: "60"
-    # @schema
-    # type: string
-    # @schema
-    # -- Comma-separated groups that get wildcard (*) namespace access.
-    allNamespacesGroups: ""
-    # @schema
-    # type: object
-    # additionalProperties: true
-    # @schema
-    # -- Resource requests and limits for the auth-header-injector container.
-    resources:
-      requests:
-        cpu: 100m
-        memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 64Mi
-    # @schema
-    # type: object
-    # additionalProperties: false
-    # @schema
-    # -- Readiness probe for the auth-header-injector container.
-    readinessProbe:
-      # @schema
-      # type: string
-      # @schema
-      # -- HTTP path for the probe.
-      path: /healthz
-      # @schema
-      # type: integer
-      # minimum: 0
-      # @schema
-      # -- Seconds before the first probe.
-      initialDelaySeconds: 5
-      # @schema
-      # type: integer
-      # minimum: 1
-      # @schema
-      # -- How often to run the probe.
-      periodSeconds: 10
-      # @schema
-      # type: integer
-      # minimum: 1
-      # @schema
-      # -- Seconds before the probe times out.
-      timeoutSeconds: 3
-      # @schema
-      # type: integer
-      # minimum: 1
-      # @schema
-      # -- Failures before marking unhealthy.
-      failureThreshold: 3
-      # @schema
-      # type: integer
-      # minimum: 1
-      # @schema
-      # -- Successes before marking healthy.
-      successThreshold: 1
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- Readiness probe for the MCP server container.
-  readinessProbe:
-    # @schema
-    # type: string
-    # @schema
-    # -- HTTP path for the probe.
-    path: /mcp
-    # @schema
-    # type: integer
-    # minimum: 0
-    # @schema
-    # -- Seconds before the first probe.
-    initialDelaySeconds: 5
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- How often to run the probe.
-    periodSeconds: 10
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Seconds before the probe times out.
-    timeoutSeconds: 3
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Failures before marking unhealthy.
-    failureThreshold: 3
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Successes before marking healthy.
-    successThreshold: 1
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- Liveness probe for the MCP server container.
-  livenessProbe:
-    # @schema
-    # type: string
-    # @schema
-    # -- HTTP path for the probe.
-    path: /mcp
-    # @schema
-    # type: integer
-    # minimum: 0
-    # @schema
-    # -- Seconds before the first probe.
-    initialDelaySeconds: 10
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- How often to run the probe.
-    periodSeconds: 30
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Seconds before the probe times out.
-    timeoutSeconds: 3
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Failures before marking unhealthy.
-    failureThreshold: 3
-    # @schema
-    # type: integer
-    # minimum: 1
-    # @schema
-    # -- Successes before marking healthy.
-    successThreshold: 1
-  # @schema
-  # type: object
-  # additionalProperties: false
-  # @schema
-  # -- MCP server OpenShift Route configuration.
-  route:
-    # @schema
-    # type: boolean
-    # @schema
-    # -- Enable the MCP server Route.
-    enabled: false
-    # @schema
-    # type: string
-    # @schema
-    # -- Route resource name.
-    name: rhacs-manager-mcp
-    # @schema
-    # type: string
-    # @schema
-    # -- Route hostname (required when mcp.route.enabled=true).
-    host: ""
-    # @schema
-    # type: object
-    # additionalProperties: false
-    # @schema
-    # -- TLS configuration for the MCP server route.
-    tls:
-      # @schema
-      # type: string
-      # enum: [reencrypt, passthrough]
-      # @schema
-      # -- TLS termination type (reencrypt because oauth-proxy serves TLS).
-      termination: reencrypt
-      # @schema
-      # type: string
-      # enum: [Allow, Redirect, None]
-      # @schema
-      # -- Insecure edge termination policy.
-      insecureEdgeTerminationPolicy: Redirect
-  # @schema
-  # type: object
-  # additionalProperties: true
-  # @schema
-  # -- Node selector for MCP server pods.
-  nodeSelector: {}
-  # @schema
-  # type: array
-  # items:
-  #   type: object
-  #   additionalProperties: true
-  # @schema
-  # -- Tolerations for MCP server pods.
-  tolerations: []
-  # @schema
-  # type: object
-  # additionalProperties: true
-  # @schema
-  # -- Affinity rules for MCP server pods.
-  affinity: {}

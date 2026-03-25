@@ -66,6 +66,7 @@ Expects a dict with keys: oauthProxy, authHeaderInjector, frontend, secret, glob
 */}}
 {{/*
 oauthProxyPodSpec renders a 3-container pod: oauth-proxy → auth-header-injector → app.
+Optionally adds extra sidecar containers when .extraContainers is provided.
 
 Required context keys:
   .deploymentName, .selectorLabels, .podAnnotations, .oauthProxy, .authHeaderInjector,
@@ -73,6 +74,8 @@ Required context keys:
         resources, readinessProbe, livenessProbe, securityContext),
   .secretName, .imagePullSecrets, .podSecurityContext, .securityContext,
   .nodeSelector, .tolerations, .affinity, .topologySpreadConstraints, .chart
+Optional:
+  .extraContainers (list of additional container specs to append to the pod)
 */}}
 {{- define "rhacs-manager.oauthProxyPodSpec" -}}
 metadata:
@@ -210,6 +213,10 @@ spec:
         failureThreshold: {{ .failureThreshold }}
         successThreshold: {{ .successThreshold }}
       {{- end }}
+
+  {{- with .extraContainers }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 
   {{- with .nodeSelector }}
   nodeSelector:
