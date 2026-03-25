@@ -168,6 +168,14 @@ dev-backend session="sec" *namespaces:
     uv --directory backend run alembic upgrade head
     uv --directory backend run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+# Start MCP server (optional, connects to backend API)
+dev-mcp *args:
+    MCP_BACKEND_URL="http://localhost:8000" uv --directory backend run python -m mcp_server {{ args }}
+
+# Start MCP server in readonly mode
+dev-mcp-readonly:
+    MCP_BACKEND_URL="http://localhost:8000" MCP_READONLY=true uv --directory backend run python -m mcp_server
+
 # Start only the frontend dev server
 dev-frontend:
     cd frontend && bun run dev --host 0.0.0.0

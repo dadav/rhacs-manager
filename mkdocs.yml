@@ -92,5 +92,6 @@ nav:
   - API:
       - Overview: api/index.md
       - Endpoints: api/endpoints.md
+  - MCP Server: mcp-server.md
   - Development: development.md
   - Troubleshooting: troubleshooting.md

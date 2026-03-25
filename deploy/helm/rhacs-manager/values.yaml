@@ -1869,3 +1869,170 @@ spoke:
       # @schema
       # -- Insecure edge termination policy.
       insecureEdgeTerminationPolicy: Redirect
+
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
+# -- Optional MCP server for OpenShift Lightspeed integration (hub mode only).
+mcp:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Enable the MCP server deployment.
+  enabled: false
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Run in readonly mode (only read-only tools are exposed).
+  readonly: false
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the MCP server Deployment resource.
+  deploymentName: rhacs-manager-mcp
+  # @schema
+  # type: string
+  # @schema
+  # -- Name of the MCP server Service resource.
+  serviceName: rhacs-manager-mcp
+  # @schema
+  # type: integer
+  # minimum: 1
+  # @schema
+  # -- Number of MCP server replicas.
+  replicaCount: 1
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- MCP server container image (uses the backend image).
+  image:
+    # @schema
+    # type: string
+    # @schema
+    # -- Image repository (defaults to backend image).
+    repository: ghcr.io/dadav/rhacs-manager-backend
+    # @schema
+    # type: string
+    # @schema
+    # -- Image tag. Defaults to Chart.appVersion if not set.
+    tag: ""
+    # @schema
+    # type: string
+    # enum: [Always, IfNotPresent, Never]
+    # @schema
+    # -- Image pull policy.
+    pullPolicy: IfNotPresent
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Additional annotations for MCP server pods.
+  podAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Pod-level security context for the MCP server.
+  podSecurityContext:
+    runAsNonRoot: true
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Container-level security context for the MCP server.
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Resource requests and limits for the MCP server.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- MCP server Service configuration.
+  service:
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Service port.
+    port: 8001
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Container target port.
+    targetPort: 8001
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- MCP server OpenShift Route configuration.
+  route:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Enable the MCP server Route.
+    enabled: false
+    # @schema
+    # type: string
+    # @schema
+    # -- Route resource name.
+    name: rhacs-manager-mcp
+    # @schema
+    # type: string
+    # @schema
+    # -- Route hostname (required when mcp.route.enabled=true).
+    host: ""
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- TLS configuration for the MCP server route.
+    tls:
+      # @schema
+      # type: string
+      # enum: [edge, reencrypt, passthrough]
+      # @schema
+      # -- TLS termination type.
+      termination: edge
+      # @schema
+      # type: string
+      # enum: [Allow, Redirect, None]
+      # @schema
+      # -- Insecure edge termination policy.
+      insecureEdgeTerminationPolicy: Redirect
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Node selector for MCP server pods.
+  nodeSelector: {}
+  # @schema
+  # type: array
+  # items:
+  #   type: object
+  #   additionalProperties: true
+  # @schema
+  # -- Tolerations for MCP server pods.
+  tolerations: []
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Affinity rules for MCP server pods.
+  affinity: {}

@@ -1,0 +1,15 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.mcp.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.mcp.serviceName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Values.mcp.deploymentName }}
+  ports:
+    - port: {{ .Values.mcp.service.port }}
+      targetPort: {{ .Values.mcp.service.targetPort }}
+{{- end }}
