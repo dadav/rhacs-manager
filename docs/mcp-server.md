@@ -117,7 +117,22 @@ helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
 
 ## OpenShift Lightspeed Integration
 
-Once the MCP server is enabled, configure OpenShift Lightspeed to connect to the `/mcp` endpoint on the frontend Route. No separate Route is needed.
+Once the MCP server is enabled, configure OpenShift Lightspeed to connect to the `/mcp` endpoint on the frontend service using the cluster-internal FQDN.
+
+### Prerequisites
+
+The frontend service uses a serving certificate issued by the OpenShift service CA. To let OLS trust this certificate, create a ConfigMap with the `service.beta.openshift.io/inject-cabundle` annotation in the `openshift-lightspeed` namespace:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhacs-manager-serving-ca
+  namespace: openshift-lightspeed
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+data: {}
+```
 
 ### Configure OLSConfig
 
@@ -128,9 +143,11 @@ metadata:
   name: cluster
 spec:
   ols:
+    additionalCAConfigMapRef:
+      name: rhacs-manager-serving-ca
     mcpServers:
       - name: rhacs-manager
-        url: https://rhacs-manager.apps.example.com/mcp
+        url: https://rhacs-manager-frontend.rhacs-manager.svc:8443/mcp
 ```
 
 The oauth-proxy authenticates the user via OpenShift OAuth, the auth-header-injector resolves their namespace scope from Kubernetes namespace annotations on the local cluster, and the MCP server forwards these identity headers to the backend. The user's OpenShift identity determines which namespaces and actions are available.
