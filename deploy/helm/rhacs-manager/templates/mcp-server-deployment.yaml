@@ -23,7 +23,7 @@ spec:
       "name" "mcp-server"
       "image" .Values.mcp.image
       "port" (.Values.mcp.service.targetPort | int)
-      "command" (list "uv" "run" "python" "-m" "mcp_server")
+      "command" (list "uv" "run" "--offline" "--no-sync" "python" "-m" "mcp_server")
       "env" $mcpEnv
       "resources" .Values.mcp.resources
       "readinessProbe" .Values.mcp.readinessProbe
