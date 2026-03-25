@@ -8,10 +8,8 @@ RHACS CVE Manager uses a hub-spoke deployment model aligned with how Red Hat Adv
 graph LR
     subgraph "Hub Cluster (Admin)"
         BE["FastAPI Backend"]
-        FE_HUB["Hub Frontend"]
-        MCP_OP["oauth-proxy"]
-        MCP_NR["auth-header-injector"]
-        MCP["MCP Server"]
+        FE_HUB["Hub Frontend Pod"]
+        FE_HUB_MCP["MCP Server (optional sidecar)"]
         APP_DB[("App DB")]
         SX_DB[("StackRox Central DB")]
     end
@@ -20,34 +18,37 @@ graph LR
         OP_A["oauth-proxy"]
         NR_A["auth-header-injector"]
         FE_A["Spoke Frontend"]
+        MCP_A["MCP Server (optional sidecar)"]
     end
 
     subgraph "Spoke Cluster B"
         OP_B["oauth-proxy"]
         NR_B["auth-header-injector"]
         FE_B["Spoke Frontend"]
+        MCP_B["MCP Server (optional sidecar)"]
     end
 
     FE_HUB --> BE
+    FE_HUB_MCP -->|"X-Api-Key<br/>X-Forwarded-*"| BE
     BE --> APP_DB
     BE --> SX_DB
 
-    MCP_OP --> MCP_NR
-    MCP_NR --> MCP
-    MCP -->|"X-Api-Key<br/>X-Forwarded-*"| BE
-
     OP_A --> NR_A
     NR_A --> FE_A
+    NR_A --> MCP_A
     FE_A -->|"X-Api-Key<br/>X-Forwarded-*"| BE
+    MCP_A -->|"X-Api-Key<br/>X-Forwarded-*"| BE
 
     OP_B --> NR_B
     NR_B --> FE_B
+    NR_B --> MCP_B
     FE_B -->|"X-Api-Key<br/>X-Forwarded-*"| BE
+    MCP_B -->|"X-Api-Key<br/>X-Forwarded-*"| BE
 ```
 
-**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly. An optional MCP server pod (for OpenShift Lightspeed integration) runs behind the same oauth-proxy + auth-header-injector chain and communicates with the backend via `X-Api-Key` + `X-Forwarded-*` headers, identical to spoke clusters.
+**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly. An optional MCP server sidecar (for OpenShift Lightspeed integration) runs inside the frontend pod, sharing the same oauth-proxy + auth-header-injector chain. Nginx exposes the MCP endpoint at `/mcp`.
 
-**Spoke clusters** run a frontend (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key.
+**Spoke clusters** run a frontend pod (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key. When MCP is enabled, the MCP server runs as an additional sidecar in the same frontend pod, ensuring namespace resolution happens on the spoke cluster where the annotations live. OpenShift Lightspeed connects to the `/mcp` endpoint on the spoke's frontend Route.
 
 ## Dual Database Design
 
@@ -143,6 +144,7 @@ sequenceDiagram
     participant OAuth as oauth-proxy
     participant NR as auth-header-injector<br/>(:8081)
     participant Nginx as Spoke nginx<br/>(:8080)
+    participant MCP as MCP Server<br/>(:8001, optional)
     participant Hub as Hub Backend
 
     User->>OAuth: Access route
@@ -150,11 +152,20 @@ sequenceDiagram
     OAuth->>NR: Request + X-Forwarded-User/Email/Groups
     NR->>NR: Resolve user/group namespace annotations + escalation-email annotation
     NR->>Nginx: Request + X-Forwarded-Namespaces + X-Forwarded-Namespace-Emails
-    Nginx->>Hub: /api/* + X-Api-Key + X-Forwarded-*
+
+    alt /api/* requests (SPA)
+        Nginx->>Hub: /api/* + X-Api-Key + X-Forwarded-*
+        Hub-->>Nginx: API response
+    else /mcp requests (Lightspeed)
+        Nginx->>MCP: /mcp + X-Forwarded-*
+        MCP->>Hub: REST API + X-Api-Key + X-Forwarded-*
+        Hub-->>MCP: API response
+        MCP-->>Nginx: MCP response
+    end
+
     Hub->>Hub: Validate API key (constant-time)
     Hub->>Hub: Resolve role from groups (sec_team check)
     Hub->>Hub: Auto-provision user (spoke:username)
-    Hub-->>Nginx: API response
     Nginx-->>OAuth: Response
     OAuth-->>User: Response
 ```
