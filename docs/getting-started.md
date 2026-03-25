@@ -12,17 +12,14 @@ This guide walks you through deploying RHACS CVE Manager on OpenShift.
 
 ## Step 1: Build and Push Container Images
 
-Build the three container images and push them to your registry:
+Build the container images and push them to your registry:
 
 ```bash
 # Backend
 just build-backend-image tag=registry.example.com/rhacs-manager-backend:latest
 
-# Frontend (hub)
+# Frontend
 just build-frontend-image tag=registry.example.com/rhacs-manager-frontend:latest
-
-# Frontend (spoke, if using spoke clusters)
-just build-spoke-image tag=registry.example.com/rhacs-manager-spoke:latest
 ```
 
 Push the images to your registry:
@@ -30,7 +27,6 @@ Push the images to your registry:
 ```bash
 podman push registry.example.com/rhacs-manager-backend:latest
 podman push registry.example.com/rhacs-manager-frontend:latest
-podman push registry.example.com/rhacs-manager-spoke:latest
 ```
 
 See [Container Images](deployment/containers.md) for details on each image.
@@ -114,7 +110,7 @@ helm upgrade --install rhacs-manager-spoke deploy/helm/rhacs-manager \
   -n rhacs-manager --create-namespace \
   --set mode=spoke \
   --set spoke.oauthProxy.cookieSecret="$(openssl rand -base64 32)" \
-  --set spoke.frontend.image.repository=registry.example.com/rhacs-manager-spoke \
+  --set spoke.frontend.image.repository=registry.example.com/rhacs-manager-frontend \
   --set spoke.frontend.image.tag=latest \
   --set spoke.frontend.hubApiUrl=https://rhacs-manager-api.apps.hub.example.com \
   --set spoke.frontend.spokeApiKey="<key-matching-hub-SPOKE_API_KEYS>"

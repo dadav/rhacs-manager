@@ -62,13 +62,9 @@ install:
 build-backend-image tag="rhacs-manager-backend:latest":
     podman build -t {{ tag }} backend/
 
-# Build frontend hub container image
+# Build frontend container image
 build-frontend-image tag="rhacs-manager-frontend:latest":
     podman build -t {{ tag }} frontend/
-
-# Build frontend spoke container image
-build-spoke-image tag="rhacs-manager-spoke:latest":
-    podman build -t {{ tag }} -f frontend/Containerfile frontend/
 
 # Start dev server (session: sec or user; optional namespaces for team_member)
 dev session="sec" *namespaces:

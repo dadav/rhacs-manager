@@ -1220,7 +1220,7 @@
         },
         "image": {
           "additionalProperties": false,
-          "description": "Spoke frontend image (nginx with envsubst + API proxy).",
+          "description": "Frontend image (nginx with envsubst + API proxy).",
           "properties": {
             "pullPolicy": {
               "default": "IfNotPresent",
@@ -1234,7 +1234,7 @@
               "type": "string"
             },
             "repository": {
-              "default": "ghcr.io/dadav/rhacs-manager-spoke",
+              "default": "ghcr.io/dadav/rhacs-manager-frontend",
               "description": "Image repository.",
               "title": "repository",
               "type": "string"
@@ -2389,7 +2389,7 @@
             },
             "image": {
               "additionalProperties": false,
-              "description": "Spoke frontend container image.",
+              "description": "Frontend container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
@@ -2403,7 +2403,7 @@
                   "type": "string"
                 },
                 "repository": {
-                  "default": "ghcr.io/dadav/rhacs-manager-spoke",
+                  "default": "ghcr.io/dadav/rhacs-manager-frontend",
                   "description": "Image repository.",
                   "title": "repository",
                   "type": "string"

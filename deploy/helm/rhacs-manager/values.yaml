@@ -928,13 +928,13 @@ frontend:
   # type: object
   # additionalProperties: false
   # @schema
-  # -- Spoke frontend image (nginx with envsubst + API proxy).
+  # -- Frontend image (nginx with envsubst + API proxy).
   image:
     # @schema
     # type: string
     # @schema
     # -- Image repository.
-    repository: ghcr.io/dadav/rhacs-manager-spoke
+    repository: ghcr.io/dadav/rhacs-manager-frontend
     # @schema
     # type: string
     # @schema
@@ -1669,13 +1669,13 @@ spoke:
     # type: object
     # additionalProperties: false
     # @schema
-    # -- Spoke frontend container image.
+    # -- Frontend container image.
     image:
       # @schema
       # type: string
       # @schema
       # -- Image repository.
-      repository: ghcr.io/dadav/rhacs-manager-spoke
+      repository: ghcr.io/dadav/rhacs-manager-frontend
       # @schema
       # type: string
       # @schema

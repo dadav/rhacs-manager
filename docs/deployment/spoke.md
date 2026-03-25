@@ -70,9 +70,9 @@ openssl rand -base64 32
 ## Build and Push Images
 
 ```bash
-just build-spoke-image tag=registry.example.com/rhacs-manager-spoke:latest
+just build-frontend-image tag=registry.example.com/rhacs-manager-frontend:latest
 podman build -t registry.example.com/rhacs-manager-auth-header-injector:latest auth-header-injector/
-podman push registry.example.com/rhacs-manager-spoke:latest
+podman push registry.example.com/rhacs-manager-frontend:latest
 podman push registry.example.com/rhacs-manager-auth-header-injector:latest
 ```
 
