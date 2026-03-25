@@ -1,6 +1,6 @@
 # Container Images
 
-Three container images are built for deployment. All dependencies are bundled at build time -- no internet access is required at runtime.
+Four container images are built for deployment. All dependencies are bundled at build time -- no internet access is required at runtime.
 
 ## Backend Image
 
@@ -75,6 +75,30 @@ The spoke image differs from the hub image in that it:
 - Proxies all `/api/*` requests to the hub backend with authentication headers
 - Forwards oauth-proxy identity headers (`X-Forwarded-User`, `X-Forwarded-Email`, `X-Forwarded-Groups`)
 
+## MCP Server Image
+
+**File**: `mcp-server/Containerfile`
+
+Lightweight standalone image for the optional MCP server sidecar. The MCP server is a pure HTTP proxy to the backend API — it has no database dependencies and only needs `mcp[cli]`, `httpx`, and `pydantic-settings`.
+
+```bash
+podman build -t rhacs-manager-mcp-server:latest mcp-server/
+```
+
+Build steps:
+
+1. Installs `uv` from the official image
+2. Copies `pyproject.toml` and `uv.lock` for layer caching
+3. Runs `uv sync --frozen --no-dev` (production deps only)
+4. Copies the `mcp_server/` Python package
+5. On startup: runs `python -m mcp_server` on port 8001
+
+| Property   | Value              |
+| ---------- | ------------------ |
+| Base image | `python:3.14-slim` |
+| Port       | 8001               |
+| Entrypoint | MCP server via uv  |
+
 ## Build Summary
 
 | Image            | Build command               | Base                        | Port |
@@ -82,3 +106,4 @@ The spoke image differs from the hub image in that it:
 | Backend          | `just build-backend-image`  | `python:3.14-slim`          | 8000 |
 | Frontend (hub)   | `just build-frontend-image` | `nginx-unprivileged:alpine` | 8080 |
 | Frontend (spoke) | `just build-spoke-image`    | `nginx-unprivileged:alpine` | 8080 |
+| MCP Server       | `podman build mcp-server/`  | `python:3.14-slim`          | 8001 |

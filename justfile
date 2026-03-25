@@ -55,6 +55,7 @@ migrate-status:
 # Install all dependencies (backend + frontend)
 install:
     uv --directory backend sync
+    uv --directory mcp-server sync
     cd frontend && bun install
 
 # Build backend container image
@@ -170,11 +171,11 @@ dev-backend session="sec" *namespaces:
 
 # Start MCP server (optional, connects to backend API)
 dev-mcp *args:
-    MCP_BACKEND_URL="http://localhost:8000" uv --directory backend run python -m mcp_server {{ args }}
+    MCP_BACKEND_URL="http://localhost:8000" uv --directory mcp-server run python -m mcp_server {{ args }}
 
 # Start MCP server in readonly mode
 dev-mcp-readonly:
-    MCP_BACKEND_URL="http://localhost:8000" MCP_READONLY=true uv --directory backend run python -m mcp_server
+    MCP_BACKEND_URL="http://localhost:8000" MCP_READONLY=true uv --directory mcp-server run python -m mcp_server
 
 # Start only the frontend dev server
 dev-frontend:

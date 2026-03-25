@@ -1818,13 +1818,13 @@ spoke:
     # type: object
     # additionalProperties: false
     # @schema
-    # -- MCP server container image (uses the backend image).
+    # -- MCP server container image.
     image:
       # @schema
       # type: string
       # @schema
       # -- Image repository.
-      repository: ghcr.io/dadav/rhacs-manager-backend
+      repository: ghcr.io/dadav/rhacs-manager-mcp-server
       # @schema
       # type: string
       # @schema
@@ -1950,13 +1950,13 @@ mcp:
   # type: object
   # additionalProperties: false
   # @schema
-  # -- MCP server container image (uses the backend image).
+  # -- MCP server container image.
   image:
     # @schema
     # type: string
     # @schema
-    # -- Image repository (defaults to backend image).
-    repository: ghcr.io/dadav/rhacs-manager-backend
+    # -- Image repository.
+    repository: ghcr.io/dadav/rhacs-manager-mcp-server
     # @schema
     # type: string
     # @schema

@@ -26,6 +26,10 @@ jobs:
             context: auth-header-injector
             dockerfile: auth-header-injector/Containerfile
             image: rhacs-manager-auth-header-injector
+          - name: mcp-server
+            context: mcp-server
+            dockerfile: mcp-server/Containerfile
+            image: rhacs-manager-mcp-server
     permissions:
       contents: read
     steps:
@@ -157,6 +161,20 @@ jobs:
       - run: uv run pytest
         working-directory: backend
 
+  test-mcp-server:
+    name: Test MCP Server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.14"
+      - run: uv sync --dev
+        working-directory: mcp-server
+      - run: uv run pytest
+        working-directory: mcp-server
+
   lint-backend:
     name: Lint Backend
     runs-on: ubuntu-latest
@@ -172,3 +190,19 @@ jobs:
         working-directory: backend
       - run: uv run ruff format --check .
         working-directory: backend
+
+  lint-mcp-server:
+    name: Lint MCP Server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.14"
+      - run: uv sync --dev
+        working-directory: mcp-server
+      - run: uv run ruff check .
+        working-directory: mcp-server
+      - run: uv run ruff format --check .
+        working-directory: mcp-server

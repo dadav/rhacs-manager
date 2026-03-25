@@ -46,9 +46,9 @@ graph LR
     MCP_B -->|"X-Api-Key<br/>X-Forwarded-*"| BE
 ```
 
-**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly. An optional MCP server sidecar (for OpenShift Lightspeed integration) runs inside the frontend pod, sharing the same oauth-proxy + auth-header-injector chain. Nginx exposes the MCP endpoint at `/mcp`.
+**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly. An optional MCP server sidecar (for OpenShift Lightspeed integration) runs inside the frontend pod using a dedicated lightweight image (`rhacs-manager-mcp-server`), sharing the same oauth-proxy + auth-header-injector chain. Nginx exposes the MCP endpoint at `/mcp`.
 
-**Spoke clusters** run a frontend pod (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key. When MCP is enabled, the MCP server runs as an additional sidecar in the same frontend pod, ensuring namespace resolution happens on the spoke cluster where the annotations live. OpenShift Lightspeed connects to the `/mcp` endpoint on the spoke's frontend Route.
+**Spoke clusters** run a frontend pod (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key. When MCP is enabled, the MCP server runs as an additional sidecar (using the same dedicated `rhacs-manager-mcp-server` image) in the same frontend pod, ensuring namespace resolution happens on the spoke cluster where the annotations live. OpenShift Lightspeed connects to the `/mcp` endpoint on the spoke's frontend Route.
 
 ## Dual Database Design
 

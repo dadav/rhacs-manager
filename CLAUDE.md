@@ -78,6 +78,7 @@ Notes:
 | `frontend/src/pages/` | Route-level components, usually one file per route |
 | `frontend/src/components/` | Shared UI pieces |
 | `frontend/src/i18n/` | Translation JSON and i18n setup |
+| `mcp-server/` | Lightweight MCP server sidecar for AI assistant integration |
 | `auth-header-injector/main.go` | Namespace and group resolution sidecar |
 | `deploy/helm/rhacs-manager/` | Single supported deployment method |
 | `docs/` | MkDocs content |

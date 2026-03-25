@@ -1759,7 +1759,7 @@
         },
         "image": {
           "additionalProperties": false,
-          "description": "MCP server container image (uses the backend image).",
+          "description": "MCP server container image.",
           "properties": {
             "pullPolicy": {
               "default": "IfNotPresent",
@@ -1773,8 +1773,8 @@
               "type": "string"
             },
             "repository": {
-              "default": "ghcr.io/dadav/rhacs-manager-backend",
-              "description": "Image repository (defaults to backend image).",
+              "default": "ghcr.io/dadav/rhacs-manager-mcp-server",
+              "description": "Image repository.",
               "title": "repository",
               "type": "string"
             },
@@ -2642,7 +2642,7 @@
             },
             "image": {
               "additionalProperties": false,
-              "description": "MCP server container image (uses the backend image).",
+              "description": "MCP server container image.",
               "properties": {
                 "pullPolicy": {
                   "default": "IfNotPresent",
@@ -2656,7 +2656,7 @@
                   "type": "string"
                 },
                 "repository": {
-                  "default": "ghcr.io/dadav/rhacs-manager-backend",
+                  "default": "ghcr.io/dadav/rhacs-manager-mcp-server",
                   "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
