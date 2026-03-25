@@ -9,23 +9,17 @@ import {
   GridItem,
   Label,
   PageSection,
-  Pagination,
   Skeleton,
-  TextInput,
   Title,
 } from '@patternfly/react-core'
-import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { useState } from 'react'
+import { Table, Tbody, Tr, Td } from '@patternfly/react-table'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useImageDetail } from '../api/images'
 import { ImageCveTimeline } from '../components/charts/ImageCveTimeline'
-import { EpssBadge } from '../components/common/EpssBadge'
-import { SeverityBadge } from '../components/common/SeverityBadge'
 import { getErrorMessage } from '../utils/errors'
 import {
   SEVERITY_COLORS,
-  BRAND_BLUE,
   FIXABLE_COLOR,
 } from '../tokens'
 
@@ -67,10 +61,6 @@ export function ImageDetail() {
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const { data: image, isLoading, error } = useImageDetail(decodedId)
 
-  const [cveSearch, setCveSearch] = useState('')
-  const [cvePage, setCvePage] = useState(1)
-  const cvePerPage = 20
-
   if (isLoading) {
     return (
       <PageSection>
@@ -105,12 +95,7 @@ export function ImageDetail() {
     { key: 'low', count: image.low_cves, color: SEVERITY_COLORS.low, label: t('severity.1') },
   ].filter(s => s.count > 0) : []
 
-  // Filter and paginate CVEs
-  const filteredCves = cveSearch
-    ? image.cves.filter(c => c.cve_id.toLowerCase().includes(cveSearch.toLowerCase()))
-    : image.cves
-  const cvePageStart = (cvePage - 1) * cvePerPage
-  const cvePageItems = filteredCves.slice(cvePageStart, cvePageStart + cvePerPage)
+  const cveSearchUrl = `/vulnerabilities?view=image&image_name=${encodeURIComponent(image.name_fullname)}`
 
   // Parse image name parts for display
   const shortName = image.name_tag
@@ -233,11 +218,17 @@ export function ImageDetail() {
 
                   {/* Stats grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4 }}>
+                    <div
+                      onClick={() => navigate(cveSearchUrl)}
+                      style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4, cursor: 'pointer' }}
+                    >
                       <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.totalCves')}</div>
                       <div style={{ fontSize: 20, fontWeight: 700 }}>{image.cve_count}</div>
                     </div>
-                    <div style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4 }}>
+                    <div
+                      onClick={() => navigate(`${cveSearchUrl}&fixable=true`)}
+                      style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4, cursor: 'pointer' }}
+                    >
                       <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.fixableCves')}</div>
                       <div style={{ fontSize: 20, fontWeight: 700, color: FIXABLE_COLOR }}>{image.fixable_cves}</div>
                     </div>
@@ -327,95 +318,6 @@ export function ImageDetail() {
         </PageSection>
       )}
 
-      {/* CVE Table */}
-      <PageSection variant="default" style={{ paddingTop: 0 }} isFilled>
-        <Card>
-          <CardTitle>{t('imageDetail.cveTable', { count: image.cves.length })}</CardTitle>
-          <CardBody>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <TextInput
-                type="search"
-                value={cveSearch}
-                onChange={(_, v) => { setCveSearch(v); setCvePage(1) }}
-                placeholder={t('imageDetail.searchCves')}
-                style={{ flex: 1 }}
-                aria-label={t('imageDetail.searchCves')}
-              />
-              {cveSearch && (
-                <span style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                  {filteredCves.length} / {image.cves.length}
-                </span>
-              )}
-            </div>
-          </CardBody>
-          <CardBody style={{ padding: 0 }}>
-            <Table variant="compact" isStickyHeader style={{ tableLayout: 'fixed' }}>
-              <Thead>
-                <Tr>
-                  <Th width={15}>{t('cves.cveId')}</Th>
-                  <Th width={10}>{t('cves.severity')}</Th>
-                  <Th width={10}>{t('cves.cvss')}</Th>
-                  <Th width={10}>{t('cves.epss')}</Th>
-                  <Th width={10}>{t('cves.fixable')}</Th>
-                  <Th width={15}>{t('cves.fixVersion')}</Th>
-                  <Th width={15}>{t('cves.firstSeen')}</Th>
-                  <Th width={15}>{t('cves.publishedOn')}</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {cvePageItems.length > 0 ? cvePageItems.map(cve => (
-                  <Tr key={cve.cve_id}>
-                    <Td>
-                      <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
-                        {cve.cve_id}
-                      </Link>
-                    </Td>
-                    <Td><SeverityBadge severity={cve.severity} /></Td>
-                    <Td style={{
-                      fontWeight: cve.cvss >= 9 ? 700 : 400,
-                      color: cve.cvss >= 9 ? SEVERITY_COLORS.critical : 'inherit',
-                    }}>
-                      {cve.cvss.toFixed(1)}
-                    </Td>
-                    <Td><EpssBadge value={cve.epss_probability} /></Td>
-                    <Td>
-                      {cve.fixable
-                        ? <span style={{ color: FIXABLE_COLOR }}>✓</span>
-                        : <span style={{ color: '#8a8d90' }}>✗</span>}
-                    </Td>
-                    <Td style={{ fontFamily: 'monospace', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cve.fixed_by ?? '–'}
-                    </Td>
-                    <Td style={{ fontSize: 11 }}>
-                      {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
-                    </Td>
-                    <Td style={{ fontSize: 11 }}>
-                      {cve.published_on ? new Date(cve.published_on).toLocaleDateString(dateLocale) : '–'}
-                    </Td>
-                  </Tr>
-                )) : (
-                  <Tr>
-                    <Td colSpan={8} style={{ textAlign: 'center', color: 'var(--pf-t--global--text--color--subtle)', fontSize: 13 }}>
-                      {cveSearch ? t('cveDetail.noDeployments') : '–'}
-                    </Td>
-                  </Tr>
-                )}
-              </Tbody>
-            </Table>
-          </CardBody>
-          {filteredCves.length > cvePerPage && (
-            <CardBody style={{ paddingTop: 0 }}>
-              <Pagination
-                itemCount={filteredCves.length}
-                perPage={cvePerPage}
-                page={cvePage}
-                onSetPage={(_, p) => setCvePage(p)}
-                isCompact
-              />
-            </CardBody>
-          )}
-        </Card>
-      </PageSection>
     </>
   )
 }

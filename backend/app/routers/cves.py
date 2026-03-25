@@ -105,6 +105,7 @@ async def list_cves_by_image(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    image_name: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -157,6 +158,7 @@ async def list_cves_by_image(
         cvss_min=cvss_min,
         epss_min=epss_min,
         component=component,
+        image_name=image_name,
     )
     return [
         ImageCveGroup(

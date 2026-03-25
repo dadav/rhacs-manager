@@ -84,6 +84,7 @@ interface ImageFilterParams {
   cvss_min?: number
   epss_min?: number
   component?: string
+  image_name?: string
 }
 
 export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterParams = {}) {

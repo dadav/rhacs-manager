@@ -100,6 +100,7 @@ export function CveList() {
   const urlAgeMax     = searchParams.get('age_max') || ''
   const urlDeployment = searchParams.get('deployment') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
+  const urlImageName  = searchParams.get('image_name') || ''
   const urlViewMode   = searchParams.get('view') === 'image' ? 'image' : 'cve'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
@@ -218,6 +219,7 @@ export function CveList() {
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
+    image_name: urlImageName || undefined,
   }
   const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(scopeOverrides, imageFilters)
   const { isSecTeam } = useAuth()

@@ -56,6 +56,7 @@ async def get_cves_grouped_by_image(
     cvss_min: float | None = None,
     epss_min: float | None = None,
     component: str | None = None,
+    image_name: str | None = None,
 ) -> list[dict]:
     """Group CVEs by container image. Returns one row per image with CVE counts and severity breakdown.
 
@@ -107,6 +108,15 @@ async def get_cves_grouped_by_image(
         cte_extra_having += "\n                AND BOOL_OR(comp.name ILIKE :comp_pat)"
         params["comp_pat"] = f"%{component}%"
 
+    # Build outer WHERE for namespace + image_name filtering
+    outer_conditions: list[str] = []
+    if namespaces:
+        outer_conditions.append(ns_fragment)
+    if image_name:
+        outer_conditions.append("dc.image_name_fullname = :image_name_filter")
+        params["image_name_filter"] = image_name
+    outer_where = f"WHERE {' AND '.join(outer_conditions)}" if outer_conditions else ""
+
     sql = text(f"""
         WITH visible_cves AS (
             SELECT ic.cvebaseinfo_cve AS cve_id, ic.imageid
@@ -142,7 +152,7 @@ async def get_cves_grouped_by_image(
             AND ic.imageid = vc.imageid
         JOIN deployments_containers dc ON dc.image_id = ic.imageid
         JOIN deployments d ON d.id = dc.deployments_id
-        {("WHERE " + ns_fragment) if namespaces else ""}
+        {outer_where}
         GROUP BY dc.image_name_fullname, dc.image_id
         ORDER BY total_cves DESC
     """)
