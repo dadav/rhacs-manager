@@ -5,6 +5,7 @@ import {
   Card,
   CardBody,
   CardTitle,
+  ExpandableSection,
   Grid,
   GridItem,
   Label,
@@ -268,8 +269,11 @@ export function ImageDetail() {
       {image.layers.length > 0 && (
         <PageSection variant="default" style={{ paddingTop: 0 }}>
           <Card>
-            <CardTitle>{t('imageDetail.layers')} — {t('imageDetail.layerCount', { count: image.layers.length })}</CardTitle>
             <CardBody style={{ padding: 0 }}>
+              <ExpandableSection
+                toggleText={`${t('imageDetail.layers')} — ${t('imageDetail.layerCount', { count: image.layers.length })}`}
+                isIndented
+              >
               <div style={{
                 background: '#1e1e2e',
                 borderRadius: '0 0 8px 8px',
@@ -313,6 +317,7 @@ export function ImageDetail() {
                   )
                 })}
               </div>
+              </ExpandableSection>
             </CardBody>
           </Card>
         </PageSection>
