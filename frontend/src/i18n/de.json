@@ -777,5 +777,32 @@
     "back": "Zurück",
     "close": "Schließen",
     "skip": "Tour überspringen"
+  },
+  "imageDetail": {
+    "title": "Image-Details",
+    "breadcrumbByImage": "Nach Image",
+    "metadata": "Metadaten",
+    "securitySummary": "Sicherheitsübersicht",
+    "registry": "Registry",
+    "repository": "Repository",
+    "tag": "Tag",
+    "os": "Betriebssystem",
+    "created": "Erstellt",
+    "lastScanned": "Zuletzt gescannt",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "dockerUser": "Docker User",
+    "riskScore": "Risikobewertung",
+    "topCvss": "Höchster CVSS",
+    "componentCount": "Komponenten",
+    "totalCves": "CVEs gesamt",
+    "fixableCves": "Behebbar",
+    "cveTimeline": "CVE-Entdeckungsverlauf",
+    "layers": "Dockerfile-Layer",
+    "layerCount": "{{count}} Layer",
+    "noLayers": "Keine Layer-Informationen verfügbar",
+    "cveTable": "CVEs ({{count}})",
+    "searchCves": "CVE-ID suchen...",
+    "imageNotFound": "Image nicht gefunden",
+    "noTimelineData": "Keine Zeitverlaufsdaten"
   }
 }

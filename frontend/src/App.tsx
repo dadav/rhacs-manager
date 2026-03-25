@@ -39,6 +39,7 @@ import { AuditLog } from "./pages/AuditLog";
 import { Badges } from "./pages/Badges";
 import { Remediations } from "./pages/Remediations";
 import { SuppressionRules } from "./pages/SuppressionRules";
+import { ImageDetail } from "./pages/ImageDetail";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { GuidedTour } from "./components/GuidedTour";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -314,6 +315,7 @@ export function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/vulnerabilities" element={<CveList />} />
           <Route path="/vulnerabilities/:cveId" element={<CveDetail />} />
+          <Route path="/images/:imageId" element={<ImageDetail />} />
           <Route path="/remediations" element={<Remediations />} />
           <Route path="/risk-acceptances" element={<RiskAcceptances />} />
           <Route

@@ -1,0 +1,94 @@
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useTranslation } from 'react-i18next'
+import type { ImageCveTimelinePoint } from '../../types'
+import { chartTooltipStyle, chartTooltipWrapperStyle, CHART_TICK_FILL, CHART_GRID_STROKE } from '../../tokens'
+
+const SEVERITY_KEYS = ['low', 'moderate', 'important', 'critical'] as const
+const LEGEND_ORDER = ['critical', 'important', 'moderate', 'low'] as const
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: '#c9190b',
+  important: '#ec7a08',
+  moderate: '#f0ab00',
+  low: '#0066cc',
+}
+
+const SEVERITY_LABEL_KEY: Record<string, string> = {
+  critical: 'severity.4',
+  important: 'severity.3',
+  moderate: 'severity.2',
+  low: 'severity.1',
+}
+
+interface Props {
+  data: ImageCveTimelinePoint[]
+}
+
+export function ImageCveTimeline({ data }: Props) {
+  const { t } = useTranslation()
+
+  if (!data.length) {
+    return (
+      <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6a6e73', fontSize: 13 }}>
+        {t('imageDetail.noTimelineData')}
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <AreaChart data={data} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
+        <defs>
+          {SEVERITY_KEYS.map(key => (
+            <linearGradient key={key} id={`imgTimeline-${key}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={SEVERITY_COLORS[key]} stopOpacity={0.35} />
+              <stop offset="95%" stopColor={SEVERITY_COLORS[key]} stopOpacity={0.02} />
+            </linearGradient>
+          ))}
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 10, fill: CHART_TICK_FILL }}
+          tickFormatter={d => {
+            const parts = d.split('-')
+            return `${parts[1]}/${parts[0].slice(2)}`
+          }}
+        />
+        <YAxis tick={{ fontSize: 10, fill: CHART_TICK_FILL }} allowDecimals={false} />
+        <Tooltip
+          labelFormatter={l => l}
+          contentStyle={chartTooltipStyle}
+          wrapperStyle={chartTooltipWrapperStyle}
+        />
+        <Legend
+          verticalAlign="top"
+          height={28}
+          wrapperStyle={{ fontSize: 11 }}
+          content={() => (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontSize: 11 }}>
+              {LEGEND_ORDER.map(key => (
+                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 10, height: 10, backgroundColor: SEVERITY_COLORS[key], borderRadius: 2, display: 'inline-block' }} />
+                  {t(SEVERITY_LABEL_KEY[key])}
+                </span>
+              ))}
+            </div>
+          )}
+        />
+        {SEVERITY_KEYS.map(key => (
+          <Area
+            key={key}
+            type="monotone"
+            dataKey={key}
+            name={t(SEVERITY_LABEL_KEY[key])}
+            stroke={SEVERITY_COLORS[key]}
+            fill={`url(#imgTimeline-${key})`}
+            strokeWidth={1.5}
+            stackId="severity"
+          />
+        ))}
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}

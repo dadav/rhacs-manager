@@ -391,6 +391,7 @@ async def get_cve(
                 namespace=d["namespace"],
                 cluster_name=d["cluster_name"],
                 image_name=d.get("image_name", ""),
+                image_id=d.get("image_id", ""),
                 first_seen=d.get("first_seen"),
             )
             for d in deployments

@@ -25,7 +25,7 @@ import { CheckCircleIcon } from "@patternfly/react-icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
@@ -733,7 +733,14 @@ export function CveDetail() {
                                   }}
                                   title={d.image_name}
                                 >
-                                  {d.image_name}
+                                  {d.image_id ? (
+                                    <Link
+                                      to={`/images/${encodeURIComponent(d.image_id)}`}
+                                      style={{ color: BRAND_BLUE }}
+                                    >
+                                      {d.image_name}
+                                    </Link>
+                                  ) : d.image_name}
                                 </Td>
                                 <Td
                                   style={{

@@ -109,6 +109,7 @@ export interface AffectedDeployment {
   namespace: string
   cluster_name: string
   image_name: string
+  image_id: string
   first_seen: string | null
 }
 
@@ -466,6 +467,45 @@ export interface Paginated<T> {
   total: number
   page: number
   page_size: number
+}
+
+export interface ImageLayer {
+  idx: number
+  instruction: string
+  value: string
+}
+
+export interface ImageCveTimelinePoint {
+  month: string
+  critical: number
+  important: number
+  moderate: number
+  low: number
+}
+
+export interface ImageDetail {
+  image_id: string
+  name_fullname: string
+  name_registry: string | null
+  name_remote: string | null
+  name_tag: string | null
+  os: string | null
+  created: string | null
+  last_scanned: string | null
+  last_updated: string | null
+  docker_user: string | null
+  risk_score: number
+  top_cvss: number
+  component_count: number
+  cve_count: number
+  fixable_cves: number
+  critical_cves: number
+  high_cves: number
+  medium_cves: number
+  low_cves: number
+  layers: ImageLayer[]
+  cve_timeline: ImageCveTimelinePoint[]
+  cves: ImageCveDetail[]
 }
 
 export interface Namespace {

@@ -19,6 +19,7 @@ class AffectedDeployment(BaseModel):
     namespace: str
     cluster_name: str
     image_name: str
+    image_id: str = ""
     first_seen: datetime | None = None
 
 
@@ -100,6 +101,45 @@ class ImageCveDetail(BaseModel):
     affected_deployments: int
     first_seen: datetime | None
     published_on: datetime | None = None
+
+
+class ImageLayer(BaseModel):
+    idx: int
+    instruction: str
+    value: str
+
+
+class ImageCveTimelinePoint(BaseModel):
+    month: str
+    critical: int
+    important: int
+    moderate: int
+    low: int
+
+
+class ImageDetailResponse(BaseModel):
+    image_id: str
+    name_fullname: str
+    name_registry: str | None = None
+    name_remote: str | None = None
+    name_tag: str | None = None
+    os: str | None = None
+    created: datetime | None = None
+    last_scanned: datetime | None = None
+    last_updated: datetime | None = None
+    docker_user: str | None = None
+    risk_score: float = 0.0
+    top_cvss: float = 0.0
+    component_count: int = 0
+    cve_count: int = 0
+    fixable_cves: int = 0
+    critical_cves: int = 0
+    high_cves: int = 0
+    medium_cves: int = 0
+    low_cves: int = 0
+    layers: list[ImageLayer] = []
+    cve_timeline: list[ImageCveTimelinePoint] = []
+    cves: list[ImageCveDetail] = []
 
 
 class CveListParams(BaseModel):

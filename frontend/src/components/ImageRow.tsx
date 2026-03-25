@@ -24,7 +24,13 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
           {expanded ? <AngleDownIcon /> : <AngleRightIcon />}
         </Td>
         <Td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.image_name}>
-          {group.image_name}
+          <Link
+            to={`/images/${encodeURIComponent(group.image_id)}`}
+            onClick={e => e.stopPropagation()}
+            style={{ color: BRAND_BLUE }}
+          >
+            {group.image_name}
+          </Link>
         </Td>
         <Td style={{ textAlign: 'right', fontWeight: 600 }}>{group.total_cves}</Td>
         <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.critical }}>{group.critical_cves || '–'}</Td>
