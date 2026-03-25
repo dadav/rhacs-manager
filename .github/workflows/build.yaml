@@ -179,6 +179,14 @@ jobs:
             --set mode=spoke \
             --set spoke.oauthProxy.cookieSecret=CHANGE_ME \
             > .artifacts/manifests/rhacs-manager-spoke.yaml
+          helm template rhacs-manager-mcp deploy/helm/rhacs-manager \
+            -n rhacs-manager \
+            --set frontend.oauthProxy.cookieSecret=CHANGE_ME \
+            --set mcp.enabled=true \
+            --set mcp.oauthProxy.cookieSecret=CHANGE_ME \
+            --show-only templates/mcp-server-deployment.yaml \
+            --show-only templates/mcp-server-service.yaml \
+            > .artifacts/manifests/rhacs-manager-mcp.yaml
           # Strip Helm-injected labels from rendered plain YAML manifests
           for f in .artifacts/manifests/*.yaml; do
             yq -i 'del(
