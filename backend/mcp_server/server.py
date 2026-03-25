@@ -1,7 +1,9 @@
 """RHACS Manager MCP Server.
 
 Exposes RHACS Manager CVE management capabilities as MCP tools for
-OpenShift Lightspeed. Forwards the user's Bearer token to the backend API.
+OpenShift Lightspeed. Runs behind oauth-proxy + auth-header-injector,
+which inject X-Forwarded-* headers with the user's identity and
+namespace scope. These headers are forwarded to the backend API.
 
 Run: uv run python -m mcp_server.server
 """
@@ -10,7 +12,7 @@ import logging
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from .api_client import RhacsManagerClient
+from .api_client import AuthContext, RhacsManagerClient
 from .config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -20,17 +22,31 @@ mcp = FastMCP("rhacs-manager", host="0.0.0.0", port=settings.port)
 client = RhacsManagerClient()
 
 
-def _extract_token(ctx: Context) -> str:
-    """Extract Bearer token from the MCP request context.
+def _extract_auth(ctx: Context) -> AuthContext:
+    """Build an AuthContext from the forwarded headers injected by auth-header-injector.
 
-    The token is forwarded from the incoming HTTP Authorization header.
+    The oauth-proxy + auth-header-injector sidecar chain resolves the user's
+    identity and namespace scope, injecting X-Forwarded-* headers into the request.
     """
     request = ctx.request_context
-    if request and hasattr(request, "headers"):
-        auth = request.headers.get("authorization", "")
-        if auth.lower().startswith("bearer "):
-            return auth[7:]
-    raise ValueError("No Bearer token found in request. Provide an Authorization header.")
+    if not request or not hasattr(request, "headers"):
+        raise ValueError(
+            "No request context available. The MCP server must be deployed behind oauth-proxy + auth-header-injector."
+        )
+
+    headers = request.headers
+    user = headers.get("x-forwarded-user", "")
+    if not user:
+        raise ValueError(
+            "No X-Forwarded-User header found. "
+            "The MCP server must be deployed behind oauth-proxy + auth-header-injector."
+        )
+    return AuthContext(
+        forwarded_user=user,
+        forwarded_groups=headers.get("x-forwarded-groups", ""),
+        forwarded_namespaces=headers.get("x-forwarded-namespaces", ""),
+        forwarded_namespace_emails=headers.get("x-forwarded-namespace-emails", ""),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -45,8 +61,8 @@ async def get_security_overview(ctx: Context) -> str:
     Returns severity distribution, fixability trends, MTTR, top EPSS CVEs,
     cluster heatmap, and upcoming escalations.
     """
-    token = _extract_token(ctx)
-    return await client.get_dashboard(token)
+    auth = _extract_auth(ctx)
+    return await client.get_dashboard(auth)
 
 
 @mcp.tool()
@@ -73,9 +89,9 @@ async def search_cves(
         page: Page number (default 1)
         page_size: Results per page (default 20, max 200)
     """
-    token = _extract_token(ctx)
+    auth = _extract_auth(ctx)
     return await client.search_cves(
-        token,
+        auth,
         search=search,
         severity=severity,
         fixable=fixable,
@@ -97,8 +113,8 @@ async def get_cve_detail(ctx: Context, cve_id: str) -> str:
     Args:
         cve_id: The CVE identifier (e.g. CVE-2024-1234)
     """
-    token = _extract_token(ctx)
-    return await client.get_cve(token, cve_id)
+    auth = _extract_auth(ctx)
+    return await client.get_cve(auth, cve_id)
 
 
 @mcp.tool()
@@ -110,8 +126,8 @@ async def get_cve_affected_deployments(ctx: Context, cve_id: str) -> str:
     Args:
         cve_id: The CVE identifier (e.g. CVE-2024-1234)
     """
-    token = _extract_token(ctx)
-    return await client.get_cve_deployments(token, cve_id)
+    auth = _extract_auth(ctx)
+    return await client.get_cve_deployments(auth, cve_id)
 
 
 @mcp.tool()
@@ -130,9 +146,9 @@ async def list_risk_acceptances(
         page: Page number (default 1)
         page_size: Results per page (default 20)
     """
-    token = _extract_token(ctx)
+    auth = _extract_auth(ctx)
     return await client.list_risk_acceptances(
-        token,
+        auth,
         status=status,
         cve_id=cve_id,
         page=page,
@@ -158,9 +174,9 @@ async def list_remediations(
         page: Page number (default 1)
         page_size: Results per page (default 20)
     """
-    token = _extract_token(ctx)
+    auth = _extract_auth(ctx)
     return await client.list_remediations(
-        token,
+        auth,
         status=status,
         cve_id=cve_id,
         namespace=namespace,
@@ -176,8 +192,8 @@ async def get_my_info(ctx: Context) -> str:
     Returns username, email, role (sec_team or team_member), and the list
     of namespace:cluster pairs the user has access to.
     """
-    token = _extract_token(ctx)
-    return await client.get_me(token)
+    auth = _extract_auth(ctx)
+    return await client.get_me(auth)
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +224,7 @@ def _register_write_tools() -> None:
                 and optionally image_name or deployment_id
             expires_at: Optional expiration date in ISO format (YYYY-MM-DD)
         """
-        token = _extract_token(ctx)
+        auth = _extract_auth(ctx)
         data: dict = {
             "cve_id": cve_id,
             "justification": justification,
@@ -219,7 +235,7 @@ def _register_write_tools() -> None:
         }
         if expires_at is not None:
             data["expires_at"] = expires_at
-        return await client.create_risk_acceptance(token, data)
+        return await client.create_risk_acceptance(auth, data)
 
     @mcp.tool()
     async def create_remediation(
@@ -244,7 +260,7 @@ def _register_write_tools() -> None:
             target_date: Optional target date in ISO format (YYYY-MM-DD)
             notes: Optional notes about the remediation plan
         """
-        token = _extract_token(ctx)
+        auth = _extract_auth(ctx)
         data: dict = {
             "cve_id": cve_id,
             "namespace": namespace,
@@ -256,7 +272,7 @@ def _register_write_tools() -> None:
             data["target_date"] = target_date
         if notes is not None:
             data["notes"] = notes
-        return await client.create_remediation(token, data)
+        return await client.create_remediation(auth, data)
 
     @mcp.tool()
     async def update_remediation_status(
@@ -276,11 +292,11 @@ def _register_write_tools() -> None:
             status: New status (open, in_progress, resolved, verified, wont_fix)
             reason: Required when setting status to wont_fix
         """
-        token = _extract_token(ctx)
+        auth = _extract_auth(ctx)
         data: dict = {"status": status}
         if reason is not None:
             data["wont_fix_reason"] = reason
-        return await client.update_remediation(token, remediation_id, data)
+        return await client.update_remediation(auth, remediation_id, data)
 
 
 if not settings.readonly:

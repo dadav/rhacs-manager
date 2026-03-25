@@ -64,7 +64,17 @@ Usage: include "rhacs-manager.imageTag" (dict "tag" .Values.xxx.image.tag "chart
 Frontend 3-container pod spec (shared between hub and spoke).
 Expects a dict with keys: oauthProxy, authHeaderInjector, frontend, secret, global, Chart, podSecurityContext, securityContext, podAnnotations, nodeSelector, tolerations, affinity.
 */}}
-{{- define "rhacs-manager.frontendPodSpec" -}}
+{{/*
+oauthProxyPodSpec renders a 3-container pod: oauth-proxy → auth-header-injector → app.
+
+Required context keys:
+  .deploymentName, .selectorLabels, .podAnnotations, .oauthProxy, .authHeaderInjector,
+  .app (the backend container config with: name, image, port, env, envFrom, command,
+        resources, readinessProbe, livenessProbe, securityContext),
+  .secretName, .imagePullSecrets, .podSecurityContext, .securityContext,
+  .nodeSelector, .tolerations, .affinity, .topologySpreadConstraints, .chart
+*/}}
+{{- define "rhacs-manager.oauthProxyPodSpec" -}}
 metadata:
   labels:
     app: {{ .deploymentName }}
@@ -118,6 +128,8 @@ spec:
       ports:
         - containerPort: 8081
       env:
+        - name: UPSTREAM_ADDR
+          value: "http://localhost:{{ .app.port }}"
         - name: CLUSTER_NAME
           valueFrom:
             secretKeyRef:
@@ -153,29 +165,51 @@ spec:
         failureThreshold: {{ .authHeaderInjector.readinessProbe.failureThreshold }}
         successThreshold: {{ .authHeaderInjector.readinessProbe.successThreshold }}
 
-    - name: frontend
-      image: "{{ .frontend.image.repository }}:{{ include "rhacs-manager.imageTag" (dict "tag" .frontend.image.tag "chart" .chart) }}"
-      imagePullPolicy: {{ .frontend.image.pullPolicy }}
+    - name: {{ .app.name }}
+      image: "{{ .app.image.repository }}:{{ include "rhacs-manager.imageTag" (dict "tag" .app.image.tag "chart" .chart) }}"
+      imagePullPolicy: {{ .app.image.pullPolicy }}
+      {{- with .app.command }}
+      command:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       ports:
-        - containerPort: 8080
+        - containerPort: {{ .app.port }}
+      {{- with .app.env }}
+      env:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .app.envFrom }}
       envFrom:
-        - secretRef:
-            name: {{ .secretName }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       resources:
-        {{- toYaml .frontend.resources | nindent 8 }}
+        {{- toYaml .app.resources | nindent 8 }}
+      {{- with .app.readinessProbe }}
       readinessProbe:
         httpGet:
-          path: {{ .frontend.readinessProbe.path }}
-          port: 8080
-        initialDelaySeconds: {{ .frontend.readinessProbe.initialDelaySeconds }}
-        periodSeconds: {{ .frontend.readinessProbe.periodSeconds }}
-        timeoutSeconds: {{ .frontend.readinessProbe.timeoutSeconds }}
-        failureThreshold: {{ .frontend.readinessProbe.failureThreshold }}
-        successThreshold: {{ .frontend.readinessProbe.successThreshold }}
+          path: {{ .path }}
+          port: {{ $.app.port }}
+        initialDelaySeconds: {{ .initialDelaySeconds }}
+        periodSeconds: {{ .periodSeconds }}
+        timeoutSeconds: {{ .timeoutSeconds }}
+        failureThreshold: {{ .failureThreshold }}
+        successThreshold: {{ .successThreshold }}
+      {{- end }}
+      {{- with .app.livenessProbe }}
+      livenessProbe:
+        httpGet:
+          path: {{ .path }}
+          port: {{ $.app.port }}
+        initialDelaySeconds: {{ .initialDelaySeconds }}
+        periodSeconds: {{ .periodSeconds }}
+        timeoutSeconds: {{ .timeoutSeconds }}
+        failureThreshold: {{ .failureThreshold }}
+        successThreshold: {{ .successThreshold }}
+      {{- end }}
 
   {{- with .nodeSelector }}
   nodeSelector:

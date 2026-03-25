@@ -1758,6 +1758,226 @@
           "title": "affinity",
           "type": "object"
         },
+        "authHeaderInjector": {
+          "additionalProperties": false,
+          "description": "Auth header injector sidecar configuration for MCP server.",
+          "properties": {
+            "allNamespacesGroups": {
+              "default": "",
+              "description": "Comma-separated groups that get wildcard (*) namespace access.",
+              "title": "allNamespacesGroups",
+              "type": "string"
+            },
+            "cacheTtlSeconds": {
+              "default": "300",
+              "description": "TTL in seconds for the namespace cache.",
+              "title": "cacheTtlSeconds",
+              "type": "string"
+            },
+            "emailAnnotation": {
+              "default": "rhacs-manager.io/escalation-email",
+              "description": "Namespace annotation key for escalation email.",
+              "title": "emailAnnotation",
+              "type": "string"
+            },
+            "groupAnnotation": {
+              "default": "rhacs-manager.io/groups",
+              "description": "Namespace annotation key for group mapping.",
+              "title": "groupAnnotation",
+              "type": "string"
+            },
+            "groupCacheTtlSeconds": {
+              "default": "60",
+              "description": "TTL in seconds for the group cache.",
+              "title": "groupCacheTtlSeconds",
+              "type": "string"
+            },
+            "image": {
+              "additionalProperties": false,
+              "description": "Auth header injector container image.",
+              "properties": {
+                "pullPolicy": {
+                  "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
+                  "title": "pullPolicy",
+                  "type": "string"
+                },
+                "repository": {
+                  "default": "ghcr.io/dadav/rhacs-manager-auth-header-injector",
+                  "description": "Image repository.",
+                  "title": "repository",
+                  "type": "string"
+                },
+                "tag": {
+                  "default": "",
+                  "description": "Image tag. Defaults to Chart.appVersion if not set.",
+                  "title": "tag",
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "title": "image",
+              "type": "object"
+            },
+            "namespaceAnnotation": {
+              "default": "rhacs-manager.io/users",
+              "description": "Namespace annotation key for user mapping.",
+              "title": "namespaceAnnotation",
+              "type": "string"
+            },
+            "readinessProbe": {
+              "additionalProperties": false,
+              "description": "Readiness probe for the auth-header-injector container.",
+              "properties": {
+                "failureThreshold": {
+                  "default": 3,
+                  "description": "Failures before marking unhealthy.",
+                  "minimum": 1,
+                  "title": "failureThreshold",
+                  "type": "integer"
+                },
+                "initialDelaySeconds": {
+                  "default": 5,
+                  "description": "Seconds before the first probe.",
+                  "minimum": 0,
+                  "title": "initialDelaySeconds",
+                  "type": "integer"
+                },
+                "path": {
+                  "default": "/healthz",
+                  "description": "HTTP path for the probe.",
+                  "title": "path",
+                  "type": "string"
+                },
+                "periodSeconds": {
+                  "default": 10,
+                  "description": "How often to run the probe.",
+                  "minimum": 1,
+                  "title": "periodSeconds",
+                  "type": "integer"
+                },
+                "successThreshold": {
+                  "default": 1,
+                  "description": "Successes before marking healthy.",
+                  "minimum": 1,
+                  "title": "successThreshold",
+                  "type": "integer"
+                },
+                "timeoutSeconds": {
+                  "default": 3,
+                  "description": "Seconds before the probe times out.",
+                  "minimum": 1,
+                  "title": "timeoutSeconds",
+                  "type": "integer"
+                }
+              },
+              "required": [],
+              "title": "readinessProbe",
+              "type": "object"
+            },
+            "resources": {
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the auth-header-injector container.",
+              "properties": {
+                "limits": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cpu": {
+                      "default": "100m",
+                      "title": "cpu",
+                      "type": "string"
+                    },
+                    "memory": {
+                      "default": "64Mi",
+                      "title": "memory",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cpu",
+                    "memory"
+                  ],
+                  "title": "limits",
+                  "type": "object"
+                },
+                "requests": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cpu": {
+                      "default": "100m",
+                      "title": "cpu",
+                      "type": "string"
+                    },
+                    "memory": {
+                      "default": "64Mi",
+                      "title": "memory",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cpu",
+                    "memory"
+                  ],
+                  "title": "requests",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "requests",
+                "limits"
+              ],
+              "title": "resources",
+              "type": "object"
+            },
+            "securityContext": {
+              "additionalProperties": true,
+              "description": "Container-level security context for the auth-header-injector.",
+              "properties": {
+                "allowPrivilegeEscalation": {
+                  "default": false,
+                  "title": "allowPrivilegeEscalation",
+                  "type": "boolean"
+                },
+                "capabilities": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "drop": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "required": []
+                      },
+                      "title": "drop",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "drop"
+                  ],
+                  "title": "capabilities",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "allowPrivilegeEscalation",
+                "capabilities"
+              ],
+              "title": "securityContext",
+              "type": "object"
+            }
+          },
+          "required": [],
+          "title": "authHeaderInjector",
+          "type": "object"
+        },
         "deploymentName": {
           "default": "rhacs-manager-mcp",
           "description": "Name of the MCP server Deployment resource.",
@@ -1802,11 +2022,219 @@
           "title": "image",
           "type": "object"
         },
+        "livenessProbe": {
+          "additionalProperties": false,
+          "description": "Liveness probe for the MCP server container.",
+          "properties": {
+            "failureThreshold": {
+              "default": 3,
+              "description": "Failures before marking unhealthy.",
+              "minimum": 1,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 10,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "path": {
+              "default": "/mcp",
+              "description": "HTTP path for the probe.",
+              "title": "path",
+              "type": "string"
+            },
+            "periodSeconds": {
+              "default": 30,
+              "description": "How often to run the probe.",
+              "minimum": 1,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "description": "Successes before marking healthy.",
+              "minimum": 1,
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "title": "livenessProbe",
+          "type": "object"
+        },
         "nodeSelector": {
           "additionalProperties": true,
           "description": "Node selector for MCP server pods.",
           "required": [],
           "title": "nodeSelector",
+          "type": "object"
+        },
+        "oauthProxy": {
+          "additionalProperties": false,
+          "description": "OAuth proxy sidecar configuration for MCP server.",
+          "properties": {
+            "cookieRefresh": {
+              "default": "12h",
+              "description": "Cookie refresh interval.",
+              "title": "cookieRefresh",
+              "type": "string"
+            },
+            "cookieSecret": {
+              "default": "",
+              "description": "OAuth proxy cookie encryption secret. Generate a random value for production.",
+              "title": "cookieSecret",
+              "type": "string"
+            },
+            "image": {
+              "additionalProperties": false,
+              "description": "OAuth proxy container image.",
+              "properties": {
+                "pullPolicy": {
+                  "default": "IfNotPresent",
+                  "description": "Image pull policy.",
+                  "enum": [
+                    "Always",
+                    "IfNotPresent",
+                    "Never"
+                  ],
+                  "title": "pullPolicy",
+                  "type": "string"
+                },
+                "repository": {
+                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "description": "Image repository.",
+                  "title": "repository",
+                  "type": "string"
+                },
+                "tag": {
+                  "default": "v4.14",
+                  "description": "Image tag.",
+                  "title": "tag",
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "title": "image",
+              "type": "object"
+            },
+            "resources": {
+              "additionalProperties": true,
+              "description": "Resource requests and limits for the oauth-proxy container.",
+              "properties": {
+                "limits": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cpu": {
+                      "default": "100m",
+                      "title": "cpu",
+                      "type": "string"
+                    },
+                    "memory": {
+                      "default": "64Mi",
+                      "title": "memory",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cpu",
+                    "memory"
+                  ],
+                  "title": "limits",
+                  "type": "object"
+                },
+                "requests": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cpu": {
+                      "default": "100m",
+                      "title": "cpu",
+                      "type": "string"
+                    },
+                    "memory": {
+                      "default": "64Mi",
+                      "title": "memory",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cpu",
+                    "memory"
+                  ],
+                  "title": "requests",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "requests",
+                "limits"
+              ],
+              "title": "resources",
+              "type": "object"
+            },
+            "securityContext": {
+              "additionalProperties": true,
+              "description": "Container-level security context for the oauth-proxy.",
+              "properties": {
+                "allowPrivilegeEscalation": {
+                  "default": false,
+                  "title": "allowPrivilegeEscalation",
+                  "type": "boolean"
+                },
+                "capabilities": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "drop": {
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          }
+                        ],
+                        "required": []
+                      },
+                      "title": "drop",
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "drop"
+                  ],
+                  "title": "capabilities",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "allowPrivilegeEscalation",
+                "capabilities"
+              ],
+              "title": "securityContext",
+              "type": "object"
+            },
+            "serviceAccountName": {
+              "default": "rhacs-manager-oauth-proxy",
+              "description": "ServiceAccount name for the oauth-proxy (shared with frontend by default).",
+              "title": "serviceAccountName",
+              "type": "string"
+            },
+            "tlsSecretName": {
+              "default": "rhacs-manager-mcp-oauth-proxy-tls",
+              "description": "Name of the TLS secret for the oauth-proxy (auto-generated by OpenShift serving cert annotation).",
+              "title": "tlsSecretName",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "oauthProxy",
           "type": "object"
         },
         "podAnnotations": {
@@ -1832,6 +2260,56 @@
           "title": "podSecurityContext",
           "type": "object"
         },
+        "readinessProbe": {
+          "additionalProperties": false,
+          "description": "Readiness probe for the MCP server container.",
+          "properties": {
+            "failureThreshold": {
+              "default": 3,
+              "description": "Failures before marking unhealthy.",
+              "minimum": 1,
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 5,
+              "description": "Seconds before the first probe.",
+              "minimum": 0,
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "path": {
+              "default": "/mcp",
+              "description": "HTTP path for the probe.",
+              "title": "path",
+              "type": "string"
+            },
+            "periodSeconds": {
+              "default": 10,
+              "description": "How often to run the probe.",
+              "minimum": 1,
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "description": "Successes before marking healthy.",
+              "minimum": 1,
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 3,
+              "description": "Seconds before the probe times out.",
+              "minimum": 1,
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "title": "readinessProbe",
+          "type": "object"
+        },
         "readonly": {
           "default": false,
           "description": "Run in readonly mode (only read-only tools are exposed).",
@@ -1847,7 +2325,7 @@
         },
         "resources": {
           "additionalProperties": true,
-          "description": "Resource requests and limits for the MCP server.",
+          "description": "Resource requests and limits for the MCP server container.",
           "properties": {
             "limits": {
               "additionalProperties": false,
@@ -1931,10 +2409,9 @@
                   "type": "string"
                 },
                 "termination": {
-                  "default": "edge",
-                  "description": "TLS termination type.",
+                  "default": "reencrypt",
+                  "description": "TLS termination type (reencrypt because oauth-proxy serves TLS).",
                   "enum": [
-                    "edge",
                     "reencrypt",
                     "passthrough"
                   ],
@@ -1949,6 +2426,21 @@
           },
           "required": [],
           "title": "route",
+          "type": "object"
+        },
+        "secret": {
+          "additionalProperties": false,
+          "description": "Kubernetes secret containing MCP_API_KEY and CLUSTER_NAME.",
+          "properties": {
+            "name": {
+              "default": "rhacs-manager-mcp",
+              "description": "Name of the Kubernetes secret.",
+              "title": "name",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "secret",
           "type": "object"
         },
         "securityContext": {
@@ -1992,7 +2484,7 @@
         },
         "service": {
           "additionalProperties": false,
-          "description": "MCP server Service configuration.",
+          "description": "MCP server Service configuration (internal port used by the MCP container).",
           "properties": {
             "port": {
               "default": 8001,
@@ -2004,7 +2496,7 @@
             },
             "targetPort": {
               "default": 8001,
-              "description": "Container target port.",
+              "description": "Container target port for the MCP server process.",
               "maximum": 65535,
               "minimum": 1,
               "title": "targetPort",

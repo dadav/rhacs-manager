@@ -4,15 +4,19 @@ RHACS Manager includes an optional [Model Context Protocol (MCP)](https://modelc
 
 ## Overview
 
-The MCP server is a thin HTTP proxy that translates MCP tool calls into RHACS Manager API requests. It forwards the user's Bearer token to the backend, so all existing authentication, authorization, and namespace scoping rules apply.
+The MCP server is a thin HTTP proxy that translates MCP tool calls into RHACS Manager API requests. It runs behind the same `oauth-proxy → auth-header-injector` sidecar chain used by the frontend, so all existing authentication, authorization, and namespace scoping rules apply identically.
 
 ```mermaid
 graph LR
-    A[OpenShift Lightspeed] -->|MCP over HTTP| B[MCP Server :8001]
-    B -->|REST API + Bearer token| C[RHACS Manager Backend :8000]
-    C --> D[StackRox DB]
-    C --> E[App DB]
+    A[OpenShift Lightspeed] -->|MCP over HTTPS| B[oauth-proxy :8443]
+    B --> C[auth-header-injector :8081]
+    C -->|"X-Forwarded-*"| D[MCP Server :8001]
+    D -->|"REST API + X-Api-Key<br/>+ X-Forwarded-*"| E[RHACS Manager Backend :8000]
+    E --> F[StackRox DB]
+    E --> G[App DB]
 ```
+
+The auth-header-injector resolves the user's namespace scope from Kubernetes namespace annotations and injects `X-Forwarded-Namespaces` headers. The MCP server forwards these headers (along with an `X-Api-Key`) to the backend, which uses the spoke proxy auth path.
 
 ## Configuration
 
@@ -23,6 +27,7 @@ The MCP server is configured via environment variables:
 | `MCP_BACKEND_URL` | `http://localhost:8000` | URL of the RHACS Manager backend API |
 | `MCP_PORT` | `8001` | Port the MCP server listens on |
 | `MCP_READONLY` | `false` | When `true`, only read-only tools are exposed |
+| `MCP_API_KEY` | (empty) | Shared secret for backend spoke proxy auth |
 
 ## Available Tools
 
@@ -65,15 +70,21 @@ The MCP server will be available at `http://localhost:8001/mcp`.
 
 ## Helm Deployment
 
-The MCP server is deployed as a separate pod alongside the backend. Enable it in your values:
+The MCP server is deployed as a 3-container pod (oauth-proxy, auth-header-injector, mcp-server) alongside the backend, following the same pattern as the frontend. Enable it in your values:
 
 ```yaml
 mcp:
   enabled: true
   readonly: false  # set to true for read-only mode
+  oauthProxy:
+    cookieSecret: "<generate-a-random-secret>"
+  secret:
+    name: rhacs-manager-mcp  # must contain MCP_API_KEY and CLUSTER_NAME
 ```
 
-The MCP server uses the same backend container image with a different entrypoint. It connects to the backend via its internal ClusterIP service.
+The MCP server uses the same backend container image with a different entrypoint. The oauth-proxy handles OpenShift OAuth, the auth-header-injector resolves namespace scope from Kubernetes annotations, and the MCP server forwards these headers to the backend via `X-Api-Key` + `X-Forwarded-*` headers.
+
+The `MCP_API_KEY` must match one of the `SPOKE_API_KEYS` configured on the backend.
 
 ### Example
 
@@ -81,7 +92,8 @@ The MCP server uses the same backend container image with a different entrypoint
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
   -n rhacs-manager \
   --set mcp.enabled=true \
-  --set mcp.readonly=true
+  --set mcp.readonly=true \
+  --set mcp.oauthProxy.cookieSecret="$(openssl rand -base64 32)"
 ```
 
 ## OpenShift Lightspeed Integration
@@ -100,11 +112,11 @@ mcp:
     host: rhacs-manager-mcp.apps.example.com
 ```
 
-Alternatively, use the in-cluster service URL directly: `http://rhacs-manager-mcp.rhacs-manager.svc:8001/mcp`
+The route terminates TLS via `reencrypt` (the oauth-proxy serves its own TLS on port 8443). Alternatively, use the in-cluster service URL directly: `https://rhacs-manager-mcp.rhacs-manager.svc:8443/mcp`
 
 ### Configure OLSConfig
 
-Add the MCP server to the OpenShift Lightspeed Operator configuration. The special `kubernetes` placeholder for the `Authorization` header tells Lightspeed to automatically inject the authenticated user's Kubernetes token into each MCP request. This requires the `k8s` authentication module to be active in OLS.
+Add the MCP server to the OpenShift Lightspeed Operator configuration. No special headers are needed — the oauth-proxy handles authentication via OpenShift OAuth, and the auth-header-injector resolves namespace scope automatically.
 
 ```yaml
 apiVersion: ols.openshift.io/v1alpha1
@@ -116,13 +128,9 @@ spec:
     mcpServers:
       - name: rhacs-manager
         url: https://rhacs-manager-mcp.apps.example.com/mcp
-        headers:
-          - name: Authorization
-            valueFrom:
-              type: kubernetes
 ```
 
-The MCP server forwards the token to the RHACS Manager backend, where the existing auth middleware handles all authentication and authorization. The user's token determines which namespaces and actions are available.
+The oauth-proxy authenticates the user via OpenShift OAuth, the auth-header-injector resolves their namespace scope from Kubernetes namespace annotations, and the MCP server forwards these identity headers to the backend. The user's OpenShift identity determines which namespaces and actions are available.
 
 ## Readonly Mode
 

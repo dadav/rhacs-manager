@@ -9,6 +9,9 @@ graph LR
     subgraph "Hub Cluster (Admin)"
         BE["FastAPI Backend"]
         FE_HUB["Hub Frontend"]
+        MCP_OP["oauth-proxy"]
+        MCP_NR["auth-header-injector"]
+        MCP["MCP Server"]
         APP_DB[("App DB")]
         SX_DB[("StackRox Central DB")]
     end
@@ -29,6 +32,10 @@ graph LR
     BE --> APP_DB
     BE --> SX_DB
 
+    MCP_OP --> MCP_NR
+    MCP_NR --> MCP
+    MCP -->|"X-Api-Key<br/>X-Forwarded-*"| BE
+
     OP_A --> NR_A
     NR_A --> FE_A
     FE_A -->|"X-Api-Key<br/>X-Forwarded-*"| BE
@@ -38,7 +45,7 @@ graph LR
     FE_B -->|"X-Api-Key<br/>X-Forwarded-*"| BE
 ```
 
-**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly.
+**Hub cluster** runs the full stack: FastAPI backend, frontend SPA, and has access to both databases. Only administrators access the hub directly. An optional MCP server pod (for OpenShift Lightspeed integration) runs behind the same oauth-proxy + auth-header-injector chain and communicates with the backend via `X-Api-Key` + `X-Forwarded-*` headers, identical to spoke clusters.
 
 **Spoke clusters** run a frontend (nginx serving the SPA) with an oauth-proxy sidecar for OpenShift OAuth and an auth-header-injector sidecar that reads K8s namespace annotations to determine user access. All API requests are proxied from the spoke nginx to the hub backend, authenticated via API key.
 

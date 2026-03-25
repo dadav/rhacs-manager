@@ -6,10 +6,13 @@ metadata:
   namespace: {{ include "rhacs-manager.namespace" . }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: {{ .Values.mcp.oauthProxy.tlsSecretName }}
 spec:
   selector:
     app: {{ .Values.mcp.deploymentName }}
   ports:
-    - port: {{ .Values.mcp.service.port }}
-      targetPort: {{ .Values.mcp.service.targetPort }}
+    - port: 8443
+      targetPort: 8443
+      name: oauth-proxy
 {{- end }}

@@ -7,6 +7,7 @@ class McpSettings(BaseSettings):
     backend_url: str = "http://localhost:8000"
     port: int = 8001
     readonly: bool = False
+    api_key: str = ""
 
 
 settings = McpSettings()

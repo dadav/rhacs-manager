@@ -4,7 +4,7 @@
 {{- /* Resolve mode-specific values */}}
 {{- $oauthProxy := ternary .Values.frontend.oauthProxy .Values.spoke.oauthProxy $isHub -}}
 {{- $authHeaderInjector := ternary .Values.frontend.authHeaderInjector .Values.spoke.authHeaderInjector $isHub -}}
-{{- $fe := ternary (dict "image" .Values.frontend.image "resources" .Values.frontend.resources "readinessProbe" .Values.frontend.readinessProbe) (dict "image" .Values.spoke.frontend.image "resources" .Values.spoke.frontend.resources "readinessProbe" .Values.spoke.frontend.readinessProbe) $isHub -}}
+{{- $feVals := ternary .Values.frontend .Values.spoke.frontend $isHub -}}
 {{- $deploymentName := ternary .Values.frontend.deploymentName .Values.spoke.frontend.deploymentName $isHub -}}
 {{- $replicaCount := ternary .Values.frontend.replicaCount .Values.spoke.frontend.replicaCount $isHub -}}
 {{- $secretName := ternary .Values.frontend.secret.name .Values.spoke.secret.name $isHub -}}
@@ -29,13 +29,21 @@ spec:
     matchLabels:
       app: {{ $deploymentName }}
   template:
+    {{- $app := dict
+      "name" "frontend"
+      "image" $feVals.image
+      "port" 8080
+      "resources" $feVals.resources
+      "readinessProbe" $feVals.readinessProbe
+      "envFrom" (list (dict "secretRef" (dict "name" $secretName)))
+    -}}
     {{- $args := dict
       "deploymentName" $deploymentName
       "selectorLabels" (include "rhacs-manager.selectorLabels" .)
       "podAnnotations" $podAnnotations
       "oauthProxy" (merge (dict "cookieSecret" (required $cookieSecretMsg $oauthProxy.cookieSecret)) $oauthProxy)
       "authHeaderInjector" $authHeaderInjector
-      "frontend" $fe
+      "app" $app
       "secretName" $secretName
       "imagePullSecrets" .Values.global.imagePullSecrets
       "podSecurityContext" $podSecurityContext
@@ -46,5 +54,5 @@ spec:
       "topologySpreadConstraints" $topologySpreadConstraints
       "chart" .Chart
     -}}
-    {{- include "rhacs-manager.frontendPodSpec" $args | nindent 4 }}
+    {{- include "rhacs-manager.oauthProxyPodSpec" $args | nindent 4 }}
 {{- end }}

@@ -12,7 +12,7 @@ spec:
     kind: Service
     name: {{ .Values.mcp.serviceName }}
   port:
-    targetPort: {{ .Values.mcp.service.targetPort }}
+    targetPort: oauth-proxy
   tls:
     termination: {{ .Values.mcp.route.tls.termination }}
     insecureEdgeTerminationPolicy: {{ .Values.mcp.route.tls.insecureEdgeTerminationPolicy }}

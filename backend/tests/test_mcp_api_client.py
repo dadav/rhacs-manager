@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from mcp_server.api_client import RhacsManagerClient
+from mcp_server.api_client import AuthContext, RhacsManagerClient
 
 
 @pytest.fixture
@@ -14,33 +14,57 @@ def client():
     return RhacsManagerClient(base_url="http://test-backend:8000")
 
 
+@pytest.fixture
+def auth():
+    return AuthContext(
+        forwarded_user="testuser",
+        forwarded_groups="group-a,group-b",
+        forwarded_namespaces="payments:cluster-a,frontend:cluster-a",
+        forwarded_namespace_emails="payments:cluster-a=team@example.com",
+    )
+
+
 def _mock_response(data: dict, status_code: int = 200) -> httpx.Response:
     """Build a fake httpx.Response."""
-    resp = httpx.Response(
+    return httpx.Response(
         status_code=status_code,
         json=data,
         request=httpx.Request("GET", "http://test"),
     )
-    return resp
 
 
-class TestHeaders:
-    def test_bearer_token_in_headers(self, client):
-        headers = client._headers("my-token-123")
-        assert headers == {"Authorization": "Bearer my-token-123"}
+class TestAuthContext:
+    def test_to_headers_includes_forwarded_headers(self, auth):
+        headers = auth.to_headers()
+        assert headers["X-Forwarded-User"] == "testuser"
+        assert headers["X-Forwarded-Groups"] == "group-a,group-b"
+        assert headers["X-Forwarded-Namespaces"] == "payments:cluster-a,frontend:cluster-a"
+        assert headers["X-Forwarded-Namespace-Emails"] == "payments:cluster-a=team@example.com"
+
+    def test_to_headers_includes_api_key_when_set(self, auth):
+        with patch("mcp_server.api_client.settings") as mock_settings:
+            mock_settings.api_key = "secret-key"
+            headers = auth.to_headers()
+            assert headers["X-Api-Key"] == "secret-key"
+
+    def test_to_headers_omits_api_key_when_empty(self, auth):
+        with patch("mcp_server.api_client.settings") as mock_settings:
+            mock_settings.api_key = ""
+            headers = auth.to_headers()
+            assert "X-Api-Key" not in headers
 
 
 class TestGetRequests:
     @pytest.mark.parametrize(
         "method,args,expected_path",
         [
-            ("get_dashboard", ("tok",), "/api/dashboard"),
-            ("get_cve", ("tok", "CVE-2024-1234"), "/api/cves/CVE-2024-1234"),
-            ("get_cve_deployments", ("tok", "CVE-2024-1234"), "/api/cves/CVE-2024-1234/deployments"),
-            ("get_me", ("tok",), "/api/auth/me"),
+            ("get_dashboard", (), "/api/dashboard"),
+            ("get_cve", ("CVE-2024-1234",), "/api/cves/CVE-2024-1234"),
+            ("get_cve_deployments", ("CVE-2024-1234",), "/api/cves/CVE-2024-1234/deployments"),
+            ("get_me", (), "/api/auth/me"),
         ],
     )
-    async def test_simple_get_endpoints(self, client, method, args, expected_path):
+    async def test_simple_get_endpoints(self, client, auth, method, args, expected_path):
         mock_resp = _mock_response({"result": "ok"})
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -51,15 +75,15 @@ class TestGetRequests:
             instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
-            result = await getattr(client, method)(*args)
+            result = await getattr(client, method)(auth, *args)
 
             assert json.loads(result) == {"result": "ok"}
             mock_get.assert_called_once()
             call_args = mock_get.call_args
             assert call_args[0][0] == expected_path
-            assert call_args[1]["headers"] == {"Authorization": "Bearer tok"}
+            assert call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
-    async def test_search_cves_builds_params(self, client):
+    async def test_search_cves_builds_params(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -71,7 +95,7 @@ class TestGetRequests:
             MockClient.return_value = instance
 
             await client.search_cves(
-                "tok",
+                auth,
                 search="openssl",
                 severity="critical",
                 fixable=True,
@@ -88,7 +112,7 @@ class TestGetRequests:
             assert call_params["page"] == 2
             assert call_params["page_size"] == 10
 
-    async def test_search_cves_omits_none_params(self, client):
+    async def test_search_cves_omits_none_params(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -99,7 +123,7 @@ class TestGetRequests:
             instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
-            await client.search_cves("tok")
+            await client.search_cves(auth)
 
             call_params = mock_get.call_args[1]["params"]
             assert "search" not in call_params
@@ -108,7 +132,7 @@ class TestGetRequests:
             assert call_params["page"] == 1
             assert call_params["page_size"] == 20
 
-    async def test_list_risk_acceptances_params(self, client):
+    async def test_list_risk_acceptances_params(self, client, auth):
         mock_resp = _mock_response({"items": []})
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -119,13 +143,13 @@ class TestGetRequests:
             instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
-            await client.list_risk_acceptances("tok", status="pending", cve_id="CVE-2024-5678")
+            await client.list_risk_acceptances(auth, status="pending", cve_id="CVE-2024-5678")
 
             call_params = mock_get.call_args[1]["params"]
             assert call_params["status"] == "pending"
             assert call_params["cve_id"] == "CVE-2024-5678"
 
-    async def test_list_remediations_params(self, client):
+    async def test_list_remediations_params(self, client, auth):
         mock_resp = _mock_response({"items": []})
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -136,7 +160,7 @@ class TestGetRequests:
             instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
-            await client.list_remediations("tok", status="open", namespace="frontend")
+            await client.list_remediations(auth, status="open", namespace="frontend")
 
             call_params = mock_get.call_args[1]["params"]
             assert call_params["status"] == "open"
@@ -144,7 +168,7 @@ class TestGetRequests:
 
 
 class TestPostRequests:
-    async def test_create_risk_acceptance(self, client):
+    async def test_create_risk_acceptance(self, client, auth):
         mock_resp = _mock_response({"id": "ra-1"}, status_code=201)
         mock_post = AsyncMock(return_value=mock_resp)
 
@@ -156,16 +180,16 @@ class TestPostRequests:
             MockClient.return_value = instance
 
             data = {"cve_id": "CVE-2024-1234", "justification": "test"}
-            result = await client.create_risk_acceptance("tok", data)
+            result = await client.create_risk_acceptance(auth, data)
 
             assert json.loads(result) == {"id": "ra-1"}
-            mock_post.assert_called_once_with(
-                "/api/risk-acceptances",
-                headers={"Authorization": "Bearer tok"},
-                json=data,
-            )
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert call_args[0][0] == "/api/risk-acceptances"
+            assert call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
+            assert call_args[1]["json"] == data
 
-    async def test_create_remediation(self, client):
+    async def test_create_remediation(self, client, auth):
         mock_resp = _mock_response({"id": "rem-1"}, status_code=201)
         mock_post = AsyncMock(return_value=mock_resp)
 
@@ -177,18 +201,15 @@ class TestPostRequests:
             MockClient.return_value = instance
 
             data = {"cve_id": "CVE-2024-1234", "namespace": "payments", "cluster_name": "cluster-a"}
-            result = await client.create_remediation("tok", data)
+            result = await client.create_remediation(auth, data)
 
             assert json.loads(result) == {"id": "rem-1"}
-            mock_post.assert_called_once_with(
-                "/api/remediations",
-                headers={"Authorization": "Bearer tok"},
-                json=data,
-            )
+            mock_post.assert_called_once()
+            assert mock_post.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
 
 class TestPatchRequests:
-    async def test_update_remediation(self, client):
+    async def test_update_remediation(self, client, auth):
         mock_resp = _mock_response({"id": "rem-1", "status": "in_progress"})
         mock_patch = AsyncMock(return_value=mock_resp)
 
@@ -199,18 +220,16 @@ class TestPatchRequests:
             instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
-            result = await client.update_remediation("tok", "rem-1", {"status": "in_progress"})
+            result = await client.update_remediation(auth, "rem-1", {"status": "in_progress"})
 
             assert json.loads(result)["status"] == "in_progress"
-            mock_patch.assert_called_once_with(
-                "/api/remediations/rem-1",
-                headers={"Authorization": "Bearer tok"},
-                json={"status": "in_progress"},
-            )
+            mock_patch.assert_called_once()
+            assert mock_patch.call_args[0][0] == "/api/remediations/rem-1"
+            assert mock_patch.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
 
 class TestErrorHandling:
-    async def test_http_error_raised(self, client):
+    async def test_http_error_raised(self, client, auth):
         mock_resp = _mock_response({"detail": "Not found"}, status_code=404)
         mock_get = AsyncMock(return_value=mock_resp)
 
@@ -222,7 +241,7 @@ class TestErrorHandling:
             MockClient.return_value = instance
 
             with pytest.raises(httpx.HTTPStatusError):
-                await client.get_me("tok")
+                await client.get_me(auth)
 
 
 class TestBaseUrlHandling:
