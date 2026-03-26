@@ -26,34 +26,34 @@ The auth-header-injector resolves the user's namespace scope from Kubernetes nam
 
 The MCP server is configured via environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MCP_BACKEND_URL` | `http://localhost:8000` | URL of the RHACS Manager backend API |
-| `MCP_PORT` | `8001` | Port the MCP server listens on |
-| `MCP_READONLY` | `false` | When `true`, only read-only tools are exposed |
-| `MCP_API_KEY` | (empty) | Shared secret for backend spoke proxy auth |
+| Variable          | Default                 | Description                                   |
+| ----------------- | ----------------------- | --------------------------------------------- |
+| `MCP_BACKEND_URL` | `http://localhost:8000` | URL of the RHACS Manager backend API          |
+| `MCP_PORT`        | `8001`                  | Port the MCP server listens on                |
+| `MCP_READONLY`    | `false`                 | When `true`, only read-only tools are exposed |
+| `MCP_API_KEY`     | (empty)                 | Shared secret for backend spoke proxy auth    |
 
 ## Available Tools
 
 ### Read-only tools (always available)
 
-| Tool | Description |
-|------|-------------|
-| `get_security_overview` | Dashboard summary: severity distribution, trends, MTTR, top EPSS CVEs |
-| `search_cves` | Search/filter CVEs by keyword, severity, fixability, namespace, cluster |
-| `get_cve_detail` | Full CVE detail with scores, components, timeline, and links |
-| `get_cve_affected_deployments` | List deployments affected by a specific CVE |
-| `list_risk_acceptances` | List risk acceptances filtered by status or CVE |
-| `list_remediations` | List remediation records filtered by status, CVE, or namespace |
-| `get_my_info` | Current user identity, role, and visible namespaces |
+| Tool                           | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `get_security_overview`        | Dashboard summary: severity distribution, trends, MTTR, top EPSS CVEs   |
+| `search_cves`                  | Search/filter CVEs by keyword, severity, fixability, namespace, cluster |
+| `get_cve_detail`               | Full CVE detail with scores, components, timeline, and links            |
+| `get_cve_affected_deployments` | List deployments affected by a specific CVE                             |
+| `list_risk_acceptances`        | List risk acceptances filtered by status or CVE                         |
+| `list_remediations`            | List remediation records filtered by status, CVE, or namespace          |
+| `get_my_info`                  | Current user identity, role, and visible namespaces                     |
 
 ### Write tools (disabled in readonly mode)
 
-| Tool | Description |
-|------|-------------|
-| `create_risk_acceptance` | Create a risk acceptance for a CVE with justification and scope |
-| `create_remediation` | Start tracking remediation for a CVE in a namespace/cluster |
-| `update_remediation_status` | Progress a remediation through its workflow |
+| Tool                        | Description                                                     |
+| --------------------------- | --------------------------------------------------------------- |
+| `create_risk_acceptance`    | Create a risk acceptance for a CVE with justification and scope |
+| `create_remediation`        | Start tracking remediation for a CVE in a namespace/cluster     |
+| `update_remediation_status` | Progress a remediation through its workflow                     |
 
 ## Local Development
 
@@ -81,9 +81,9 @@ The MCP server runs as a sidecar container in the frontend pod using its own ded
 ```yaml
 mcp:
   enabled: true
-  readonly: false  # set to true for read-only mode
+  readonly: false # set to true for read-only mode
   secret:
-    name: rhacs-manager-mcp  # must contain MCP_API_KEY
+    name: rhacs-manager-mcp # must contain MCP_API_KEY
 ```
 
 The `MCP_API_KEY` must match one of the `SPOKE_API_KEYS` configured on the backend. The MCP server calls the backend directly via the in-cluster service URL.
@@ -142,12 +142,18 @@ kind: OLSConfig
 metadata:
   name: cluster
 spec:
+  featureGates:
+    - MCPServer
   ols:
     additionalCAConfigMapRef:
       name: rhacs-manager-serving-ca
-    mcpServers:
-      - name: rhacs-manager
-        url: https://rhacs-manager-frontend.rhacs-manager.svc:8443/mcp
+  mcpServers:
+    - name: rhacs-manager
+      url: https://rhacs-manager-frontend.rhacs-manager.svc:8443/mcp
+      headers:
+        - name: Authorization
+          valueFrom:
+            type: kubernetes
 ```
 
 The oauth-proxy authenticates the user via OpenShift OAuth, the auth-header-injector resolves their namespace scope from Kubernetes namespace annotations on the local cluster, and the MCP server forwards these identity headers to the backend. The user's OpenShift identity determines which namespaces and actions are available.
