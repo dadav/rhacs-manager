@@ -136,6 +136,7 @@ type tokenGroupsCache struct {
 type tokenGroupsEntry struct {
 	groups    []string
 	fetchedAt time.Time
+	ttl       time.Duration
 }
 
 func newTokenGroupsCache(ttl time.Duration) *tokenGroupsCache {
@@ -149,22 +150,26 @@ func (c *tokenGroupsCache) get(token string) ([]string, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	entry, ok := c.entries[token]
-	if !ok || time.Since(entry.fetchedAt) > c.ttl {
+	if !ok || time.Since(entry.fetchedAt) > entry.ttl {
 		return nil, false
 	}
 	return entry.groups, true
 }
 
 func (c *tokenGroupsCache) set(token string, groups []string) {
+	c.setWithTTL(token, groups, c.ttl)
+}
+
+func (c *tokenGroupsCache) setWithTTL(token string, groups []string, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[token] = tokenGroupsEntry{groups: groups, fetchedAt: time.Now()}
+	c.entries[token] = tokenGroupsEntry{groups: groups, fetchedAt: time.Now(), ttl: ttl}
 
 	// Evict expired entries periodically (when cache grows large).
 	if len(c.entries) > 1000 {
 		now := time.Now()
 		for k, v := range c.entries {
-			if now.Sub(v.fetchedAt) > c.ttl {
+			if now.Sub(v.fetchedAt) > v.ttl {
 				delete(c.entries, k)
 			}
 		}
@@ -356,9 +361,10 @@ func main() {
 				groups, err = fetchUserGroups(cfg.KubeAPIURL, accessToken, apiHTTPClient)
 				if err != nil {
 					slog.Warn("failed to fetch user groups", "user", user, "error", err)
-					// Cache empty result to avoid re-hitting the API on every request.
+					// Cache empty result briefly to avoid hammering the API, but expire
+					// quickly so the user gets a retry soon.
 					groups = []string{}
-					tokenCache.set(accessToken, groups)
+					tokenCache.setWithTTL(accessToken, groups, 5*time.Second)
 				} else {
 					tokenCache.set(accessToken, groups)
 					slog.Debug("fetched user groups from API", "user", user, "groups", groups)
