@@ -1,0 +1,14 @@
+{{- $isHub := eq (default "hub" .Values.mode) "hub" -}}
+{{- $mcpEnabled := ternary .Values.mcp.enabled (and .Values.spoke.mcp .Values.spoke.mcp.enabled | default false) $isHub -}}
+{{- if $mcpEnabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhacs-manager-mcp-cabundle
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+data: {}
+{{- end }}

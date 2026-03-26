@@ -15,7 +15,8 @@ from mcp.server.fastmcp import Context, FastMCP
 from .api_client import AuthContext, RhacsManagerClient
 from .config import settings
 
-logging.basicConfig(level=logging.INFO)
+_log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+logging.basicConfig(level=_log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("rhacs-manager", host="0.0.0.0", port=settings.port)
@@ -41,12 +42,19 @@ def _extract_auth(ctx: Context) -> AuthContext:
             "No X-Forwarded-User header found. "
             "The MCP server must be deployed behind oauth-proxy + auth-header-injector."
         )
-    return AuthContext(
+    auth = AuthContext(
         forwarded_user=user,
         forwarded_groups=headers.get("x-forwarded-groups", ""),
         forwarded_namespaces=headers.get("x-forwarded-namespaces", ""),
         forwarded_namespace_emails=headers.get("x-forwarded-namespace-emails", ""),
     )
+    logger.debug(
+        "Auth context: user=%s, groups=%s, namespaces=%s",
+        auth.forwarded_user,
+        auth.forwarded_groups,
+        auth.forwarded_namespaces,
+    )
+    return auth
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +70,7 @@ async def get_security_overview(ctx: Context) -> str:
     cluster heatmap, and upcoming escalations.
     """
     auth = _extract_auth(ctx)
+    logger.debug("get_security_overview called by user=%s", auth.forwarded_user)
     return await client.get_dashboard(auth)
 
 
@@ -90,6 +99,16 @@ async def search_cves(
         page_size: Results per page (default 20, max 200)
     """
     auth = _extract_auth(ctx)
+    logger.debug(
+        "search_cves called: search=%s, severity=%s, fixable=%s, namespace=%s, cluster=%s, component=%s, page=%d",
+        search,
+        severity,
+        fixable,
+        namespace,
+        cluster,
+        component,
+        page,
+    )
     return await client.search_cves(
         auth,
         search=search,
@@ -114,6 +133,7 @@ async def get_cve_detail(ctx: Context, cve_id: str) -> str:
         cve_id: The CVE identifier (e.g. CVE-2024-1234)
     """
     auth = _extract_auth(ctx)
+    logger.debug("get_cve_detail called: cve_id=%s", cve_id)
     return await client.get_cve(auth, cve_id)
 
 
@@ -127,6 +147,7 @@ async def get_cve_affected_deployments(ctx: Context, cve_id: str) -> str:
         cve_id: The CVE identifier (e.g. CVE-2024-1234)
     """
     auth = _extract_auth(ctx)
+    logger.debug("get_cve_affected_deployments called: cve_id=%s", cve_id)
     return await client.get_cve_deployments(auth, cve_id)
 
 
@@ -147,6 +168,7 @@ async def list_risk_acceptances(
         page_size: Results per page (default 20)
     """
     auth = _extract_auth(ctx)
+    logger.debug("list_risk_acceptances called: status=%s, cve_id=%s, page=%d", status, cve_id, page)
     return await client.list_risk_acceptances(
         auth,
         status=status,
@@ -175,6 +197,9 @@ async def list_remediations(
         page_size: Results per page (default 20)
     """
     auth = _extract_auth(ctx)
+    logger.debug(
+        "list_remediations called: status=%s, cve_id=%s, namespace=%s, page=%d", status, cve_id, namespace, page
+    )
     return await client.list_remediations(
         auth,
         status=status,
@@ -193,6 +218,7 @@ async def get_my_info(ctx: Context) -> str:
     of namespace:cluster pairs the user has access to.
     """
     auth = _extract_auth(ctx)
+    logger.debug("get_my_info called by user=%s", auth.forwarded_user)
     return await client.get_me(auth)
 
 
@@ -235,6 +261,7 @@ def _register_write_tools() -> None:
         }
         if expires_at is not None:
             data["expires_at"] = expires_at
+        logger.debug("create_risk_acceptance called: cve_id=%s, scope_mode=%s", cve_id, scope_mode)
         return await client.create_risk_acceptance(auth, data)
 
     @mcp.tool()
@@ -272,6 +299,7 @@ def _register_write_tools() -> None:
             data["target_date"] = target_date
         if notes is not None:
             data["notes"] = notes
+        logger.debug("create_remediation called: cve_id=%s, namespace=%s, cluster=%s", cve_id, namespace, cluster_name)
         return await client.create_remediation(auth, data)
 
     @mcp.tool()
@@ -296,6 +324,7 @@ def _register_write_tools() -> None:
         data: dict = {"status": status}
         if reason is not None:
             data["wont_fix_reason"] = reason
+        logger.debug("update_remediation_status called: id=%s, status=%s", remediation_id, status)
         return await client.update_remediation(auth, remediation_id, data)
 
 
@@ -307,6 +336,10 @@ def main() -> None:
     mode = "readonly" if settings.readonly else "read-write"
     logger.info("Starting RHACS Manager MCP Server (%s mode) on port %d", mode, settings.port)
     logger.info("Backend URL: %s", settings.backend_url)
+    logger.debug("Log level: %s", settings.log_level)
+    logger.debug("CA bundle: %s", settings.ca_bundle)
+    logger.debug("SSL verify: %s", settings.ssl_verify)
+    logger.debug("API key configured: %s", bool(settings.api_key))
     mcp.run(transport="streamable-http")
 
 

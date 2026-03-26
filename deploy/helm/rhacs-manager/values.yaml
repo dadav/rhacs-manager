@@ -1880,7 +1880,7 @@ spoke:
     # @schema
     # -- Path to a CA bundle file inside the container for TLS verification
     # against the hub backend. Set to "false" to disable verification entirely.
-    caBundle: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    caBundle: /etc/pki/tls/service-ca/service-ca.crt
 
   # @schema
   # type: object
@@ -2037,7 +2037,7 @@ mcp:
   # @schema
   # -- Path to a CA bundle file inside the container for TLS verification
   # against the backend. Set to "false" to disable verification entirely.
-  caBundle: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  caBundle: /etc/pki/tls/service-ca/service-ca.crt
   # @schema
   # type: object
   # additionalProperties: false

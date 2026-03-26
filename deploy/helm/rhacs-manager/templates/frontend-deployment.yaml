@@ -76,6 +76,7 @@ spec:
         "ports" (list (dict "containerPort" 8001))
         "env" $mcpEnv
         "resources" $mcpVals.resources
+        "volumeMounts" (list (dict "name" "mcp-cabundle" "mountPath" "/etc/pki/tls/service-ca" "readOnly" true))
       -}}
       {{- if $mcpVals.securityContext -}}
         {{- $mcpContainer = merge $mcpContainer (dict "securityContext" $mcpVals.securityContext) -}}
@@ -98,6 +99,7 @@ spec:
       "affinity" $affinity
       "topologySpreadConstraints" $topologySpreadConstraints
       "extraContainers" $extraContainers
+      "extraVolumes" (ternary (list (dict "name" "mcp-cabundle" "configMap" (dict "name" "rhacs-manager-mcp-cabundle"))) list $mcpEnabled)
       "mcpPlainHttp" (and $mcpEnabled (dig "plainHttp" "enabled" false $mcpVals))
       "mcpPlainHttpPort" (dig "plainHttp" "port" 8082 $mcpVals)
       "mcpDelegateNamespace" (include "rhacs-manager.namespace" .)

@@ -106,6 +106,7 @@ spec:
         - --http-address=:{{ .mcpPlainHttpPort }}
         - --cookie-secure=false
         - '--openshift-delegate-urls={"/":{"resource":"services","verb":"get","namespace":"{{ .mcpDelegateNamespace }}","name":"{{ .mcpDelegateServiceName }}"}}'
+        - --pass-user-bearer-token
         {{- end }}
         - --provider=openshift
         - --openshift-service-account={{ .oauthProxy.serviceAccountName }}
@@ -247,4 +248,7 @@ spec:
     - name: proxy-tls
       secret:
         secretName: {{ .oauthProxy.tlsSecretName }}
+  {{- with .extraVolumes }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end -}}

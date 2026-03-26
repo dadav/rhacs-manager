@@ -33,6 +33,15 @@ def _mock_response(data: dict, status_code: int = 200) -> httpx.Response:
     )
 
 
+def _mock_client(mock_response: httpx.Response) -> AsyncMock:
+    """Build a mock httpx.AsyncClient with request method returning the given response."""
+    instance = AsyncMock()
+    instance.request = AsyncMock(return_value=mock_response)
+    instance.__aenter__ = AsyncMock(return_value=instance)
+    instance.__aexit__ = AsyncMock(return_value=None)
+    return instance
+
+
 class TestAuthContext:
     def test_to_headers_includes_forwarded_headers(self, auth):
         headers = auth.to_headers()
@@ -66,32 +75,25 @@ class TestGetRequests:
     )
     async def test_simple_get_endpoints(self, client, auth, method, args, expected_path):
         mock_resp = _mock_response({"result": "ok"})
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             result = await getattr(client, method)(auth, *args)
 
             assert json.loads(result) == {"result": "ok"}
-            mock_get.assert_called_once()
-            call_args = mock_get.call_args
-            assert call_args[0][0] == expected_path
+            instance.request.assert_called_once()
+            call_args = instance.request.call_args
+            assert call_args[0][0] == "GET"
+            assert call_args[0][1] == expected_path
             assert call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
     async def test_search_cves_builds_params(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             await client.search_cves(
@@ -104,7 +106,7 @@ class TestGetRequests:
                 page_size=10,
             )
 
-            call_params = mock_get.call_args[1]["params"]
+            call_params = instance.request.call_args[1]["params"]
             assert call_params["search"] == "openssl"
             assert call_params["severity"] == "critical"
             assert call_params["fixable"] is True
@@ -114,18 +116,14 @@ class TestGetRequests:
 
     async def test_search_cves_omits_none_params(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             await client.search_cves(auth)
 
-            call_params = mock_get.call_args[1]["params"]
+            call_params = instance.request.call_args[1]["params"]
             assert "search" not in call_params
             assert "severity" not in call_params
             assert "fixable" not in call_params
@@ -134,35 +132,27 @@ class TestGetRequests:
 
     async def test_list_risk_acceptances_params(self, client, auth):
         mock_resp = _mock_response({"items": []})
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             await client.list_risk_acceptances(auth, status="pending", cve_id="CVE-2024-5678")
 
-            call_params = mock_get.call_args[1]["params"]
+            call_params = instance.request.call_args[1]["params"]
             assert call_params["status"] == "pending"
             assert call_params["cve_id"] == "CVE-2024-5678"
 
     async def test_list_remediations_params(self, client, auth):
         mock_resp = _mock_response({"items": []})
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             await client.list_remediations(auth, status="open", namespace="frontend")
 
-            call_params = mock_get.call_args[1]["params"]
+            call_params = instance.request.call_args[1]["params"]
             assert call_params["status"] == "open"
             assert call_params["namespace"] == "frontend"
 
@@ -170,74 +160,61 @@ class TestGetRequests:
 class TestPostRequests:
     async def test_create_risk_acceptance(self, client, auth):
         mock_resp = _mock_response({"id": "ra-1"}, status_code=201)
-        mock_post = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.post = mock_post
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             data = {"cve_id": "CVE-2024-1234", "justification": "test"}
             result = await client.create_risk_acceptance(auth, data)
 
             assert json.loads(result) == {"id": "ra-1"}
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "/api/risk-acceptances"
+            instance.request.assert_called_once()
+            call_args = instance.request.call_args
+            assert call_args[0][0] == "POST"
+            assert call_args[0][1] == "/api/risk-acceptances"
             assert call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
             assert call_args[1]["json"] == data
 
     async def test_create_remediation(self, client, auth):
         mock_resp = _mock_response({"id": "rem-1"}, status_code=201)
-        mock_post = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.post = mock_post
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             data = {"cve_id": "CVE-2024-1234", "namespace": "payments", "cluster_name": "cluster-a"}
             result = await client.create_remediation(auth, data)
 
             assert json.loads(result) == {"id": "rem-1"}
-            mock_post.assert_called_once()
-            assert mock_post.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
+            instance.request.assert_called_once()
+            assert instance.request.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
 
 class TestPatchRequests:
     async def test_update_remediation(self, client, auth):
         mock_resp = _mock_response({"id": "rem-1", "status": "in_progress"})
-        mock_patch = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.patch = mock_patch
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             result = await client.update_remediation(auth, "rem-1", {"status": "in_progress"})
 
             assert json.loads(result)["status"] == "in_progress"
-            mock_patch.assert_called_once()
-            assert mock_patch.call_args[0][0] == "/api/remediations/rem-1"
-            assert mock_patch.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
+            instance.request.assert_called_once()
+            call_args = instance.request.call_args
+            assert call_args[0][0] == "PATCH"
+            assert call_args[0][1] == "/api/remediations/rem-1"
+            assert call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
 
 
 class TestErrorHandling:
     async def test_http_error_raised(self, client, auth):
         mock_resp = _mock_response({"detail": "Not found"}, status_code=404)
-        mock_get = AsyncMock(return_value=mock_resp)
+        instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            instance = AsyncMock()
-            instance.get = mock_get
-            instance.__aenter__ = AsyncMock(return_value=instance)
-            instance.__aexit__ = AsyncMock(return_value=None)
             MockClient.return_value = instance
 
             with pytest.raises(httpx.HTTPStatusError):

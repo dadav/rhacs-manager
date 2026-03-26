@@ -1,5 +1,6 @@
 import json
 import logging
+import ssl
 from dataclasses import dataclass
 
 import httpx
@@ -7,6 +8,14 @@ import httpx
 from .config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _describe_ssl(verify: ssl.SSLContext | bool) -> str:
+    """Return a human-readable description of the SSL verify setting for logging."""
+    if isinstance(verify, ssl.SSLContext):
+        return f"SSLContext(ca_bundle={settings.ca_bundle})"
+    return str(verify)
+
 
 FORWARDED_HEADER_NAMES = (
     "X-Forwarded-User",
@@ -44,23 +53,38 @@ class RhacsManagerClient:
     def __init__(self, base_url: str = settings.backend_url) -> None:
         self.base_url = base_url.rstrip("/")
 
+    async def _request(
+        self, method: str, path: str, auth: AuthContext, params: dict | None = None, data: dict | None = None
+    ) -> str:
+        ssl_verify = settings.ssl_verify
+        logger.debug("HTTP %s %s%s (verify=%s)", method.upper(), self.base_url, path, _describe_ssl(ssl_verify))
+        if params:
+            logger.debug("  params=%s", params)
+        if data:
+            logger.debug("  body=%s", json.dumps(data, ensure_ascii=False))
+        try:
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=ssl_verify) as client:
+                resp = await client.request(method, path, headers=auth.to_headers(), params=params, json=data)
+                logger.debug("HTTP %s %s -> %d", method.upper(), path, resp.status_code)
+                resp.raise_for_status()
+                return json.dumps(resp.json(), ensure_ascii=False)
+        except httpx.ConnectError as exc:
+            logger.debug("Connection failed for %s %s: %s", method.upper(), path, exc)
+            raise
+        except httpx.HTTPStatusError as exc:
+            logger.debug(
+                "HTTP error %d for %s %s: %s", exc.response.status_code, method.upper(), path, exc.response.text
+            )
+            raise
+
     async def _get(self, path: str, auth: AuthContext, params: dict | None = None) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
-            resp = await client.get(path, headers=auth.to_headers(), params=params)
-            resp.raise_for_status()
-            return json.dumps(resp.json(), ensure_ascii=False)
+        return await self._request("GET", path, auth, params=params)
 
     async def _post(self, path: str, auth: AuthContext, data: dict) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
-            resp = await client.post(path, headers=auth.to_headers(), json=data)
-            resp.raise_for_status()
-            return json.dumps(resp.json(), ensure_ascii=False)
+        return await self._request("POST", path, auth, data=data)
 
     async def _patch(self, path: str, auth: AuthContext, data: dict) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
-            resp = await client.patch(path, headers=auth.to_headers(), json=data)
-            resp.raise_for_status()
-            return json.dumps(resp.json(), ensure_ascii=False)
+        return await self._request("PATCH", path, auth, data=data)
 
     # -- Read-only endpoints --
 

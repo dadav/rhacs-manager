@@ -1752,7 +1752,7 @@
       "description": "Optional MCP server for OpenShift Lightspeed integration (hub mode only).",
       "properties": {
         "caBundle": {
-          "default": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+          "default": "/etc/pki/tls/service-ca/service-ca.crt",
           "description": "Path to a CA bundle file inside the container for TLS verification\nagainst the backend. Set to \"false\" to disable verification entirely.",
           "title": "caBundle",
           "type": "string"
@@ -2664,7 +2664,7 @@
           "description": "MCP server sidecar configuration (spoke mode). When enabled, the MCP server\nruns as an additional container in the spoke frontend pod, reusing its auth chain.",
           "properties": {
             "caBundle": {
-              "default": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+              "default": "/etc/pki/tls/service-ca/service-ca.crt",
               "description": "Path to a CA bundle file inside the container for TLS verification\nagainst the hub backend. Set to \"false\" to disable verification entirely.",
               "title": "caBundle",
               "type": "string"
