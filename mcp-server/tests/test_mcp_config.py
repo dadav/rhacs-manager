@@ -68,10 +68,12 @@ class TestMcpSettings:
         from mcp_server.config import McpSettings
 
         mock_ctx = Mock()
-        with patch("mcp_server.config.Path.exists", return_value=True):
-            with patch("mcp_server.config.ssl.create_default_context", return_value=mock_ctx) as create_context:
-                s = McpSettings()
-                assert s.ssl_verify is mock_ctx
+        with (
+            patch("mcp_server.config.Path.exists", return_value=True),
+            patch("mcp_server.config.ssl.create_default_context", return_value=mock_ctx) as create_context,
+        ):
+            s = McpSettings()
+            assert s.ssl_verify is mock_ctx
 
         create_context.assert_called_once_with()
         mock_ctx.load_verify_locations.assert_called_once_with(cafile="/tmp/custom-ca.pem")
