@@ -107,6 +107,7 @@ function makeCveDetail(overrides: Partial<CveDetailType> = {}): CveDetailType {
       { component_name: 'openssl', component_version: '1.1.1', fixable: true, fixed_by: '2.0.0' },
     ],
     contact_emails: ['sec@example.com'],
+    cvss_metric_urls: [],
     priority_reason: null,
     priority_set_by_name: null,
     priority_created_at: null,

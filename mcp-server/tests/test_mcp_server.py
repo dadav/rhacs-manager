@@ -81,7 +81,7 @@ class TestExtractAuth:
 
 class TestReadonlyMode:
     def test_readwrite_mode_has_all_tools(self):
-        """In read-write mode, all 10 tools should be registered."""
+        """In read-write mode, all 11 tools should be registered."""
         with patch.dict("os.environ", {"MCP_READONLY": "false"}, clear=False):
             import mcp_server.config
             import mcp_server.server
@@ -95,16 +95,17 @@ class TestReadonlyMode:
             assert "search_cves" in tool_names
             assert "get_cve_detail" in tool_names
             assert "get_cve_affected_deployments" in tool_names
+            assert "get_image_layers" in tool_names
             assert "list_risk_acceptances" in tool_names
             assert "list_remediations" in tool_names
             assert "get_my_info" in tool_names
             assert "create_risk_acceptance" in tool_names
             assert "create_remediation" in tool_names
             assert "update_remediation_status" in tool_names
-            assert len(tool_names) == 10
+            assert len(tool_names) == 11
 
     def test_readonly_mode_excludes_write_tools(self):
-        """In readonly mode, only 7 read-only tools should be registered."""
+        """In readonly mode, only 8 read-only tools should be registered."""
         with patch.dict("os.environ", {"MCP_READONLY": "true"}, clear=False):
             import mcp_server.config
             import mcp_server.server
@@ -118,13 +119,14 @@ class TestReadonlyMode:
             assert "search_cves" in tool_names
             assert "get_cve_detail" in tool_names
             assert "get_cve_affected_deployments" in tool_names
+            assert "get_image_layers" in tool_names
             assert "list_risk_acceptances" in tool_names
             assert "list_remediations" in tool_names
             assert "get_my_info" in tool_names
             assert "create_risk_acceptance" not in tool_names
             assert "create_remediation" not in tool_names
             assert "update_remediation_status" not in tool_names
-            assert len(tool_names) == 7
+            assert len(tool_names) == 8
 
 
 class TestToolClientWiring:

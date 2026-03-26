@@ -11,6 +11,10 @@ default:
 test:
     uv --directory backend run pytest
 
+# Run mcpserver tests
+test-mcpserver:
+    uv --directory mcp-server run pytest
+
 # Run frontend tests
 test-frontend:
     cd frontend && bun run test
