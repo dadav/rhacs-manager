@@ -181,7 +181,7 @@ spoke:
 
 Traffic on the plain HTTP port still flows through the full oauth-proxy authentication chain, so `X-Forwarded-*` headers are set correctly. The only difference is that TLS is not used on the Service port itself.
 
-Enabling `plainHttp` also configures `--openshift-delegate-urls` on oauth-proxy, which allows bearer token authentication (required for service-to-service clients like OpenShift Lightspeed). The oauth-proxy service account must have permission to perform SubjectAccessReviews.
+Enabling `plainHttp` also configures `--openshift-delegate-urls` on oauth-proxy, which allows bearer token authentication in addition to the cookie-based OAuth flow. This is required for service-to-service clients like OpenShift Lightspeed, which forward the end user's bearer token with each request. The delegate URL performs a SubjectAccessReview checking that the user can create `selfsubjectaccessreviews` — a permission every authenticated OpenShift user has by default.
 
 When using plain HTTP with OLS, the `additionalCAConfigMapRef` is no longer needed:
 

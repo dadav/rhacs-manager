@@ -102,8 +102,6 @@ spec:
       "extraVolumes" (ternary (list (dict "name" "mcp-cabundle" "configMap" (dict "name" "rhacs-manager-mcp-cabundle"))) list $mcpEnabled)
       "mcpPlainHttp" (and $mcpEnabled (dig "plainHttp" "enabled" false $mcpVals))
       "mcpPlainHttpPort" (dig "plainHttp" "port" 8082 $mcpVals)
-      "mcpDelegateNamespace" (include "rhacs-manager.namespace" .)
-      "mcpDelegateServiceName" (ternary .Values.frontend.serviceName .Values.spoke.frontend.serviceName $isHub)
       "chart" .Chart
     -}}
     {{- include "rhacs-manager.oauthProxyPodSpec" $args | nindent 4 }}

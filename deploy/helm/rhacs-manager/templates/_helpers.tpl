@@ -105,7 +105,7 @@ spec:
         {{- if .mcpPlainHttp }}
         - --http-address=:{{ .mcpPlainHttpPort }}
         - --cookie-secure=false
-        - '--openshift-delegate-urls={"/":{"resource":"services","verb":"get","namespace":"{{ .mcpDelegateNamespace }}","name":"{{ .mcpDelegateServiceName }}"}}'
+        - '--openshift-delegate-urls={"/":{"group":"authorization.k8s.io","resource":"selfsubjectaccessreviews","verb":"create"}}'
         - --pass-user-bearer-token
         {{- end }}
         - --provider=openshift

@@ -211,6 +211,31 @@ async def list_remediations(
 
 
 @mcp.tool()
+async def get_image_layers(
+    ctx: Context,
+    image_id: str,
+    cluster: str | None = None,
+    namespace: str | None = None,
+) -> str:
+    """Get Containerfile (Dockerfile) layer instructions for a container image.
+
+    Returns the image's build layers showing each Dockerfile instruction
+    (FROM, RUN, COPY, etc.), along with image metadata (OS, registry, tag,
+    scan time) and CVE summary. Use this after get_cve_affected_deployments
+    to inspect how a vulnerable image was built and identify which layer
+    introduced a vulnerable component.
+
+    Args:
+        image_id: The StackRox image ID (SHA from CVE detail or deployment data)
+        cluster: Optional cluster filter for namespace-scoped CVE visibility
+        namespace: Optional namespace filter for namespace-scoped CVE visibility
+    """
+    auth = _extract_auth(ctx)
+    logger.debug("get_image_layers called: image_id=%s, cluster=%s, namespace=%s", image_id, cluster, namespace)
+    return await client.get_image_detail(auth, image_id, cluster=cluster, namespace=namespace)
+
+
+@mcp.tool()
 async def get_my_info(ctx: Context) -> str:
     """Get the current user's identity, role, and visible namespaces.
 

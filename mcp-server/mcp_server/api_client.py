@@ -163,6 +163,16 @@ class RhacsManagerClient:
     async def get_me(self, auth: AuthContext) -> str:
         return await self._get("/api/auth/me", auth)
 
+    async def get_image_detail(
+        self, auth: AuthContext, image_id: str, *, cluster: str | None = None, namespace: str | None = None
+    ) -> str:
+        params: dict = {}
+        if cluster is not None:
+            params["cluster"] = cluster
+        if namespace is not None:
+            params["namespace"] = namespace
+        return await self._get(f"/api/images/{image_id}", auth, params or None)
+
     # -- Write endpoints --
 
     async def create_risk_acceptance(self, auth: AuthContext, data: dict) -> str:
