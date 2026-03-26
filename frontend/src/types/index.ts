@@ -120,10 +120,26 @@ export interface AffectedComponent {
   fixed_by: string | null
 }
 
+export interface CveReference {
+  uri: string
+  tags: string[]
+}
+
+export interface CvssMetricUrl {
+  source: string
+  url: string
+}
+
 export interface CveDetail extends CveListItem {
   affected_deployments_list: AffectedDeployment[]
   components: AffectedComponent[]
   contact_emails: string[]
+  summary: string | null
+  link: string | null
+  references: CveReference[]
+  cvss_metric_urls: CvssMetricUrl[]
+  advisory_name: string | null
+  advisory_link: string | null
   priority_reason: string | null
   priority_set_by_name: string | null
   priority_created_at: string | null

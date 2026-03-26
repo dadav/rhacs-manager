@@ -198,3 +198,46 @@ async def get_all_cves(
     """)
     result = await session.execute(sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show})
     return [dict(row._mapping) for row in result]
+
+
+async def get_cve_protobuf_data(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> dict | None:
+    """Fetch serialized protobuf + advisory columns for a single CVE."""
+    if not namespaces:
+        return None
+
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+
+    sql = text(f"""
+        SELECT ic.serialized, ic.advisory_name, ic.advisory_link
+        FROM deployments d
+        JOIN deployments_containers dc ON dc.deployments_id = d.id
+        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        WHERE {ns_fragment}
+          AND ic.cvebaseinfo_cve = :cve_id
+          AND ic.serialized IS NOT NULL
+        LIMIT 1
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    row = result.fetchone()
+    return dict(row._mapping) if row else None
+
+
+async def get_cve_protobuf_data_all(
+    session: AsyncSession,
+    cve_id: str,
+) -> dict | None:
+    """Fetch serialized protobuf + advisory for a CVE (all namespaces, sec team)."""
+    sql = text("""
+        SELECT ic.serialized, ic.advisory_name, ic.advisory_link
+        FROM image_cves_v2 ic
+        WHERE ic.cvebaseinfo_cve = :cve_id
+          AND ic.serialized IS NOT NULL
+        LIMIT 1
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id})
+    row = result.fetchone()
+    return dict(row._mapping) if row else None

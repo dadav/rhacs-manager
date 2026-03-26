@@ -55,10 +55,26 @@ class CveListItem(BaseModel):
     remediation_status: str | None = None
 
 
+class CveReference(BaseModel):
+    uri: str
+    tags: list[str] = []
+
+
+class CvssMetricUrl(BaseModel):
+    source: str
+    url: str
+
+
 class CveDetail(CveListItem):
     affected_deployments_list: list[AffectedDeployment] = []
     components: list[AffectedComponent] = []
     contact_emails: list[str] = Field(default_factory=list)
+    summary: str | None = None
+    link: str | None = None
+    references: list[CveReference] = []
+    cvss_metric_urls: list[CvssMetricUrl] = []
+    advisory_name: str | None = None
+    advisory_link: str | None = None
     priority_reason: str | None = None
     priority_set_by_name: str | None = None
     priority_created_at: datetime | None = None

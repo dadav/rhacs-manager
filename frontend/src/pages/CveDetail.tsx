@@ -295,26 +295,72 @@ export function CveDetail() {
                         </span>
                       }
                     />
+                    {cve.summary && (
+                      <DetailRow
+                        label={t('cveDetail.summary')}
+                        value={
+                          <span style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>
+                            {cve.summary.replace(/<br\s*\/?>/g, "\n")}
+                          </span>
+                        }
+                      />
+                    )}
                     <DetailRow
                       label={t('cveDetail.references')}
                       value={
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                          <a
-                            href={`https://access.redhat.com/security/cve/${cve.cve_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: BRAND_BLUE }}
-                          >
-                            {t('cveDetail.redHatSecurity')}
-                          </a>
-                          <a
-                            href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: BRAND_BLUE }}
-                          >
-                            {t('cveDetail.nvd')}
-                          </a>
+                          {cve.cvss_metric_urls.length > 0 ? (
+                            cve.cvss_metric_urls.map((m) => (
+                              <a
+                                key={m.url}
+                                href={m.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: BRAND_BLUE }}
+                              >
+                                {m.source}
+                              </a>
+                            ))
+                          ) : (
+                            <>
+                              <a
+                                href={`https://access.redhat.com/security/cve/${cve.cve_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: BRAND_BLUE }}
+                              >
+                                {t('cveDetail.redHatSecurity')}
+                              </a>
+                              <a
+                                href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: BRAND_BLUE }}
+                              >
+                                {t('cveDetail.nvd')}
+                              </a>
+                            </>
+                          )}
+                          {cve.link && !cve.cvss_metric_urls.some((m) => m.url === cve.link) && (
+                            <a
+                              href={cve.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: BRAND_BLUE }}
+                            >
+                              {t('cveDetail.primaryLink')}
+                            </a>
+                          )}
+                          {cve.advisory_name && cve.advisory_link && (
+                            <a
+                              href={cve.advisory_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: BRAND_BLUE }}
+                            >
+                              {cve.advisory_name}
+                            </a>
+                          )}
                         </div>
                       }
                     />

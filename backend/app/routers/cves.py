@@ -28,6 +28,7 @@ from ..schemas.cve import (
 )
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..stackrox import queries as sx
+from ..stackrox.decoder import decode_cve_protobuf
 
 router = APIRouter(prefix="/cves", tags=["cves"])
 
@@ -328,6 +329,21 @@ async def get_cve(
                     esc_expected[3] = first_seen + timedelta(days=rule.get("days_to_level3", 999))
                     break  # first matching rule only
 
+    # Fetch protobuf data for summary, references, and advisory
+    if current_user.can_see_all_namespaces:
+        proto_row = await sx.get_cve_protobuf_data_all(sx_db, cve_id)
+    else:
+        proto_row = await sx.get_cve_protobuf_data(sx_db, cve_id, ns)
+
+    proto_data: dict = {"summary": None, "link": None, "references": [], "cvss_metric_urls": []}
+    advisory_name: str | None = None
+    advisory_link: str | None = None
+    if proto_row:
+        if proto_row.get("serialized"):
+            proto_data = decode_cve_protobuf(proto_row["serialized"])
+        advisory_name = proto_row.get("advisory_name") or None
+        advisory_link = proto_row.get("advisory_link") or None
+
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     components = await sx.get_affected_components(sx_db, cve_id, ns)
     contact_emails: list[str] = []
@@ -368,6 +384,12 @@ async def get_cve(
         first_seen=cve_data.get("first_seen"),
         published_on=cve_data.get("published_on"),
         operating_system=cve_data.get("operating_system"),
+        summary=proto_data.get("summary"),
+        link=proto_data.get("link"),
+        references=proto_data.get("references", []),
+        cvss_metric_urls=proto_data.get("cvss_metric_urls", []),
+        advisory_name=advisory_name,
+        advisory_link=advisory_link,
         has_priority=priority is not None,
         priority_level=priority.priority.value if priority else None,
         priority_reason=priority.reason if priority else None,

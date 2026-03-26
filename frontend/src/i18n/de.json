@@ -254,6 +254,8 @@
     "references": "Referenzen",
     "redHatSecurity": "Red Hat Security",
     "nvd": "NVD",
+    "primaryLink": "Primärquelle",
+    "summary": "Beschreibung",
     "contactEmail": "Kontakt E-Mail",
     "yesFixable": "✓ Ja",
     "noFixable": "✗ Nein",
