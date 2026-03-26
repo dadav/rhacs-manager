@@ -1751,6 +1751,12 @@
       "additionalProperties": false,
       "description": "Optional MCP server for OpenShift Lightspeed integration (hub mode only).",
       "properties": {
+        "caBundle": {
+          "default": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+          "description": "Path to a CA bundle file inside the container for TLS verification\nagainst the backend. Set to \"false\" to disable verification entirely.",
+          "title": "caBundle",
+          "type": "string"
+        },
         "enabled": {
           "default": false,
           "description": "Enable the MCP server sidecar in the hub frontend pod.",
@@ -2657,6 +2663,12 @@
           "additionalProperties": false,
           "description": "MCP server sidecar configuration (spoke mode). When enabled, the MCP server\nruns as an additional container in the spoke frontend pod, reusing its auth chain.",
           "properties": {
+            "caBundle": {
+              "default": "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+              "description": "Path to a CA bundle file inside the container for TLS verification\nagainst the hub backend. Set to \"false\" to disable verification entirely.",
+              "title": "caBundle",
+              "type": "string"
+            },
             "enabled": {
               "default": false,
               "description": "Enable the MCP server sidecar in the spoke frontend pod.",

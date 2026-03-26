@@ -65,6 +65,9 @@ spec:
       {{- else -}}
         {{- $mcpEnv = append $mcpEnv (dict "name" "MCP_BACKEND_URL" "valueFrom" (dict "secretKeyRef" (dict "name" $secretName "key" "HUB_API_URL"))) -}}
       {{- end -}}
+      {{- if $mcpVals.caBundle -}}
+        {{- $mcpEnv = append $mcpEnv (dict "name" "MCP_CA_BUNDLE" "value" $mcpVals.caBundle) -}}
+      {{- end -}}
       {{- $mcpContainer := dict
         "name" "mcp-server"
         "image" (printf "%s:%s" $mcpVals.image.repository (include "rhacs-manager.imageTag" (dict "tag" $mcpVals.image.tag "chart" .Chart)))

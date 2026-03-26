@@ -45,19 +45,19 @@ class RhacsManagerClient:
         self.base_url = base_url.rstrip("/")
 
     async def _get(self, path: str, auth: AuthContext, params: dict | None = None) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
             resp = await client.get(path, headers=auth.to_headers(), params=params)
             resp.raise_for_status()
             return json.dumps(resp.json(), ensure_ascii=False)
 
     async def _post(self, path: str, auth: AuthContext, data: dict) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
             resp = await client.post(path, headers=auth.to_headers(), json=data)
             resp.raise_for_status()
             return json.dumps(resp.json(), ensure_ascii=False)
 
     async def _patch(self, path: str, auth: AuthContext, data: dict) -> str:
-        async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
+        async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=settings.ssl_verify) as client:
             resp = await client.patch(path, headers=auth.to_headers(), json=data)
             resp.raise_for_status()
             return json.dumps(resp.json(), ensure_ascii=False)
