@@ -15,4 +15,9 @@ spec:
     - name: {{ .Values.spoke.service.portName }}
       port: {{ .Values.spoke.service.port }}
       targetPort: {{ .Values.spoke.service.targetPort }}
+    {{- if and .Values.spoke.mcp.enabled .Values.spoke.mcp.plainHttp.enabled }}
+    - name: mcp-http
+      port: {{ .Values.spoke.mcp.plainHttp.port }}
+      targetPort: {{ .Values.spoke.mcp.plainHttp.port }}
+    {{- end }}
 {{- end }}

@@ -102,6 +102,11 @@ spec:
       imagePullPolicy: {{ .oauthProxy.image.pullPolicy }}
       args:
         - --https-address=:8443
+        {{- if .mcpPlainHttp }}
+        - --http-address=:{{ .mcpPlainHttpPort }}
+        - --cookie-secure=false
+        - '--openshift-delegate-urls={"/":{"resource":"services","verb":"get","namespace":"{{ .mcpDelegateNamespace }}","name":"{{ .mcpDelegateServiceName }}"}}'
+        {{- end }}
         - --provider=openshift
         - --openshift-service-account={{ .oauthProxy.serviceAccountName }}
         - --upstream=http://localhost:8081
@@ -114,6 +119,10 @@ spec:
       ports:
         - containerPort: 8443
           name: oauth-proxy
+        {{- if .mcpPlainHttp }}
+        - containerPort: {{ .mcpPlainHttpPort }}
+          name: mcp-http
+        {{- end }}
       volumeMounts:
         - name: proxy-tls
           mountPath: /etc/tls/private

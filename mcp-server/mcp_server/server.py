@@ -28,7 +28,7 @@ def _extract_auth(ctx: Context) -> AuthContext:
     The oauth-proxy + auth-header-injector sidecar chain resolves the user's
     identity and namespace scope, injecting X-Forwarded-* headers into the request.
     """
-    request = ctx.request_context
+    request = ctx.request_context.request
     if not request or not hasattr(request, "headers"):
         raise ValueError(
             "No request context available. The MCP server must be deployed behind oauth-proxy + auth-header-injector."

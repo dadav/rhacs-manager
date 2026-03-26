@@ -158,6 +158,43 @@ spec:
 
 The oauth-proxy authenticates the user via OpenShift OAuth, the auth-header-injector resolves their namespace scope from Kubernetes namespace annotations on the local cluster, and the MCP server forwards these identity headers to the backend. The user's OpenShift identity determines which namespaces and actions are available.
 
+## Plain HTTP
+
+By default the MCP endpoint is only reachable through the oauth-proxy HTTPS port (8443). If you need a plain HTTP port — for example when TLS is terminated at an external load balancer or ingress — enable `plainHttp`:
+
+```yaml
+# Hub
+mcp:
+  enabled: true
+  plainHttp:
+    enabled: true
+    port: 8082  # default
+
+# Spoke
+spoke:
+  mcp:
+    enabled: true
+    plainHttp:
+      enabled: true
+      port: 8082  # default
+```
+
+Traffic on the plain HTTP port still flows through the full oauth-proxy authentication chain, so `X-Forwarded-*` headers are set correctly. The only difference is that TLS is not used on the Service port itself.
+
+Enabling `plainHttp` also configures `--openshift-delegate-urls` on oauth-proxy, which allows bearer token authentication (required for service-to-service clients like OpenShift Lightspeed). The oauth-proxy service account must have permission to perform SubjectAccessReviews.
+
+When using plain HTTP with OLS, the `additionalCAConfigMapRef` is no longer needed:
+
+```yaml
+mcpServers:
+  - name: rhacs-manager
+    url: http://rhacs-manager-frontend.rhacs-manager.svc:8082/mcp
+    headers:
+      - name: Authorization
+        valueFrom:
+          type: kubernetes
+```
+
 ## Readonly Mode
 
 When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations.

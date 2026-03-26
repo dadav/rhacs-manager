@@ -1789,6 +1789,29 @@
           "title": "image",
           "type": "object"
         },
+        "plainHttp": {
+          "additionalProperties": false,
+          "description": "Expose an additional plain HTTP port on the frontend Service for MCP\nconnections. Traffic still flows through the full oauth-proxy auth chain.",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Enable the plain HTTP listener on oauth-proxy.",
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "port": {
+              "default": 8082,
+              "description": "Port number for the plain HTTP listener.",
+              "maximum": 65535,
+              "minimum": 1,
+              "title": "port",
+              "type": "integer"
+            }
+          },
+          "required": [],
+          "title": "plainHttp",
+          "type": "object"
+        },
         "readonly": {
           "default": false,
           "description": "Run in readonly mode (only read-only tools are exposed).",
@@ -2670,6 +2693,29 @@
               },
               "required": [],
               "title": "image",
+              "type": "object"
+            },
+            "plainHttp": {
+              "additionalProperties": false,
+              "description": "Expose an additional plain HTTP port on the frontend Service for MCP\nconnections. Traffic still flows through the full oauth-proxy auth chain.",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable the plain HTTP listener on oauth-proxy.",
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "port": {
+                  "default": 8082,
+                  "description": "Port number for the plain HTTP listener.",
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "title": "port",
+                  "type": "integer"
+                }
+              },
+              "required": [],
+              "title": "plainHttp",
               "type": "object"
             },
             "readonly": {

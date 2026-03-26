@@ -13,10 +13,11 @@ def _make_ctx(headers: dict[str, str] | None = None) -> MagicMock:
     """Build a mock MCP Context with the given request headers."""
     ctx = MagicMock()
     if headers is None:
-        ctx.request_context = None
+        ctx.request_context.request = None
     else:
-        ctx.request_context = MagicMock()
-        ctx.request_context.headers = headers
+        request = MagicMock()
+        request.headers = headers
+        ctx.request_context.request = request
     return ctx
 
 

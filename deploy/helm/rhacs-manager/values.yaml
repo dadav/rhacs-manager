@@ -1818,6 +1818,25 @@ spoke:
     # type: object
     # additionalProperties: false
     # @schema
+    # -- Expose an additional plain HTTP port on the frontend Service for MCP
+    # connections. Traffic still flows through the full oauth-proxy auth chain.
+    plainHttp:
+      # @schema
+      # type: boolean
+      # @schema
+      # -- Enable the plain HTTP listener on oauth-proxy.
+      enabled: false
+      # @schema
+      # type: integer
+      # minimum: 1
+      # maximum: 65535
+      # @schema
+      # -- Port number for the plain HTTP listener.
+      port: 8082
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
     # -- MCP server container image.
     image:
       # @schema
@@ -1946,6 +1965,25 @@ mcp:
   # @schema
   # -- Run in readonly mode (only read-only tools are exposed).
   readonly: false
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- Expose an additional plain HTTP port on the frontend Service for MCP
+  # connections. Traffic still flows through the full oauth-proxy auth chain.
+  plainHttp:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Enable the plain HTTP listener on oauth-proxy.
+    enabled: false
+    # @schema
+    # type: integer
+    # minimum: 1
+    # maximum: 65535
+    # @schema
+    # -- Port number for the plain HTTP listener.
+    port: 8082
   # @schema
   # type: object
   # additionalProperties: false
