@@ -16,7 +16,8 @@ import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { useRiskAcceptances } from '../api/riskAcceptances'
+import { useRiskAcceptances, useCancelRiskAcceptance } from '../api/riskAcceptances'
+import { useCurrentUser } from '../api/auth'
 import { useScope } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
 import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, subtleTextSm, monoText } from '../tokens'
@@ -24,6 +25,45 @@ import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, subtleTextSm, mon
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected', 'expired'] as const
 
 const STATUS_FILTERS = new Set(STATUS_KEYS)
+
+function DeleteRAButton({ raId }: { raId: string }) {
+  const { t } = useTranslation()
+  const cancelRA = useCancelRiskAcceptance(raId)
+  const [confirm, setConfirm] = useState(false)
+  const [error, setError] = useState('')
+
+  if (confirm) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Button
+          variant="danger"
+          size="sm"
+          isLoading={cancelRA.isPending}
+          onClick={async () => {
+            try {
+              await cancelRA.mutateAsync()
+            } catch (err) {
+              setError(getErrorMessage(err))
+              setConfirm(false)
+            }
+          }}
+        >
+          {t('riskAcceptance.deleteFinal')}
+        </Button>
+        <Button variant="link" size="sm" onClick={() => setConfirm(false)}>
+          {t('common.cancel')}
+        </Button>
+        {error && <span style={{ color: '#c9190b', fontSize: 12 }}>{error}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <Button variant="link" isDanger size="sm" onClick={() => setConfirm(true)}>
+      {t('riskAcceptance.delete')}
+    </Button>
+  )
+}
 
 function normalizeStatusFilter(raw: string | null): string {
   if (!raw) return ''
@@ -64,6 +104,7 @@ export function RiskAcceptances() {
   }
 
   const { scopeParams } = useScope()
+  const { data: me } = useCurrentUser()
   const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined, scopeParams)
 
   const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
@@ -128,11 +169,10 @@ export function RiskAcceptances() {
               <Tr>
                 <Th>{t('riskAcceptance.cveId')}</Th>
                 <Th>{t('riskAcceptance.status')}</Th>
-                <Th>{t('riskAcceptance.justification')}</Th>
                 <Th>{t('riskAcceptance.requestedBy')}</Th>
                 <Th>{t('riskAcceptance.requestedAt')}</Th>
-                <Th>{t('riskAcceptance.expiresOn')}</Th>
-                <Th>{t('riskAcceptance.comments')}</Th>
+                <Th>{t('riskAcceptance.reviewedAt')}</Th>
+                <Th></Th>
                 <Th></Th>
               </Tr>
             </Thead>
@@ -141,11 +181,10 @@ export function RiskAcceptances() {
                 <Tr key={i}>
                   <Td><Skeleton width="120px" /></Td>
                   <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="200px" /></Td>
                   <Td><Skeleton width="100px" /></Td>
                   <Td><Skeleton width="80px" /></Td>
                   <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="30px" /></Td>
+                  <Td><Skeleton width="60px" /></Td>
                   <Td><Skeleton width="60px" /></Td>
                 </Tr>
               ))}
@@ -168,11 +207,10 @@ export function RiskAcceptances() {
               <Tr>
                 <Th>{t('riskAcceptance.cveId')}</Th>
                 <Th>{t('riskAcceptance.status')}</Th>
-                <Th>{t('riskAcceptance.justification')}</Th>
                 <Th>{t('riskAcceptance.requestedBy')}</Th>
                 <Th>{t('riskAcceptance.requestedAt')}</Th>
-                <Th>{t('riskAcceptance.expiresOn')}</Th>
-                <Th>{t('riskAcceptance.comments')}</Th>
+                <Th>{t('riskAcceptance.reviewedAt')}</Th>
+                <Th></Th>
                 <Th></Th>
               </Tr>
             </Thead>
@@ -189,29 +227,22 @@ export function RiskAcceptances() {
                       {statusLabels[ra.status] ?? ra.status}
                     </span>
                   </Td>
-                  <Td style={{ maxWidth: 300 }}>
-                    <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {ra.justification}
-                    </span>
-                  </Td>
                   <Td style={{ fontSize: 12 }}>{ra.created_by_name}</Td>
                   <Td style={subtleTextSm}>
                     {new Date(ra.created_at).toLocaleDateString(localeDateLocale)}
                   </Td>
                   <Td style={subtleTextSm}>
-                    {ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(localeDateLocale) : '–'}
-                  </Td>
-                  <Td style={{ textAlign: 'right' }}>
-                    {ra.comment_count > 0 && (
-                      <span style={{ background: 'var(--pf-t--global--background--color--secondary--default)', color: 'var(--pf-t--global--color--blue--default)', padding: '2px 6px', borderRadius: 10, fontSize: 11 }}>
-                        {ra.comment_count}
-                      </span>
-                    )}
+                    {ra.reviewed_at ? new Date(ra.reviewed_at).toLocaleDateString(localeDateLocale) : '–'}
                   </Td>
                   <Td>
                     <Link to={`/risk-acceptances/${ra.id}`}>
                       <Button variant="secondary" size="sm">{t('common.details')}</Button>
                     </Link>
+                  </Td>
+                  <Td>
+                    {(me?.is_sec_team || me?.id === ra.created_by) && (
+                      <DeleteRAButton raId={ra.id} />
+                    )}
                   </Td>
                 </Tr>
               ))}

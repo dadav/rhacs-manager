@@ -630,15 +630,15 @@ function RiskAcceptanceView({ id }: { id: string }) {
               </Card>
             )}
 
-            {/* Creator cancel action */}
-            {!me?.is_sec_team && me?.id === ra.created_by && ra.status === RiskStatus.requested && (
+            {/* Delete action — sec team can delete any, creators can delete their own */}
+            {(me?.is_sec_team || me?.id === ra.created_by) && (
               <Card>
-                <CardTitle>{t('riskAcceptance.withdrawTitle')}</CardTitle>
+                <CardTitle>{t('riskAcceptance.deleteTitle')}</CardTitle>
                 <CardBody>
                   {cancelError && <Alert variant="danger" isInline title={cancelError} style={{ marginBottom: 12 }} />}
                   {confirmCancel ? (
                     <div>
-                      <p style={{ fontSize: 13, marginBottom: 12 }}>{t('riskAcceptance.withdrawConfirm')}</p>
+                      <p style={{ fontSize: 13, marginBottom: 12 }}>{t('riskAcceptance.deleteConfirm')}</p>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <Button
                           variant="danger"
@@ -652,7 +652,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                             }
                           }}
                         >
-                          {t('riskAcceptance.withdrawFinal')}
+                          {t('riskAcceptance.deleteFinal')}
                         </Button>
                         <Button variant="link" onClick={() => setConfirmCancel(false)}>
                           {t('common.cancel')}
@@ -660,8 +660,8 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       </div>
                     </div>
                   ) : (
-                    <Button variant="warning" onClick={() => setConfirmCancel(true)}>
-                      {t('riskAcceptance.withdraw')}
+                    <Button variant="danger" onClick={() => setConfirmCancel(true)}>
+                      {t('riskAcceptance.delete')}
                     </Button>
                   )}
                 </CardBody>

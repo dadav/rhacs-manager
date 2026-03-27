@@ -351,20 +351,15 @@ async def cancel_risk_acceptance(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> None:
-    """Creator cancels their own pending (requested) risk acceptance."""
-    if current_user.is_sec_team:
-        raise HTTPException(403, "Security-Team kann keine eigenen Risikoakzeptanzen zurückziehen")
-
+    """Delete a risk acceptance. Sec team can delete any; creators can delete their own."""
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
         raise HTTPException(404, "Nicht gefunden")
-    if ra.created_by != current_user.id:
-        raise HTTPException(403, "Nur der Ersteller kann den Antrag zurückziehen")
-    if ra.status != RiskStatus.requested:
-        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können zurückgezogen werden")
+    if not current_user.is_sec_team and ra.created_by != current_user.id:
+        raise HTTPException(403, "Nur der Ersteller kann die Risikoakzeptanz löschen")
 
-    await log_action(db, current_user.id, "risk_acceptance_cancelled", "risk_acceptance", str(ra.id))
+    await log_action(db, current_user.id, "risk_acceptance_deleted", "risk_acceptance", str(ra.id))
     await db.delete(ra)
     await db.commit()
 

@@ -54,6 +54,45 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
   )
 }
 
+function DeletePriorityButton({ priorityId }: { priorityId: string }) {
+  const { t } = useTranslation()
+  const deletePriority = useDeletePriority()
+  const [confirm, setConfirm] = useState(false)
+  const [error, setError] = useState('')
+
+  if (confirm) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Button
+          variant="danger"
+          size="sm"
+          isLoading={deletePriority.isPending}
+          onClick={async () => {
+            try {
+              await deletePriority.mutateAsync(priorityId)
+            } catch (err) {
+              setError(getErrorMessage(err))
+              setConfirm(false)
+            }
+          }}
+        >
+          {t('priorities.deleteFinal')}
+        </Button>
+        <Button variant="link" size="sm" onClick={() => setConfirm(false)}>
+          {t('common.cancel')}
+        </Button>
+        {error && <span style={{ color: '#c9190b', fontSize: 12 }}>{error}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <Button variant="link" isDanger size="sm" onClick={() => setConfirm(true)}>
+      {t('priorities.delete')}
+    </Button>
+  )
+}
+
 function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
   return (
     <Tbody>
@@ -74,7 +113,6 @@ export function Priorities() {
   const { data, isLoading, error } = usePriorities()
   const createPriority = useCreatePriority()
   const updatePriority = useUpdatePriority()
-  const deletePriority = useDeletePriority()
 
   const [showCreate, setShowCreate] = useState(false)
   const [cveId, setCveId] = useState('')
@@ -201,14 +239,7 @@ export function Priorities() {
                     </Td>
                     {me?.is_sec_team && (
                       <Td>
-                        <Button
-                          variant="plain"
-                          size="sm"
-                          onClick={() => deletePriority.mutate(p.id)}
-                          style={{ color: '#c9190b', fontSize: 11 }}
-                        >
-                          {t('common.remove')}
-                        </Button>
+                        <DeletePriorityButton priorityId={p.id} />
                       </Td>
                     )}
                   </Tr>
