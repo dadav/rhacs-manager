@@ -6,6 +6,7 @@ import {
   Card,
   CardBody,
   CardTitle,
+  ExpandableSection,
   Grid,
   GridItem,
   Label,
@@ -301,15 +302,12 @@ export function CveDetail() {
 
       <PageSection variant="default" style={{ paddingTop: 0 }}>
         <CveWorkflowStepper cve={cve} remediations={workflowRemediations} isSecTeam={isSecTeam} />
-      </PageSection>
-
-      <PageSection variant="default" style={{ paddingTop: 0 }}>
-        <Card>
-          <CardTitle>{t('cveDetail.lifecycle')}</CardTitle>
-          <CardBody>
-            <CveLifecycleTimeline cve={cve} />
-          </CardBody>
-        </Card>
+        <ExpandableSection
+          toggleText={t('cveDetail.lifecycle')}
+          style={{ marginTop: 16 }}
+        >
+          <CveLifecycleTimeline cve={cve} />
+        </ExpandableSection>
       </PageSection>
 
       <PageSection variant="default" isFilled>
