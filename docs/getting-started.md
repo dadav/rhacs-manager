@@ -4,7 +4,7 @@ This guide walks you through deploying RHACS CVE Manager on OpenShift.
 
 ## Prerequisites
 
-- OpenShift cluster with RHACS (StackRox) installed
+- OpenShift cluster with RHACS (StackRox) 4.10.x installed (see [compatibility](index.md#rhacs-compatibility))
 - Helm 3
 - `oc` CLI authenticated to the target cluster
 - Access to a container registry for the RHACS Manager images

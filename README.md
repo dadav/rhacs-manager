@@ -81,6 +81,14 @@ just lint
 | Auth      | OpenShift OAuth / OIDC JWT / Dev mode                         |
 | Deploy    | Helm, OpenShift, multi-stage container builds                 |
 
+## RHACS Compatibility
+
+| RHACS Version | Status |
+| ------------- | ------ |
+| 4.10.x        | Tested |
+
+RHACS Manager reads directly from the StackRox Central database. Schema changes in future RHACS versions may require query updates. If you encounter issues with a newer version, please open an issue.
+
 ## Deployment
 
 ```bash

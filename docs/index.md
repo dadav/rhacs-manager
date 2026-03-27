@@ -84,6 +84,14 @@ graph TB
     FE_SPOKE -->|"X-Api-Key + X-Forwarded-*"| BE
 ```
 
+## RHACS Compatibility
+
+| RHACS Version | Status |
+| --- | --- |
+| 4.10.x | Tested |
+
+RHACS Manager reads directly from the StackRox Central database. Schema changes in future RHACS versions may require updates to the queries in this project. If you encounter issues with a newer RHACS version, please open an issue.
+
 ## Core Design Rules
 
 - CVE visibility for non-sec users is namespace-scoped.
