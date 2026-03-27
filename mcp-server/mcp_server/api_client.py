@@ -2,6 +2,7 @@ import json
 import logging
 import ssl
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import httpx
 
@@ -171,7 +172,7 @@ class RhacsManagerClient:
             params["cluster"] = cluster
         if namespace is not None:
             params["namespace"] = namespace
-        return await self._get(f"/api/images/{image_id}", auth, params or None)
+        return await self._get(f"/api/images/{quote(image_id, safe='')}", auth, params or None)
 
     # -- Write endpoints --
 
