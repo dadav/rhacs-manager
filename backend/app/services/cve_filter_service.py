@@ -476,8 +476,8 @@ async def fetch_filtered_cves(
         "cvss": lambda x: x.cvss,
         "epss_probability": lambda x: x.epss_probability,
         "affected_deployments": lambda x: x.affected_deployments,
-        "first_seen": lambda x: x.first_seen or "",
-        "published_on": lambda x: x.published_on or "",
+        "first_seen": lambda x: x.first_seen.replace(tzinfo=None) if x.first_seen else datetime.min,
+        "published_on": lambda x: x.published_on.replace(tzinfo=None) if x.published_on else datetime.min,
     }
     key_fn = sort_key_map.get(sort_by, lambda x: x.severity.value)
     items.sort(key=key_fn, reverse=sort_desc)
