@@ -17,7 +17,7 @@ interface CveWorkflowStepperProps {
   isSecTeam: boolean;
 }
 
-type Phase = "discover" | "prioritize" | "remediate" | "verify";
+type Phase = "discover" | "assess" | "prioritize" | "remediate" | "verify" | "resolve";
 
 const TERMINAL_REMEDIATION_STATUSES = new Set<RemediationStatus>([
   RemediationStatus.resolved,
@@ -29,6 +29,7 @@ function computePhases(
   cve: CveDetail,
   remediations: RemediationItem[] | undefined,
   activePhases: Phase[],
+  isMember: boolean,
 ) {
   const hasApprovedRa = cve.has_risk_acceptance && cve.risk_acceptance_status === RiskStatus.approved;
 
@@ -42,12 +43,25 @@ function computePhases(
     remediations.length > 0 &&
     remediations.every((r) => r.status === RemediationStatus.verified);
 
+  const hasAnyRemediation =
+    remediations !== undefined && remediations.length > 0;
+
+  const anyRemediationInProgress =
+    remediations !== undefined &&
+    remediations.some((r) => r.status !== RemediationStatus.open);
+
   const allPhases: Record<Phase, boolean> = {
     discover: true,
+    assess: cve.has_risk_acceptance || hasAnyRemediation,
     prioritize: cve.has_priority,
     remediate: hasApprovedRa || allRemediationsTerminal,
     verify: hasApprovedRa || allRemediationsVerified,
+    resolve: hasApprovedRa || allRemediationsTerminal,
   };
+
+  if (isMember) {
+    allPhases.remediate = cve.has_risk_acceptance || anyRemediationInProgress;
+  }
 
   const phases: Partial<Record<Phase, boolean>> = {};
   for (const phase of activePhases) {
@@ -64,7 +78,7 @@ function getCurrentPhase(phases: Record<Phase, boolean>, order: Phase[]): Phase 
 }
 
 const SEC_TEAM_PHASES: Phase[] = ["discover", "prioritize", "remediate", "verify"];
-const MEMBER_PHASES: Phase[] = ["discover", "remediate"];
+const MEMBER_PHASES: Phase[] = ["discover", "assess", "remediate", "resolve"];
 
 const SEC_TEAM_STEPS: { id: Phase; labelKey: string }[] = [
   { id: "discover", labelKey: "cveDetail.workflowDiscover" },
@@ -75,7 +89,9 @@ const SEC_TEAM_STEPS: { id: Phase; labelKey: string }[] = [
 
 const MEMBER_STEPS: { id: Phase; labelKey: string }[] = [
   { id: "discover", labelKey: "cveDetail.workflowDiscover" },
+  { id: "assess", labelKey: "cveDetail.workflowAssess" },
   { id: "remediate", labelKey: "cveDetail.workflowRemediate" },
+  { id: "resolve", labelKey: "cveDetail.workflowResolve" },
 ];
 
 const SEC_TEAM_HINTS: Partial<Record<Phase, string>> = {
@@ -86,8 +102,10 @@ const SEC_TEAM_HINTS: Partial<Record<Phase, string>> = {
 };
 
 const MEMBER_HINTS: Partial<Record<Phase, string>> = {
-  discover: "cveDetail.hintRemediate",
+  discover: "cveDetail.hintAssess",
+  assess: "cveDetail.hintAssess",
   remediate: "cveDetail.hintRemediate",
+  resolve: "cveDetail.hintResolve",
 };
 
 export function CveWorkflowStepper({ cve, remediations, isSecTeam }: CveWorkflowStepperProps) {
@@ -97,7 +115,7 @@ export function CveWorkflowStepper({ cve, remediations, isSecTeam }: CveWorkflow
   const steps = isSecTeam ? SEC_TEAM_STEPS : MEMBER_STEPS;
   const hintKeys = isSecTeam ? SEC_TEAM_HINTS : MEMBER_HINTS;
 
-  const phases = computePhases(cve, remediations, activePhases);
+  const phases = computePhases(cve, remediations, activePhases, !isSecTeam);
   const currentPhase = getCurrentPhase(phases, activePhases);
   const allComplete = activePhases.every((p) => phases[p]);
 
