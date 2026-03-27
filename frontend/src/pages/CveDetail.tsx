@@ -43,6 +43,39 @@ import {
   FIXABLE_COLOR,
 } from "../tokens";
 
+const SUMMARY_KEYWORDS = ["DOCUMENTATION", "STATEMENT", "MITIGATION"] as const;
+type SummaryKeyword = (typeof SUMMARY_KEYWORDS)[number];
+
+interface SummarySection {
+  keyword: SummaryKeyword;
+  text: string;
+}
+
+function parseSummary(raw: string): SummarySection[] | null {
+  const pattern = new RegExp(
+    `\\b(${SUMMARY_KEYWORDS.join("|")})\\s*:\\s*`,
+    "g"
+  );
+  const matches = [...raw.matchAll(pattern)];
+  if (matches.length === 0) return null;
+
+  const sections: SummarySection[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const keyword = matches[i][1] as SummaryKeyword;
+    const start = matches[i].index! + matches[i][0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : raw.length;
+    const text = raw.slice(start, end).trim();
+    if (text) sections.push({ keyword, text });
+  }
+  return sections.length > 0 ? sections : null;
+}
+
+const SUMMARY_KEYWORD_I18N: Record<SummaryKeyword, string> = {
+  DOCUMENTATION: "cveDetail.summaryDocumentation",
+  STATEMENT: "cveDetail.summaryStatement",
+  MITIGATION: "cveDetail.summaryMitigation",
+};
+
 function DetailRow({
   label,
   value,
@@ -295,16 +328,35 @@ export function CveDetail() {
                         </span>
                       }
                     />
-                    {cve.summary && (
-                      <DetailRow
-                        label={t('cveDetail.summary')}
-                        value={
-                          <span style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>
-                            {cve.summary.replace(/<br\s*\/?>/g, "\n")}
-                          </span>
-                        }
-                      />
-                    )}
+                    {cve.summary && (() => {
+                      const cleaned = cve.summary.replace(/<br\s*\/?>/g, "\n");
+                      const sections = parseSummary(cleaned);
+                      return (
+                        <DetailRow
+                          label={t('cveDetail.summary')}
+                          value={
+                            sections ? (
+                              <div>
+                                {sections.map((s, i) => (
+                                  <div key={i} style={{ marginBottom: i < sections.length - 1 ? 12 : 0 }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                      {t(SUMMARY_KEYWORD_I18N[s.keyword])}
+                                    </div>
+                                    <div style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>
+                                      {s.text}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>
+                                {cleaned}
+                              </span>
+                            )
+                          }
+                        />
+                      );
+                    })()}
                     <DetailRow
                       label={t('cveDetail.references')}
                       value={
