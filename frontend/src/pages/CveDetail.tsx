@@ -267,7 +267,7 @@ export function CveDetail() {
       )}
 
       <PageSection variant="default" style={{ paddingTop: 0 }}>
-        <CveWorkflowStepper cve={cve} remediations={workflowRemediations} />
+        <CveWorkflowStepper cve={cve} remediations={workflowRemediations} isSecTeam={isSecTeam} />
       </PageSection>
 
       <PageSection variant="default" style={{ paddingTop: 0 }}>

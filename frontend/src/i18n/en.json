@@ -317,7 +317,7 @@
     "workflowStatus": "Workflow Status",
     "workflowDiscover": "Discover",
     "workflowPrioritize": "Prioritize",
-    "workflowRemediate": "Remediate / Accept",
+    "workflowRemediate": "Remediate / Accept Risk",
     "workflowVerify": "Verify",
     "hintPrioritize": "Next step: Prioritize this vulnerability to keep it on your radar.",
     "hintRemediate": "Next step: Create a remediation or request a risk acceptance.",

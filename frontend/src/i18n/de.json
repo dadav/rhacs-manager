@@ -317,7 +317,7 @@
     "workflowStatus": "Workflow-Status",
     "workflowDiscover": "Entdecken",
     "workflowPrioritize": "Priorisieren",
-    "workflowRemediate": "Beheben / Akzeptieren",
+    "workflowRemediate": "Beheben / Risiko akzeptieren",
     "workflowVerify": "Verifizieren",
     "hintPrioritize": "Nächster Schritt: Priorisieren Sie diese Schwachstelle, um sie im Blick zu behalten.",
     "hintRemediate": "Nächster Schritt: Erstellen Sie eine Behebung oder beantragen Sie eine Risikoakzeptanz.",

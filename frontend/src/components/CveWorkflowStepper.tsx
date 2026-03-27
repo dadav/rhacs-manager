@@ -14,6 +14,7 @@ import type { RemediationItem } from "../types";
 interface CveWorkflowStepperProps {
   cve: CveDetail;
   remediations: RemediationItem[] | undefined;
+  isSecTeam: boolean;
 }
 
 type Phase = "discover" | "prioritize" | "remediate" | "verify";
@@ -24,7 +25,11 @@ const TERMINAL_REMEDIATION_STATUSES = new Set<RemediationStatus>([
   RemediationStatus.wont_fix,
 ]);
 
-function computePhases(cve: CveDetail, remediations: RemediationItem[] | undefined) {
+function computePhases(
+  cve: CveDetail,
+  remediations: RemediationItem[] | undefined,
+  activePhases: Phase[],
+) {
   const hasApprovedRa = cve.has_risk_acceptance && cve.risk_acceptance_status === RiskStatus.approved;
 
   const allRemediationsTerminal =
@@ -37,49 +42,69 @@ function computePhases(cve: CveDetail, remediations: RemediationItem[] | undefin
     remediations.length > 0 &&
     remediations.every((r) => r.status === RemediationStatus.verified);
 
-  const phases: Record<Phase, boolean> = {
+  const allPhases: Record<Phase, boolean> = {
     discover: true,
     prioritize: cve.has_priority,
     remediate: hasApprovedRa || allRemediationsTerminal,
     verify: hasApprovedRa || allRemediationsVerified,
   };
 
-  return phases;
+  const phases: Partial<Record<Phase, boolean>> = {};
+  for (const phase of activePhases) {
+    phases[phase] = allPhases[phase];
+  }
+  return phases as Record<Phase, boolean>;
 }
 
-function getCurrentPhase(phases: Record<Phase, boolean>): Phase {
-  const order: Phase[] = ["discover", "prioritize", "remediate", "verify"];
+function getCurrentPhase(phases: Record<Phase, boolean>, order: Phase[]): Phase {
   for (const phase of order) {
     if (!phases[phase]) return phase;
   }
-  return "verify";
+  return order[order.length - 1];
 }
 
-export function CveWorkflowStepper({ cve, remediations }: CveWorkflowStepperProps) {
+const SEC_TEAM_PHASES: Phase[] = ["discover", "prioritize", "remediate", "verify"];
+const MEMBER_PHASES: Phase[] = ["discover", "remediate"];
+
+const SEC_TEAM_STEPS: { id: Phase; labelKey: string }[] = [
+  { id: "discover", labelKey: "cveDetail.workflowDiscover" },
+  { id: "prioritize", labelKey: "cveDetail.workflowPrioritize" },
+  { id: "remediate", labelKey: "cveDetail.workflowRemediate" },
+  { id: "verify", labelKey: "cveDetail.workflowVerify" },
+];
+
+const MEMBER_STEPS: { id: Phase; labelKey: string }[] = [
+  { id: "discover", labelKey: "cveDetail.workflowDiscover" },
+  { id: "remediate", labelKey: "cveDetail.workflowRemediate" },
+];
+
+const SEC_TEAM_HINTS: Partial<Record<Phase, string>> = {
+  discover: "cveDetail.hintPrioritize",
+  prioritize: "cveDetail.hintPrioritize",
+  remediate: "cveDetail.hintRemediate",
+  verify: "cveDetail.hintVerify",
+};
+
+const MEMBER_HINTS: Partial<Record<Phase, string>> = {
+  discover: "cveDetail.hintRemediate",
+  remediate: "cveDetail.hintRemediate",
+};
+
+export function CveWorkflowStepper({ cve, remediations, isSecTeam }: CveWorkflowStepperProps) {
   const { t } = useTranslation();
 
-  const phases = computePhases(cve, remediations);
-  const currentPhase = getCurrentPhase(phases);
-  const allComplete = Object.values(phases).every(Boolean);
+  const activePhases = isSecTeam ? SEC_TEAM_PHASES : MEMBER_PHASES;
+  const steps = isSecTeam ? SEC_TEAM_STEPS : MEMBER_STEPS;
+  const hintKeys = isSecTeam ? SEC_TEAM_HINTS : MEMBER_HINTS;
 
-  const steps: { id: Phase; labelKey: string }[] = [
-    { id: "discover", labelKey: "cveDetail.workflowDiscover" },
-    { id: "prioritize", labelKey: "cveDetail.workflowPrioritize" },
-    { id: "remediate", labelKey: "cveDetail.workflowRemediate" },
-    { id: "verify", labelKey: "cveDetail.workflowVerify" },
-  ];
-
-  const hintKeys: Record<Phase, string> = {
-    discover: "cveDetail.hintPrioritize",
-    prioritize: "cveDetail.hintPrioritize",
-    remediate: "cveDetail.hintRemediate",
-    verify: "cveDetail.hintVerify",
-  };
+  const phases = computePhases(cve, remediations, activePhases);
+  const currentPhase = getCurrentPhase(phases, activePhases);
+  const allComplete = activePhases.every((p) => phases[p]);
 
   const hintVariant = allComplete ? "success" : "info";
   const hintMessage = allComplete
     ? t("cveDetail.hintComplete")
-    : t(hintKeys[currentPhase]);
+    : t(hintKeys[currentPhase] ?? "cveDetail.hintRemediate");
 
   return (
     <Card>
