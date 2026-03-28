@@ -96,7 +96,8 @@
     "new_critical_cve": "New critical CVE",
     "suppression_requested": "Suppression requested",
     "suppression_approved": "Suppression approved",
-    "suppression_rejected": "Suppression rejected"
+    "suppression_rejected": "Suppression rejected",
+    "mention": "Mention"
   },
   "dashboard": {
     "title": "Dashboard",

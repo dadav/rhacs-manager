@@ -45,7 +45,17 @@ export function NotificationBell() {
   function handleClick(n: AppNotification) {
     markRead.mutate(n.id)
     setOpen(false)
-    if (n.link) navigate(n.link)
+    if (n.link) {
+      const hashIndex = n.link.indexOf('#')
+      if (hashIndex >= 0) {
+        navigate({
+          pathname: n.link.slice(0, hashIndex),
+          hash: n.link.slice(hashIndex),
+        })
+      } else {
+        navigate(n.link)
+      }
+    }
   }
 
   return (

@@ -13,9 +13,10 @@ import {
   TextArea,
   Title,
 } from '@patternfly/react-core'
+import { MentionTextArea, renderMentions } from '../components/MentionTextArea'
 import { getErrorMessage } from '../utils/errors'
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useAddComment, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser } from '../api/auth'
 import { useCveDetail } from '../api/cves'
@@ -496,8 +497,23 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const { t, i18n } = useTranslation()
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: ra, isLoading, error } = useRiskAcceptance(id)
   const { data: comments } = useRiskComments(id)
+
+  // Scroll to a specific comment when navigating via notification link
+  useEffect(() => {
+    if (location.hash && comments) {
+      const el = document.getElementById(location.hash.slice(1))
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.style.outline = '2px solid var(--pf-t--global--color--blue--default)'
+        el.style.borderRadius = '4px'
+        const timer = setTimeout(() => { el.style.outline = '' }, 3000)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [location.hash, comments])
   const { data: me } = useCurrentUser()
   const addComment = useAddComment(id)
   const review = useReviewRiskAcceptance(id)
@@ -674,6 +690,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     {comments.map(c => (
                       <div
                         key={c.id}
+                        id={`comment-${c.id}`}
                         style={{
                           padding: 12,
                           marginBottom: 10,
@@ -695,7 +712,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                             {new Date(c.created_at).toLocaleString(dateLocale)}
                           </span>
                         </div>
-                        <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{c.message}</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{renderMentions(c.message)}</p>
                       </div>
                     ))}
                   </div>
@@ -705,9 +722,9 @@ function RiskAcceptanceView({ id }: { id: string }) {
 
                 {/* Add comment form */}
                 <form onSubmit={handleAddComment}>
-                  <TextArea
+                  <MentionTextArea
                     value={newComment}
-                    onChange={(_, v) => setNewComment(v)}
+                    onChange={setNewComment}
                     rows={3}
                     placeholder={t('riskAcceptance.commentPlaceholder')}
                     style={{ marginBottom: 8 }}

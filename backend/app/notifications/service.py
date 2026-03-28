@@ -1,4 +1,5 @@
 import logging
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
+
+_MENTION_RE = re.compile(r"@\[([^\]]+)\]")
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,7 @@ async def notify_risk_comment(
     comment: RiskAcceptanceComment,
     author: User,
 ) -> None:
-    link = f"/risikoakzeptanzen/{acceptance.id}"
+    link = f"/risk-acceptances/{acceptance.id}"
     title = f"Neuer Kommentar: {acceptance.cve_id}"
     msg = f"{author.username} hat einen Kommentar hinterlassen."
 
@@ -68,7 +71,7 @@ async def notify_risk_status_change(
     acceptance: RiskAcceptance,
     reviewer: User,
 ) -> None:
-    link = f"/risikoakzeptanzen/{acceptance.id}"
+    link = f"/risk-acceptances/{acceptance.id}"
     status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(
         acceptance.status.value, acceptance.status.value
     )
@@ -84,7 +87,7 @@ async def notify_risk_expiring(
     session: AsyncSession,
     acceptance: RiskAcceptance,
 ) -> None:
-    link = f"/risikoakzeptanzen/{acceptance.id}"
+    link = f"/risk-acceptances/{acceptance.id}"
     title = f"Risikoakzeptanz läuft ab: {acceptance.cve_id}"
     msg = f"Die Risikoakzeptanz für {acceptance.cve_id} läuft in 7 Tagen ab."
 
@@ -98,7 +101,7 @@ async def notify_new_priority(
     priority_level: str,
 ) -> None:
     """Notify sec team about new CVE priority (they set priorities, they get notified)."""
-    link = "/priorisierungen"
+    link = "/priorities"
     title = f"CVE priorisiert: {cve_id}"
     msg = f"{cve_id} wurde als '{priority_level}' priorisiert."
 
@@ -114,7 +117,7 @@ async def notify_escalation(
     level: int,
 ) -> None:
     """Notify sec team about escalation (no persistent user→namespace mapping)."""
-    link = f"/schwachstellen/{cve_id}"
+    link = f"/vulnerabilities/{cve_id}"
     title = f"Eskalation Stufe {level}: {cve_id}"
     msg = f"CVE {cve_id} in {namespace}/{cluster_name} wurde auf Eskalationsstufe {level} hochgestuft."
 
@@ -128,7 +131,7 @@ async def notify_remediation_created(
     creator: "User",  # type: ignore[name-defined]
 ) -> None:
     """Notify sec team about a new remediation."""
-    link = "/behebungen"
+    link = "/remediations"
     title = f"Neue Behebung: {remediation.cve_id}"
     msg = (
         f"{creator.username} hat eine Behebung für {remediation.cve_id}"
@@ -155,7 +158,7 @@ async def notify_remediation_status_change(
         "verified": "Verifiziert",
         "wont_fix": "Wird nicht behoben",
     }
-    link = "/behebungen"
+    link = "/remediations"
     new_label = status_labels.get(new_status, new_status)
     title = f"Behebung {new_label}: {remediation.cve_id}"
     msg = f"Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name}: {new_label}"
@@ -190,7 +193,7 @@ async def notify_remediation_overdue(
     remediation: "Remediation",  # type: ignore[name-defined]
 ) -> None:
     """Notify creator, assignee, and sec team about overdue remediation."""
-    link = "/behebungen"
+    link = "/remediations"
     title = f"Behebung überfällig: {remediation.cve_id}"
     msg = f"Die Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} ist überfällig."
 
@@ -212,7 +215,7 @@ async def notify_suppression_requested(
 ) -> None:
     """Notify sec team about a new suppression rule request."""
     target = rule.cve_id if rule.cve_id else rule.component_name
-    link = "/unterdrueckungsregeln"
+    link = "/suppression-rules"
     title = f"Neue Unterdrückungsanfrage: {target}"
     msg = f"{creator.username} hat eine Unterdrückungsregel für {target} beantragt."
 
@@ -235,7 +238,7 @@ async def notify_suppression_status_change(
 ) -> None:
     """Notify the suppression rule creator about approval/rejection."""
     target = rule.cve_id if rule.cve_id else rule.component_name
-    link = "/unterdrueckungsregeln"
+    link = "/suppression-rules"
     status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(rule.status.value, rule.status.value)
     title = f"Unterdrückungsregel {status_label}: {target}"
     msg = f"Ihre Unterdrückungsregel für {target} wurde {status_label}."
@@ -247,3 +250,24 @@ async def notify_suppression_status_change(
 
     if rule.created_by != reviewer.id:
         await create_notification(session, rule.created_by, ntype, title, msg, link)
+
+
+async def notify_mentions(
+    session: AsyncSession,
+    message: str,
+    author: User,
+    link: str,
+) -> None:
+    """Parse @username mentions from a comment and notify each mentioned user."""
+    mentioned_names = set(_MENTION_RE.findall(message))
+    if not mentioned_names:
+        return
+
+    result = await session.execute(select(User).where(User.username.in_(mentioned_names)))
+    mentioned_users = result.scalars().all()
+
+    title = f"Erwähnung von {author.username}"
+    msg = f"{author.username} hat Sie in einem Kommentar erwähnt."
+
+    for user in mentioned_users:
+        await create_notification(session, user.id, NotificationType.mention, title, msg, link)

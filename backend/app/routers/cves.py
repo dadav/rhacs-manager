@@ -14,6 +14,7 @@ from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.user import User
+from ..notifications import service as notif_svc
 from ..schemas.common import PaginatedResponse
 from ..schemas.cve import (
     AffectedComponent,
@@ -476,6 +477,10 @@ async def add_cve_comment(
 
     user_result = await app_db.execute(select(User).where(User.id == current_user.id))
     user = user_result.scalar_one_or_none()
+
+    await notif_svc.notify_mentions(
+        app_db, body.message, current_user, f"/vulnerabilities/{cve_id}#comment-{comment.id}"
+    )
 
     await app_db.commit()
     await app_db.refresh(comment)

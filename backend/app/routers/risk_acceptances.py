@@ -389,6 +389,7 @@ async def add_comment(
     await db.flush()
 
     await notif_svc.notify_risk_comment(db, ra, comment, current_user)
+    await notif_svc.notify_mentions(db, body.message, current_user, f"/risk-acceptances/{ra_id}#comment-{comment.id}")
 
     # Email to RA creator if sec team comments — use pre-loaded creator
     if current_user.is_sec_team and ra.creator and ra.creator.email:

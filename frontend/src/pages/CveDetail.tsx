@@ -23,13 +23,14 @@ import {
 } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { CheckCircleIcon } from "@patternfly/react-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
+import { MentionTextArea, renderMentions } from "../components/MentionTextArea";
 import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { CveLifecycleTimeline } from "../components/CveLifecycleTimeline";
 import { CveRemediationSection } from "../components/CveRemediation";
@@ -104,12 +105,27 @@ function DetailRow({
 export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
   const { isSecTeam } = useAuth();
   const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
+
+  // Scroll to a specific comment when navigating via notification link
+  useEffect(() => {
+    if (location.hash && comments) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.style.outline = "2px solid var(--pf-t--global--color--blue--default)";
+        el.style.borderRadius = "4px";
+        const timer = setTimeout(() => { el.style.outline = ""; }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.hash, comments]);
   const { data: workflowRemediations } = useRemediationsByCve(cveId ?? "", scopeParams);
   const addComment = useAddCveComment(cveId ?? "");
   const [newComment, setNewComment] = useState("");
@@ -896,6 +912,7 @@ export function CveDetail() {
                     {comments.map((c) => (
                       <div
                         key={c.id}
+                        id={`comment-${c.id}`}
                         style={{
                           padding: 12,
                           marginBottom: 10,
@@ -954,7 +971,7 @@ export function CveDetail() {
                             lineHeight: 1.5,
                           }}
                         >
-                          {c.message}
+                          {renderMentions(c.message)}
                         </p>
                       </div>
                     ))}
@@ -971,9 +988,9 @@ export function CveDetail() {
                   </p>
                 )}
                 <form onSubmit={handleAddComment}>
-                  <TextArea
+                  <MentionTextArea
                     value={newComment}
-                    onChange={(_, v) => setNewComment(v)}
+                    onChange={setNewComment}
                     rows={3}
                     placeholder={t('cveDetail.commentPlaceholder')}
                     style={{ marginBottom: 8 }}

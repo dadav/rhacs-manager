@@ -96,7 +96,8 @@
     "new_critical_cve": "Neue kritische CVE",
     "suppression_requested": "Unterdrückung beantragt",
     "suppression_approved": "Unterdrückung genehmigt",
-    "suppression_rejected": "Unterdrückung abgelehnt"
+    "suppression_rejected": "Unterdrückung abgelehnt",
+    "mention": "Erwähnung"
   },
   "dashboard": {
     "title": "Dashboard",
