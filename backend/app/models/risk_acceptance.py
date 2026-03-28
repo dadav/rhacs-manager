@@ -42,9 +42,11 @@ class RiskAcceptance(Base):
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     reviewed_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    assigned_to: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # type: ignore[name-defined]
     reviewer: Mapped["User | None"] = relationship("User", foreign_keys=[reviewed_by])  # type: ignore[name-defined]
+    assignee: Mapped["User | None"] = relationship("User", foreign_keys=[assigned_to])  # type: ignore[name-defined]
     comments: Mapped[list["RiskAcceptanceComment"]] = relationship(
         back_populates="acceptance", cascade="all, delete-orphan", order_by="RiskAcceptanceComment.created_at"
     )

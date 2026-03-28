@@ -9,7 +9,7 @@ export interface UserSearchResult {
 
 export const authKeys = {
   me: ['auth', 'me'] as const,
-  userSearch: (q: string) => ['auth', 'users', 'search', q] as const,
+  userSearch: (q: string, role?: string) => ['auth', 'users', 'search', q, role] as const,
 }
 
 export function useCurrentUser() {
@@ -20,10 +20,12 @@ export function useCurrentUser() {
   })
 }
 
-export function useUserSearch(query: string, enabled: boolean) {
+export function useUserSearch(query: string, enabled: boolean, role?: string) {
+  const params = new URLSearchParams({ q: query })
+  if (role) params.set('role', role)
   return useQuery({
-    queryKey: authKeys.userSearch(query),
-    queryFn: () => api.get<UserSearchResult[]>(`/auth/users/search?q=${encodeURIComponent(query)}`),
+    queryKey: authKeys.userSearch(query, role),
+    queryFn: () => api.get<UserSearchResult[]>(`/auth/users/search?${params}`),
     enabled,
     staleTime: 30_000,
   })

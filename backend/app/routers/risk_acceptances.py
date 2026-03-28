@@ -11,11 +11,12 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..mail import service as mail_svc
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
-from ..models.user import User
+from ..models.user import User, UserRole
 from ..notifications import service as notif_svc
 from ..schemas.risk_acceptance import (
     CommentCreate,
     CommentResponse,
+    RiskAcceptanceAssign,
     RiskAcceptanceCreate,
     RiskAcceptanceResponse,
     RiskAcceptanceReview,
@@ -79,6 +80,8 @@ def _build_response(ra: RiskAcceptance, comment_count: int) -> RiskAcceptanceRes
         reviewed_by=ra.reviewed_by,
         reviewed_by_name=ra.reviewer.username if ra.reviewer else None,
         reviewed_at=ra.reviewed_at,
+        assigned_to=ra.assigned_to,
+        assigned_to_name=ra.assignee.username if ra.assignee else None,
         comment_count=comment_count,
     )
 
@@ -87,12 +90,13 @@ def _build_response(ra: RiskAcceptance, comment_count: int) -> RiskAcceptanceRes
 _RA_LOAD_OPTIONS = [
     selectinload(RiskAcceptance.creator),
     selectinload(RiskAcceptance.reviewer),
+    selectinload(RiskAcceptance.assignee),
 ]
 
 
 async def _single_ra_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAcceptanceResponse:
     """Build response for a single RA, loading relationships and comment count."""
-    await db.refresh(ra, ["creator", "reviewer"])
+    await db.refresh(ra, ["creator", "reviewer", "assignee"])
     count_result = await db.execute(
         select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
     )
@@ -340,6 +344,56 @@ async def review_risk_acceptance(
             )
         except Exception:
             logger.exception("Failed to send risk status email for RA %s", ra.id)
+
+    await db.commit()
+    return await _single_ra_response(ra, db)
+
+
+@router.post("/{ra_id}/assign", response_model=RiskAcceptanceResponse)
+async def assign_reviewer(
+    ra_id: UUID,
+    body: RiskAcceptanceAssign,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> RiskAcceptanceResponse:
+    if not current_user.is_sec_team:
+        raise HTTPException(403, "Nur das Security-Team kann Reviewer zuweisen")
+
+    result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
+    ra = result.scalar_one_or_none()
+    if not ra:
+        raise HTTPException(404, "Nicht gefunden")
+    if ra.status != RiskStatus.requested:
+        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können zugewiesen werden")
+
+    # Verify the target user exists and is sec_team
+    user_result = await db.execute(select(User).where(User.id == body.user_id))
+    target_user = user_result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(404, "Benutzer nicht gefunden")
+    if target_user.role != UserRole.sec_team:
+        raise HTTPException(400, "Nur Security-Team-Mitglieder können als Reviewer zugewiesen werden")
+
+    ra.assigned_to = body.user_id
+
+    await log_action(
+        db,
+        current_user.id,
+        "risk_acceptance_assigned",
+        "risk_acceptance",
+        str(ra.id),
+        {"assigned_to": target_user.username},
+    )
+
+    # Notify the assigned reviewer
+    await notif_svc.create_notification(
+        db,
+        body.user_id,
+        notif_svc.NotificationType.risk_comment,
+        f"Risikoakzeptanz zugewiesen: {ra.cve_id}",
+        f"{current_user.username} hat Ihnen die Prüfung der Risikoakzeptanz für {ra.cve_id} zugewiesen.",
+        f"/risk-acceptances/{ra.id}",
+    )
 
     await db.commit()
     return await _single_ra_response(ra, db)

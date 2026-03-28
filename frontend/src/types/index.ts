@@ -176,6 +176,8 @@ export interface RiskAcceptance {
   reviewed_by: string | null
   reviewed_by_name: string | null
   reviewed_at: string | null
+  assigned_to: string | null
+  assigned_to_name: string | null
   comment_count: number
 }
 

@@ -88,6 +88,17 @@ export function useCancelRiskAcceptance(id: string) {
   })
 }
 
+export function useAssignReviewer(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<RiskAcceptance>(`/risk-acceptances/${id}/assign`, { user_id: userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
+    },
+  })
+}
+
 export function useAddComment(raId: string) {
   const qc = useQueryClient()
   return useMutation({

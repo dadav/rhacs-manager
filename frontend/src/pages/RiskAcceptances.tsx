@@ -208,6 +208,7 @@ export function RiskAcceptances() {
                 <Th>{t('riskAcceptance.cveId')}</Th>
                 <Th>{t('riskAcceptance.status')}</Th>
                 <Th>{t('riskAcceptance.requestedBy')}</Th>
+                <Th>{t('riskAcceptance.assignedTo')}</Th>
                 <Th>{t('riskAcceptance.requestedAt')}</Th>
                 <Th>{t('riskAcceptance.reviewedAt')}</Th>
                 <Th></Th>
@@ -228,6 +229,7 @@ export function RiskAcceptances() {
                     </span>
                   </Td>
                   <Td style={{ fontSize: 12 }}>{ra.created_by_name}</Td>
+                  <Td style={{ fontSize: 12 }}>{ra.assigned_to_name ?? '–'}</Td>
                   <Td style={subtleTextSm}>
                     {new Date(ra.created_at).toLocaleDateString(localeDateLocale)}
                   </Td>

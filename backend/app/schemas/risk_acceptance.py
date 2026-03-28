@@ -43,6 +43,10 @@ class RiskAcceptanceReview(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
 
 
+class RiskAcceptanceAssign(BaseModel):
+    user_id: str = Field(min_length=1)
+
+
 class CommentCreate(BaseModel):
     message: str = Field(min_length=1, max_length=5000)
 
@@ -74,4 +78,6 @@ class RiskAcceptanceResponse(BaseModel):
     reviewed_by: str | None
     reviewed_by_name: str | None
     reviewed_at: datetime | None
+    assigned_to: str | None
+    assigned_to_name: str | None
     comment_count: int = 0

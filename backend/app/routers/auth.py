@@ -1,3 +1,5 @@
+import contextlib
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -32,12 +34,18 @@ class UserSearchResult(BaseModel):
 @router.get("/users/search", response_model=list[UserSearchResult])
 async def search_users(
     q: str = Query(default="", max_length=100),
+    role: str | None = Query(default=None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[UserSearchResult]:
     stmt = select(User).order_by(User.username).limit(10)
     if q:
         stmt = stmt.where(User.username.ilike(f"{q}%"))
+    if role:
+        from ..models.user import UserRole
+
+        with contextlib.suppress(KeyError):
+            stmt = stmt.where(User.role == UserRole[role])
     result = await db.execute(stmt)
     return [UserSearchResult(id=u.id, username=u.username) for u in result.scalars().all()]
 

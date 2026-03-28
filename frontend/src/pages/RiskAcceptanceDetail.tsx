@@ -11,14 +11,15 @@ import {
   PageSection,
   Spinner,
   TextArea,
+  TextInput,
   Title,
 } from '@patternfly/react-core'
 import { MentionTextArea, renderMentions } from '../components/MentionTextArea'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
-import { useAddComment, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
-import { useCurrentUser } from '../api/auth'
+import { useAddComment, useAssignReviewer, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
+import { useCurrentUser, useUserSearch } from '../api/auth'
 import { useCveDetail } from '../api/cves'
 import { RiskScope, RiskScopeMode, RiskStatus } from '../types'
 import { useTranslation } from 'react-i18next'
@@ -517,11 +518,15 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const { data: me } = useCurrentUser()
   const addComment = useAddComment(id)
   const review = useReviewRiskAcceptance(id)
+  const assignReviewer = useAssignReviewer(id)
   const cancelRA = useCancelRiskAcceptance(id)
   const [newComment, setNewComment] = useState('')
   const [reviewError, setReviewError] = useState('')
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelError, setCancelError] = useState('')
+  const [assignQuery, setAssignQuery] = useState('')
+  const [showAssignDropdown, setShowAssignDropdown] = useState(false)
+  const { data: assignCandidates } = useUserSearch(assignQuery, showAssignDropdown, 'sec_team')
 
   const STATUS_LABELS: Record<RiskStatus, string> = {
     [RiskStatus.requested]: t('status.requested'),
@@ -629,6 +634,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       [t('riskAcceptance.requestedBy'), ra.created_by_name],
                       [t('riskAcceptance.requestedAt'), new Date(ra.created_at).toLocaleDateString(dateLocale)],
                       [t('riskAcceptance.expiresOn'), ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(dateLocale) : '–'],
+                      ra.assigned_to_name ? [t('riskAcceptance.assignedTo'), ra.assigned_to_name] : null,
                       ra.reviewed_by_name ? [t('riskAcceptance.reviewedBy'), ra.reviewed_by_name] : null,
                       ra.reviewed_at ? [t('riskAcceptance.reviewedAt'), new Date(ra.reviewed_at).toLocaleDateString(dateLocale)] : null,
                     ] as ([string, React.ReactNode] | null)[]).filter((row): row is [string, React.ReactNode] => row !== null).map(([label, value], i) => (
@@ -658,6 +664,70 @@ function RiskAcceptanceView({ id }: { id: string }) {
                 <CardTitle>{t('riskAcceptance.review')}</CardTitle>
                 <CardBody>
                   {reviewError && <Alert variant="danger" isInline title={reviewError} style={{ marginBottom: 12 }} />}
+
+                  {/* Assign reviewer */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                      {t('riskAcceptance.assignReviewer')}
+                    </label>
+                    {ra.assigned_to_name && (
+                      <div style={{ fontSize: 13, marginBottom: 8, color: 'var(--pf-t--global--text--color--regular)' }}>
+                        {t('riskAcceptance.currentlyAssigned')}: <strong>{ra.assigned_to_name}</strong>
+                      </div>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <TextInput
+                        value={assignQuery}
+                        onChange={(_, v) => {
+                          setAssignQuery(v)
+                          setShowAssignDropdown(true)
+                        }}
+                        onFocus={() => setShowAssignDropdown(true)}
+                        placeholder={t('riskAcceptance.searchUser')}
+                        style={{ fontSize: 13 }}
+                      />
+                      {showAssignDropdown && assignCandidates && assignCandidates.length > 0 && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            zIndex: 1000,
+                            background: 'var(--pf-t--global--background--color--primary--default)',
+                            border: '1px solid var(--pf-t--global--border--color--default)',
+                            borderRadius: 4,
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+                            maxHeight: 200,
+                            overflowY: 'auto',
+                            marginTop: 2,
+                          }}
+                        >
+                          {assignCandidates.map(user => (
+                            <div
+                              key={user.id}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                assignReviewer.mutate(user.id)
+                                setAssignQuery('')
+                                setShowAssignDropdown(false)
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                cursor: 'pointer',
+                                fontSize: 13,
+                              }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--pf-t--global--background--color--secondary--default)' }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                            >
+                              {user.username}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Button
                       variant="primary"
