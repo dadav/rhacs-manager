@@ -6,6 +6,9 @@ import {
   Card,
   CardBody,
   CardTitle,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
   ExpandableSection,
   Grid,
   GridItem,
@@ -22,12 +25,12 @@ import {
   Title,
 } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
-import { CheckCircleIcon } from "@patternfly/react-icons";
+import { CheckCircleIcon, EllipsisVIcon, PencilAltIcon, TrashIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
-import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
+import { useAddCveComment, useCveComments, useCveDetail, useEditCveComment, useDeleteCveComment } from "../api/cves";
 import { usePresence } from "../api/presence";
 import { ViewerIndicator } from "../components/ViewerIndicator";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
@@ -110,7 +113,7 @@ export function CveDetail() {
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
-  const { isSecTeam } = useAuth();
+  const { isSecTeam, user } = useAuth();
   const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
@@ -131,7 +134,13 @@ export function CveDetail() {
   }, [location.hash, comments]);
   const { data: workflowRemediations } = useRemediationsByCve(cveId ?? "", scopeParams);
   const addComment = useAddCveComment(cveId ?? "");
+  const editComment = useEditCveComment(cveId ?? "");
+  const deleteComment = useDeleteCveComment(cveId ?? "");
   const [newComment, setNewComment] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingMessage, setEditingMessage] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deploymentFilter, setDeploymentFilter] = useState("");
   const [deploymentPage, setDeploymentPage] = useState(1);
   const deploymentPerPage = 20;
@@ -913,72 +922,200 @@ export function CveDetail() {
               <CardBody>
                 {comments && comments.length > 0 ? (
                   <div style={{ marginBottom: 20 }}>
-                    {comments.map((c) => (
-                      <div
-                        key={c.id}
-                        id={`comment-${c.id}`}
-                        style={{
-                          padding: 12,
-                          marginBottom: 10,
-                          background:
-                            "var(--pf-t--global--background--color--secondary--default)",
-                          borderLeft: `3px solid ${c.is_sec_team ? "var(--pf-t--global--color--blue--default)" : "var(--pf-t--global--border--color--default)"}`,
-                          borderRadius: "0 4px 4px 0",
-                        }}
-                      >
+                    {comments.map((c) => {
+                      const isOwn = user?.id === c.user_id;
+                      const isEditing = editingCommentId === c.id;
+                      const isDeleting = deletingCommentId === c.id;
+
+                      return (
                         <div
+                          key={c.id}
+                          id={`comment-${c.id}`}
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: 6,
+                            padding: 12,
+                            marginBottom: 10,
+                            background:
+                              "var(--pf-t--global--background--color--secondary--default)",
+                            borderLeft: `3px solid ${c.is_sec_team ? "var(--pf-t--global--color--blue--default)" : "var(--pf-t--global--border--color--default)"}`,
+                            borderRadius: "0 4px 4px 0",
                           }}
                         >
-                          <span
+                          <div
                             style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: c.is_sec_team
-                                ? "var(--pf-t--global--color--blue--default)"
-                                : "var(--pf-t--global--text--color--regular)",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: 6,
                             }}
                           >
-                            {c.username}
-                            {c.is_sec_team && (
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: c.is_sec_team
+                                  ? "var(--pf-t--global--color--blue--default)"
+                                  : "var(--pf-t--global--text--color--regular)",
+                              }}
+                            >
+                              {c.username}
+                              {c.is_sec_team && (
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    fontSize: 10,
+                                    background: BRAND_BLUE,
+                                    color: "#fff",
+                                    padding: "1px 5px",
+                                    borderRadius: 3,
+                                  }}
+                                >
+                                  {t('cveDetail.secLabel')}
+                                </span>
+                              )}
+                            </span>
+                            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span
                                 style={{
-                                  marginLeft: 6,
-                                  fontSize: 10,
-                                  background: BRAND_BLUE,
-                                  color: "#fff",
-                                  padding: "1px 5px",
-                                  borderRadius: 3,
+                                  fontSize: 11,
+                                  color: "var(--pf-t--global--text--color--subtle)",
                                 }}
                               >
-                                {t('cveDetail.secLabel')}
+                                {new Date(c.created_at).toLocaleString(dateLocale)}
+                                {c.updated_at && (
+                                  <span style={{ marginLeft: 4, fontStyle: "italic" }}>
+                                    {t('cveDetail.edited')}
+                                  </span>
+                                )}
                               </span>
-                            )}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              color: "var(--pf-t--global--text--color--subtle)",
-                            }}
-                          >
-                            {new Date(c.created_at).toLocaleString(dateLocale)}
-                          </span>
+                              {isOwn && !isEditing && !isDeleting && (
+                                <Dropdown
+                                  isOpen={openMenuId === c.id}
+                                  onSelect={() => setOpenMenuId(null)}
+                                  onOpenChange={(open) => setOpenMenuId(open ? c.id : null)}
+                                  toggle={(toggleRef) => (
+                                    <button
+                                      ref={toggleRef}
+                                      onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        padding: 2,
+                                        lineHeight: 1,
+                                        color: "var(--pf-t--global--text--color--subtle)",
+                                        borderRadius: 4,
+                                      }}
+                                      aria-label="Actions"
+                                    >
+                                      <EllipsisVIcon />
+                                    </button>
+                                  )}
+                                  popperProps={{ position: "right" }}
+                                >
+                                  <DropdownList>
+                                    <DropdownItem
+                                      key="edit"
+                                      icon={<PencilAltIcon />}
+                                      onClick={() => {
+                                        setEditingCommentId(c.id);
+                                        setEditingMessage(c.message);
+                                      }}
+                                    >
+                                      {t('cveDetail.editComment')}
+                                    </DropdownItem>
+                                    <DropdownItem
+                                      key="delete"
+                                      icon={<TrashIcon />}
+                                      onClick={() => setDeletingCommentId(c.id)}
+                                      style={{ color: "var(--pf-t--global--color--red--default)" }}
+                                    >
+                                      {t('cveDetail.deleteComment')}
+                                    </DropdownItem>
+                                  </DropdownList>
+                                </Dropdown>
+                              )}
+                            </span>
+                          </div>
+
+                          {isEditing ? (
+                            <div>
+                              <MentionTextArea
+                                value={editingMessage}
+                                onChange={setEditingMessage}
+                                rows={3}
+                                style={{ marginBottom: 8 }}
+                              />
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  isLoading={editComment.isPending}
+                                  isDisabled={!editingMessage.trim() || editingMessage === c.message}
+                                  onClick={async () => {
+                                    await editComment.mutateAsync({ commentId: c.id, message: editingMessage });
+                                    setEditingCommentId(null);
+                                    setEditingMessage("");
+                                  }}
+                                >
+                                  {t('cveDetail.saveComment')}
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  onClick={() => { setEditingCommentId(null); setEditingMessage(""); }}
+                                >
+                                  {t('cveDetail.cancelEdit')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : isDeleting ? (
+                            <div style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                              padding: "8px 0",
+                            }}>
+                              <span style={{
+                                fontSize: 13,
+                                color: "var(--pf-t--global--color--red--default)",
+                                fontWeight: 500,
+                              }}>
+                                {t('cveDetail.confirmDeleteComment')}
+                              </span>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                isLoading={deleteComment.isPending}
+                                onClick={async () => {
+                                  await deleteComment.mutateAsync(c.id);
+                                  setDeletingCommentId(null);
+                                }}
+                              >
+                                {t('cveDetail.deleteComment')}
+                              </Button>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => setDeletingCommentId(null)}
+                              >
+                                {t('cveDetail.cancelEdit')}
+                              </Button>
+                            </div>
+                          ) : (
+                            <p
+                              style={{
+                                fontSize: 13,
+                                margin: 0,
+                                whiteSpace: "pre-wrap",
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              {renderMentions(c.message)}
+                            </p>
+                          )}
                         </div>
-                        <p
-                          style={{
-                            fontSize: 13,
-                            margin: 0,
-                            whiteSpace: "pre-wrap",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {renderMentions(c.message)}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p

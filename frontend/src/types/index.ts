@@ -160,6 +160,7 @@ export interface CveComment {
   username: string
   message: string
   created_at: string
+  updated_at: string | null
   is_sec_team: boolean
 }
 

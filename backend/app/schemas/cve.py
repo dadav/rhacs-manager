@@ -173,6 +173,10 @@ class CveCommentCreate(BaseModel):
     message: str = Field(min_length=1, max_length=5000)
 
 
+class CveCommentUpdate(BaseModel):
+    message: str = Field(min_length=1, max_length=5000)
+
+
 class CveCommentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -182,4 +186,5 @@ class CveCommentResponse(BaseModel):
     username: str
     message: str
     created_at: datetime
+    updated_at: datetime | None = None
     is_sec_team: bool = False

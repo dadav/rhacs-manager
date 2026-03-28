@@ -15,5 +15,6 @@ class CveComment(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    updated_at: Mapped[datetime | None] = mapped_column(default=None, nullable=True)
 
     author: Mapped["User"] = relationship("User")  # type: ignore[name-defined]

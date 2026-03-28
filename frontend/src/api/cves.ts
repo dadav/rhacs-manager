@@ -120,3 +120,21 @@ export function useAddCveComment(cveId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
   })
 }
+
+export function useEditCveComment(cveId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ commentId, message }: { commentId: string; message: string }) =>
+      api.patch<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`, { message }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
+  })
+}
+
+export function useDeleteCveComment(cveId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (commentId: string) =>
+      api.delete(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
+  })
+}

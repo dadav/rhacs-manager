@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +22,7 @@ from ..schemas.cve import (
     AffectedDeployment,
     CveCommentCreate,
     CveCommentResponse,
+    CveCommentUpdate,
     CveDetail,
     CveListItem,
     ImageCveDetail,
@@ -454,6 +456,7 @@ async def list_cve_comments(
                 username=user.username if user else c.user_id,
                 message=c.message,
                 created_at=c.created_at,
+                updated_at=c.updated_at,
                 is_sec_team=user.role.value == "sec_team" if user else False,
             )
         )
@@ -491,8 +494,63 @@ async def add_cve_comment(
         username=user.username if user else current_user.id,
         message=comment.message,
         created_at=comment.created_at,
+        updated_at=comment.updated_at,
         is_sec_team=current_user.is_sec_team,
     )
+
+
+@router.patch("/{cve_id}/comments/{comment_id}", response_model=CveCommentResponse)
+async def update_cve_comment(
+    cve_id: str,
+    comment_id: UUID,
+    body: CveCommentUpdate,
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+) -> CveCommentResponse:
+    result = await app_db.execute(select(CveComment).where(CveComment.id == comment_id, CveComment.cve_id == cve_id))
+    comment = result.scalar_one_or_none()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Cannot edit another user's comment")
+
+    comment.message = body.message
+    comment.updated_at = datetime.utcnow()
+    await app_db.commit()
+    await app_db.refresh(comment)
+
+    user_result = await app_db.execute(select(User).where(User.id == current_user.id))
+    user = user_result.scalar_one_or_none()
+
+    return CveCommentResponse(
+        id=comment.id,
+        cve_id=comment.cve_id,
+        user_id=comment.user_id,
+        username=user.username if user else current_user.id,
+        message=comment.message,
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        is_sec_team=current_user.is_sec_team,
+    )
+
+
+@router.delete("/{cve_id}/comments/{comment_id}", status_code=204)
+async def delete_cve_comment(
+    cve_id: str,
+    comment_id: UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+) -> Response:
+    result = await app_db.execute(select(CveComment).where(CveComment.id == comment_id, CveComment.cve_id == cve_id))
+    comment = result.scalar_one_or_none()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if comment.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Cannot delete another user's comment")
+
+    await app_db.delete(comment)
+    await app_db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/{cve_id}/deployments", response_model=list[AffectedDeployment])
