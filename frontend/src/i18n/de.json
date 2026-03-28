@@ -828,5 +828,10 @@
     "searchCves": "CVE-ID suchen...",
     "imageNotFound": "Image nicht gefunden",
     "noTimelineData": "Keine Zeitverlaufsdaten"
+  },
+  "presence": {
+    "viewing_one": "{{user}} sieht sich das gerade an",
+    "viewing_many": "{{count}} weitere sehen sich das gerade an",
+    "tooltip": "Aktive Betrachter: {{users}}"
   }
 }

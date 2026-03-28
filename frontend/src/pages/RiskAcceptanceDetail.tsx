@@ -15,9 +15,11 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { MentionTextArea, renderMentions } from '../components/MentionTextArea'
+import { ViewerIndicator } from '../components/ViewerIndicator'
 import { getErrorMessage } from '../utils/errors'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { usePresence } from '../api/presence'
 import { useAddComment, useAssignReviewer, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser, useUserSearch } from '../api/auth'
 import { useCveDetail } from '../api/cves'
@@ -501,6 +503,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const location = useLocation()
   const { data: ra, isLoading, error } = useRiskAcceptance(id)
   const { data: comments } = useRiskComments(id)
+  const viewers = usePresence("risk_acceptance", id)
 
   // Scroll to a specific comment when navigating via notification link
   useEffect(() => {
@@ -584,6 +587,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
           }}>
             {STATUS_LABELS[ra.status]}
           </span>
+          <ViewerIndicator viewers={viewers} />
           {(me?.is_sec_team || me?.id === ra.created_by) && (
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               {cancelError && <Alert variant="danger" isInline isPlain title={cancelError} />}

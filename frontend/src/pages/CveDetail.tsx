@@ -28,6 +28,8 @@ import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail } from "../api/cves";
+import { usePresence } from "../api/presence";
+import { ViewerIndicator } from "../components/ViewerIndicator";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
 import { MentionTextArea, renderMentions } from "../components/MentionTextArea";
@@ -112,6 +114,7 @@ export function CveDetail() {
   const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
+  const viewers = usePresence("cve", cveId);
 
   // Scroll to a specific comment when navigating via notification link
   useEffect(() => {
@@ -294,6 +297,7 @@ export function CveDetail() {
               {t('suppressionRules.suppressionRequestedLabel')}
             </Label>
           )}
+          <ViewerIndicator viewers={viewers} />
         </div>
       </PageSection>
 
