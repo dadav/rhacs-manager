@@ -435,7 +435,10 @@
     "badgeTooltip": "Priorisiert — immer sichtbar, unabhängig von Schwellenwerten.",
     "delete": "Löschen",
     "deleteFinal": "Endgültig löschen",
+    "deleteTitle": "Priorität entfernen",
     "deleteConfirm": "Priorisierung wirklich entfernen?",
+    "reasonLabel": "Begründung",
+    "updatedAt": "Aktualisiert am",
     "cveIdRequired": "CVE-ID erforderlich.",
     "reasonRequired": "Begründung erforderlich.",
     "deadlineOptional": "Deadline (optional)"

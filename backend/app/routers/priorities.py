@@ -41,6 +41,21 @@ async def list_priorities(
     return [_build_response(p) for p in result.scalars().all()]
 
 
+@router.get("/{priority_id}", response_model=PriorityResponse)
+async def get_priority(
+    priority_id: UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> PriorityResponse:
+    result = await db.execute(
+        select(CvePriority).options(selectinload(CvePriority.setter)).where(CvePriority.id == priority_id)
+    )
+    priority = result.scalar_one_or_none()
+    if not priority:
+        raise HTTPException(404, "Nicht gefunden")
+    return _build_response(priority)
+
+
 @router.post("", response_model=PriorityResponse, status_code=201)
 async def create_priority(
     body: PriorityCreate,

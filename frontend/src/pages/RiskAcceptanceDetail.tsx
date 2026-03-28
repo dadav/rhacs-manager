@@ -563,6 +563,38 @@ function RiskAcceptanceView({ id }: { id: string }) {
           }}>
             {STATUS_LABELS[ra.status]}
           </span>
+          {(me?.is_sec_team || me?.id === ra.created_by) && (
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {cancelError && <Alert variant="danger" isInline isPlain title={cancelError} />}
+              {confirmCancel ? (
+                <>
+                  <span style={{ fontSize: 13 }}>{t('riskAcceptance.deleteConfirm')}</span>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    isLoading={cancelRA.isPending}
+                    onClick={async () => {
+                      try {
+                        await cancelRA.mutateAsync()
+                        navigate('/risk-acceptances')
+                      } catch (err) {
+                        setCancelError(getErrorMessage(err))
+                      }
+                    }}
+                  >
+                    {t('riskAcceptance.deleteFinal')}
+                  </Button>
+                  <Button variant="link" size="sm" onClick={() => setConfirmCancel(false)}>
+                    {t('common.cancel')}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="danger" size="sm" onClick={() => setConfirmCancel(true)}>
+                  {t('riskAcceptance.delete')}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </PageSection>
 
@@ -630,43 +662,6 @@ function RiskAcceptanceView({ id }: { id: string }) {
               </Card>
             )}
 
-            {/* Delete action — sec team can delete any, creators can delete their own */}
-            {(me?.is_sec_team || me?.id === ra.created_by) && (
-              <Card>
-                <CardTitle>{t('riskAcceptance.deleteTitle')}</CardTitle>
-                <CardBody>
-                  {cancelError && <Alert variant="danger" isInline title={cancelError} style={{ marginBottom: 12 }} />}
-                  {confirmCancel ? (
-                    <div>
-                      <p style={{ fontSize: 13, marginBottom: 12 }}>{t('riskAcceptance.deleteConfirm')}</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Button
-                          variant="danger"
-                          isLoading={cancelRA.isPending}
-                          onClick={async () => {
-                            try {
-                              await cancelRA.mutateAsync()
-                              navigate('/risk-acceptances')
-                            } catch (err) {
-                              setCancelError(getErrorMessage(err))
-                            }
-                          }}
-                        >
-                          {t('riskAcceptance.deleteFinal')}
-                        </Button>
-                        <Button variant="link" onClick={() => setConfirmCancel(false)}>
-                          {t('common.cancel')}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button variant="danger" onClick={() => setConfirmCancel(true)}>
-                      {t('riskAcceptance.delete')}
-                    </Button>
-                  )}
-                </CardBody>
-              </Card>
-            )}
           </GridItem>
 
           {/* Comment thread */}

@@ -208,10 +208,10 @@ export function Priorities() {
               <Tr>
                 <Th>{t('priorities.cveId')}</Th>
                 <Th>{t('priorities.priority')}</Th>
-                <Th>{t('priorities.reason')}</Th>
                 <Th>{t('priorities.setBy')}</Th>
                 <Th>{t('priorities.deadline')}</Th>
                 <Th>{t('priorities.createdAt')}</Th>
+                <Th></Th>
                 {me?.is_sec_team && <Th></Th>}
               </Tr>
             </Thead>
@@ -229,13 +229,17 @@ export function Priorities() {
                     <Td>
                       <PriorityBadge level={p.priority} />
                     </Td>
-                    <Td style={{ maxWidth: 400 }}>{p.reason}</Td>
                     <Td style={{ fontSize: 12 }}>{p.set_by_name}</Td>
                     <Td style={{ fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-v6-global--Color--200)' }}>
                       {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
                     </Td>
                     <Td style={{ fontSize: 12, color: 'var(--pf-v6-global--Color--200)' }}>
                       {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
+                    </Td>
+                    <Td>
+                      <Link to={`/priorities/${p.id}`}>
+                        <Button variant="secondary" size="sm">{t('common.details')}</Button>
+                      </Link>
                     </Td>
                     {me?.is_sec_team && (
                       <Td>

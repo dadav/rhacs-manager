@@ -435,7 +435,10 @@
     "badgeTooltip": "Prioritized — always visible regardless of thresholds.",
     "delete": "Delete",
     "deleteFinal": "Delete permanently",
+    "deleteTitle": "Remove priority",
     "deleteConfirm": "Really remove prioritization?",
+    "reasonLabel": "Reason",
+    "updatedAt": "Updated at",
     "cveIdRequired": "CVE ID required.",
     "reasonRequired": "Reason required.",
     "deadlineOptional": "Deadline (optional)"

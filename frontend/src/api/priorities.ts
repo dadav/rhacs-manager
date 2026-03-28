@@ -4,12 +4,20 @@ import type { CvePriority, PriorityLevel } from '../types'
 
 export const priorityKeys = {
   list: ['priorities', 'list'] as const,
+  detail: (id: string) => ['priorities', 'detail', id] as const,
 }
 
 export function usePriorities() {
   return useQuery({
     queryKey: priorityKeys.list,
     queryFn: () => api.get<CvePriority[]>('/priorities'),
+  })
+}
+
+export function usePriority(id: string) {
+  return useQuery({
+    queryKey: priorityKeys.detail(id),
+    queryFn: () => api.get<CvePriority>(`/priorities/${id}`),
   })
 }
 

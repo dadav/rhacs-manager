@@ -33,6 +33,7 @@ import { CveDetail } from "./pages/CveDetail";
 import { RiskAcceptances } from "./pages/RiskAcceptances";
 import { RiskAcceptanceDetail } from "./pages/RiskAcceptanceDetail";
 import { Priorities } from "./pages/Priorities";
+import { PriorityDetail } from "./pages/PriorityDetail";
 import { Escalations } from "./pages/Escalations";
 import { Settings } from "./pages/Settings";
 import { AuditLog } from "./pages/AuditLog";
@@ -323,6 +324,7 @@ export function App() {
             element={<RiskAcceptanceDetail />}
           />
           <Route path="/priorities" element={<Priorities />} />
+          <Route path="/priorities/:id" element={<PriorityDetail />} />
           <Route path="/escalations" element={<Escalations />} />
           <Route
             path="/settings"
