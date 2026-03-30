@@ -13,6 +13,7 @@ import logging
 from mcp.server.fastmcp import Context, FastMCP
 
 from .api_client import AuthContext, RhacsManagerClient
+from .chart_tools import register_chart_tools
 from .config import settings
 
 _log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -352,6 +353,8 @@ def _register_write_tools() -> None:
         logger.debug("update_remediation_status called: id=%s, status=%s", remediation_id, status)
         return await client.update_remediation(auth, remediation_id, data)
 
+
+register_chart_tools(mcp, client, _extract_auth)
 
 if not settings.readonly:
     _register_write_tools()

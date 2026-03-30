@@ -39,13 +39,28 @@ The MCP server is configured via environment variables:
 
 | Tool                           | Description                                                             |
 | ------------------------------ | ----------------------------------------------------------------------- |
-| `get_security_overview`        | Dashboard summary: severity distribution, trends, MTTR, top EPSS CVEs   |
+| `get_security_overview`        | Dashboard summary: severity distribution, trends, MTTR, top EPSS CVEs  |
 | `search_cves`                  | Search/filter CVEs by keyword, severity, fixability, namespace, cluster |
 | `get_cve_detail`               | Full CVE detail with scores, components, timeline, and links            |
 | `get_cve_affected_deployments` | List deployments affected by a specific CVE                             |
+| `get_image_layers`             | Containerfile layer instructions, image metadata, and CVE summary       |
 | `list_risk_acceptances`        | List risk acceptances filtered by status or CVE                         |
 | `list_remediations`            | List remediation records filtered by status, CVE, or namespace          |
 | `get_my_info`                  | Current user identity, role, and visible namespaces                     |
+
+### Chart tools (always available)
+
+Chart tools fetch dashboard data and return SVG charts as text. The calling AI assistant can display these directly to the user. Dashboard data is cached for 60 seconds per user to avoid redundant API calls when multiple chart tools are invoked in sequence.
+
+| Tool                           | Description                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------ |
+| `chart_severity_distribution`  | Horizontal bar chart of CVE counts by severity level                           |
+| `chart_cve_trend`              | Multi-line time-series chart of CVE counts by severity over time               |
+| `chart_fixability`             | Pie chart of fixable vs unfixable CVEs; optional trend line with `include_trend` |
+| `chart_epss_matrix`            | Scatter plot of CVSS score vs EPSS probability, colored by severity            |
+| `chart_cluster_heatmap`        | Grid heatmap of CVE counts per cluster and severity level                      |
+| `chart_aging`                  | Bar chart of CVE aging distribution across time buckets                        |
+| `chart_top_components`         | Stacked horizontal bar chart of most vulnerable components (fixable/unfixable) |
 
 ### Write tools (disabled in readonly mode)
 
@@ -197,6 +212,6 @@ mcpServers:
 
 ## Readonly Mode
 
-When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations.
+When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations. Read-only data tools and chart tools remain available.
 
 This is recommended for initial rollouts or environments where AI-driven changes are not yet approved.
