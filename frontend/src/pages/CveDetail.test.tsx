@@ -11,10 +11,14 @@ import { Severity } from '../types'
 const mockUseCveDetail = vi.fn()
 const mockUseCveComments = vi.fn()
 const mockUseAddCveComment = vi.fn()
+const mockUseEditCveComment = vi.fn()
+const mockUseDeleteCveComment = vi.fn()
 vi.mock('../api/cves', () => ({
   useCveDetail: (...args: unknown[]) => mockUseCveDetail(...args),
   useCveComments: (...args: unknown[]) => mockUseCveComments(...args),
   useAddCveComment: (...args: unknown[]) => mockUseAddCveComment(...args),
+  useEditCveComment: (...args: unknown[]) => mockUseEditCveComment(...args),
+  useDeleteCveComment: (...args: unknown[]) => mockUseDeleteCveComment(...args),
 }))
 
 vi.mock('../api/suppressionRules', () => ({
@@ -142,6 +146,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockUseCveComments.mockReturnValue({ data: [], isLoading: false })
   mockUseAddCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
+  mockUseEditCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
+  mockUseDeleteCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
 })
 
 // --- Tests ---
