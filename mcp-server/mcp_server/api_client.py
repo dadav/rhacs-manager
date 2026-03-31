@@ -1,7 +1,6 @@
 import json
 import logging
 import ssl
-import time
 from dataclasses import dataclass
 from urllib.parse import quote
 
@@ -87,24 +86,6 @@ class RhacsManagerClient:
 
     async def _patch(self, path: str, auth: AuthContext, data: dict) -> str:
         return await self._request("PATCH", path, auth, data=data)
-
-    # -- Dashboard cache (TTL 60s, avoids repeated fetches for multiple chart tools) --
-
-    _dashboard_cache: dict[str, tuple[float, dict]] = {}
-    _CACHE_TTL = 60.0
-
-    async def get_dashboard_parsed(self, auth: AuthContext) -> dict:
-        """Fetch dashboard data as a parsed dict, with short-lived caching."""
-        cache_key = f"{auth.forwarded_user}:{auth.forwarded_namespaces}"
-        now = time.monotonic()
-        cached = self._dashboard_cache.get(cache_key)
-        if cached and (now - cached[0]) < self._CACHE_TTL:
-            return cached[1]
-
-        raw = await self._get("/api/dashboard", auth)
-        parsed = json.loads(raw)
-        self._dashboard_cache[cache_key] = (now, parsed)
-        return parsed
 
     # -- Read-only endpoints --
 
