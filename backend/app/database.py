@@ -25,7 +25,8 @@ stackrox_engine = create_async_engine(
     echo=False,
     pool_pre_ping=True,
     pool_size=3,
-    max_overflow=7,
+    max_overflow=5,
+    pool_timeout=10,
     execution_options={"postgresql_readonly": True},
 )
 StackRoxSessionLocal = async_sessionmaker(stackrox_engine, class_=AsyncSession, expire_on_commit=False)

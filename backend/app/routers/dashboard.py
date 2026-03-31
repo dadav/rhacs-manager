@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..database import AppSessionLocal, StackRoxSessionLocal
-from ..deps import get_app_db, get_stackrox_db
+from ..deps import get_app_db
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
@@ -35,7 +35,7 @@ from ._scope import narrow_namespaces
 
 # Limit concurrent StackRox DB sessions per request to avoid exhausting
 # Central DB's max_connections (100 shared with StackRox itself).
-_stackrox_semaphore = asyncio.Semaphore(4)
+_stackrox_semaphore = asyncio.Semaphore(3)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -327,7 +327,6 @@ async def dashboard(
     namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
-    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> DashboardData:
     settings = await _get_settings(app_db)
     # Thresholds only apply to non-sec-team users (sec team sees all CVEs)
@@ -342,7 +341,8 @@ async def dashboard(
 
     if current_user.can_see_all_namespaces:
         if has_scope:
-            all_ns = await sx.list_namespaces(sx_db)
+            async with StackRoxSessionLocal() as sx_db:
+                all_ns = await sx.list_namespaces(sx_db)
             namespaces: list[tuple[str, str]] = narrow_namespaces(
                 [(r["namespace"], r["cluster_name"]) for r in all_ns],
                 cluster,
@@ -385,12 +385,16 @@ async def dashboard(
 
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
-    if current_user.can_see_all_namespaces and not has_scope:
-        cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
-        ns_list_for_queries = None
-    else:
-        cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
-        ns_list_for_queries = namespaces
+    # Open a dedicated StackRox session for the initial CVE query and release
+    # it before the parallel phase so we don't hold an idle connection during
+    # asyncio.gather (which opens its own sessions via the semaphore).
+    async with StackRoxSessionLocal() as sx_db:
+        if current_user.can_see_all_namespaces and not has_scope:
+            cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
+            ns_list_for_queries = None
+        else:
+            cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
+            ns_list_for_queries = namespaces
 
     enriched = _enrich_cves(cves, priorities, acceptances)
 
