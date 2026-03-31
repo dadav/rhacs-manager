@@ -14,6 +14,7 @@ app_engine = create_async_engine(
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
+    pool_recycle=1800,
 )
 AppSessionLocal = async_sessionmaker(app_engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -27,6 +28,7 @@ stackrox_engine = create_async_engine(
     pool_size=3,
     max_overflow=5,
     pool_timeout=10,
+    pool_recycle=1800,
     execution_options={"postgresql_readonly": True},
 )
 StackRoxSessionLocal = async_sessionmaker(stackrox_engine, class_=AsyncSession, expire_on_commit=False)

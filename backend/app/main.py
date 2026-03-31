@@ -77,6 +77,9 @@ async def lifespan(app: FastAPI):
     if active_scheduler:
         active_scheduler.shutdown()
         logger.info("APScheduler stopped")
+    await app_engine.dispose()
+    await stackrox_engine.dispose()
+    logger.info("Database engines disposed")
 
 
 app = FastAPI(
