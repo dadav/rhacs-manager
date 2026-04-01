@@ -4,11 +4,16 @@ import {
   Card,
   CardBody,
   CardTitle,
+  Form,
+  FormGroup,
+  FormSelect,
+  FormSelectOption,
   Grid,
   GridItem,
+  NumberInput,
   PageSection,
   Popover,
-  Spinner,
+  Skeleton,
   TextInput,
   Title,
 } from '@patternfly/react-core'
@@ -57,54 +62,60 @@ function EscalationRuleRow({
   return (
     <Tr>
       <Td>
-        <select
+        <FormSelect
           value={rule.severity_min}
-          onChange={e => onChange({ ...rule, severity_min: Number(e.target.value) })}
+          onChange={(_e, v) => onChange({ ...rule, severity_min: Number(v) })}
           aria-label={t('settings.severityMin')}
-          style={{ width: 120, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+          style={{ width: 120 }}
         >
           {severityOptions.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <FormSelectOption key={o.value} value={o.value} label={o.label} />
           ))}
-        </select>
+        </FormSelect>
       </Td>
       <Td>
-        <select
+        <FormSelect
           value={rule.epss_threshold}
-          onChange={e => onChange({ ...rule, epss_threshold: Number(e.target.value) })}
+          onChange={(_e, v) => onChange({ ...rule, epss_threshold: Number(v) })}
           aria-label={t('settings.minEpssCol')}
-          style={{ width: 90, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+          style={{ width: 90 }}
         >
           {EPSS_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <FormSelectOption key={o.value} value={o.value} label={o.label} />
           ))}
-        </select>
+        </FormSelect>
       </Td>
       <Td>
-        <input
-          type="number" min={1}
+        <NumberInput
           value={rule.days_to_level1}
-          onChange={e => onChange({ ...rule, days_to_level1: Number(e.target.value) })}
-          aria-label={t('settings.daysToLevel1')}
-          style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+          min={1}
+          onMinus={() => onChange({ ...rule, days_to_level1: Math.max(1, rule.days_to_level1 - 1) })}
+          onPlus={() => onChange({ ...rule, days_to_level1: rule.days_to_level1 + 1 })}
+          onChange={e => onChange({ ...rule, days_to_level1: Number((e.target as HTMLInputElement).value) })}
+          inputAriaLabel={t('settings.daysToLevel1')}
+          style={{ width: 120 }}
         />
       </Td>
       <Td>
-        <input
-          type="number" min={1}
+        <NumberInput
           value={rule.days_to_level2}
-          onChange={e => onChange({ ...rule, days_to_level2: Number(e.target.value) })}
-          aria-label={t('settings.daysToLevel2')}
-          style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+          min={1}
+          onMinus={() => onChange({ ...rule, days_to_level2: Math.max(1, rule.days_to_level2 - 1) })}
+          onPlus={() => onChange({ ...rule, days_to_level2: rule.days_to_level2 + 1 })}
+          onChange={e => onChange({ ...rule, days_to_level2: Number((e.target as HTMLInputElement).value) })}
+          inputAriaLabel={t('settings.daysToLevel2')}
+          style={{ width: 120 }}
         />
       </Td>
       <Td>
-        <input
-          type="number" min={1}
+        <NumberInput
           value={rule.days_to_level3}
-          onChange={e => onChange({ ...rule, days_to_level3: Number(e.target.value) })}
-          aria-label={t('settings.daysToLevel3')}
-          style={{ width: 70, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+          min={1}
+          onMinus={() => onChange({ ...rule, days_to_level3: Math.max(1, rule.days_to_level3 - 1) })}
+          onPlus={() => onChange({ ...rule, days_to_level3: rule.days_to_level3 + 1 })}
+          onChange={e => onChange({ ...rule, days_to_level3: Number((e.target as HTMLInputElement).value) })}
+          inputAriaLabel={t('settings.daysToLevel3')}
+          style={{ width: 120 }}
         />
       </Td>
       <Td>
@@ -176,7 +187,16 @@ export function Settings() {
     }])
   }
 
-  if (isLoading) return <PageSection><Spinner aria-label={t('common.loading')} /></PageSection>
+  if (isLoading) return (
+    <PageSection>
+      <Title headingLevel="h1" size="xl" style={{ marginBottom: 16 }}>{t('settings.title')}</Title>
+      <Grid hasGutter>
+        <GridItem span={12}><Card><CardBody><Skeleton height="120px" /></CardBody></Card></GridItem>
+        <GridItem span={12}><Card><CardBody><Skeleton height="200px" /></CardBody></Card></GridItem>
+        <GridItem span={6}><Card><CardBody><Skeleton height="180px" /></CardBody></Card></GridItem>
+      </Grid>
+    </PageSection>
+  )
   if (error) return <PageSection><Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} /></PageSection>
 
   return (
@@ -220,7 +240,7 @@ export function Settings() {
                   </GridItem>
                   <GridItem span={12}>
                     {preview.data && (
-                      <p style={{ fontSize: 13, color: '#6a6e73' }}>
+                      <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)' }}>
                         {t('settings.preview', {
                           visible: preview.data.visible_cves,
                           total: preview.data.total_cves,
@@ -270,18 +290,22 @@ export function Settings() {
                   </Table>
                 </div>
                 <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>{t('settings.addRule')}</Button>
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {t('settings.warningDays')}
-                    <HelpButton header={t('settings.warningDays')} body={t('settings.warningDaysHelpBody')} />
-                  </label>
-                  <input
-                    type="number" min={1} max={14} step={1}
-                    value={escalationWarningDays}
-                    onChange={e => setEscalationWarningDays(Number(e.target.value))}
-                    aria-label={t('settings.warningDays')}
-                    style={{ width: 80, height: 32, padding: '0 6px', border: '1px solid #d2d2d2', borderRadius: 4 }}
-                  />
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--pf-t--global--border--color--default)' }}>
+                  <FormGroup
+                    label={t('settings.warningDays')}
+                    labelHelp={<HelpButton header={t('settings.warningDays')} body={t('settings.warningDaysHelpBody')} />}
+                  >
+                    <NumberInput
+                      value={escalationWarningDays}
+                      min={1}
+                      max={14}
+                      onMinus={() => setEscalationWarningDays(v => Math.max(1, v - 1))}
+                      onPlus={() => setEscalationWarningDays(v => Math.min(14, v + 1))}
+                      onChange={e => setEscalationWarningDays(Number((e.target as HTMLInputElement).value))}
+                      inputAriaLabel={t('settings.warningDays')}
+                      style={{ width: 150 }}
+                    />
+                  </FormGroup>
                 </div>
               </CardBody>
             </Card>
@@ -292,41 +316,38 @@ export function Settings() {
             <Card>
               <CardTitle>{t('settings.notifications')}</CardTitle>
               <CardBody>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {t('settings.digestDayLabel')}
-                    <HelpButton header={t('settings.digestDayLabel')} body={t('settings.digestDayHelpBody')} />
-                  </label>
-                  <select
+                <FormGroup
+                  label={t('settings.digestDayLabel')}
+                  labelHelp={<HelpButton header={t('settings.digestDayLabel')} body={t('settings.digestDayHelpBody')} />}
+                  style={{ marginBottom: 16 }}
+                >
+                  <FormSelect
                     value={digestDay}
-                    onChange={e => setDigestDay(Number(e.target.value))}
+                    onChange={(_e, v) => setDigestDay(Number(v))}
                     aria-label={t('settings.digestDayLabel')}
-                    style={{ display: 'block', width: '100%', height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4, marginTop: 4 }}
                   >
                     {DAYS.map((day, i) => (
-                      <option key={i} value={i}>{day}</option>
+                      <FormSelectOption key={i} value={i} label={day} />
                     ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {t('settings.managementEmail')}
-                    <HelpButton header={t('settings.managementEmail')} body={t('settings.managementEmailHelpBody')} />
-                  </label>
+                  </FormSelect>
+                </FormGroup>
+                <FormGroup
+                  label={t('settings.managementEmail')}
+                  labelHelp={<HelpButton header={t('settings.managementEmail')} body={t('settings.managementEmailHelpBody')} />}
+                >
                   <TextInput
                     type="email"
                     value={managementEmail}
                     onChange={(_, v) => setManagementEmail(v)}
                     placeholder={t('settings.managementEmailPlaceholder')}
                     aria-label={t('settings.managementEmail')}
-                    style={{ marginTop: 4 }}
                   />
-                </div>
-                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #d2d2d2' }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    {t('settings.sendDigest')}
-                    <HelpButton header={t('settings.sendDigest')} body={t('settings.sendDigestHelpBody')} />
-                  </label>
+                </FormGroup>
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--pf-t--global--border--color--default)' }}>
+                  <FormGroup
+                    label={t('settings.sendDigest')}
+                    labelHelp={<HelpButton header={t('settings.sendDigest')} body={t('settings.sendDigestHelpBody')} />}
+                  >
                   {digestSent && <Alert variant="success" isInline title={t('settings.digestSent')} style={{ marginBottom: 8 }} />}
                   {sendDigest.isError && (
                     <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(sendDigest.error)}`} style={{ marginBottom: 8 }} />
@@ -344,6 +365,7 @@ export function Settings() {
                   >
                     {t('settings.sendNow')}
                   </Button>
+                  </FormGroup>
                 </div>
               </CardBody>
             </Card>

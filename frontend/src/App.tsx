@@ -12,6 +12,7 @@ import {
   MastheadMain,
   MastheadToggle,
   PageToggleButton,
+  SkipToContent,
   Spinner,
   PageSection,
   Tooltip,
@@ -303,7 +304,13 @@ export function App() {
   );
 
   return (
-    <Page masthead={masthead} sidebar={sidebar} isManagedSidebar={false}>
+    <Page
+      masthead={masthead}
+      sidebar={sidebar}
+      isManagedSidebar={false}
+      skipToContent={<SkipToContent href="#main-content">Skip to content</SkipToContent>}
+      mainContainerId="main-content"
+    >
       <OnboardingModal
         isOpen={!user.onboarding_completed}
         isFirstTime

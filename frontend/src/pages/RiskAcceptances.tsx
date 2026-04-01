@@ -7,6 +7,8 @@ import {
   Popover,
   Skeleton,
   Title,
+  ToggleGroup,
+  ToggleGroupItem,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -20,7 +22,7 @@ import { useRiskAcceptances, useCancelRiskAcceptance } from '../api/riskAcceptan
 import { useCurrentUser } from '../api/auth'
 import { useScope } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
-import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, subtleTextSm, monoText } from '../tokens'
+import { STATUS_COLORS, BRAND_BLUE, statusBadge, subtleTextSm, monoText } from '../tokens'
 
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected', 'expired'] as const
 
@@ -145,18 +147,16 @@ export function RiskAcceptances() {
         <Toolbar>
           <ToolbarContent>
             <ToolbarItem>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <ToggleGroup aria-label={t('riskAcceptance.filterByStatus')}>
                 {STATUS_KEYS.map((value) => (
-                  <button
+                  <ToggleGroupItem
                     key={value}
-                    onClick={() => handleStatusFilterChange(value)}
-                    aria-label={`${t('riskAcceptance.filterByStatus')}: ${statusLabels[value]}`}
-                    style={filterButton(statusFilter === value)}
-                  >
-                    {statusLabels[value]}
-                  </button>
+                    text={statusLabels[value]}
+                    isSelected={statusFilter === value}
+                    onChange={() => handleStatusFilterChange(value)}
+                  />
                 ))}
-              </div>
+              </ToggleGroup>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>

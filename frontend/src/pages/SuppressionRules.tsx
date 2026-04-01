@@ -65,7 +65,7 @@ function DeleteRuleButton({ ruleId }: { ruleId: string }) {
 
   if (confirming) {
     return (
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <Button
           variant="danger"
           size="sm"
@@ -73,24 +73,24 @@ function DeleteRuleButton({ ruleId }: { ruleId: string }) {
           onClick={async () => {
             try {
               await deleteMutation.mutateAsync()
-              setConfirming(false)
             } catch (err) {
               setError(getErrorMessage(err))
+              setConfirming(false)
             }
           }}
         >
-          {t('common.confirm')}
+          {t('suppressionRules.deleteFinal')}
         </Button>
-        <Button variant="link" size="sm" onClick={() => { setConfirming(false); setError(null) }}>
+        <Button variant="link" size="sm" onClick={() => setConfirming(false)}>
           {t('common.cancel')}
         </Button>
-        {error && <Alert variant="danger" isInline isPlain title={error} />}
+        {error && <span style={{ color: '#c9190b', fontSize: 12 }}>{error}</span>}
       </div>
     )
   }
 
   return (
-    <Button variant="secondary" size="sm" isDanger onClick={() => setConfirming(true)}>
+    <Button variant="link" isDanger size="sm" onClick={() => setConfirming(true)}>
       {t('common.delete')}
     </Button>
   )

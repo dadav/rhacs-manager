@@ -3,10 +3,13 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
+  FormSelect,
+  FormSelectOption,
   Label,
   PageSection,
   Pagination,
   Popover,
+  SearchInput,
   Skeleton,
   Title,
   Toolbar,
@@ -26,15 +29,7 @@ import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
 import { RemediationStatus } from '../types'
 
-const SELECT_STYLE: React.CSSProperties = {
-  height: 36,
-  padding: '0 8px',
-  border: '1px solid var(--pf-t--global--border--color--default)',
-  borderRadius: 4,
-  background: 'var(--pf-t--global--background--color--primary--default)',
-  color: 'var(--pf-t--global--text--color--regular)',
-  fontSize: 13,
-}
+const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
 
 const PER_PAGE = 20
 
@@ -190,29 +185,29 @@ export function Remediations() {
         <Toolbar style={{ padding: 0, marginBottom: 8 }}>
           <ToolbarContent>
             <ToolbarItem>
-              <input
-                type="text"
+              <SearchInput
                 placeholder={t('remediations.searchPlaceholder')}
                 value={searchCve}
-                onChange={e => { setSearchCve(e.target.value); setPage(1) }}
-                style={{ ...SELECT_STYLE, width: 200, paddingLeft: 8 }}
+                onChange={(_e, v) => { setSearchCve(v); setPage(1) }}
+                onClear={() => { setSearchCve(''); setPage(1) }}
                 aria-label={t('remediations.searchLabel')}
+                style={{ width: 220 }}
               />
             </ToolbarItem>
             <ToolbarItem>
-              <select
+              <FormSelect
                 value={statusFilter}
-                onChange={e => { setStatus(e.target.value); setOverdueFilter(false) }}
-                style={SELECT_STYLE}
+                onChange={(_e, v) => { setStatus(v); setOverdueFilter(false) }}
                 aria-label={t('remediations.filterStatus')}
+                style={FORM_SELECT_STYLE}
               >
-                <option value="">{t('remediations.allStatuses')}</option>
-                <option value="open">{t('remediations.statusOpen')}</option>
-                <option value="in_progress">{t('remediations.statusInProgress')}</option>
-                <option value="resolved">{t('remediations.statusResolved')}</option>
-                <option value="verified">{t('remediations.statusVerified')}</option>
-                <option value="wont_fix">{t('remediations.statusWontFix')}</option>
-              </select>
+                <FormSelectOption value="" label={t('remediations.allStatuses')} />
+                <FormSelectOption value="open" label={t('remediations.statusOpen')} />
+                <FormSelectOption value="in_progress" label={t('remediations.statusInProgress')} />
+                <FormSelectOption value="resolved" label={t('remediations.statusResolved')} />
+                <FormSelectOption value="verified" label={t('remediations.statusVerified')} />
+                <FormSelectOption value="wont_fix" label={t('remediations.statusWontFix')} />
+              </FormSelect>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>

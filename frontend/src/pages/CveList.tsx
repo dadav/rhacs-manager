@@ -12,8 +12,13 @@ import {
   Pagination,
   Popover,
   Spinner,
+  FormSelect,
+  FormSelectOption,
+  SearchInput,
   TextInput,
   Title,
+  ToggleGroup,
+  ToggleGroupItem,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -387,24 +392,26 @@ export function CveList() {
         <Toolbar style={{ paddingBottom: 0 }}>
           <ToolbarContent>
             <ToolbarItem>
-              <TextInput
+              <SearchInput
                 value={searchInput}
-                onChange={(_, v) => setSearchInput(v)}
+                onChange={(_e, v) => setSearchInput(v)}
+                onClear={() => setSearchInput('')}
                 placeholder={t('cves.searchPlaceholder')}
                 aria-label={t('cves.searchPlaceholder')}
-                style={{ width: 220, height: 36 }}
+                style={{ width: 220 }}
               />
             </ToolbarItem>
             <ToolbarItem>
-              <select
+              <FormSelect
                 value={urlSeverity}
-                onChange={e => updateParams({ severity: e.target.value || null })}
-                style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+                onChange={(_e, v) => updateParams({ severity: v || null })}
+                aria-label={t('cves.filterSeverity')}
+                style={{ maxWidth: 160 }}
               >
                 {SEVERITY_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <FormSelectOption key={o.value} value={o.value} label={o.label} />
                 ))}
-              </select>
+              </FormSelect>
             </ToolbarItem>
             <ToolbarItem>
               <Checkbox
@@ -442,30 +449,18 @@ export function CveList() {
               </button>
             </ToolbarItem>
             <ToolbarItem>
-              <div style={{ display: 'inline-flex', borderRadius: 4, border: '1px solid #d2d2d2', overflow: 'hidden' }}>
-                <button
-                  onClick={() => updateParams({ view: null }, false)}
-                  style={{
-                    height: 36, padding: '0 12px', border: 'none', cursor: 'pointer',
-                    fontSize: 13, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: urlViewMode === 'cve' ? BRAND_BLUE : 'transparent',
-                    color: urlViewMode === 'cve' ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                  }}
-                >
-                  {t('cves.viewByCve')}
-                </button>
-                <button
-                  onClick={() => updateParams({ view: 'image' }, false)}
-                  style={{
-                    height: 36, padding: '0 12px', border: 'none', borderLeft: '1px solid #d2d2d2', cursor: 'pointer',
-                    fontSize: 13, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: urlViewMode === 'image' ? BRAND_BLUE : 'transparent',
-                    color: urlViewMode === 'image' ? '#fff' : 'var(--pf-v6-global--Color--100)',
-                  }}
-                >
-                  {t('cves.viewByImage')}
-                </button>
-              </div>
+              <ToggleGroup aria-label={t('cves.viewMode')}>
+                <ToggleGroupItem
+                  text={t('cves.viewByCve')}
+                  isSelected={urlViewMode === 'cve'}
+                  onChange={() => updateParams({ view: null }, false)}
+                />
+                <ToggleGroupItem
+                  text={t('cves.viewByImage')}
+                  isSelected={urlViewMode === 'image'}
+                  onChange={() => updateParams({ view: 'image' }, false)}
+                />
+              </ToggleGroup>
             </ToolbarItem>
             <ToolbarItem>
               <Dropdown
@@ -632,29 +627,29 @@ export function CveList() {
             {/* Risk status */}
             <div>
               <div style={sectionLabelStyle}>{t('cves.filterRiskStatus')}</div>
-              <select
+              <FormSelect
                 value={urlRiskStatus}
-                onChange={e => updateParams({ risk_status: e.target.value || null })}
-                style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+                onChange={(_e, v) => updateParams({ risk_status: v || null })}
+                aria-label={t('cves.filterRiskStatus')}
               >
                 {RISK_STATUS_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <FormSelectOption key={o.value} value={o.value} label={o.label} />
                 ))}
-              </select>
+              </FormSelect>
             </div>
 
             {/* Remediation status */}
             <div>
               <div style={sectionLabelStyle}>{t('cves.filterRemediationStatus')}</div>
-              <select
+              <FormSelect
                 value={urlRemediationStatus}
-                onChange={e => updateParams({ remediation_status: e.target.value || null })}
-                style={{ height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
+                onChange={(_e, v) => updateParams({ remediation_status: v || null })}
+                aria-label={t('cves.filterRemediationStatus')}
               >
                 {REMEDIATION_STATUS_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <FormSelectOption key={o.value} value={o.value} label={o.label} />
                 ))}
-              </select>
+              </FormSelect>
             </div>
 
             {/* Clear */}

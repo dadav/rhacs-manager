@@ -765,6 +765,7 @@
     "review": "Review",
     "reviewComment": "Comment (optional)",
     "deleteConfirm": "Really delete this rule?",
+    "deleteFinal": "Delete permanently",
     "noRules": "No suppression rules found.",
     "noRulesHint": "Request false positives from the CVE detail page.",
     "scopeLabel": "Scope",

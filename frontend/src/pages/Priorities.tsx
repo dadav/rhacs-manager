@@ -6,6 +6,10 @@ import {
   CardTitle,
   EmptyState,
   EmptyStateBody,
+  FormGroup,
+  FormSelect,
+  FormSelectOption,
+  Label,
   Modal,
   ModalBody,
   ModalFooter,
@@ -35,22 +39,20 @@ const PRIORITY_LEVEL_KEYS: { key: string; value: PriorityLevel }[] = [
   { key: 'priority.low', value: PriorityLevel.low },
 ]
 
+const PRIORITY_LABEL_COLORS: Record<string, 'red' | 'orange' | 'yellow' | 'blue'> = {
+  critical: 'red',
+  high: 'orange',
+  medium: 'yellow',
+  low: 'blue',
+}
+
 function PriorityBadge({ level }: { level: PriorityLevel }) {
   const { t } = useTranslation()
   const option = PRIORITY_LEVEL_KEYS.find(o => o.value === level)
   return (
-    <span style={{
-      display: 'inline-block',
-      padding: '2px 8px',
-      borderRadius: 3,
-      background: PRIORITY_COLORS[level],
-      color: '#fff',
-      fontSize: 11,
-      fontWeight: 600,
-      textTransform: 'uppercase',
-    }}>
+    <Label color={PRIORITY_LABEL_COLORS[level] ?? 'grey'}>
       {option ? t(option.key) : level}
-    </span>
+    </Label>
   )
 }
 
@@ -263,18 +265,17 @@ export function Priorities() {
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.cveId')} *</label>
                 <TextInput value={cveId} onChange={(_, v) => setCveId(v)} placeholder="CVE-2024-XXXXX" aria-label={t('priorities.cveId')} style={{ marginTop: 4 }} />
               </div>
-              <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.priority')}</label>
-                <select
+              <FormGroup label={t('priorities.priority')}>
+                <FormSelect
                   value={priority}
-                  onChange={e => setPriority(e.target.value as PriorityLevel)}
-                  style={{ display: 'block', width: '100%', height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4, marginTop: 4 }}
+                  onChange={(_e, v) => setPriority(v as PriorityLevel)}
+                  aria-label={t('priorities.priority')}
                 >
                   {priorityOptions.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <FormSelectOption key={o.value} value={o.value} label={o.label} />
                   ))}
-                </select>
-              </div>
+                </FormSelect>
+              </FormGroup>
               <div>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.reason')} *</label>
                 <TextArea value={reason} onChange={(_, v) => setReason(v)} rows={3} style={{ marginTop: 4 }} />

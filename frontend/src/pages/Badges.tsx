@@ -4,13 +4,14 @@ import {
   Card,
   CardBody,
   CardTitle,
+  ClipboardCopy,
   Modal,
   ModalBody,
   ModalFooter,
   ModalHeader,
   PageSection,
   Popover,
-  Spinner,
+  Skeleton,
   TextInput,
   Title,
 } from '@patternfly/react-core'
@@ -33,7 +34,6 @@ export function Badges() {
   const [cluster, setCluster] = useState('')
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
-  const [copied, setCopied] = useState<string | null>(null)
   const toAbsoluteBadgeUrl = (url: string) =>
     url.startsWith('http') ? url : new URL(url, window.location.origin).toString()
 
@@ -52,12 +52,6 @@ export function Badges() {
     } catch (err) {
       setFormError(getErrorMessage(err))
     }
-  }
-
-  function copyToClipboard(text: string, id: string) {
-    navigator.clipboard.writeText(text)
-    setCopied(id)
-    setTimeout(() => setCopied(null), 2000)
   }
 
   return (
@@ -97,7 +91,11 @@ export function Badges() {
       <PageSection variant="default" isFilled>
         <Alert variant="info" isInline title={t('badges.hint')} style={{ marginBottom: 16 }} />
 
-        {isLoading ? <Spinner aria-label={t('common.loading')} /> : error ? (
+        {isLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1, 2].map(i => <Card key={i} isCompact><CardBody><Skeleton height="60px" /></CardBody></Card>)}
+          </div>
+        ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !badges?.length ? (
           <div>
@@ -124,41 +122,26 @@ export function Badges() {
                       <img src={toAbsoluteBadgeUrl(badge.badge_url)} alt="Badge" style={{ height: 20 }} />
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => copyToClipboard(toAbsoluteBadgeUrl(badge.badge_url), badge.id + '-url')}
-                      >
-                        {copied === badge.id + '-url' ? t('badges.copiedUrl') : t('badges.copyUrl')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => copyToClipboard(
-                          `![CVE Badge](${toAbsoluteBadgeUrl(badge.badge_url)})`,
-                          badge.id + '-md'
-                        )}
-                      >
-                        {copied === badge.id + '-md' ? t('badges.copiedMd') : t('badges.markdownCopy')}
-                      </Button>
-                      <Button
-                        variant="plain"
-                        size="sm"
-                        onClick={() => deleteBadge.mutate(badge.id)}
-                        aria-label={`${t('common.delete')} ${badge.label || t('badges.cveBadge')}`}
-                        style={{ color: '#c9190b', fontSize: 12 }}
-                      >
-                        {t('common.delete')}
-                      </Button>
-                    </div>
+                    <Button
+                      variant="plain"
+                      size="sm"
+                      onClick={() => deleteBadge.mutate(badge.id)}
+                      aria-label={`${t('common.delete')} ${badge.label || t('badges.cveBadge')}`}
+                      style={{ color: '#c9190b', fontSize: 12 }}
+                    >
+                      {t('common.delete')}
+                    </Button>
                   </div>
 
-                  {/* URL display */}
-                  <div style={{ marginTop: 8, padding: '6px 10px', background: '#f9f9f9', borderRadius: 3 }}>
-                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6a6e73', wordBreak: 'break-all' }}>
+                  <div style={{ marginTop: 8 }}>
+                    <ClipboardCopy isReadOnly hoverTip={t('badges.copyUrl')} clickTip={t('badges.copiedUrl')}>
                       {toAbsoluteBadgeUrl(badge.badge_url)}
-                    </span>
+                    </ClipboardCopy>
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <ClipboardCopy isReadOnly hoverTip={t('badges.markdownCopy')} clickTip={t('badges.copiedMd')}>
+                      {`![CVE Badge](${toAbsoluteBadgeUrl(badge.badge_url)})`}
+                    </ClipboardCopy>
                   </div>
                 </CardBody>
               </Card>

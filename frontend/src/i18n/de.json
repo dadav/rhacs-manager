@@ -765,6 +765,7 @@
     "review": "Überprüfen",
     "reviewComment": "Kommentar (optional)",
     "deleteConfirm": "Regel wirklich löschen?",
+    "deleteFinal": "Endgültig löschen",
     "noRules": "Keine Unterdrückungsregeln vorhanden.",
     "noRulesHint": "Beantragen Sie False Positives über die CVE-Detailseite.",
     "scopeLabel": "Geltungsbereich",

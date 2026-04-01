@@ -1,7 +1,10 @@
 import {
   Alert,
+  CodeBlock,
+  CodeBlockCode,
   EmptyState,
   EmptyStateBody,
+  ExpandableSection,
   PageSection,
   Pagination,
   Skeleton,
@@ -13,25 +16,9 @@ import { getErrorMessage } from '../utils/errors'
 import { useState } from 'react'
 import { useAuditLog } from '../api/audit'
 import { useTranslation } from 'react-i18next'
-import { BRAND_BLUE } from '../tokens'
-
-const ACTION_KEYS = [
-  'risk_acceptance_created',
-  'risk_acceptance_reviewed',
-  'risk_acceptance_expired',
-  'risk_acceptance_deleted',
-  'priority_set',
-  'priority_updated',
-  'priority_deleted',
-  'settings_updated',
-  'comment_added',
-  'user_created',
-  'user_updated',
-] as const
 
 function DetailsCell({ details }: { details: Record<string, unknown> }) {
   const { t } = useTranslation()
-  const [expanded, setExpanded] = useState(false)
   const isEmpty = Object.keys(details).length === 0
   if (isEmpty) return <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>–</span>
 
@@ -42,34 +29,15 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
     .slice(0, 60)
 
   return (
-    <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
-      {expanded ? (
-        <>
-          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: 11 }}>
-            {formatted}
-          </pre>
-          <button
-            onClick={() => setExpanded(false)}
-            aria-label={t('common.less')}
-            style={{ background: 'none', border: 'none', color: BRAND_BLUE, cursor: 'pointer', padding: 0, fontSize: 11 }}
-          >
-            {t('common.less')}
-          </button>
-        </>
-      ) : (
-        <>
-          <span style={{ fontFamily: 'monospace' }}>{summary}{summary.length < Object.entries(details).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(', ').length ? '…' : ''}</span>
-          {' '}
-          <button
-            onClick={() => setExpanded(true)}
-            aria-label={t('common.more')}
-            style={{ background: 'none', border: 'none', color: BRAND_BLUE, cursor: 'pointer', padding: 0, fontSize: 11 }}
-          >
-            {t('common.more')}
-          </button>
-        </>
-      )}
-    </span>
+    <div style={{ maxWidth: 300, overflow: 'hidden' }}>
+      <ExpandableSection
+        toggleText={summary + (summary.length < JSON.stringify(details).length ? '…' : '')}
+      >
+        <CodeBlock style={{ maxHeight: 200, overflow: 'auto' }}>
+          <CodeBlockCode>{formatted}</CodeBlockCode>
+        </CodeBlock>
+      </ExpandableSection>
+    </div>
   )
 }
 

@@ -3,9 +3,13 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
+  FormSelect,
+  FormSelectOption,
+  Label,
   PageSection,
   Pagination,
   Popover,
+  SearchInput,
   Skeleton,
   Title,
   Toolbar,
@@ -26,15 +30,7 @@ import type { Escalation, UpcomingEscalation } from '../types'
 
 const PER_PAGE = 20
 
-const SELECT_STYLE: React.CSSProperties = {
-  height: 36,
-  padding: '0 8px',
-  border: '1px solid var(--pf-t--global--border--color--default)',
-  borderRadius: 4,
-  background: 'var(--pf-t--global--background--color--primary--default)',
-  color: 'var(--pf-t--global--text--color--regular)',
-  fontSize: 13,
-}
+const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 180 }
 
 function filterUpcoming(
   items: UpcomingEscalation[],
@@ -82,19 +78,17 @@ export function Escalations() {
     4: t('severity.4'),
   }
 
+  const LEVEL_LABEL_COLORS: Record<number, 'orange' | 'red' | 'purple'> = {
+    1: 'orange',
+    2: 'red',
+    3: 'purple',
+  }
+
   function LevelBadge({ level }: { level: number }) {
     return (
-      <span style={{
-        display: 'inline-block',
-        padding: '2px 8px',
-        borderRadius: 3,
-        background: LEVEL_COLORS[level] ?? '#8a8d90',
-        color: '#fff',
-        fontSize: 11,
-        fontWeight: 600,
-      }}>
+      <Label color={LEVEL_LABEL_COLORS[level] ?? 'grey'}>
         {LEVEL_LABELS[level] ?? `Level ${level}`}
-      </span>
+      </Label>
     )
   }
 
@@ -204,31 +198,31 @@ export function Escalations() {
             <Toolbar style={{ padding: 0, marginBottom: 8 }}>
               <ToolbarContent>
                 <ToolbarItem>
-                  <select
+                  <FormSelect
                     value={upLevelFilter}
-                    onChange={e => { setUpLevelFilter(e.target.value); setUpPage(1) }}
-                    style={SELECT_STYLE}
+                    onChange={(_e, v) => { setUpLevelFilter(v); setUpPage(1) }}
                     aria-label={t('escalations.filterLevel')}
+                    style={FORM_SELECT_STYLE}
                   >
-                    <option value="">{t('escalations.allLevels')}</option>
-                    <option value="1">{t('escalations.level1')}</option>
-                    <option value="2">{t('escalations.level2')}</option>
-                    <option value="3">{t('escalations.levelCritical')}</option>
-                  </select>
+                    <FormSelectOption value="" label={t('escalations.allLevels')} />
+                    <FormSelectOption value="1" label={t('escalations.level1')} />
+                    <FormSelectOption value="2" label={t('escalations.level2')} />
+                    <FormSelectOption value="3" label={t('escalations.levelCritical')} />
+                  </FormSelect>
                 </ToolbarItem>
                 <ToolbarItem>
-                  <select
+                  <FormSelect
                     value={upSeverityFilter}
-                    onChange={e => { setUpSeverityFilter(e.target.value); setUpPage(1) }}
-                    style={SELECT_STYLE}
+                    onChange={(_e, v) => { setUpSeverityFilter(v); setUpPage(1) }}
                     aria-label={t('escalations.filterSeverity')}
+                    style={FORM_SELECT_STYLE}
                   >
-                    <option value="">{t('escalations.allSeverities')}</option>
-                    <option value="4">{t('severity.4')}</option>
-                    <option value="3">{t('severity.3')}</option>
-                    <option value="2">{t('severity.2')}</option>
-                    <option value="1">{t('severity.1')}</option>
-                  </select>
+                    <FormSelectOption value="" label={t('escalations.allSeverities')} />
+                    <FormSelectOption value="4" label={t('severity.4')} />
+                    <FormSelectOption value="3" label={t('severity.3')} />
+                    <FormSelectOption value="2" label={t('severity.2')} />
+                    <FormSelectOption value="1" label={t('severity.1')} />
+                  </FormSelect>
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
@@ -337,27 +331,27 @@ export function Escalations() {
             <Toolbar style={{ padding: 0, marginBottom: 8 }}>
               <ToolbarContent>
                 <ToolbarItem>
-                  <input
-                    type="text"
+                  <SearchInput
                     placeholder={t('escalations.searchPlaceholder')}
                     value={activeSearch}
-                    onChange={e => { setActiveSearch(e.target.value); setActivePage(1) }}
-                    style={{ ...SELECT_STYLE, width: 200, paddingLeft: 8 }}
+                    onChange={(_e, v) => { setActiveSearch(v); setActivePage(1) }}
+                    onClear={() => { setActiveSearch(''); setActivePage(1) }}
                     aria-label={t('escalations.searchLabel')}
+                    style={{ width: 220 }}
                   />
                 </ToolbarItem>
                 <ToolbarItem>
-                  <select
+                  <FormSelect
                     value={activeLevelFilter}
-                    onChange={e => { setActiveLevelFilter(e.target.value); setActivePage(1) }}
-                    style={SELECT_STYLE}
+                    onChange={(_e, v) => { setActiveLevelFilter(v); setActivePage(1) }}
                     aria-label={t('escalations.filterLevelLabel')}
+                    style={FORM_SELECT_STYLE}
                   >
-                    <option value="">{t('escalations.allLevelsLabel')}</option>
-                    <option value="1">{t('escalations.level1')}</option>
-                    <option value="2">{t('escalations.level2')}</option>
-                    <option value="3">{t('escalations.levelCritical')}</option>
-                  </select>
+                    <FormSelectOption value="" label={t('escalations.allLevelsLabel')} />
+                    <FormSelectOption value="1" label={t('escalations.level1')} />
+                    <FormSelectOption value="2" label={t('escalations.level2')} />
+                    <FormSelectOption value="3" label={t('escalations.levelCritical')} />
+                  </FormSelect>
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
