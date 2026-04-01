@@ -15,7 +15,7 @@
     "@patternfly/react-core": "^6.4.1",
     "@patternfly/react-icons": "^6.4.0",
     "@patternfly/react-table": "^6.4.1",
-    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query": "^5.96.1",
     "date-fns": "^4.1.0",
     "i18next": "^25.10.10",
     "react": "^19.2.4",
