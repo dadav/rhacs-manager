@@ -10,7 +10,7 @@ FROM gcr.io/distroless/static:nonroot
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
       org.opencontainers.image.description="RHACS CVE Manager Auth Header Injector" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="Apache-2.0"
 
 COPY --from=builder /auth-header-injector /auth-header-injector
 USER nonroot:nonroot

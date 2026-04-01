@@ -14,7 +14,7 @@ FROM nginxinc/nginx-unprivileged:alpine
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
       org.opencontainers.image.description="RHACS CVE Manager Frontend" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="Apache-2.0"
 
 # Install envsubst (gettext package)
 USER root
