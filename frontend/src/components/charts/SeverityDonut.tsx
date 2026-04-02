@@ -1,6 +1,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { useTranslation } from 'react-i18next'
 import { Severity } from '../../types'
+import { chartTooltipStyle, chartTooltipWrapperStyle } from '../../tokens'
 
 const COLORS: Record<number, string> = {
   [Severity.CRITICAL]: '#c9190b',
@@ -65,12 +66,8 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
         </Pie>
         <Tooltip
           formatter={(val, name) => [val, name]}
-          contentStyle={{
-            backgroundColor: 'var(--pf-t--global--background--color--primary--default, #fff)',
-            border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
-            color: 'var(--pf-t--global--text--color--regular, #151515)',
-          }}
-          wrapperStyle={{ zIndex: 10 }}
+          contentStyle={chartTooltipStyle}
+          wrapperStyle={chartTooltipWrapperStyle}
         />
         <Legend wrapperStyle={{ color: 'inherit' }} />
       </PieChart>

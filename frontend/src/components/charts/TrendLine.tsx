@@ -1,6 +1,7 @@
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useTranslation } from 'react-i18next'
 import type { CveTrendPoint } from '../../types'
+import { chartTooltipStyle } from '../../tokens'
 
 // Bottom-to-top stacking order (low at bottom, critical on top)
 const SEVERITY_KEYS = ['low', 'moderate', 'important', 'critical'] as const
@@ -56,11 +57,7 @@ export function TrendLine({ data }: Props) {
         <YAxis tick={{ fontSize: 10, fill: 'currentColor' }} allowDecimals={false} />
         <Tooltip
           labelFormatter={l => `Datum: ${l}`}
-          contentStyle={{
-            backgroundColor: 'var(--pf-t--global--background--color--primary--default, #fff)',
-            border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
-            color: 'var(--pf-t--global--text--color--regular, #151515)',
-          }}
+          contentStyle={chartTooltipStyle}
         />
         <Legend
           verticalAlign="top"

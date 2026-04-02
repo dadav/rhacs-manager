@@ -48,6 +48,7 @@ import {
   STATUS_COLORS,
   BRAND_BLUE,
   FIXABLE_COLOR,
+  subtleTextSm,
 } from "../tokens";
 
 const SUMMARY_KEYWORDS = ["DOCUMENTATION", "STATEMENT", "MITIGATION"] as const;
@@ -316,7 +317,7 @@ export function CveDetail() {
           >
             <p>{cve.priority_reason}</p>
             {cve.priority_set_by_name && (
-              <p style={{ fontSize: 12, color: "var(--pf-t--global--text--color--subtle)", marginTop: 4 }}>
+              <p style={{ ...subtleTextSm, marginTop: 4 }}>
                 — {cve.priority_set_by_name}
                 {cve.priority_created_at &&
                   `, ${new Date(cve.priority_created_at).toLocaleDateString(dateLocale)}`}

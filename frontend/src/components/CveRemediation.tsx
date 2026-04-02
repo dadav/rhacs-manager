@@ -9,7 +9,7 @@ import {
   TextArea,
   TextInput,
 } from "@patternfly/react-core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
 import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";
@@ -173,6 +173,12 @@ export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
 
+  // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
+  useEffect(() => {
+    if (updateMutation.isSuccess) updateMutation.reset()
+  }, [item.status])
+
+  const mutationBusy = updateMutation.isPending || updateMutation.isSuccess
   const canVerify = isSecTeam && item.status === RemediationStatus.resolved
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
@@ -226,27 +232,27 @@ export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         {canProgress && (
-          <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
+          <Button variant="secondary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
             {t('cveDetail.start')}
           </Button>
         )}
         {canResolve && (
-          <Button variant="secondary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
+          <Button variant="secondary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
             {t('cveDetail.markResolvedBtn')}
           </Button>
         )}
         {canVerify && (
-          <Button variant="primary" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
+          <Button variant="primary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'verified' })}>
             {t('cveDetail.verify')}
           </Button>
         )}
         {canWontFix && !showWontFix && (
-          <Button variant="link" size="sm" isDanger onClick={() => setShowWontFix(true)}>
+          <Button variant="link" size="sm" isDanger isDisabled={mutationBusy} onClick={() => setShowWontFix(true)}>
             {t('cveDetail.wontFix')}
           </Button>
         )}
         {canReopen && (
-          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'open' })}>
             {t('cveDetail.reopen')}
           </Button>
         )}
@@ -262,7 +268,7 @@ export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }
             style={{ marginTop: 4 }}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <Button variant="danger" size="sm" isLoading={updateMutation.isPending} isDisabled={!wontFixReason.trim()} onClick={handleWontFix}>
+            <Button variant="danger" size="sm" isLoading={mutationBusy} isDisabled={mutationBusy || !wontFixReason.trim()} onClick={handleWontFix}>
               {t('common.confirm')}
             </Button>
             <Button variant="link" size="sm" onClick={() => { setShowWontFix(false); setWontFixReason('') }}>

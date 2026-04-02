@@ -397,7 +397,7 @@ export function CveList() {
             isInline
             title={exportError}
             actionClose={<AlertActionCloseButton onClose={() => setExportError(null)} />}
-            style={{ margin: '0 20px' }}
+            style={{ margin: '0 var(--pf-t--global--spacer--lg)' }}
           />
         </PageSection>
       )}

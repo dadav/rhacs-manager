@@ -19,7 +19,7 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
@@ -163,14 +163,7 @@ export function Remediations() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    if (key === 'overdue') {
-                      setOverdueFilter(!overdueFilter)
-                      setStatus('')
-                    } else {
-                      setOverdueFilter(false)
-                      setStatus(statusFilter === key ? '' : key)
-                    }
-                    setPage(1)
+                    e.currentTarget.click()
                   }
                 }}
                 style={{
@@ -333,6 +326,12 @@ function RemediationRow({
 }) {
   const updateMutation = useUpdateRemediation(item.id)
 
+  // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
+  useEffect(() => {
+    if (updateMutation.isSuccess) updateMutation.reset()
+  }, [item.status])
+
+  const mutationBusy = updateMutation.isPending || updateMutation.isSuccess
   const canVerify = isSecTeam && item.status === RemediationStatus.resolved
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
@@ -380,22 +379,22 @@ function RemediationRow({
       </Td>
       <Td style={{ whiteSpace: 'nowrap' }}>
         {canProgress && (
-          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
             {t('remediations.start')}
           </Button>
         )}
         {canResolve && (
-          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
             {t('remediations.markResolved')}
           </Button>
         )}
         {canVerify && (
-          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'verified' })}>
             {t('remediations.verify')}
           </Button>
         )}
         {canReopen && (
-          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'open' })}>
             {t('remediations.reopen')}
           </Button>
         )}
