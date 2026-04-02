@@ -35,6 +35,7 @@ import {
 import type { SuppressionRule, SuppressionType } from '../types'
 import { SuppressionStatus } from '../types'
 import { STATUS_COLORS, BRAND_BLUE, filterButton, statusBadge, formLabel } from '../tokens'
+import { InlineConfirmButton } from '../components/common/InlineConfirmButton'
 
 const STATUS_KEYS = ['', 'requested', 'approved', 'rejected'] as const
 
@@ -57,42 +58,16 @@ function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number })
   )
 }
 
-function DeleteRuleButton({ ruleId }: { ruleId: string }) {
+function DeleteRuleInline({ ruleId }: { ruleId: string }) {
   const { t } = useTranslation()
   const deleteMutation = useDeleteSuppressionRule(ruleId)
-  const [confirming, setConfirming] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  if (confirming) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Button
-          variant="danger"
-          size="sm"
-          isLoading={deleteMutation.isPending}
-          onClick={async () => {
-            try {
-              await deleteMutation.mutateAsync()
-            } catch (err) {
-              setError(getErrorMessage(err))
-              setConfirming(false)
-            }
-          }}
-        >
-          {t('suppressionRules.deleteFinal')}
-        </Button>
-        <Button variant="link" size="sm" onClick={() => setConfirming(false)}>
-          {t('common.cancel')}
-        </Button>
-        {error && <span style={{ color: '#c9190b', fontSize: 12 }}>{error}</span>}
-      </div>
-    )
-  }
-
   return (
-    <Button variant="link" isDanger size="sm" onClick={() => setConfirming(true)}>
-      {t('common.delete')}
-    </Button>
+    <InlineConfirmButton
+      label={t('common.delete')}
+      confirmLabel={t('suppressionRules.deleteFinal')}
+      cancelLabel={t('common.cancel')}
+      onConfirm={() => deleteMutation.mutateAsync()}
+    />
   )
 }
 
@@ -214,7 +189,7 @@ export function SuppressionRules() {
               </button>
             ))}
           </div>
-          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+          <Button variant="primary" onClick={() => setShowCreate(true)}>
             {t('suppressionRules.create')}
           </Button>
         </div>
@@ -333,7 +308,7 @@ export function SuppressionRules() {
                             </>
                           )}
                           {isSecTeam && (
-                            <DeleteRuleButton ruleId={rule.id} />
+                            <DeleteRuleInline ruleId={rule.id} />
                           )}
                         </div>
                       </Td>

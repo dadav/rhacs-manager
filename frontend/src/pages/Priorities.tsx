@@ -31,6 +31,7 @@ import { PriorityLevel } from '../types'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { PRIORITY_COLORS, BRAND_BLUE } from '../tokens'
+import { InlineConfirmButton } from '../components/common/InlineConfirmButton'
 
 const PRIORITY_LEVEL_KEYS: { key: string; value: PriorityLevel }[] = [
   { key: 'priority.critical', value: PriorityLevel.critical },
@@ -56,42 +57,16 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
   )
 }
 
-function DeletePriorityButton({ priorityId }: { priorityId: string }) {
+function DeletePriorityInline({ priorityId }: { priorityId: string }) {
   const { t } = useTranslation()
   const deletePriority = useDeletePriority()
-  const [confirm, setConfirm] = useState(false)
-  const [error, setError] = useState('')
-
-  if (confirm) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Button
-          variant="danger"
-          size="sm"
-          isLoading={deletePriority.isPending}
-          onClick={async () => {
-            try {
-              await deletePriority.mutateAsync(priorityId)
-            } catch (err) {
-              setError(getErrorMessage(err))
-              setConfirm(false)
-            }
-          }}
-        >
-          {t('priorities.deleteFinal')}
-        </Button>
-        <Button variant="link" size="sm" onClick={() => setConfirm(false)}>
-          {t('common.cancel')}
-        </Button>
-        {error && <span style={{ color: '#c9190b', fontSize: 12 }}>{error}</span>}
-      </div>
-    )
-  }
-
   return (
-    <Button variant="link" isDanger size="sm" onClick={() => setConfirm(true)}>
-      {t('priorities.delete')}
-    </Button>
+    <InlineConfirmButton
+      label={t('priorities.delete')}
+      confirmLabel={t('priorities.deleteFinal')}
+      cancelLabel={t('common.cancel')}
+      onConfirm={() => deletePriority.mutateAsync(priorityId)}
+    />
   )
 }
 
@@ -239,13 +214,17 @@ export function Priorities() {
                       {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
                     </Td>
                     <Td>
-                      <Link to={`/priorities/${p.id}`}>
-                        <Button variant="secondary" size="sm">{t('common.details')}</Button>
-                      </Link>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        component={(props: object) => <Link {...props} to={`/priorities/${p.id}`} />}
+                      >
+                        {t('common.details')}
+                      </Button>
                     </Td>
                     {me?.is_sec_team && (
                       <Td>
-                        <DeletePriorityButton priorityId={p.id} />
+                        <DeletePriorityInline priorityId={p.id} />
                       </Td>
                     )}
                   </Tr>
