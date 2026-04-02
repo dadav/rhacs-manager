@@ -26,6 +26,40 @@ router = APIRouter(prefix="/exports", tags=["exports"])
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
+# Localized error/status messages for the import endpoint
+_IMPORT_MESSAGES: dict[str, dict[str, str]] = {
+    "de": {
+        "sec_team_forbidden": "Security-Team kann keine Risikoakzeptanzen importieren",
+        "no_namespaces": "Keine Namespaces zugeordnet",
+        "file_too_large": "Datei zu groß (max. {max_mb} MB)",
+        "invalid_cve_id": "Ungültige CVE-ID",
+        "justification_too_short": "Begründung zu kurz (min. 10 Zeichen)",
+        "justification_too_long": "Begründung zu lang (max. 5000 Zeichen)",
+        "cve_not_found": "CVE in Ihren Namespaces nicht gefunden",
+        "scope_failed": "Scope konnte nicht aufgelöst werden",
+        "duplicate_ra": "Aktive Risikoakzeptanz für diesen Scope existiert bereits",
+        "namespace_label": "Namespace(s)",
+        "error_prefix": "Fehler",
+    },
+    "en": {
+        "sec_team_forbidden": "Security team cannot import risk acceptances",
+        "no_namespaces": "No namespaces assigned",
+        "file_too_large": "File too large (max. {max_mb} MB)",
+        "invalid_cve_id": "Invalid CVE ID",
+        "justification_too_short": "Justification too short (min. 10 characters)",
+        "justification_too_long": "Justification too long (max. 5000 characters)",
+        "cve_not_found": "CVE not found in your namespaces",
+        "scope_failed": "Could not resolve scope",
+        "duplicate_ra": "Active risk acceptance for this scope already exists",
+        "namespace_label": "namespace(s)",
+        "error_prefix": "Error",
+    },
+}
+
+
+def _msg(lang: str) -> dict[str, str]:
+    return _IMPORT_MESSAGES.get(lang, _IMPORT_MESSAGES["de"])
+
 
 async def _resolve_namespaces(
     current_user: CurrentUser,
@@ -61,6 +95,7 @@ async def export_pdf(
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    lang: str = Query("de"),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -142,13 +177,14 @@ async def export_pdf(
             "namespace": namespace,
         },
     }
-    pdf_bytes = generate_cve_pdf(cve_dicts, metadata=pdf_metadata)
+    pdf_bytes = generate_cve_pdf(cve_dicts, metadata=pdf_metadata, lang=lang)
     today = now.strftime("%Y-%m-%d")
+    filename = "cve-report" if lang == "en" else "cve-bericht"
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="cve-bericht-{today}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}-{today}.pdf"'},
     )
 
 
@@ -166,6 +202,7 @@ async def export_excel(
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    lang: str = Query("de"),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -230,7 +267,7 @@ async def export_excel(
             }
         )
 
-    xlsx_bytes = generate_cve_excel(excel_rows)
+    xlsx_bytes = generate_cve_excel(excel_rows, lang=lang)
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
     return Response(
@@ -244,20 +281,23 @@ async def export_excel(
 async def import_excel(
     file: UploadFile,
     confirm: bool = Query(False),
+    lang: str = Query("de"),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> dict:
+    m = _msg(lang)
+
     # Only non-sec-team can import
     if current_user.is_sec_team:
-        raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen importieren")
+        raise HTTPException(403, m["sec_team_forbidden"])
     if not current_user.has_namespaces:
-        raise HTTPException(400, "Keine Namespaces zugeordnet")
+        raise HTTPException(400, m["no_namespaces"])
 
     # Validate file size
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
-        raise HTTPException(400, f"Datei zu groß (max. {MAX_UPLOAD_SIZE // (1024 * 1024)} MB)")
+        raise HTTPException(400, m["file_too_large"].format(max_mb=MAX_UPLOAD_SIZE // (1024 * 1024)))
 
     # Parse
     try:
@@ -281,13 +321,13 @@ async def import_excel(
 
         # Validate CVE ID format
         if not cve_id or not cve_id.startswith("CVE-"):
-            errors.append("Ungültige CVE-ID")
+            errors.append(m["invalid_cve_id"])
 
         # Validate justification length
         if len(justification) < 10:
-            errors.append("Begründung zu kurz (min. 10 Zeichen)")
+            errors.append(m["justification_too_short"])
         elif len(justification) > 5000:
-            errors.append("Begründung zu lang (max. 5000 Zeichen)")
+            errors.append(m["justification_too_long"])
 
         # Get expires_at from first row (all rows in group should have same)
         expires_at = group_rows[0].get("expires_at")
@@ -300,13 +340,13 @@ async def import_excel(
             try:
                 deployments = await sx.get_affected_deployments(sx_db, cve_id, current_user.namespaces)
                 if not deployments:
-                    errors.append("CVE in Ihren Namespaces nicht gefunden")
+                    errors.append(m["cve_not_found"])
                 else:
                     # Always use namespace scope covering all affected namespaces
                     ns_set = {(d["cluster_name"], d["namespace"]) for d in deployments}
                     scope_targets = [RiskScopeTarget(cluster_name=cl, namespace=ns) for cl, ns in sorted(ns_set)]
                     resolved_scope = RiskScope(mode="namespace", targets=scope_targets)
-                    scope_summary = f"namespace ({len(ns_set)} Namespace(s))"
+                    scope_summary = f"namespace ({len(ns_set)} {m['namespace_label']})"
 
                     # Validate scope against deployments
                     try:
@@ -316,7 +356,7 @@ async def import_excel(
                         resolved_scope = None
 
             except Exception as e:
-                errors.append(f"Fehler: {str(e)}")
+                errors.append(f"{m['error_prefix']}: {str(e)}")
 
         valid = len(errors) == 0
 
@@ -358,7 +398,7 @@ async def import_excel(
 
         resolved_scope = item.get("_resolved_scope")
         if not resolved_scope:
-            failed.append({"cve_id": item["cve_id"], "error": "Scope konnte nicht aufgelöst werden"})
+            failed.append({"cve_id": item["cve_id"], "error": m["scope_failed"]})
             continue
 
         sk = scope_key(resolved_scope)
@@ -375,7 +415,7 @@ async def import_excel(
             failed.append(
                 {
                     "cve_id": item["cve_id"],
-                    "error": "Aktive Risikoakzeptanz für diesen Scope existiert bereits",
+                    "error": m["duplicate_ra"],
                 }
             )
             continue

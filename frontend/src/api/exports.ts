@@ -1,3 +1,4 @@
+import i18n from '../i18n'
 import type { ScopeParams } from '../hooks/useScope'
 
 const BASE = '/api'
@@ -21,6 +22,7 @@ function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {
     if (v === undefined || v === null || v === '') return
     q.set(k, String(v))
   })
+  q.set('lang', i18n.language)
   const s = q.toString()
   return s ? `?${s}` : ''
 }
@@ -53,7 +55,8 @@ export async function exportPdf(filters: ExportFilters, scope: ScopeParams) {
   const query = buildExportQuery(filters, scope)
   const blob = await fetchBlob(`${BASE}/exports/pdf${query}`)
   const today = new Date().toISOString().slice(0, 10)
-  downloadBlob(blob, `cve-bericht-${today}.pdf`)
+  const prefix = i18n.language === 'en' ? 'cve-report' : 'cve-bericht'
+  downloadBlob(blob, `${prefix}-${today}.pdf`)
 }
 
 export async function exportExcel(filters: ExportFilters, scope: ScopeParams) {
@@ -91,7 +94,8 @@ export async function importExcel(
   const formData = new FormData()
   formData.append('file', file)
 
-  const res = await fetch(`${BASE}/exports/excel/import?confirm=${confirm}`, {
+  const lang = i18n.language
+  const res = await fetch(`${BASE}/exports/excel/import?confirm=${confirm}&lang=${lang}`, {
     method: 'POST',
     body: formData,
   })
