@@ -28,7 +28,7 @@ export function StatCard({
           style={{
             fontSize: 28,
             fontWeight: 700,
-            color: color ?? "var(--pf-v6-global--Color--100)",
+            color: color ?? "var(--pf-t--global--text--color--regular, #151515)",
             lineHeight: 1.2,
           }}
         >

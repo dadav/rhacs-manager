@@ -95,11 +95,11 @@ export const HEATMAP_SEVERITY_INDEX: Record<string, number> = {
 // Theme-aware Recharts styles
 export const chartTooltipStyle: React.CSSProperties = {
   backgroundColor:
-    "var(--pf-v6-global--BackgroundColor--100, var(--pf-t--global--background--color--primary--default, #fff))",
+    "var(--pf-t--global--background--color--primary--default, #fff)",
   border:
     "1px solid var(--pf-t--global--border--color--default, #d2d2d2)",
   color:
-    "var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))",
+    "var(--pf-t--global--text--color--regular, #151515)",
 };
 
 export const chartTooltipWrapperStyle: React.CSSProperties = { zIndex: 10 };
@@ -129,8 +129,8 @@ export const filterButton = (active: boolean): React.CSSProperties => ({
   border: '1px solid #d2d2d2',
   borderRadius: 3,
   cursor: 'pointer',
-  background: active ? BRAND_BLUE : 'var(--pf-v6-global--BackgroundColor--100)',
-  color: active ? '#fff' : 'var(--pf-v6-global--Color--100)',
+  background: active ? BRAND_BLUE : 'var(--pf-t--global--background--color--primary--default, #fff)',
+  color: active ? '#fff' : 'var(--pf-t--global--text--color--regular, #151515)',
   fontSize: 13,
 })
 export const formLabel: React.CSSProperties = { fontWeight: 600, fontSize: 13, display: 'block', marginBottom: 4 }

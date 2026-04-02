@@ -308,7 +308,7 @@ export function App() {
       masthead={masthead}
       sidebar={sidebar}
       isManagedSidebar={false}
-      skipToContent={<SkipToContent href="#main-content">Skip to content</SkipToContent>}
+      skipToContent={<SkipToContent href="#main-content">{t('app.skipToContent')}</SkipToContent>}
       mainContainerId="main-content"
     >
       <OnboardingModal

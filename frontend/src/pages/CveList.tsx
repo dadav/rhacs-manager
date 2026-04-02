@@ -1,5 +1,6 @@
 import {
   Alert,
+  AlertActionCloseButton,
   Button,
   Checkbox,
   Dropdown,
@@ -232,6 +233,7 @@ export function CveList() {
 
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [importModalOpen, setImportModalOpen] = useState(false)
 
   const exportFilters = {
@@ -255,7 +257,7 @@ export function CveList() {
       const fn = type === 'pdf' ? exportPdf : exportExcel
       await fn(exportFilters, scopeOverrides)
     } catch (e) {
-      alert(getErrorMessage(e))
+      setExportError(getErrorMessage(e))
     } finally {
       setExporting(false)
     }
@@ -330,7 +332,7 @@ export function CveList() {
     border: hasActiveAdvanced ? `1px solid ${BRAND_BLUE}` : '1px solid #d2d2d2',
     borderRadius: 4,
     background: hasActiveAdvanced ? `rgba(0,102,204,0.08)` : 'transparent',
-    color: hasActiveAdvanced ? BRAND_BLUE : 'var(--pf-v6-global--Color--100)',
+    color: hasActiveAdvanced ? BRAND_BLUE : 'var(--pf-t--global--text--color--regular, #151515)',
     cursor: 'pointer',
     fontSize: 14,
     fontFamily: 'inherit',
@@ -338,7 +340,7 @@ export function CveList() {
 
   const sectionLabelStyle: React.CSSProperties = {
     fontSize: 12, fontWeight: 600, marginBottom: 8,
-    color: 'var(--pf-v6-global--Color--200)',
+    color: 'var(--pf-t--global--text--color--subtle)',
   }
 
   return (
@@ -388,6 +390,18 @@ export function CveList() {
         </PageSection>
       )}
 
+      {exportError && (
+        <PageSection variant="default" padding={{ default: 'noPadding' }}>
+          <Alert
+            variant="danger"
+            isInline
+            title={exportError}
+            actionClose={<AlertActionCloseButton onClose={() => setExportError(null)} />}
+            style={{ margin: '0 20px' }}
+          />
+        </PageSection>
+      )}
+
       <PageSection variant="default" style={{ paddingBottom: 0 }}>
         <Toolbar style={{ paddingBottom: 0 }}>
           <ToolbarContent>
@@ -430,12 +444,13 @@ export function CveList() {
               />
             </ToolbarItem>
             <ToolbarItem>
-              <button
+              <Button
+                variant="secondary"
                 style={advancedBtnStyle}
                 onClick={() => updateParams({ advanced: urlAdvanced ? null : '1' }, false)}
                 aria-expanded={urlAdvanced}
+                icon={<FilterIcon />}
               >
-                <FilterIcon />
                 {t('cves.filterAdvanced')}
                 {Boolean(hasActiveAdvanced) && (
                   <span style={{
@@ -446,7 +461,7 @@ export function CveList() {
                     {activeFilterCount}
                   </span>
                 )}
-              </button>
+              </Button>
             </ToolbarItem>
             <ToolbarItem>
               <ToggleGroup aria-label={t('cves.viewMode')}>
@@ -468,22 +483,15 @@ export function CveList() {
                 onSelect={() => setExportDropdownOpen(false)}
                 onOpenChange={setExportDropdownOpen}
                 toggle={(toggleRef) => (
-                  <button
+                  <MenuToggle
                     ref={toggleRef}
                     onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
-                    disabled={exporting}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      height: 36, padding: '0 12px',
-                      border: '1px solid #d2d2d2', borderRadius: 4,
-                      background: 'transparent', cursor: exporting ? 'default' : 'pointer',
-                      fontSize: 14, fontFamily: 'inherit',
-                      color: 'var(--pf-v6-global--Color--100)',
-                    }}
+                    isDisabled={exporting}
+                    variant="secondary"
                   >
                     {exporting ? <Spinner size="sm" aria-label={t('exports.export')} /> : <ExportIcon />}
-                    {t('exports.export')}
-                  </button>
+                    {' '}{t('exports.export')}
+                  </MenuToggle>
                 )}
                 popperProps={{ position: 'right' }}
               >
@@ -506,7 +514,7 @@ export function CveList() {
                     border: '1px solid #d2d2d2', borderRadius: 4,
                     background: 'transparent', cursor: 'pointer',
                     fontSize: 14, fontFamily: 'inherit',
-                    color: 'var(--pf-v6-global--Color--100)',
+                    color: 'var(--pf-t--global--text--color--regular, #151515)',
                   }}
                   onClick={() => setImportModalOpen(true)}
                 >
@@ -568,7 +576,7 @@ export function CveList() {
         {urlAdvanced && (
           <div style={{
             padding: '16px 20px',
-            background: 'var(--pf-v6-global--BackgroundColor--200)',
+            background: 'var(--pf-t--global--background--color--secondary--default)',
             borderTop: '1px solid #d2d2d2',
             display: 'flex',
             flexWrap: 'wrap',
@@ -590,7 +598,7 @@ export function CveList() {
                   style={{ width: 180, accentColor: BRAND_BLUE }}
                   aria-label="CVSS Minimum"
                 />
-                <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>min</span>
+                <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>min</span>
               </div>
             </div>
 
@@ -608,7 +616,7 @@ export function CveList() {
                   style={{ width: 180, accentColor: BRAND_BLUE }}
                   aria-label="EPSS Minimum"
                 />
-                <span style={{ fontSize: 11, color: 'var(--pf-v6-global--Color--200)' }}>min</span>
+                <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>min</span>
               </div>
             </div>
 

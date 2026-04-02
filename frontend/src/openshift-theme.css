@@ -329,11 +329,11 @@
 /* ══════════════════════════════════════════════════════════════════════ */
 
 .stat-card-label {
-  color: var(--pf-v6-global--Color--200);
+  color: var(--pf-t--global--text--color--subtle);
 }
 
 :root.pf-v6-theme-dark .stat-card-label {
-  color: var(--pf-v6-global--Color--100);
+  color: var(--pf-t--global--text--color--regular);
 }
 
 

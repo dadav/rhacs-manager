@@ -42,11 +42,11 @@ export function PriorityCveAlert({ variant, cves }: PriorityCveAlertProps) {
               alignItems: "center",
               gap: 6,
               padding: "4px 10px",
-              background: "var(--pf-v6-global--BackgroundColor--100)",
+              background: "var(--pf-t--global--background--color--primary--default, #fff)",
               border: `1px solid ${isPriority ? "#ec7a08" : "#f0ab00"}`,
               borderRadius: 4,
               textDecoration: "none",
-              color: "var(--pf-v6-global--Color--100)",
+              color: "var(--pf-t--global--text--color--regular, #151515)",
               fontSize: 13,
             }}
           >

@@ -207,10 +207,10 @@ export function Priorities() {
                       <PriorityBadge level={p.priority} />
                     </Td>
                     <Td style={{ fontSize: 12 }}>{p.set_by_name}</Td>
-                    <Td style={{ fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-v6-global--Color--200)' }}>
+                    <Td style={{ fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-t--global--text--color--subtle)' }}>
                       {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
                     </Td>
-                    <Td style={{ fontSize: 12, color: 'var(--pf-v6-global--Color--200)' }}>
+                    <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                       {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
                     </Td>
                     <Td>

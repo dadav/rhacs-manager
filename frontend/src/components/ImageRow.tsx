@@ -54,7 +54,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
       {expanded && (
         <Tr>
           <Td colSpan={12} style={{ padding: 0 }}>
-            <div style={{ padding: '8px 16px 12px 40px', background: 'var(--pf-v6-global--BackgroundColor--200)' }}>
+            <div style={{ padding: '8px 16px 12px 40px', background: 'var(--pf-t--global--background--color--secondary--default)' }}>
               {group.fixable_cves > 0 && (
                 <div style={{
                   padding: '6px 12px', marginBottom: 8, fontSize: 12, fontWeight: 600,

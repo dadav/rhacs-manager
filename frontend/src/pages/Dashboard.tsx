@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
 import { useDashboard } from "../api/dashboard";
 import { useAuth } from "../hooks/useAuth";
-import { useScope } from "../hooks/useScope";
+import { useScope, buildScopedTo } from "../hooks/useScope";
 import { EpssRiskMatrix } from "../components/charts/EpssRiskMatrix";
 import { SeverityDonut } from "../components/charts/SeverityDonut";
 import { TrendLine } from "../components/charts/TrendLine";
@@ -39,13 +39,15 @@ const statLinkStyle = {
   textDecoration: "none" as const,
   display: "block" as const,
   height: "100%" as const,
+  cursor: "pointer" as const,
 };
 
 export function Dashboard() {
   const { t } = useTranslation();
   const { isSecTeam } = useAuth();
   const navigate = useNavigate();
-  const { scopeParams } = useScope();
+  const { scopeParams, scopeSearchString } = useScope();
+  const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString);
   const { data, isLoading, error } = useDashboard(scopeParams);
 
   if (isLoading) return <DashboardSkeleton />;
@@ -99,8 +101,8 @@ export function Dashboard() {
       <PageSection variant="default" isFilled>
         <Grid hasGutter>
           {/* Stat cards */}
-          <GridItem span={3}>
-            <Link to="/vulnerabilities" style={statLinkStyle}>
+          <GridItem span={3} md={6} sm={12}>
+            <Link to={scopedLink("/vulnerabilities")} style={statLinkStyle}>
               <StatCard
                 label={t("dashboard.totalCves")}
                 value={data.stat_total_cves}
@@ -108,9 +110,9 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3}>
+          <GridItem span={3} md={6} sm={12}>
             <Link
-              to="/vulnerabilities?severity=4&fixable=true"
+              to={scopedLink("/vulnerabilities?severity=4&fixable=true")}
               style={statLinkStyle}
             >
               <StatCard
@@ -121,8 +123,8 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3}>
-            <Link to="/escalations" style={statLinkStyle}>
+          <GridItem span={3} md={6} sm={12}>
+            <Link to={scopedLink("/escalations")} style={statLinkStyle}>
               <StatCard
                 label={t("dashboard.escalations")}
                 value={data.stat_escalations}
@@ -136,9 +138,9 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3}>
+          <GridItem span={3} md={6} sm={12}>
             <Link
-              to="/risk-acceptances?status=requested"
+              to={scopedLink("/risk-acceptances?status=requested")}
               style={statLinkStyle}
             >
               <StatCard

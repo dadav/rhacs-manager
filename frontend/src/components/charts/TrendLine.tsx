@@ -57,9 +57,9 @@ export function TrendLine({ data }: Props) {
         <Tooltip
           labelFormatter={l => `Datum: ${l}`}
           contentStyle={{
-            backgroundColor: 'var(--pf-v6-global--BackgroundColor--100, var(--pf-t--global--background--color--primary--default, #fff))',
+            backgroundColor: 'var(--pf-t--global--background--color--primary--default, #fff)',
             border: '1px solid var(--pf-t--global--border--color--default, #d2d2d2)',
-            color: 'var(--pf-v6-global--Color--100, var(--pf-t--global--text--color--regular, #151515))',
+            color: 'var(--pf-t--global--text--color--regular, #151515)',
           }}
         />
         <Legend

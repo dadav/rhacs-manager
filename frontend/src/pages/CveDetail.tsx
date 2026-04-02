@@ -96,7 +96,7 @@ function DetailRow({
         style={{
           fontWeight: 600,
           fontSize: 13,
-          color: "#6a6e73",
+          color: "var(--pf-t--global--text--color--subtle)",
           width: 200,
         }}
       >
@@ -256,11 +256,8 @@ export function CveDetail() {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem
-            onClick={() => navigate("/vulnerabilities")}
-            style={{ cursor: "pointer" }}
-          >
-            {t('nav.cves')}
+          <BreadcrumbItem>
+            <Link to="/vulnerabilities">{t('nav.cves')}</Link>
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{cve.cve_id}</BreadcrumbItem>
         </Breadcrumb>
@@ -319,7 +316,7 @@ export function CveDetail() {
           >
             <p>{cve.priority_reason}</p>
             {cve.priority_set_by_name && (
-              <p style={{ fontSize: 12, color: "#6a6e73", marginTop: 4 }}>
+              <p style={{ fontSize: 12, color: "var(--pf-t--global--text--color--subtle)", marginTop: 4 }}>
                 — {cve.priority_set_by_name}
                 {cve.priority_created_at &&
                   `, ${new Date(cve.priority_created_at).toLocaleDateString(dateLocale)}`}

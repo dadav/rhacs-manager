@@ -137,7 +137,7 @@ export function Remediations() {
 
       {/* Stats summary */}
       {stats.data && (
-        <PageSection>
+        <PageSection variant="default">
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {([
               ['open', t('remediations.statusOpen'), 'blue'],
@@ -148,6 +148,8 @@ export function Remediations() {
             ] as [string, string, string][]).map(([key, label, color]) => (
               <div
                 key={key}
+                role="button"
+                tabIndex={0}
                 onClick={() => {
                   if (key === 'overdue') {
                     setOverdueFilter(!overdueFilter)
@@ -157,6 +159,19 @@ export function Remediations() {
                     setStatus(statusFilter === key ? '' : key)
                   }
                   setPage(1)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    if (key === 'overdue') {
+                      setOverdueFilter(!overdueFilter)
+                      setStatus('')
+                    } else {
+                      setOverdueFilter(false)
+                      setStatus(statusFilter === key ? '' : key)
+                    }
+                    setPage(1)
+                  }
                 }}
                 style={{
                   padding: '12px 20px',
@@ -365,22 +380,22 @@ function RemediationRow({
       </Td>
       <Td style={{ whiteSpace: 'nowrap' }}>
         {canProgress && (
-          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
+          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
             {t('remediations.start')}
           </Button>
         )}
         {canResolve && (
-          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
+          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
             {t('remediations.markResolved')}
           </Button>
         )}
         {canVerify && (
-          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
+          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'verified' })}>
             {t('remediations.verify')}
           </Button>
         )}
         {canReopen && (
-          <Button variant="link" size="sm" isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
+          <Button variant="link" size="sm" isDisabled={updateMutation.isPending} isLoading={updateMutation.isPending} onClick={() => updateMutation.mutate({ status: 'open' })}>
             {t('remediations.reopen')}
           </Button>
         )}

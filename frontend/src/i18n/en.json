@@ -7,7 +7,8 @@
     "lightTheme": "Light theme",
     "darkTheme": "Dark theme",
     "switchLanguage": "Switch language",
-    "showHelp": "Show help"
+    "showHelp": "Show help",
+    "skipToContent": "Skip to content"
   },
   "nav": {
     "dashboard": "Dashboard",
