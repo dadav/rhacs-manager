@@ -62,6 +62,14 @@ install:
     uv --directory mcp-server sync
     cd frontend && bun install
 
+# Update all dependencies to latest versions
+update-deps:
+    uv lock --upgrade --directory backend
+    uv lock --upgrade --directory mcp-server
+    cd frontend && bun update
+    cd auth-header-injector && go get -u ./... && go mod tidy
+    cd random-data-generator && go get -u ./... && go mod tidy
+
 # Build backend container image
 build-backend-image tag="rhacs-manager-backend:latest":
     podman build -t {{ tag }} backend/
