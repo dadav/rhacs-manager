@@ -24,6 +24,10 @@
     "general": "General",
     "admin": "Admin"
   },
+  "error": {
+    "unexpected": "An unexpected error occurred",
+    "retry": "Try again"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -681,6 +685,25 @@
       "badges": {
         "title": "Badges",
         "desc": "Generate SVG status badges for repository READMEs and dashboards"
+      }
+    },
+    "tasks": {
+      "heading": "Start here",
+      "scope": {
+        "title": "Set your scope",
+        "desc": "Choose the namespace and cluster you want to investigate in the sidebar."
+      },
+      "dashboard": {
+        "title": "Review the dashboard",
+        "desc": "Get an overview of vulnerability trends and the EPSS risk matrix."
+      },
+      "cve": {
+        "title": "Open a vulnerability",
+        "desc": "Click on a CVE to see details, affected deployments, and remediation status."
+      },
+      "action": {
+        "title": "Take an action",
+        "desc": "Escalate, request risk acceptance, or document remediation — directly from the CVE view."
       }
     },
     "workflow": {

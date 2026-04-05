@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Alert, PageSection, Button } from '@patternfly/react-core'
+import i18n from '../i18n'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -21,10 +22,10 @@ export class ErrorBoundary extends Component<Props, State> {
         <PageSection>
           <Alert
             variant="danger"
-            title="Ein unerwarteter Fehler ist aufgetreten"
+            title={i18n.t('error.unexpected')}
             actionLinks={
               <Button variant="link" onClick={() => this.setState({ error: null })}>
-                Erneut versuchen
+                {i18n.t('error.retry')}
               </Button>
             }
           >

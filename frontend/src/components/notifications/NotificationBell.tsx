@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Button,
   NotificationBadge,
@@ -9,8 +9,8 @@ import {
   NotificationDrawerListItem,
   NotificationDrawerListItemBody,
   NotificationDrawerListItemHeader,
+  Popper,
 } from '@patternfly/react-core'
-import { BellIcon } from '@patternfly/react-icons'
 import { useNavigate } from 'react-router'
 import { useUnreadCount, useNotifications, useMarkRead, useMarkAllRead } from '../../api/notifications'
 import { useTranslation } from 'react-i18next'
@@ -39,6 +39,8 @@ export function NotificationBell() {
   const timeAgo = useTimeAgo()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const toggleRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const { data: unread } = useUnreadCount()
   const { data: notifications } = useNotifications()
@@ -63,86 +65,83 @@ export function NotificationBell() {
     }
   }
 
-  return (
-    <div style={{ position: 'relative' }}>
+  const toggle = (
+    <div ref={toggleRef} style={{ display: 'inline-flex' }}>
       <NotificationBadge
         variant={count > 0 ? 'unread' : 'read'}
         count={count}
         onClick={() => setOpen(o => !o)}
         aria-label={t('notifications.title')}
         style={{ color: '#e0e0e0' }}
-      >
-        <BellIcon />
-      </NotificationBadge>
-
-      {open && (
-        <>
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-            onClick={() => setOpen(false)}
-          />
-          <div style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            zIndex: 1000,
-            width: 400,
-            maxHeight: 'calc(100vh - 80px)',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'var(--pf-t--global--background--color--primary--default)',
-            color: 'var(--pf-t--global--text--color--regular)',
-            borderRadius: 4,
-            boxShadow: '0 4px 12px rgba(0,0,0,.15)',
-          }}>
-            <NotificationDrawer>
-              <NotificationDrawerHeader
-                title={t('notifications.title')}
-                count={count}
-                onClose={() => setOpen(false)}
-              >
-                {count > 0 && (
-                  <Button variant="link" isInline onClick={() => markAllRead.mutate()}>
-                    {t('notifications.markAllRead')}
-                  </Button>
-                )}
-              </NotificationDrawerHeader>
-              <NotificationDrawerBody style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
-                {!notifications?.length ? (
-                  <div style={{ padding: 24, textAlign: 'center', color: 'var(--pf-t--global--text--color--subtle)' }}>
-                    {t('notifications.noNotifications')}
-                  </div>
-                ) : (
-                  <NotificationDrawerList>
-                    {notifications.map(n => (
-                      <NotificationDrawerListItem
-                        key={n.id}
-                        variant="info"
-                        isRead={n.read}
-                        onClick={() => handleClick(n)}
-                      >
-                        <NotificationDrawerListItemHeader
-                          title={n.title}
-                          variant="info"
-                        >
-                          <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                            {timeAgo(n.created_at)}
-                          </span>
-                        </NotificationDrawerListItemHeader>
-                        <NotificationDrawerListItemBody
-                          timestamp={timeAgo(n.created_at)}
-                        >
-                          {n.message}
-                        </NotificationDrawerListItemBody>
-                      </NotificationDrawerListItem>
-                    ))}
-                  </NotificationDrawerList>
-                )}
-              </NotificationDrawerBody>
-            </NotificationDrawer>
-          </div>
-        </>
-      )}
+      />
     </div>
+  )
+
+  const menu = (
+    <div ref={menuRef} style={{ maxWidth: 400, width: '90vw' }}>
+      <NotificationDrawer>
+        <NotificationDrawerHeader
+          title={t('notifications.title')}
+          count={count}
+          onClose={() => setOpen(false)}
+        >
+          {count > 0 && (
+            <Button variant="link" isInline onClick={() => markAllRead.mutate()}>
+              {t('notifications.markAllRead')}
+            </Button>
+          )}
+        </NotificationDrawerHeader>
+        <NotificationDrawerBody style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+          {!notifications?.length ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--pf-t--global--text--color--subtle)' }}>
+              {t('notifications.noNotifications')}
+            </div>
+          ) : (
+            <NotificationDrawerList>
+              {notifications.map(n => (
+                <NotificationDrawerListItem
+                  key={n.id}
+                  variant="info"
+                  isRead={n.read}
+                  onClick={() => handleClick(n)}
+                >
+                  <NotificationDrawerListItemHeader
+                    title={n.title}
+                    variant="info"
+                  >
+                    <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                      {timeAgo(n.created_at)}
+                    </span>
+                  </NotificationDrawerListItemHeader>
+                  <NotificationDrawerListItemBody
+                    timestamp={timeAgo(n.created_at)}
+                  >
+                    {n.message}
+                  </NotificationDrawerListItemBody>
+                </NotificationDrawerListItem>
+              ))}
+            </NotificationDrawerList>
+          )}
+        </NotificationDrawerBody>
+      </NotificationDrawer>
+    </div>
+  )
+
+  return (
+    <>
+      {toggle}
+      <Popper
+        triggerRef={toggleRef}
+        popper={menu}
+        popperRef={menuRef}
+        isVisible={open}
+        onDocumentClick={(event) => {
+          if (event && !toggleRef.current?.contains(event.target as Node)) {
+            setOpen(false)
+          }
+        }}
+        placement="bottom-end"
+      />
+    </>
   )
 }
