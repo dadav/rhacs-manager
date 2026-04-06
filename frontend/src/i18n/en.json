@@ -653,40 +653,6 @@
   "onboarding": {
     "title": "Welcome to RHACS CVE Manager",
     "description": "Your central tool for managing and prioritizing container vulnerabilities across your OpenShift environment.",
-    "features": {
-      "dashboard": {
-        "title": "Dashboard",
-        "desc": "EPSS risk matrix, cluster heatmap, and vulnerability trends at a glance"
-      },
-      "cves": {
-        "title": "Vulnerabilities",
-        "desc": "Browse, filter, and prioritize CVEs by EPSS probability"
-      },
-      "risk": {
-        "title": "Risk Acceptances",
-        "desc": "Request and manage acceptances with scope-based control"
-      },
-      "escalations": {
-        "title": "Escalations",
-        "desc": "Automatic notifications for overdue critical vulnerabilities"
-      },
-      "remediations": {
-        "title": "Remediations",
-        "desc": "Track remediation status per namespace and document progress"
-      },
-      "priorities": {
-        "title": "Priorities",
-        "desc": "Manually prioritize CVEs to keep them visible regardless of thresholds"
-      },
-      "suppressions": {
-        "title": "False Positives",
-        "desc": "Create suppression rules for false positives and have them reviewed by the security team"
-      },
-      "badges": {
-        "title": "Badges",
-        "desc": "Generate SVG status badges for repository READMEs and dashboards"
-      }
-    },
     "tasks": {
       "heading": "Start here",
       "scope": {
@@ -705,13 +671,6 @@
         "title": "Take an action",
         "desc": "Escalate, request risk acceptance, or document remediation — directly from the CVE view."
       }
-    },
-    "workflow": {
-      "title": "Typical workflow",
-      "step1": "Discover",
-      "step2": "Prioritize",
-      "step3": "Remediate / Accept",
-      "step4": "Verify"
     },
     "button": "Get started"
   },

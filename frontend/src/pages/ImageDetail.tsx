@@ -4,6 +4,7 @@ import {
   BreadcrumbItem,
   Card,
   CardBody,
+  CardHeader,
   CardTitle,
   ExpandableSection,
   Grid,
@@ -220,7 +221,8 @@ export function ImageDetail() {
                   {/* Stats grid */}
                   <Grid hasGutter sm={6}>
                     <GridItem>
-                      <Card isClickable isCompact onClick={() => navigate(cveSearchUrl)}>
+                      <Card isClickable isCompact>
+                        <CardHeader selectableActions={{ to: cveSearchUrl, selectableActionId: 'total-cves-link', name: 'image-stat-cards' }} />
                         <CardBody>
                           <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.totalCves')}</div>
                           <div style={{ fontSize: 20, fontWeight: 700 }}>{image.cve_count}</div>
@@ -228,7 +230,8 @@ export function ImageDetail() {
                       </Card>
                     </GridItem>
                     <GridItem>
-                      <Card isClickable isCompact onClick={() => navigate(`${cveSearchUrl}&fixable=true`)}>
+                      <Card isClickable isCompact>
+                        <CardHeader selectableActions={{ to: `${cveSearchUrl}&fixable=true`, selectableActionId: 'fixable-cves-link', name: 'image-stat-cards' }} />
                         <CardBody>
                           <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.fixableCves')}</div>
                           <div style={{ fontSize: 20, fontWeight: 700, color: FIXABLE_COLOR }}>{image.fixable_cves}</div>

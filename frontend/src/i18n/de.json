@@ -653,40 +653,6 @@
   "onboarding": {
     "title": "Willkommen beim RHACS CVE Manager",
     "description": "Ihr zentrales Werkzeug zur Verwaltung und Priorisierung von Container-Schwachstellen in Ihrer OpenShift-Umgebung.",
-    "features": {
-      "dashboard": {
-        "title": "Dashboard",
-        "desc": "EPSS-Risikomatrix, Cluster-Heatmap und Schwachstellen-Trends auf einen Blick"
-      },
-      "cves": {
-        "title": "Schwachstellen",
-        "desc": "CVEs durchsuchen, filtern und nach EPSS-Wahrscheinlichkeit priorisieren"
-      },
-      "risk": {
-        "title": "Risikoakzeptanzen",
-        "desc": "Akzeptanzen beantragen und verwalten mit geltungsbereichsbezogener Kontrolle"
-      },
-      "escalations": {
-        "title": "Eskalationen",
-        "desc": "Automatische Benachrichtigungen bei überfälligen kritischen Schwachstellen"
-      },
-      "remediations": {
-        "title": "Behebungen",
-        "desc": "Behebungsstatus pro Namespace verfolgen und Fortschritt dokumentieren"
-      },
-      "priorities": {
-        "title": "Priorisierung",
-        "desc": "CVEs manuell priorisieren, um sie unabhängig von Schwellenwerten sichtbar zu halten"
-      },
-      "suppressions": {
-        "title": "False Positives",
-        "desc": "Unterdrückungsregeln für Fehlalarme erstellen und vom Security-Team prüfen lassen"
-      },
-      "badges": {
-        "title": "Badges",
-        "desc": "SVG-Statusabzeichen für Repository-READMEs und Dashboards generieren"
-      }
-    },
     "tasks": {
       "heading": "So starten Sie",
       "scope": {
@@ -705,13 +671,6 @@
         "title": "Aktion durchführen",
         "desc": "Eskalieren, Risikoakzeptanz beantragen oder Behebung dokumentieren – direkt aus der CVE-Ansicht."
       }
-    },
-    "workflow": {
-      "title": "Typischer Ablauf",
-      "step1": "Entdecken",
-      "step2": "Priorisieren",
-      "step3": "Beheben / Akzeptieren",
-      "step4": "Verifizieren"
     },
     "button": "Los geht's"
   },
