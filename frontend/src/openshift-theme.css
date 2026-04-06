@@ -135,16 +135,6 @@
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* ── Mobile sidebar overlay: prevent content bleed-through ────────────── */
-@media (max-width: 1199.98px) {
-  .pf-v6-c-page:has(.pf-v6-c-page__sidebar.pf-m-expanded) .pf-v6-c-page__main::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 199;
-  }
-}
 
 /* ── Wide-screen content centering: prevent dead whitespace at 1600px+ ── */
 @media (min-width: 1600px) {
@@ -231,33 +221,42 @@
   }
 }
 
-/* Animate page sections on mount */
-.pf-v6-c-page__main-section {
-  animation: fadeSlideIn 0.25s ease-out both;
+@media (prefers-reduced-motion: no-preference) {
+  /* Animate page sections on mount */
+  .pf-v6-c-page__main-section {
+    animation: fadeSlideIn 0.25s ease-out both;
+  }
+
+  /* Stagger cards inside grid */
+  .pf-v6-l-grid > * {
+    animation: fadeSlideIn 0.3s ease-out both;
+  }
+
+  .pf-v6-l-grid > *:nth-child(1) { animation-delay: 0.02s; }
+  .pf-v6-l-grid > *:nth-child(2) { animation-delay: 0.05s; }
+  .pf-v6-l-grid > *:nth-child(3) { animation-delay: 0.08s; }
+  .pf-v6-l-grid > *:nth-child(4) { animation-delay: 0.11s; }
+  .pf-v6-l-grid > *:nth-child(5) { animation-delay: 0.14s; }
+  .pf-v6-l-grid > *:nth-child(6) { animation-delay: 0.17s; }
+  .pf-v6-l-grid > *:nth-child(7) { animation-delay: 0.20s; }
+  .pf-v6-l-grid > *:nth-child(8) { animation-delay: 0.23s; }
+  .pf-v6-l-grid > *:nth-child(n+9) { animation-delay: 0.26s; }
+
+  /* Card hover lift effect */
+  .pf-v6-c-card {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .pf-v6-c-card:hover {
+    --pf-v6-c-card--BoxShadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
 }
 
-/* Stagger cards inside grid */
-.pf-v6-l-grid > * {
-  animation: fadeSlideIn 0.3s ease-out both;
-}
-
-.pf-v6-l-grid > *:nth-child(1) { animation-delay: 0.02s; }
-.pf-v6-l-grid > *:nth-child(2) { animation-delay: 0.05s; }
-.pf-v6-l-grid > *:nth-child(3) { animation-delay: 0.08s; }
-.pf-v6-l-grid > *:nth-child(4) { animation-delay: 0.11s; }
-.pf-v6-l-grid > *:nth-child(5) { animation-delay: 0.14s; }
-.pf-v6-l-grid > *:nth-child(6) { animation-delay: 0.17s; }
-.pf-v6-l-grid > *:nth-child(7) { animation-delay: 0.20s; }
-.pf-v6-l-grid > *:nth-child(8) { animation-delay: 0.23s; }
-.pf-v6-l-grid > *:nth-child(n+9) { animation-delay: 0.26s; }
-
-/* Card hover lift effect */
-.pf-v6-c-card {
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.pf-v6-c-card:hover {
-  --pf-v6-c-card--BoxShadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+@media (prefers-reduced-motion: reduce) {
+  .pf-v6-c-page__main-section,
+  .pf-v6-l-grid > * {
+    animation: none;
+  }
 }
 
 

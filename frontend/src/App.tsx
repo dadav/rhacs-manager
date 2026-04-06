@@ -21,30 +21,31 @@ import {
   EmptyStateBody,
 } from "@patternfly/react-core";
 import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SunIcon } from "@patternfly/react-icons";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./hooks/useAuth";
 import { useScope, buildScopedTo } from "./hooks/useScope";
 import { NotificationBell } from "./components/notifications/NotificationBell";
 import { ScopeSelector } from "./components/scope/ScopeSelector";
-import { Dashboard } from "./pages/Dashboard";
-import { CveList } from "./pages/CveList";
-import { CveDetail } from "./pages/CveDetail";
-import { RiskAcceptances } from "./pages/RiskAcceptances";
-import { RiskAcceptanceDetail } from "./pages/RiskAcceptanceDetail";
-import { Priorities } from "./pages/Priorities";
-import { PriorityDetail } from "./pages/PriorityDetail";
-import { Escalations } from "./pages/Escalations";
-import { Settings } from "./pages/Settings";
-import { AuditLog } from "./pages/AuditLog";
-import { Badges } from "./pages/Badges";
-import { Remediations } from "./pages/Remediations";
-import { SuppressionRules } from "./pages/SuppressionRules";
-import { ImageDetail } from "./pages/ImageDetail";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { GuidedTour } from "./components/GuidedTour";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+
+const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const CveList = lazy(() => import("./pages/CveList").then(m => ({ default: m.CveList })));
+const CveDetail = lazy(() => import("./pages/CveDetail").then(m => ({ default: m.CveDetail })));
+const RiskAcceptances = lazy(() => import("./pages/RiskAcceptances").then(m => ({ default: m.RiskAcceptances })));
+const RiskAcceptanceDetail = lazy(() => import("./pages/RiskAcceptanceDetail").then(m => ({ default: m.RiskAcceptanceDetail })));
+const Priorities = lazy(() => import("./pages/Priorities").then(m => ({ default: m.Priorities })));
+const PriorityDetail = lazy(() => import("./pages/PriorityDetail").then(m => ({ default: m.PriorityDetail })));
+const Escalations = lazy(() => import("./pages/Escalations").then(m => ({ default: m.Escalations })));
+const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })));
+const AuditLog = lazy(() => import("./pages/AuditLog").then(m => ({ default: m.AuditLog })));
+const Badges = lazy(() => import("./pages/Badges").then(m => ({ default: m.Badges })));
+const Remediations = lazy(() => import("./pages/Remediations").then(m => ({ default: m.Remediations })));
+const SuppressionRules = lazy(() => import("./pages/SuppressionRules").then(m => ({ default: m.SuppressionRules })));
+const ImageDetail = lazy(() => import("./pages/ImageDetail").then(m => ({ default: m.ImageDetail })));
 
 interface NavEntry {
   to: string;
@@ -72,7 +73,6 @@ export function App() {
   const { user, isLoading, isSecTeam } = useAuth();
   const { scopeSearchString } = useScope();
   const { t, i18n } = useTranslation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [runTour, setRunTour] = useState(false);
   const [isDark, setIsDark] = useState(
@@ -126,8 +126,6 @@ export function App() {
           <PageToggleButton
             variant="plain"
             aria-label={t("app.toggleNav")}
-            isSidebarOpen={sidebarOpen}
-            onSidebarToggle={() => setSidebarOpen((o) => !o)}
           >
             <BarsIcon />
           </PageToggleButton>
@@ -244,7 +242,7 @@ export function App() {
   );
 
   const sidebar = (
-    <PageSidebar isSidebarOpen={sidebarOpen}>
+    <PageSidebar>
       <PageSidebarBody>
         <div data-tour="scope-selector">
           <ScopeSelector />
@@ -307,7 +305,7 @@ export function App() {
     <Page
       masthead={masthead}
       sidebar={sidebar}
-      isManagedSidebar={false}
+      isManagedSidebar
       skipToContent={<SkipToContent href="#main-content">{t('app.skipToContent')}</SkipToContent>}
       mainContainerId="main-content"
     >
@@ -318,6 +316,7 @@ export function App() {
       />
       <GuidedTour run={runTour} onComplete={() => setRunTour(false)} isSecTeam={isSecTeam} />
       <ErrorBoundary>
+        <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spinner size="xl" /></div>}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -349,6 +348,7 @@ export function App() {
           <Route path="/suppression-rules" element={<SuppressionRules />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </Suspense>
       </ErrorBoundary>
     </Page>
   );

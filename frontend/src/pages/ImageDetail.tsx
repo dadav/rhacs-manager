@@ -4,6 +4,7 @@ import {
   BreadcrumbItem,
   Card,
   CardBody,
+  CardHeader,
   CardTitle,
   ExpandableSection,
   Grid,
@@ -125,7 +126,7 @@ export function ImageDetail() {
       <PageSection variant="default" style={{ paddingTop: 0 }}>
         <Grid hasGutter>
           {/* Metadata card */}
-          <GridItem span={6}>
+          <GridItem sm={12} md={6}>
             <Card>
               <CardTitle>{t('imageDetail.metadata')}</CardTitle>
               <CardBody style={{ padding: 0 }}>
@@ -178,7 +179,7 @@ export function ImageDetail() {
           </GridItem>
 
           {/* Security summary card */}
-          <GridItem span={6}>
+          <GridItem sm={12} md={6}>
             <Card>
               <CardTitle>{t('imageDetail.securitySummary')}</CardTitle>
               <CardBody>
@@ -218,36 +219,48 @@ export function ImageDetail() {
                   )}
 
                   {/* Stats grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div
-                      onClick={() => navigate(cveSearchUrl)}
-                      style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4, cursor: 'pointer' }}
-                    >
-                      <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.totalCves')}</div>
-                      <div style={{ fontSize: 20, fontWeight: 700 }}>{image.cve_count}</div>
-                    </div>
-                    <div
-                      onClick={() => navigate(`${cveSearchUrl}&fixable=true`)}
-                      style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4, cursor: 'pointer' }}
-                    >
-                      <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.fixableCves')}</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: FIXABLE_COLOR }}>{image.fixable_cves}</div>
-                    </div>
-                    <div style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4 }}>
-                      <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.topCvss')}</div>
-                      <div style={{
-                        fontSize: 20,
-                        fontWeight: 700,
-                        color: image.top_cvss >= 9 ? SEVERITY_COLORS.critical : 'inherit',
-                      }}>
-                        {image.top_cvss.toFixed(1)}
-                      </div>
-                    </div>
-                    <div style={{ padding: '10px 12px', background: 'var(--pf-t--global--background--color--secondary--default)', borderRadius: 4 }}>
-                      <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.riskScore')}</div>
-                      <div style={{ fontSize: 20, fontWeight: 700 }}>{image.risk_score.toFixed(1)}</div>
-                    </div>
-                  </div>
+                  <Grid hasGutter sm={6}>
+                    <GridItem>
+                      <Card isClickable isCompact>
+                        <CardHeader selectableActions={{ to: cveSearchUrl, selectableActionId: 'total-cves-link', name: 'image-stat-cards' }} />
+                        <CardBody>
+                          <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.totalCves')}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700 }}>{image.cve_count}</div>
+                        </CardBody>
+                      </Card>
+                    </GridItem>
+                    <GridItem>
+                      <Card isClickable isCompact>
+                        <CardHeader selectableActions={{ to: `${cveSearchUrl}&fixable=true`, selectableActionId: 'fixable-cves-link', name: 'image-stat-cards' }} />
+                        <CardBody>
+                          <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.fixableCves')}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: FIXABLE_COLOR }}>{image.fixable_cves}</div>
+                        </CardBody>
+                      </Card>
+                    </GridItem>
+                    <GridItem>
+                      <Card isCompact>
+                        <CardBody>
+                          <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.topCvss')}</div>
+                          <div style={{
+                            fontSize: 20,
+                            fontWeight: 700,
+                            color: image.top_cvss >= 9 ? SEVERITY_COLORS.critical : 'inherit',
+                          }}>
+                            {image.top_cvss.toFixed(1)}
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </GridItem>
+                    <GridItem>
+                      <Card isCompact>
+                        <CardBody>
+                          <div style={{ fontSize: 11, color: '#6a6e73', marginBottom: 2 }}>{t('imageDetail.riskScore')}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700 }}>{image.risk_score.toFixed(1)}</div>
+                        </CardBody>
+                      </Card>
+                    </GridItem>
+                  </Grid>
                 </div>
               </CardBody>
             </Card>

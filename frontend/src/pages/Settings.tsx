@@ -218,7 +218,7 @@ export function Settings() {
               </CardTitle>
               <CardBody>
                 <Grid hasGutter>
-                  <GridItem span={5}>
+                  <GridItem sm={12} md={5}>
                     <label style={{ fontSize: 13, fontWeight: 600 }}>{t('settings.minCvssLabel', { value: minCvss.toFixed(1) })}</label>
                     <input
                       type="range" min={0} max={10} step={0.1}
@@ -228,7 +228,7 @@ export function Settings() {
                       style={{ width: '100%', marginTop: 8 }}
                     />
                   </GridItem>
-                  <GridItem span={5}>
+                  <GridItem sm={12} md={5}>
                     <label style={{ fontSize: 13, fontWeight: 600 }}>{t('settings.minEpssLabel', { value: (minEpss * 100).toFixed(1) })}</label>
                     <input
                       type="range" min={0} max={1} step={0.01}
@@ -239,7 +239,7 @@ export function Settings() {
                     />
                   </GridItem>
                   <GridItem span={12}>
-                    {preview.data && (
+                    {preview.data ? (
                       <p style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)' }}>
                         {t('settings.preview', {
                           visible: preview.data.visible_cves,
@@ -247,7 +247,9 @@ export function Settings() {
                           hidden: preview.data.hidden_cves,
                         })}
                       </p>
-                    )}
+                    ) : preview.isFetching ? (
+                      <Skeleton width="60%" height="18px" />
+                    ) : null}
                   </GridItem>
                 </Grid>
               </CardBody>
@@ -312,7 +314,7 @@ export function Settings() {
           </GridItem>
 
           {/* Notification settings */}
-          <GridItem span={6}>
+          <GridItem sm={12} md={6}>
             <Card>
               <CardTitle>{t('settings.notifications')}</CardTitle>
               <CardBody>

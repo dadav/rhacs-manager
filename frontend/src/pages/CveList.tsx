@@ -24,6 +24,7 @@ import {
   ToolbarContent,
   ToolbarItem,
   Tooltip,
+  Badge,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
@@ -405,22 +406,20 @@ export function CveList() {
       <PageSection variant="default" style={{ paddingBottom: 0 }}>
         <Toolbar style={{ paddingBottom: 0 }}>
           <ToolbarContent>
-            <ToolbarItem>
+            <ToolbarItem style={{ minWidth: 160, flex: '1 1 220px', maxWidth: 300 }}>
               <SearchInput
                 value={searchInput}
                 onChange={(_e, v) => setSearchInput(v)}
                 onClear={() => setSearchInput('')}
                 placeholder={t('cves.searchPlaceholder')}
                 aria-label={t('cves.searchPlaceholder')}
-                style={{ width: 220 }}
               />
             </ToolbarItem>
-            <ToolbarItem>
+            <ToolbarItem style={{ minWidth: 120, flex: '0 1 160px' }}>
               <FormSelect
                 value={urlSeverity}
                 onChange={(_e, v) => updateParams({ severity: v || null })}
                 aria-label={t('cves.filterSeverity')}
-                style={{ maxWidth: 160 }}
               >
                 {SEVERITY_OPTIONS.map(o => (
                   <FormSelectOption key={o.value} value={o.value} label={o.label} />
@@ -453,13 +452,7 @@ export function CveList() {
               >
                 {t('cves.filterAdvanced')}
                 {Boolean(hasActiveAdvanced) && (
-                  <span style={{
-                    background: BRAND_BLUE, color: '#fff', borderRadius: '50%',
-                    fontSize: 10, fontWeight: 700, minWidth: 16, height: 16,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
-                  }}>
-                    {activeFilterCount}
-                  </span>
+                  <Badge isRead={false}>{activeFilterCount}</Badge>
                 )}
               </Button>
             </ToolbarItem>
@@ -507,19 +500,13 @@ export function CveList() {
             </ToolbarItem>
             {!isSecTeam && (
               <ToolbarItem>
-                <button
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                    height: 36, padding: '0 12px',
-                    border: '1px solid #d2d2d2', borderRadius: 4,
-                    background: 'transparent', cursor: 'pointer',
-                    fontSize: 14, fontFamily: 'inherit',
-                    color: 'var(--pf-t--global--text--color--regular, #151515)',
-                  }}
+                <Button
+                  variant="secondary"
+                  icon={<ImportIcon />}
                   onClick={() => setImportModalOpen(true)}
                 >
-                  <ImportIcon /> {t('exports.import')}
-                </button>
+                  {t('exports.import')}
+                </Button>
               </ToolbarItem>
             )}
           </ToolbarContent>

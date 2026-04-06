@@ -24,6 +24,10 @@
     "general": "Allgemein",
     "admin": "Admin"
   },
+  "error": {
+    "unexpected": "Ein unerwarteter Fehler ist aufgetreten",
+    "retry": "Erneut versuchen"
+  },
   "common": {
     "loading": "Laden...",
     "error": "Fehler",
@@ -649,46 +653,24 @@
   "onboarding": {
     "title": "Willkommen beim RHACS CVE Manager",
     "description": "Ihr zentrales Werkzeug zur Verwaltung und Priorisierung von Container-Schwachstellen in Ihrer OpenShift-Umgebung.",
-    "features": {
+    "tasks": {
+      "heading": "So starten Sie",
+      "scope": {
+        "title": "Geltungsbereich festlegen",
+        "desc": "Wählen Sie in der Seitenleiste den Namespace und Cluster aus, den Sie untersuchen möchten."
+      },
       "dashboard": {
-        "title": "Dashboard",
-        "desc": "EPSS-Risikomatrix, Cluster-Heatmap und Schwachstellen-Trends auf einen Blick"
+        "title": "Dashboard prüfen",
+        "desc": "Verschaffen Sie sich einen Überblick über Ihre Schwachstellen-Trends und die Risikomatrix."
       },
-      "cves": {
-        "title": "Schwachstellen",
-        "desc": "CVEs durchsuchen, filtern und nach EPSS-Wahrscheinlichkeit priorisieren"
+      "cve": {
+        "title": "Eine Schwachstelle öffnen",
+        "desc": "Klicken Sie auf eine CVE, um Details, betroffene Deployments und den Behebungsstatus zu sehen."
       },
-      "risk": {
-        "title": "Risikoakzeptanzen",
-        "desc": "Akzeptanzen beantragen und verwalten mit geltungsbereichsbezogener Kontrolle"
-      },
-      "escalations": {
-        "title": "Eskalationen",
-        "desc": "Automatische Benachrichtigungen bei überfälligen kritischen Schwachstellen"
-      },
-      "remediations": {
-        "title": "Behebungen",
-        "desc": "Behebungsstatus pro Namespace verfolgen und Fortschritt dokumentieren"
-      },
-      "priorities": {
-        "title": "Priorisierung",
-        "desc": "CVEs manuell priorisieren, um sie unabhängig von Schwellenwerten sichtbar zu halten"
-      },
-      "suppressions": {
-        "title": "False Positives",
-        "desc": "Unterdrückungsregeln für Fehlalarme erstellen und vom Security-Team prüfen lassen"
-      },
-      "badges": {
-        "title": "Badges",
-        "desc": "SVG-Statusabzeichen für Repository-READMEs und Dashboards generieren"
+      "action": {
+        "title": "Aktion durchführen",
+        "desc": "Eskalieren, Risikoakzeptanz beantragen oder Behebung dokumentieren – direkt aus der CVE-Ansicht."
       }
-    },
-    "workflow": {
-      "title": "Typischer Ablauf",
-      "step1": "Entdecken",
-      "step2": "Priorisieren",
-      "step3": "Beheben / Akzeptieren",
-      "step4": "Verifizieren"
     },
     "button": "Los geht's"
   },

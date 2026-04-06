@@ -339,7 +339,7 @@ export function CveDetail() {
 
       <PageSection variant="default" isFilled>
         <Grid hasGutter>
-          <GridItem span={6}>
+          <GridItem sm={12} md={6}>
             <Card>
               <CardTitle>{t('common.details')}</CardTitle>
               <CardBody style={{ padding: 0 }}>
@@ -538,7 +538,7 @@ export function CveDetail() {
             </Card>
           </GridItem>
 
-          <GridItem span={6}>
+          <GridItem sm={12} md={6}>
             <Card>
               <CardTitle>{t('cveDetail.actions')}</CardTitle>
               <CardBody>
