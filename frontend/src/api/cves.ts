@@ -28,6 +28,9 @@ interface CveListParams {
   age_min?: number
   age_max?: number
   deployment?: string
+  fix_overdue?: boolean
+  remediation_status?: string
+  show_suppressed?: boolean
 }
 
 function buildQuery(params: CveListParams): string {

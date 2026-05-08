@@ -40,6 +40,7 @@ class GlobalSettings(Base):
     min_epss_score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False, default=0.0)
     escalation_rules: Mapped[list] = mapped_column(JSONB, nullable=False, default=lambda: DEFAULT_ESCALATION_RULES)
     escalation_warning_days: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    fix_overdue_threshold_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     digest_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0=Monday
     management_email: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     updated_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

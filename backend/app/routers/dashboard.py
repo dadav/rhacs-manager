@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, tuple_
@@ -45,6 +45,13 @@ async def _get_settings(session: AsyncSession) -> GlobalSettings | None:
     return result.scalar_one_or_none()
 
 
+def _is_fix_overdue(fa: datetime | None, cutoff: datetime) -> bool:
+    if fa is None:
+        return False
+    fa_aware = fa if fa.tzinfo else fa.replace(tzinfo=UTC)
+    return fa_aware <= cutoff
+
+
 def _enrich_cves(
     cves: list[dict],
     priorities: dict,
@@ -68,6 +75,7 @@ def _enrich_cves(
                 affected_deployments=int(c.get("affected_deployments", 0)),
                 first_seen=c.get("first_seen"),
                 published_on=c.get("published_on"),
+                fix_available_since=c.get("fix_available_since"),
                 has_priority=p is not None,
                 priority_level=p.priority.value if p else None,
                 priority_deadline=p.deadline if p else None,
@@ -358,6 +366,8 @@ async def dashboard(
                 stat_upcoming_escalations=0,
                 stat_fixable_critical_cves=0,
                 stat_open_risk_acceptances=0,
+                stat_fix_overdue_cves=0,
+                fix_overdue_threshold_days=settings.fix_overdue_threshold_days if settings else 30,
                 severity_distribution=[],
                 cves_per_namespace=[],
                 priority_cves=[],
@@ -401,6 +411,10 @@ async def dashboard(
     # Stat cards
     total = len(cves)
     fixable_critical = sum(1 for c in cves if c.get("severity") == 4 and c.get("fixable"))
+
+    fix_overdue_threshold_days = settings.fix_overdue_threshold_days if settings else 30
+    fix_overdue_cutoff = datetime.now(UTC) - timedelta(days=fix_overdue_threshold_days)
+    fix_overdue = sum(1 for c in cves if _is_fix_overdue(c.get("fix_available_since"), fix_overdue_cutoff))
 
     # Escalation count: filter by scope-narrowed namespaces
     if current_user.can_see_all_namespaces and not has_scope:
@@ -498,6 +512,8 @@ async def dashboard(
         stat_upcoming_escalations=len(upcoming_escalations),
         stat_fixable_critical_cves=fixable_critical,
         stat_open_risk_acceptances=open_ra,
+        stat_fix_overdue_cves=fix_overdue,
+        fix_overdue_threshold_days=fix_overdue_threshold_days,
         severity_distribution=[
             SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"]) for r in sev_dist
         ],

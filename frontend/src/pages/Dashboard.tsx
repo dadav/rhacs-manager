@@ -153,6 +153,22 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
+          <GridItem span={3} md={6} sm={12}>
+            <Link
+              to={scopedLink("/vulnerabilities?fix_overdue=true")}
+              style={statLinkStyle}
+            >
+              <StatCard
+                label={t("dashboard.fixOverdue")}
+                value={data.stat_fix_overdue_cves}
+                color={data.stat_fix_overdue_cves > 0 ? "#c9190b" : undefined}
+                subtitle={t("dashboard.fixOverdueSubtitle", {
+                  days: data.fix_overdue_threshold_days,
+                })}
+                accentClass="stat-card--danger"
+              />
+            </Link>
+          </GridItem>
 
           {/* Priority / high-EPSS alerts */}
           {data.priority_cves.length > 0 && (

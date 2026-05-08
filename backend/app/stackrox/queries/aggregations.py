@@ -158,6 +158,7 @@ async def get_cves_by_namespace_detail(
             MAX(ic.severity)                AS severity,
             MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
             MIN(ic.firstimageoccurrence)    AS first_seen,
+            MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             MAX(COALESCE(ic.cvss, 0))       AS cvss
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id

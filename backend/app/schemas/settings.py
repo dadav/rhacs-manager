@@ -10,6 +10,9 @@ class EscalationRule(BaseModel):
     days_to_level1: int = Field(ge=1)
     days_to_level2: int = Field(ge=1)
     days_to_level3: int = Field(ge=1)
+    days_to_level1_after_fix_available: int | None = Field(default=None, ge=1)
+    days_to_level2_after_fix_available: int | None = Field(default=None, ge=1)
+    days_to_level3_after_fix_available: int | None = Field(default=None, ge=1)
 
 
 class SettingsUpdate(BaseModel):
@@ -17,6 +20,7 @@ class SettingsUpdate(BaseModel):
     min_epss_score: float = Field(ge=0.0, le=1.0)
     escalation_rules: list[EscalationRule]
     escalation_warning_days: int = Field(ge=1, le=14, default=3)
+    fix_overdue_threshold_days: int = Field(ge=1, le=365, default=30)
     digest_day: int = Field(ge=0, le=6)
     management_email: str = ""
 
@@ -29,6 +33,7 @@ class SettingsResponse(BaseModel):
     min_epss_score: float
     escalation_rules: list[dict]
     escalation_warning_days: int
+    fix_overdue_threshold_days: int
     digest_day: int
     management_email: str
     updated_by: str | None

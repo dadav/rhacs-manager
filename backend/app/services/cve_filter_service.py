@@ -1,6 +1,6 @@
 """Shared CVE list fetching and filtering logic used by cves.py and exports.py."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from uuid import UUID
 
@@ -163,6 +163,7 @@ def _build_cve_item(
         affected_deployments=int(c.get("affected_deployments", 0)),
         first_seen=c.get("first_seen"),
         published_on=c.get("published_on"),
+        fix_available_since=c.get("fix_available_since"),
         operating_system=c.get("operating_system"),
         component_names=sorted(set(component_map.get(c["cve_id"], []))) if component_map else [],
         has_priority=p is not None,
@@ -237,6 +238,7 @@ async def fetch_filtered_cves(
     deployment: str | None = None,
     show_suppressed: bool = False,
     remediation_status: str | None = None,
+    fix_overdue: bool = False,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -435,6 +437,20 @@ async def fetch_filtered_cves(
         comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
         items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
 
+    # Fix-overdue filter: fix has been available longer than configured threshold
+    if fix_overdue:
+        threshold_days = settings.fix_overdue_threshold_days if settings else 30
+        cutoff = datetime.now(UTC) - timedelta(days=threshold_days)
+        filtered = []
+        for i in items:
+            fa = i.fix_available_since
+            if fa is None:
+                continue
+            fa_aware = fa if fa.tzinfo else fa.replace(tzinfo=UTC)
+            if fa_aware <= cutoff:
+                filtered.append(i)
+        items = filtered
+
     # Age filter (days since first_seen)
     if age_min is not None or age_max is not None:
         now = datetime.now(UTC)
@@ -478,6 +494,9 @@ async def fetch_filtered_cves(
         "affected_deployments": lambda x: x.affected_deployments,
         "first_seen": lambda x: x.first_seen.replace(tzinfo=None) if x.first_seen else datetime.min,
         "published_on": lambda x: x.published_on.replace(tzinfo=None) if x.published_on else datetime.min,
+        "fix_available_since": lambda x: (
+            x.fix_available_since.replace(tzinfo=None) if x.fix_available_since else datetime.min
+        ),
     }
     key_fn = sort_key_map.get(sort_by, lambda x: x.severity.value)
     items.sort(key=key_fn, reverse=sort_desc)

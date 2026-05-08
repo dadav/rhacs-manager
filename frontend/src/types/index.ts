@@ -50,6 +50,7 @@ export interface CveListItem {
   affected_deployments: number
   first_seen: string | null
   published_on: string | null
+  fix_available_since: string | null
   operating_system?: string | null
   has_priority: boolean
   priority_level: PriorityLevel | null
@@ -131,6 +132,7 @@ export interface CvssMetricUrl {
 }
 
 export interface CveDetail extends CveListItem {
+  first_system_occurrence: string | null
   affected_deployments_list: AffectedDeployment[]
   components: AffectedComponent[]
   contact_emails: string[]
@@ -249,6 +251,9 @@ export interface EscalationRule {
   days_to_level1: number
   days_to_level2: number
   days_to_level3: number
+  days_to_level1_after_fix_available?: number | null
+  days_to_level2_after_fix_available?: number | null
+  days_to_level3_after_fix_available?: number | null
 }
 
 export interface GlobalSettings {
@@ -257,6 +262,7 @@ export interface GlobalSettings {
   min_epss_score: number
   escalation_rules: EscalationRule[]
   escalation_warning_days: number
+  fix_overdue_threshold_days: number
   digest_day: number
   management_email: string
   updated_by: string | null
@@ -304,6 +310,8 @@ export interface DashboardData {
   stat_upcoming_escalations: number
   stat_fixable_critical_cves: number
   stat_open_risk_acceptances: number
+  stat_fix_overdue_cves: number
+  fix_overdue_threshold_days: number
   severity_distribution: SeverityCount[]
   cves_per_namespace: NamespaceCveCount[]
   priority_cves: CveListItem[]
@@ -479,6 +487,7 @@ export interface ImageCveDetail {
   affected_deployments: number
   first_seen: string | null
   published_on: string | null
+  fix_available_since: string | null
 }
 
 export interface Paginated<T> {

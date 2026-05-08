@@ -118,6 +118,26 @@ function EscalationRuleRow({
           style={{ width: 120 }}
         />
       </Td>
+      {([1, 2, 3] as const).map(level => {
+        const key = `days_to_level${level}_after_fix_available` as const
+        const v = rule[key]
+        return (
+          <Td key={key}>
+            <NumberInput
+              value={v ?? ''}
+              min={1}
+              onMinus={() => onChange({ ...rule, [key]: Math.max(1, (v ?? 1) - 1) })}
+              onPlus={() => onChange({ ...rule, [key]: (v ?? 0) + 1 })}
+              onChange={e => {
+                const raw = (e.target as HTMLInputElement).value
+                onChange({ ...rule, [key]: raw === '' ? null : Number(raw) })
+              }}
+              inputAriaLabel={t(`settings.daysToLevel${level}AfterFix`)}
+              style={{ width: 120 }}
+            />
+          </Td>
+        )
+      })}
       <Td>
         <Button variant="plain" onClick={onDelete} style={{ color: '#c9190b', fontSize: 12 }}>✕</Button>
       </Td>
@@ -136,6 +156,7 @@ export function Settings() {
   const [minEpss, setMinEpss] = useState(0)
   const [escalationRules, setEscalationRules] = useState<EscalationRule[]>([])
   const [escalationWarningDays, setEscalationWarningDays] = useState(3)
+  const [fixOverdueThresholdDays, setFixOverdueThresholdDays] = useState(30)
   const [digestDay, setDigestDay] = useState(1)
   const [managementEmail, setManagementEmail] = useState('')
   const [saved, setSaved] = useState(false)
@@ -159,6 +180,7 @@ export function Settings() {
       setMinEpss(settings.min_epss_score)
       setEscalationRules(settings.escalation_rules ?? [])
       setEscalationWarningDays(settings.escalation_warning_days ?? 3)
+      setFixOverdueThresholdDays(settings.fix_overdue_threshold_days ?? 30)
       setDigestDay(settings.digest_day)
       setManagementEmail(settings.management_email)
     }
@@ -170,6 +192,7 @@ export function Settings() {
       min_epss_score: minEpss,
       escalation_rules: escalationRules,
       escalation_warning_days: escalationWarningDays,
+      fix_overdue_threshold_days: fixOverdueThresholdDays,
       digest_day: digestDay,
       management_email: managementEmail,
     })
@@ -275,6 +298,9 @@ export function Settings() {
                         <Th>{t('settings.daysToLevel1')}</Th>
                         <Th>{t('settings.daysToLevel2')}</Th>
                         <Th>{t('settings.daysToLevel3')}</Th>
+                        <Th>{t('settings.daysToLevel1AfterFix')}</Th>
+                        <Th>{t('settings.daysToLevel2AfterFix')}</Th>
+                        <Th>{t('settings.daysToLevel3AfterFix')}</Th>
                         <Th></Th>
                       </Tr>
                     </Thead>
@@ -305,6 +331,22 @@ export function Settings() {
                       onPlus={() => setEscalationWarningDays(v => Math.min(14, v + 1))}
                       onChange={e => setEscalationWarningDays(Number((e.target as HTMLInputElement).value))}
                       inputAriaLabel={t('settings.warningDays')}
+                      style={{ width: 150 }}
+                    />
+                  </FormGroup>
+                  <FormGroup
+                    label={t('settings.fixOverdueThresholdDays')}
+                    labelHelp={<HelpButton header={t('settings.fixOverdueThresholdDays')} body={t('settings.fixOverdueThresholdHelpBody')} />}
+                    style={{ marginTop: 16 }}
+                  >
+                    <NumberInput
+                      value={fixOverdueThresholdDays}
+                      min={1}
+                      max={365}
+                      onMinus={() => setFixOverdueThresholdDays(v => Math.max(1, v - 1))}
+                      onPlus={() => setFixOverdueThresholdDays(v => Math.min(365, v + 1))}
+                      onChange={e => setFixOverdueThresholdDays(Number((e.target as HTMLInputElement).value))}
+                      inputAriaLabel={t('settings.fixOverdueThresholdDays')}
                       style={{ width: 150 }}
                     />
                   </FormGroup>

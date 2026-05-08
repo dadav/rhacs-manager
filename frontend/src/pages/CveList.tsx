@@ -50,7 +50,7 @@ import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
 
 /* ── Column index maps for sort props ── */
 
-const CVE_SORT_COLUMNS = ['cve_id', 'severity', 'cvss', 'epss_probability', 'affected_images', 'affected_deployments', 'fixable', 'first_seen', 'published_on'] as const
+const CVE_SORT_COLUMNS = ['cve_id', 'severity', 'cvss', 'epss_probability', 'affected_images', 'affected_deployments', 'fixable', 'first_seen', 'published_on', 'fix_available_since'] as const
 
 const IMAGE_SORT_COLUMNS = ['image_name', 'total_cves', 'critical_cves', 'high_cves', 'medium_cves', 'low_cves', 'max_cvss', 'max_epss', 'fixable_cves', 'affected_deployments'] as const
 
@@ -101,6 +101,7 @@ export function CveList() {
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
   const urlRemediationStatus = searchParams.get('remediation_status') || ''
+  const urlFixOverdue = searchParams.get('fix_overdue') === 'true'
   const urlCluster    = searchParams.get('cluster') || ''
   const urlNamespace  = searchParams.get('ns') || ''
   const urlAgeMin     = searchParams.get('age_min') || ''
@@ -211,6 +212,7 @@ export function CveList() {
     age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
     age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
     deployment: urlDeployment || undefined,
+    fix_overdue: urlFixOverdue || undefined,
   }
 
   const { scopeParams } = useScope()
@@ -738,6 +740,7 @@ export function CveList() {
                       <Th>{t('cves.fixable')}</Th>
                       <Th sort={makeCveSort('first_seen')}>{t('cves.firstSeen')}</Th>
                       <Th sort={makeCveSort('published_on')}>{t('cves.publishedOn')}</Th>
+                      <Th sort={makeCveSort('fix_available_since')}>{t('cves.fixAvailableSince')}</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -779,6 +782,9 @@ export function CveList() {
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
                           {cve.published_on ? new Date(cve.published_on).toLocaleDateString(dateLocale) : '–'}
+                        </Td>
+                        <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
+                          {cve.fix_available_since ? new Date(cve.fix_available_since).toLocaleDateString(dateLocale) : '–'}
                         </Td>
                       </Tr>
                     ))}

@@ -42,6 +42,7 @@ class CveListItem(BaseModel):
     affected_deployments: int
     first_seen: datetime | None
     published_on: datetime | None = None
+    fix_available_since: datetime | None = None
     operating_system: str | None = None
     has_priority: bool = False
     priority_level: str | None = None
@@ -66,6 +67,7 @@ class CvssMetricUrl(BaseModel):
 
 
 class CveDetail(CveListItem):
+    first_system_occurrence: datetime | None = None
     affected_deployments_list: list[AffectedDeployment] = []
     components: list[AffectedComponent] = []
     contact_emails: list[str] = Field(default_factory=list)
@@ -117,6 +119,7 @@ class ImageCveDetail(BaseModel):
     affected_deployments: int
     first_seen: datetime | None
     published_on: datetime | None = None
+    fix_available_since: datetime | None = None
 
 
 class ImageLayer(BaseModel):

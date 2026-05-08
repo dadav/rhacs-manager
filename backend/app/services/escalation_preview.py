@@ -11,6 +11,7 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..stackrox import queries as sx
+from .escalation_rules import level_deadlines, rule_matches
 
 
 class UpcomingEscalation(BaseModel):
@@ -76,36 +77,32 @@ async def compute_upcoming_escalations(
 
     upcoming: list[UpcomingEscalation] = []
 
+    now = datetime.utcnow()
+
     for cve in cves:
         cve_id = cve["cve_id"]
         if cve_id in accepted_ids:
             continue
 
-        age_days = 0
-        if cve.get("first_seen"):
-            age_days = (datetime.utcnow() - cve["first_seen"]).days
-
+        first_seen = cve.get("first_seen")
         severity = cve.get("severity", 0)
         epss = cve.get("epss_probability", 0)
+        age_days = (now - first_seen).days if first_seen else 0
         existing_levels = existing_escalations.get(cve_id, set())
 
         for rule in settings.escalation_rules:
-            severity_ok = severity >= rule.get("severity_min", 0)
-            epss_ok = epss >= rule.get("epss_threshold", 0)
-            if not (severity_ok or epss_ok):
+            if not rule_matches(rule, severity, float(epss)):
                 continue
 
-            # Find the next level threshold the CVE hasn't reached yet
-            level_thresholds = [
-                (1, rule.get("days_to_level1", 999)),
-                (2, rule.get("days_to_level2", 999)),
-                (3, rule.get("days_to_level3", 999)),
-            ]
-
-            for level, threshold_days in level_thresholds:
+            deadlines = level_deadlines(
+                rule,
+                first_seen=first_seen,
+                fix_available_since=cve.get("fix_available_since"),
+            )
+            for level in sorted(deadlines):
                 if level in existing_levels:
                     continue
-                days_remaining = threshold_days - age_days
+                days_remaining = (deadlines[level] - now).days
                 if 0 < days_remaining <= warning_days:
                     upcoming.append(
                         UpcomingEscalation(

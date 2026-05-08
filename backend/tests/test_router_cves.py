@@ -50,6 +50,7 @@ def patch_sx():
         mock_sx.get_affected_components = AsyncMock(return_value=[])
         mock_sx.get_cve_protobuf_data = AsyncMock(return_value=None)
         mock_sx.get_cve_protobuf_data_all = AsyncMock(return_value=None)
+        mock_sx.get_first_system_occurrence = AsyncMock(return_value=None)
         yield mock_sx
 
 

@@ -16,6 +16,7 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
+from ..services.escalation_rules import level_deadlines, rule_matches
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
@@ -127,26 +128,21 @@ async def run_escalation_check() -> None:
                 if row["cve_id"] in accepted_ids:
                     continue
 
-                age_days = 0
-                if row.get("first_seen"):
-                    age_days = (datetime.utcnow() - row["first_seen"]).days
+                now = datetime.utcnow()
 
                 for rule in settings.escalation_rules:
-                    severity_ok = row.get("severity", 0) >= rule.get("severity_min", 0)
-                    epss_ok = row.get("epss_probability", 0) >= rule.get("epss_threshold", 0)
-                    if not (severity_ok or epss_ok):
+                    if not rule_matches(rule, row.get("severity", 0), float(row.get("epss_probability", 0))):
                         continue
 
-                    level = None
-                    if age_days >= rule.get("days_to_level3", 999):
-                        level = 3
-                    elif age_days >= rule.get("days_to_level2", 999):
-                        level = 2
-                    elif age_days >= rule.get("days_to_level1", 999):
-                        level = 1
-
-                    if level is None:
+                    deadlines = level_deadlines(
+                        rule,
+                        first_seen=row.get("first_seen"),
+                        fix_available_since=row.get("fix_available_since"),
+                    )
+                    triggered = [lvl for lvl, dt in deadlines.items() if dt <= now]
+                    if not triggered:
                         continue
+                    level = max(triggered)
 
                     ns_name = row["namespace"]
                     cluster = row["cluster_name"]

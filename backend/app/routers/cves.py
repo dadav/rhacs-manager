@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -30,6 +30,7 @@ from ..schemas.cve import (
     SeverityLevel,
 )
 from ..services.cve_filter_service import fetch_filtered_cves
+from ..services.escalation_rules import level_deadlines, rule_matches
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
 
@@ -62,6 +63,7 @@ async def list_cves(
     deployment: str | None = Query(None),
     show_suppressed: bool = Query(False),
     remediation_status: str | None = Query(None),
+    fix_overdue: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -87,6 +89,7 @@ async def list_cves(
         deployment=deployment,
         show_suppressed=show_suppressed,
         remediation_status=remediation_status,
+        fix_overdue=fix_overdue,
     )
 
     total = len(items)
@@ -261,6 +264,7 @@ async def list_cves_for_image(
             affected_deployments=int(r["affected_deployments"]),
             first_seen=r.get("first_seen"),
             published_on=r.get("published_on"),
+            fix_available_since=r.get("fix_available_since"),
         )
         for r in rows
     ]
@@ -301,11 +305,14 @@ async def get_cve(
         if cur is None or esc.triggered_at < cur:
             esc_dates[esc.level] = esc.triggered_at
 
+    first_system_occurrence: datetime | None = None
     if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         cve_data = await sx.get_all_cves(sx_db)
         cve_data = next((c for c in cve_data if c["cve_id"] == cve_id), None)
+        if cve_data:
+            first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
     else:
         if not current_user.has_namespaces:
             raise HTTPException(404, "CVE nicht gefunden")
@@ -315,22 +322,25 @@ async def get_cve(
     if not cve_data:
         raise HTTPException(404, "CVE nicht gefunden")
 
-    # Compute expected escalation dates from rules + first_seen
     esc_expected: dict[int, datetime | None] = {1: None, 2: None, 3: None}
     first_seen = cve_data.get("first_seen")
-    if first_seen:
+    fix_available_since = cve_data.get("fix_available_since")
+    if first_seen or fix_available_since:
         settings = await _get_settings(app_db)
-        severity = cve_data.get("severity", 0)
-        epss = float(cve_data.get("epss_probability", 0))
         if settings and settings.escalation_rules:
+            severity = cve_data.get("severity", 0)
+            epss = float(cve_data.get("epss_probability", 0))
             for rule in settings.escalation_rules:
-                severity_ok = severity >= rule.get("severity_min", 0)
-                epss_ok = epss >= rule.get("epss_threshold", 0)
-                if severity_ok or epss_ok:
-                    esc_expected[1] = first_seen + timedelta(days=rule.get("days_to_level1", 999))
-                    esc_expected[2] = first_seen + timedelta(days=rule.get("days_to_level2", 999))
-                    esc_expected[3] = first_seen + timedelta(days=rule.get("days_to_level3", 999))
-                    break  # first matching rule only
+                if not rule_matches(rule, severity, epss):
+                    continue
+                deadlines = level_deadlines(
+                    rule,
+                    first_seen=first_seen,
+                    fix_available_since=fix_available_since,
+                )
+                for lvl, dt in deadlines.items():
+                    esc_expected[lvl] = dt
+                break  # first matching rule only
 
     # Fetch protobuf data for summary, references, and advisory
     if current_user.can_see_all_namespaces:
@@ -386,6 +396,8 @@ async def get_cve(
         affected_deployments=int(cve_data.get("affected_deployments", 0)),
         first_seen=cve_data.get("first_seen"),
         published_on=cve_data.get("published_on"),
+        fix_available_since=cve_data.get("fix_available_since"),
+        first_system_occurrence=first_system_occurrence,
         operating_system=cve_data.get("operating_system"),
         summary=proto_data.get("summary"),
         link=proto_data.get("link"),

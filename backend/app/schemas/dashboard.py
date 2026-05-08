@@ -92,6 +92,8 @@ class DashboardData(BaseModel):
     stat_upcoming_escalations: int
     stat_fixable_critical_cves: int
     stat_open_risk_acceptances: int
+    stat_fix_overdue_cves: int
+    fix_overdue_threshold_days: int
     severity_distribution: list[SeverityCount]
     cves_per_namespace: list[NamespaceCveCount]
     priority_cves: list[CveListItem]

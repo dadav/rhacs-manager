@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +31,7 @@ async def get_cves_for_namespaces(
             NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
+            MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
@@ -81,6 +84,7 @@ async def get_cve_detail(
             NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
+            MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
@@ -178,6 +182,7 @@ async def get_all_cves(
             NULLIF(MAX(COALESCE(comp.operatingsystem, '')), '') AS operating_system,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
+            MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             COUNT(DISTINCT dc.image_id)     AS affected_images,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
@@ -241,3 +246,21 @@ async def get_cve_protobuf_data_all(
     result = await session.execute(sql, {"cve_id": cve_id})
     row = result.fetchone()
     return dict(row._mapping) if row else None
+
+
+async def get_first_system_occurrence(session: AsyncSession, cve_id: str) -> datetime | None:
+    """Earliest org-wide occurrence of a CVE from image_cve_infos.
+
+    Sec-team-only signal: it crosses namespace visibility boundaries, so the
+    caller must enforce that gate. Kept out of the dashboard's get_all_cves
+    aggregation because the LEFT JOIN fans out (multiple image_cve_infos rows
+    per CVE) and the field is only consumed in CVE detail.
+    """
+    sql = text("""
+        SELECT MIN(firstsystemoccurrence) AS first_system_occurrence
+        FROM image_cve_infos
+        WHERE cve = :cve_id
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id})
+    row = result.fetchone()
+    return row.first_system_occurrence if row else None

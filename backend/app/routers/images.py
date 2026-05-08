@@ -101,6 +101,7 @@ async def get_image_detail(
             affected_deployments=int(r["affected_deployments"]),
             first_seen=r.get("first_seen"),
             published_on=r.get("published_on"),
+            fix_available_since=r.get("fix_available_since"),
         )
         for r in cve_rows
     ]

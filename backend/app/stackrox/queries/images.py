@@ -251,6 +251,7 @@ async def get_cves_for_image(
             MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
+            MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
             MAX(ic.fixedby)                 AS fixed_by

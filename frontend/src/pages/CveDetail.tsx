@@ -518,6 +518,24 @@ export function CveDetail() {
                           : "–"
                       }
                     />
+                    <DetailRow
+                      label={t('cves.fixAvailableSince')}
+                      value={
+                        cve.fix_available_since
+                          ? new Date(cve.fix_available_since).toLocaleDateString(
+                              dateLocale,
+                            )
+                          : "–"
+                      }
+                    />
+                    {cve.first_system_occurrence && (
+                      <DetailRow
+                        label={t('cves.firstSystemOccurrence')}
+                        value={new Date(
+                          cve.first_system_occurrence,
+                        ).toLocaleDateString(dateLocale)}
+                      />
+                    )}
                     {cve.operating_system && (
                       <DetailRow
                         label={t('cves.operatingSystem')}

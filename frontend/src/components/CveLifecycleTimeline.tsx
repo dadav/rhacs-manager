@@ -23,6 +23,12 @@ export function CveLifecycleTimeline({ cve }: { cve: CveDetail }) {
       date: cve.first_seen,
       done: !!cve.first_seen,
     },
+    {
+      id: "fix-available",
+      label: t('cveDetail.fixAvailable'),
+      date: cve.fix_available_since,
+      done: !!cve.fix_available_since,
+    },
   ];
 
   steps.push(
@@ -77,8 +83,8 @@ export function CveLifecycleTimeline({ cve }: { cve: CveDetail }) {
     });
   }
 
-  const fixed = steps.slice(0, 5); // published, discovered, esc-1, esc-2, esc-3
-  const sortable = steps.slice(5);
+  const fixed = steps.slice(0, 6); // published, discovered, fix-available, esc-1, esc-2, esc-3
+  const sortable = steps.slice(6);
   sortable.sort((a, b) => {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
