@@ -797,7 +797,7 @@
     "navAuditLog": "Sehen Sie alle sicherheitsrelevanten Aktionen im Audit-Log ein (nur Security-Team).",
     "helpButton": "Klicken Sie jederzeit auf dieses Symbol, um diese Tour erneut zu starten.",
     "next": "Weiter",
-    "nextWithProgress": "Weiter (Schritt {step} von {steps})",
+    "nextWithProgress": "Weiter (Schritt {current} von {total})",
     "back": "Zurück",
     "close": "Schließen",
     "skip": "Tour überspringen"

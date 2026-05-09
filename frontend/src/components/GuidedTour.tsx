@@ -1,4 +1,4 @@
-import Joyride, { STATUS, type CallBackProps, type Step } from "react-joyride";
+import { Joyride, STATUS, type EventData, type Step } from "react-joyride";
 import { useTranslation } from "react-i18next";
 
 interface GuidedTourProps {
@@ -15,7 +15,7 @@ export function GuidedTour({ run, onComplete, isSecTeam }: GuidedTourProps) {
       target: '[data-tour="sidebar-nav"]',
       content: t("tour.sidebarNav"),
       placement: "right",
-      disableBeacon: true,
+      skipBeacon: true,
     },
     {
       target: '[data-tour="scope-selector"]',
@@ -83,7 +83,7 @@ export function GuidedTour({ run, onComplete, isSecTeam }: GuidedTourProps) {
     },
   ];
 
-  const handleCallback = (data: CallBackProps) => {
+  const handleEvent = (data: EventData) => {
     const { status } = data;
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
       onComplete();
@@ -96,27 +96,27 @@ export function GuidedTour({ run, onComplete, isSecTeam }: GuidedTourProps) {
       steps={steps}
       run={run}
       continuous
-      showSkipButton
-      showProgress
-      callback={handleCallback}
+      onEvent={handleEvent}
+      options={{
+        primaryColor: "#0066cc",
+        zIndex: 10000,
+        showProgress: true,
+        buttons: ["back", "skip", "primary"],
+      }}
       locale={{
         back: t("tour.back"),
         close: t("tour.close"),
         last: t("tour.close"),
         next: t("tour.next"),
-        nextLabelWithProgress: t("tour.nextWithProgress"),
+        nextWithProgress: t("tour.nextWithProgress"),
         skip: t("tour.skip"),
       }}
       styles={{
-        options: {
-          primaryColor: "#0066cc",
-          zIndex: 10000,
-        },
         tooltipContent: {
           fontSize: 14,
           padding: "12px 16px",
         },
-        buttonNext: {
+        buttonPrimary: {
           fontSize: 13,
           fontWeight: 600,
           borderRadius: 4,

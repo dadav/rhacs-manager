@@ -797,7 +797,7 @@
     "navAuditLog": "View all security-relevant actions in the audit log (security team only).",
     "helpButton": "Click this icon anytime to replay this tour.",
     "next": "Next",
-    "nextWithProgress": "Next (Step {step} of {steps})",
+    "nextWithProgress": "Next (Step {current} of {total})",
     "back": "Back",
     "close": "Close",
     "skip": "Skip tour"
