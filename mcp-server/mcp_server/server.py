@@ -83,10 +83,23 @@ async def search_cves(
     namespace: str | None = None,
     cluster: str | None = None,
     component: str | None = None,
+    deployment: str | None = None,
+    cvss_min: float | None = None,
+    epss_min: float | None = None,
+    age_min: int | None = None,
+    age_max: int | None = None,
+    prioritized_only: bool = False,
+    risk_status: str | None = None,
+    remediation_status: str | None = None,
+    fix_overdue: bool = False,
     page: int = 1,
     page_size: int = 20,
 ) -> str:
     """Search and filter CVEs across visible namespaces.
+
+    Returned items include the 4.10 field ``fix_available_since`` (timestamp the fix
+    first appeared in StackRox), in addition to ``first_seen``, ``published_on``,
+    severity, CVSS, EPSS, fixability, priority, and risk-acceptance status.
 
     Args:
         search: Free-text search (CVE ID, component name, etc.)
@@ -95,18 +108,39 @@ async def search_cves(
         namespace: Filter by namespace name
         cluster: Filter by cluster name
         component: Filter by affected component name
+        deployment: Filter by deployment name
+        cvss_min: Minimum CVSS score (0-10)
+        epss_min: Minimum EPSS probability (0-1)
+        age_min: Minimum age in days since first_seen
+        age_max: Maximum age in days since first_seen
+        prioritized_only: If true, only CVEs with a manual priority set
+        risk_status: Filter by risk-acceptance status (e.g. requested, approved, rejected)
+        remediation_status: Filter by remediation status (open, in_progress, resolved, verified, wont_fix)
+        fix_overdue: If true, only CVEs whose fix has been available longer than the
+            configured ``fix_overdue_threshold_days`` (RHACS 4.10).
         page: Page number (default 1)
         page_size: Results per page (default 20, max 200)
     """
     auth = _extract_auth(ctx)
     logger.debug(
-        "search_cves called: search=%s, severity=%s, fixable=%s, namespace=%s, cluster=%s, component=%s, page=%d",
+        "search_cves called: search=%s severity=%s fixable=%s ns=%s cluster=%s component=%s "
+        "deployment=%s cvss_min=%s epss_min=%s age=%s..%s prioritized_only=%s risk_status=%s "
+        "remediation_status=%s fix_overdue=%s page=%d",
         search,
         severity,
         fixable,
         namespace,
         cluster,
         component,
+        deployment,
+        cvss_min,
+        epss_min,
+        age_min,
+        age_max,
+        prioritized_only,
+        risk_status,
+        remediation_status,
+        fix_overdue,
         page,
     )
     return await client.search_cves(
@@ -117,6 +151,15 @@ async def search_cves(
         namespace=namespace,
         cluster=cluster,
         component=component,
+        deployment=deployment,
+        cvss_min=cvss_min,
+        epss_min=epss_min,
+        age_min=age_min,
+        age_max=age_max,
+        prioritized_only=prioritized_only,
+        risk_status=risk_status,
+        remediation_status=remediation_status,
+        fix_overdue=fix_overdue,
         page=page,
         page_size=page_size,
     )
@@ -127,7 +170,9 @@ async def get_cve_detail(ctx: Context, cve_id: str) -> str:
     """Get full details for a specific CVE.
 
     Returns CVSS/EPSS scores, affected components and images, timeline,
-    Red Hat and NVD links, and risk acceptance status.
+    Red Hat and NVD links, and risk acceptance status. Includes the RHACS 4.10
+    fields ``fix_available_since`` (when a fix first appeared) and, for sec-team
+    callers, ``first_system_occurrence`` (earliest org-wide occurrence).
 
     Args:
         cve_id: The CVE identifier (e.g. CVE-2024-1234)
@@ -245,6 +290,63 @@ async def get_my_info(ctx: Context) -> str:
     auth = _extract_auth(ctx)
     logger.debug("get_my_info called by user=%s", auth.forwarded_user)
     return await client.get_me(auth)
+
+
+@mcp.tool()
+async def list_escalations(
+    ctx: Context,
+    cluster: str | None = None,
+    namespace: str | None = None,
+) -> str:
+    """List escalations that have already been triggered for visible CVEs.
+
+    Each entry includes the CVE, namespace/cluster, escalation level (1-3),
+    when it triggered, and whether the notification was sent.
+
+    Args:
+        cluster: Optional cluster filter
+        namespace: Optional namespace filter
+    """
+    auth = _extract_auth(ctx)
+    logger.debug("list_escalations called: cluster=%s namespace=%s", cluster, namespace)
+    return await client.list_escalations(auth, cluster=cluster, namespace=namespace)
+
+
+@mcp.tool()
+async def get_upcoming_escalations(
+    ctx: Context,
+    cluster: str | None = None,
+    namespace: str | None = None,
+) -> str:
+    """List CVEs approaching escalation deadlines based on configured rules.
+
+    Returns CVEs that match an escalation rule and are within the warning window
+    of their next level. Rules can be anchored on ``first_seen`` or, for RHACS 4.10,
+    on ``fix_available_since`` (``days_to_levelN_after_fix_available``).
+
+    Args:
+        cluster: Optional cluster filter
+        namespace: Optional namespace filter
+    """
+    auth = _extract_auth(ctx)
+    logger.debug("get_upcoming_escalations called: cluster=%s namespace=%s", cluster, namespace)
+    return await client.get_upcoming_escalations(auth, cluster=cluster, namespace=namespace)
+
+
+@mcp.tool()
+async def get_settings(ctx: Context) -> str:
+    """Get global RHACS Manager settings.
+
+    For sec-team callers returns the full payload: visibility thresholds
+    (``min_cvss_score``, ``min_epss_score``), ``escalation_rules`` (with the
+    RHACS 4.10 ``days_to_levelN_after_fix_available`` anchors), the
+    ``fix_overdue_threshold_days`` value, digest schedule, and management email.
+    For other callers falls back to ``/settings/thresholds`` which exposes only
+    ``min_cvss_score`` and ``min_epss_score``.
+    """
+    auth = _extract_auth(ctx)
+    logger.debug("get_settings called by user=%s", auth.forwarded_user)
+    return await client.get_settings(auth)
 
 
 # ---------------------------------------------------------------------------

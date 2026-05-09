@@ -26,6 +26,25 @@ FORWARDED_HEADER_NAMES = (
 )
 
 
+# Backend SeverityLevel enum values (backend/app/schemas/cve.py).
+# The /cves endpoint expects an int; LLMs pass names — translate here.
+_SEVERITY_NAME_TO_INT = {
+    "critical": 4,
+    "important": 3,
+    "moderate": 2,
+    "low": 1,
+    "unknown": 0,
+}
+
+
+def _normalize_severity(severity: str | int | None) -> int | None:
+    if severity is None:
+        return None
+    if isinstance(severity, int):
+        return severity
+    return _SEVERITY_NAME_TO_INT.get(severity.lower())
+
+
 @dataclass(frozen=True, slots=True)
 class AuthContext:
     """Auth headers extracted from the incoming request (injected by auth-header-injector)."""
@@ -97,19 +116,29 @@ class RhacsManagerClient:
         auth: AuthContext,
         *,
         search: str | None = None,
-        severity: str | None = None,
+        severity: str | int | None = None,
         fixable: bool | None = None,
         namespace: str | None = None,
         cluster: str | None = None,
         component: str | None = None,
+        deployment: str | None = None,
+        cvss_min: float | None = None,
+        epss_min: float | None = None,
+        age_min: int | None = None,
+        age_max: int | None = None,
+        prioritized_only: bool = False,
+        risk_status: str | None = None,
+        remediation_status: str | None = None,
+        fix_overdue: bool = False,
         page: int = 1,
         page_size: int = 20,
     ) -> str:
         params: dict = {"page": page, "page_size": page_size}
         if search is not None:
             params["search"] = search
-        if severity is not None:
-            params["severity"] = severity
+        sev = _normalize_severity(severity)
+        if sev is not None:
+            params["severity"] = sev
         if fixable is not None:
             params["fixable"] = fixable
         if namespace is not None:
@@ -118,6 +147,24 @@ class RhacsManagerClient:
             params["cluster"] = cluster
         if component is not None:
             params["component"] = component
+        if deployment is not None:
+            params["deployment"] = deployment
+        if cvss_min is not None:
+            params["cvss_min"] = cvss_min
+        if epss_min is not None:
+            params["epss_min"] = epss_min
+        if age_min is not None:
+            params["age_min"] = age_min
+        if age_max is not None:
+            params["age_max"] = age_max
+        if prioritized_only:
+            params["prioritized_only"] = True
+        if risk_status is not None:
+            params["risk_status"] = risk_status
+        if remediation_status is not None:
+            params["remediation_status"] = remediation_status
+        if fix_overdue:
+            params["fix_overdue"] = True
         return await self._get("/api/cves", auth, params)
 
     async def get_cve(self, auth: AuthContext, cve_id: str) -> str:
@@ -173,6 +220,37 @@ class RhacsManagerClient:
         if namespace is not None:
             params["namespace"] = namespace
         return await self._get(f"/api/images/{quote(image_id, safe='')}", auth, params or None)
+
+    async def list_escalations(
+        self, auth: AuthContext, *, cluster: str | None = None, namespace: str | None = None
+    ) -> str:
+        params: dict = {}
+        if cluster is not None:
+            params["cluster"] = cluster
+        if namespace is not None:
+            params["namespace"] = namespace
+        return await self._get("/api/escalations", auth, params or None)
+
+    async def get_upcoming_escalations(
+        self, auth: AuthContext, *, cluster: str | None = None, namespace: str | None = None
+    ) -> str:
+        params: dict = {}
+        if cluster is not None:
+            params["cluster"] = cluster
+        if namespace is not None:
+            params["namespace"] = namespace
+        return await self._get("/api/escalations/upcoming", auth, params or None)
+
+    async def get_settings(self, auth: AuthContext) -> str:
+        """Return global settings. Sec-team users get the full payload (escalation rules,
+        thresholds, fix-overdue threshold). Other users fall back to the public threshold
+        endpoint, which only exposes min_cvss_score and min_epss_score."""
+        try:
+            return await self._get("/api/settings", auth)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                return await self._get("/api/settings/thresholds", auth)
+            raise
 
     # -- Write endpoints --
 

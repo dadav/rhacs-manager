@@ -108,11 +108,23 @@ class TestGetRequests:
 
             call_params = instance.request.call_args[1]["params"]
             assert call_params["search"] == "openssl"
-            assert call_params["severity"] == "critical"
+            # Severity is translated from name to backend int (CRITICAL = 4).
+            assert call_params["severity"] == 4
             assert call_params["fixable"] is True
             assert call_params["namespace"] == "payments"
             assert call_params["page"] == 2
             assert call_params["page_size"] == 10
+
+    async def test_search_cves_severity_int_passthrough(self, client, auth):
+        mock_resp = _mock_response({"items": [], "total": 0})
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            await client.search_cves(auth, severity=3)
+
+            assert instance.request.call_args[1]["params"]["severity"] == 3
 
     async def test_search_cves_omits_none_params(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
@@ -127,8 +139,41 @@ class TestGetRequests:
             assert "search" not in call_params
             assert "severity" not in call_params
             assert "fixable" not in call_params
+            assert "fix_overdue" not in call_params
+            assert "prioritized_only" not in call_params
             assert call_params["page"] == 1
             assert call_params["page_size"] == 20
+
+    async def test_search_cves_4_10_filters(self, client, auth):
+        mock_resp = _mock_response({"items": [], "total": 0})
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            await client.search_cves(
+                auth,
+                fix_overdue=True,
+                prioritized_only=True,
+                cvss_min=7.0,
+                epss_min=0.5,
+                age_min=10,
+                age_max=365,
+                deployment="api",
+                risk_status="approved",
+                remediation_status="open",
+            )
+
+            p = instance.request.call_args[1]["params"]
+            assert p["fix_overdue"] is True
+            assert p["prioritized_only"] is True
+            assert p["cvss_min"] == 7.0
+            assert p["epss_min"] == 0.5
+            assert p["age_min"] == 10
+            assert p["age_max"] == 365
+            assert p["deployment"] == "api"
+            assert p["risk_status"] == "approved"
+            assert p["remediation_status"] == "open"
 
     async def test_list_risk_acceptances_params(self, client, auth):
         mock_resp = _mock_response({"items": []})
@@ -219,6 +264,87 @@ class TestErrorHandling:
 
             with pytest.raises(httpx.HTTPStatusError):
                 await client.get_me(auth)
+
+
+class TestEscalationsAndSettings:
+    async def test_list_escalations_path_and_params(self, client, auth):
+        mock_resp = _mock_response([])
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            await client.list_escalations(auth, cluster="cluster-a", namespace="payments")
+
+            call_args = instance.request.call_args
+            assert call_args[0] == ("GET", "/api/escalations")
+            assert call_args[1]["params"] == {"cluster": "cluster-a", "namespace": "payments"}
+
+    async def test_list_escalations_no_filters(self, client, auth):
+        mock_resp = _mock_response([])
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            await client.list_escalations(auth)
+
+            assert instance.request.call_args[1]["params"] is None
+
+    async def test_get_upcoming_escalations(self, client, auth):
+        mock_resp = _mock_response([])
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            await client.get_upcoming_escalations(auth, namespace="payments")
+
+            call_args = instance.request.call_args
+            assert call_args[0] == ("GET", "/api/escalations/upcoming")
+            assert call_args[1]["params"] == {"namespace": "payments"}
+
+    async def test_get_settings_sec_team_path(self, client, auth):
+        mock_resp = _mock_response({"min_cvss_score": 0.0, "escalation_rules": []})
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            result = await client.get_settings(auth)
+
+            assert instance.request.call_args[0][1] == "/api/settings"
+            assert "escalation_rules" in result
+
+    async def test_get_settings_falls_back_on_403(self, client, auth):
+        # First call returns 403, second returns thresholds.
+        forbidden = _mock_response({"detail": "Sec team only"}, status_code=403)
+        thresholds = _mock_response({"min_cvss_score": 5.0, "min_epss_score": 0.1})
+
+        instance = AsyncMock()
+        instance.request = AsyncMock(side_effect=[forbidden, thresholds])
+        instance.__aenter__ = AsyncMock(return_value=instance)
+        instance.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            result = await client.get_settings(auth)
+
+            assert instance.request.call_count == 2
+            assert instance.request.call_args_list[0][0][1] == "/api/settings"
+            assert instance.request.call_args_list[1][0][1] == "/api/settings/thresholds"
+            assert json.loads(result) == {"min_cvss_score": 5.0, "min_epss_score": 0.1}
+
+    async def test_get_settings_other_errors_propagate(self, client, auth):
+        not_found = _mock_response({"detail": "boom"}, status_code=500)
+        instance = _mock_client(not_found)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.get_settings(auth)
 
 
 class TestBaseUrlHandling:

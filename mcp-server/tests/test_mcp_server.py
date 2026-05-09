@@ -79,9 +79,30 @@ class TestExtractAuth:
         assert auth.forwarded_namespaces == "*"
 
 
+READ_ONLY_TOOLS = {
+    "get_security_overview",
+    "search_cves",
+    "get_cve_detail",
+    "get_cve_affected_deployments",
+    "get_image_layers",
+    "list_risk_acceptances",
+    "list_remediations",
+    "get_my_info",
+    "list_escalations",
+    "get_upcoming_escalations",
+    "get_settings",
+}
+
+WRITE_TOOLS = {
+    "create_risk_acceptance",
+    "create_remediation",
+    "update_remediation_status",
+}
+
+
 class TestReadonlyMode:
     def test_readwrite_mode_has_all_tools(self):
-        """In read-write mode, all 11 tools should be registered."""
+        """In read-write mode, all read-only and write tools should be registered."""
         with patch.dict("os.environ", {"MCP_READONLY": "false"}, clear=False):
             import mcp_server.config
             import mcp_server.server
@@ -91,21 +112,10 @@ class TestReadonlyMode:
 
             tool_names = set(mcp_server.server.mcp._tool_manager._tools.keys())
 
-            assert "get_security_overview" in tool_names
-            assert "search_cves" in tool_names
-            assert "get_cve_detail" in tool_names
-            assert "get_cve_affected_deployments" in tool_names
-            assert "get_image_layers" in tool_names
-            assert "list_risk_acceptances" in tool_names
-            assert "list_remediations" in tool_names
-            assert "get_my_info" in tool_names
-            assert "create_risk_acceptance" in tool_names
-            assert "create_remediation" in tool_names
-            assert "update_remediation_status" in tool_names
-            assert len(tool_names) == 11
+            assert tool_names == READ_ONLY_TOOLS | WRITE_TOOLS
 
     def test_readonly_mode_excludes_write_tools(self):
-        """In readonly mode, only 8 read-only tools should be registered."""
+        """In readonly mode, only read-only tools should be registered."""
         with patch.dict("os.environ", {"MCP_READONLY": "true"}, clear=False):
             import mcp_server.config
             import mcp_server.server
@@ -115,18 +125,8 @@ class TestReadonlyMode:
 
             tool_names = set(mcp_server.server.mcp._tool_manager._tools.keys())
 
-            assert "get_security_overview" in tool_names
-            assert "search_cves" in tool_names
-            assert "get_cve_detail" in tool_names
-            assert "get_cve_affected_deployments" in tool_names
-            assert "get_image_layers" in tool_names
-            assert "list_risk_acceptances" in tool_names
-            assert "list_remediations" in tool_names
-            assert "get_my_info" in tool_names
-            assert "create_risk_acceptance" not in tool_names
-            assert "create_remediation" not in tool_names
-            assert "update_remediation_status" not in tool_names
-            assert len(tool_names) == 8
+            assert tool_names == READ_ONLY_TOOLS
+            assert not (tool_names & WRITE_TOOLS)
 
 
 class TestToolClientWiring:
@@ -206,6 +206,51 @@ class TestToolClientWiring:
         result = await get_my_info(mock_ctx)
         assert isinstance(client.get_me.call_args[0][0], AuthContext)
         assert "testuser" in result
+
+    async def test_search_cves_forwards_4_10_filters(self, mock_ctx):
+        from mcp_server.server import client, search_cves
+
+        client.search_cves = AsyncMock(return_value='{"items": []}')
+        await search_cves(
+            mock_ctx,
+            fix_overdue=True,
+            cvss_min=7.0,
+            epss_min=0.5,
+            prioritized_only=True,
+            deployment="api",
+            age_min=10,
+        )
+        kwargs = client.search_cves.call_args[1]
+        assert kwargs["fix_overdue"] is True
+        assert kwargs["cvss_min"] == 7.0
+        assert kwargs["epss_min"] == 0.5
+        assert kwargs["prioritized_only"] is True
+        assert kwargs["deployment"] == "api"
+        assert kwargs["age_min"] == 10
+
+    async def test_list_escalations_forwards_filters(self, mock_ctx):
+        from mcp_server.server import client, list_escalations
+
+        client.list_escalations = AsyncMock(return_value="[]")
+        await list_escalations(mock_ctx, cluster="cluster-a", namespace="payments")
+        assert client.list_escalations.call_args[1]["cluster"] == "cluster-a"
+        assert client.list_escalations.call_args[1]["namespace"] == "payments"
+
+    async def test_get_upcoming_escalations_forwards_filters(self, mock_ctx):
+        from mcp_server.server import client, get_upcoming_escalations
+
+        client.get_upcoming_escalations = AsyncMock(return_value="[]")
+        await get_upcoming_escalations(mock_ctx, namespace="payments")
+        assert client.get_upcoming_escalations.call_args[1]["namespace"] == "payments"
+        assert client.get_upcoming_escalations.call_args[1]["cluster"] is None
+
+    async def test_get_settings_calls_settings(self, mock_ctx):
+        from mcp_server.server import client, get_settings
+
+        client.get_settings = AsyncMock(return_value='{"min_cvss_score": 0.0}')
+        result = await get_settings(mock_ctx)
+        assert isinstance(client.get_settings.call_args[0][0], AuthContext)
+        assert "min_cvss_score" in result
 
 
 class TestWriteToolWiring:
