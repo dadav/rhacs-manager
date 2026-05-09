@@ -151,7 +151,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5
       - name: Login to GHCR for Helm OCI push
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
       - name: Package Helm chart
@@ -199,7 +199,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5
       - name: Render Helm manifests
         shell: bash
         run: |
