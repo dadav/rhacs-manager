@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from mcp_server.api_client import AuthContext, RhacsManagerClient
+from mcp_server.api_client import AuthContext, BackendError, RhacsManagerClient
 
 
 @pytest.fixture
@@ -255,15 +255,47 @@ class TestPatchRequests:
 
 
 class TestErrorHandling:
-    async def test_http_error_raised(self, client, auth):
+    async def test_http_error_raises_backend_error(self, client, auth):
         mock_resp = _mock_response({"detail": "Not found"}, status_code=404)
         instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
             MockClient.return_value = instance
 
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(BackendError) as exc_info:
                 await client.get_me(auth)
+
+            assert exc_info.value.status == 404
+            assert exc_info.value.detail == "Not found"
+            assert "GET /api/auth/me" in str(exc_info.value)
+
+    async def test_validation_error_detail_is_serialized(self, client, auth):
+        # FastAPI 422 returns detail as a list of dicts; we serialize it for the message.
+        body = {"detail": [{"loc": ["query", "page"], "msg": "must be > 0", "type": "value_error"}]}
+        mock_resp = _mock_response(body, status_code=422)
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            with pytest.raises(BackendError) as exc_info:
+                await client.get_me(auth)
+
+            assert exc_info.value.status == 422
+            assert "must be > 0" in exc_info.value.detail
+
+    async def test_non_json_error_falls_back_to_text(self, client, auth):
+        mock_resp = httpx.Response(status_code=502, text="bad gateway", request=httpx.Request("GET", "http://test"))
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            with pytest.raises(BackendError) as exc_info:
+                await client.get_me(auth)
+
+            assert exc_info.value.status == 502
+            assert "bad gateway" in exc_info.value.detail
 
 
 class TestEscalationsAndSettings:
@@ -343,8 +375,10 @@ class TestEscalationsAndSettings:
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
             MockClient.return_value = instance
 
-            with pytest.raises(httpx.HTTPStatusError):
+            with pytest.raises(BackendError) as exc_info:
                 await client.get_settings(auth)
+
+            assert exc_info.value.status == 500
 
 
 class TestBaseUrlHandling:

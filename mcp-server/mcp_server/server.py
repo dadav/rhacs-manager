@@ -9,11 +9,17 @@ Run: uv run python -m mcp_server.server
 """
 
 import logging
+from typing import Literal
 
 from mcp.server.fastmcp import Context, FastMCP
 
 from .api_client import AuthContext, RhacsManagerClient
 from .config import settings
+
+Severity = Literal["critical", "important", "moderate", "low"]
+RiskAcceptanceStatus = Literal["requested", "approved", "rejected", "expired"]
+RemediationStatus = Literal["open", "in_progress", "resolved", "verified", "wont_fix"]
+RiskScopeMode = Literal["all", "namespace", "image", "deployment"]
 
 _log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 logging.basicConfig(level=_log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -78,7 +84,7 @@ async def get_security_overview(ctx: Context) -> str:
 async def search_cves(
     ctx: Context,
     search: str | None = None,
-    severity: str | None = None,
+    severity: Severity | None = None,
     fixable: bool | None = None,
     namespace: str | None = None,
     cluster: str | None = None,
@@ -199,7 +205,7 @@ async def get_cve_affected_deployments(ctx: Context, cve_id: str) -> str:
 @mcp.tool()
 async def list_risk_acceptances(
     ctx: Context,
-    status: str | None = None,
+    status: RiskAcceptanceStatus | None = None,
     cve_id: str | None = None,
     page: int = 1,
     page_size: int = 20,
@@ -207,7 +213,7 @@ async def list_risk_acceptances(
     """List risk acceptances, optionally filtered by status or CVE.
 
     Args:
-        status: Filter by status (pending, approved, rejected, expired)
+        status: Filter by status (requested, approved, rejected, expired)
         cve_id: Filter by CVE identifier
         page: Page number (default 1)
         page_size: Results per page (default 20)
@@ -226,7 +232,7 @@ async def list_risk_acceptances(
 @mcp.tool()
 async def list_remediations(
     ctx: Context,
-    status: str | None = None,
+    status: RemediationStatus | None = None,
     cve_id: str | None = None,
     namespace: str | None = None,
     page: int = 1,
@@ -360,7 +366,7 @@ def _register_write_tools() -> None:
         ctx: Context,
         cve_id: str,
         justification: str,
-        scope_mode: str = "namespace",
+        scope_mode: RiskScopeMode = "namespace",
         scope_targets: list[dict] | None = None,
         expires_at: str | None = None,
     ) -> str:
@@ -433,7 +439,7 @@ def _register_write_tools() -> None:
     async def update_remediation_status(
         ctx: Context,
         remediation_id: str,
-        status: str,
+        status: RemediationStatus,
         reason: str | None = None,
     ) -> str:
         """Update the status of a remediation.

@@ -18,6 +18,36 @@ def _describe_ssl(verify: ssl.SSLContext | bool) -> str:
     return str(verify)
 
 
+class BackendError(Exception):
+    """Raised when the rhacs-manager backend returns a non-2xx response.
+
+    Carries the HTTP status, the FastAPI ``detail`` payload (parsed when possible),
+    and the request path. The string form is human-readable so that FastMCP relays
+    a useful message to the LLM.
+    """
+
+    def __init__(self, status: int, detail: str, path: str) -> None:
+        self.status = status
+        self.detail = detail
+        self.path = path
+        super().__init__(f"{status} {path}: {detail}")
+
+
+def _extract_detail(resp: httpx.Response) -> str:
+    """Pull the most useful error message from a FastAPI error response."""
+    try:
+        body = resp.json()
+    except ValueError:
+        text = resp.text.strip()
+        return text[:500] if text else (resp.reason_phrase or "unknown error")
+    if isinstance(body, dict) and "detail" in body:
+        detail = body["detail"]
+        if isinstance(detail, str):
+            return detail
+        return json.dumps(detail, ensure_ascii=False)[:500]
+    return json.dumps(body, ensure_ascii=False)[:500]
+
+
 FORWARDED_HEADER_NAMES = (
     "X-Forwarded-User",
     "X-Forwarded-Groups",
@@ -68,34 +98,56 @@ class AuthContext:
 
 
 class RhacsManagerClient:
-    """HTTP client that forwards requests to the RHACS Manager backend API."""
+    """HTTP client that forwards requests to the RHACS Manager backend API.
+
+    Holds a single ``httpx.AsyncClient`` for the lifetime of the process, lazily
+    initialized on first use (must be created inside a running event loop).
+    """
 
     def __init__(self, base_url: str = settings.backend_url) -> None:
         self.base_url = base_url.rstrip("/")
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            ssl_verify = settings.ssl_verify
+            logger.debug(
+                "Creating shared httpx.AsyncClient (base_url=%s, verify=%s)",
+                self.base_url,
+                _describe_ssl(ssl_verify),
+            )
+            self._client = httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=30,
+                verify=ssl_verify,
+            )
+        return self._client
+
+    async def aclose(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
     async def _request(
         self, method: str, path: str, auth: AuthContext, params: dict | None = None, data: dict | None = None
     ) -> str:
-        ssl_verify = settings.ssl_verify
-        logger.debug("HTTP %s %s%s (verify=%s)", method.upper(), self.base_url, path, _describe_ssl(ssl_verify))
+        logger.debug("HTTP %s %s%s", method.upper(), self.base_url, path)
         if params:
             logger.debug("  params=%s", params)
         if data:
             logger.debug("  body=%s", json.dumps(data, ensure_ascii=False))
+        client = self._get_client()
         try:
-            async with httpx.AsyncClient(base_url=self.base_url, timeout=30, verify=ssl_verify) as client:
-                resp = await client.request(method, path, headers=auth.to_headers(), params=params, json=data)
-                logger.debug("HTTP %s %s -> %d", method.upper(), path, resp.status_code)
-                resp.raise_for_status()
-                return json.dumps(resp.json(), ensure_ascii=False)
+            resp = await client.request(method, path, headers=auth.to_headers(), params=params, json=data)
         except httpx.ConnectError as exc:
             logger.debug("Connection failed for %s %s: %s", method.upper(), path, exc)
             raise
-        except httpx.HTTPStatusError as exc:
-            logger.debug(
-                "HTTP error %d for %s %s: %s", exc.response.status_code, method.upper(), path, exc.response.text
-            )
-            raise
+        logger.debug("HTTP %s %s -> %d", method.upper(), path, resp.status_code)
+        if resp.is_error:
+            detail = _extract_detail(resp)
+            logger.debug("HTTP error %d for %s %s: %s", resp.status_code, method.upper(), path, detail)
+            raise BackendError(resp.status_code, detail, f"{method.upper()} {path}")
+        return json.dumps(resp.json(), ensure_ascii=False)
 
     async def _get(self, path: str, auth: AuthContext, params: dict | None = None) -> str:
         return await self._request("GET", path, auth, params=params)
@@ -247,8 +299,8 @@ class RhacsManagerClient:
         endpoint, which only exposes min_cvss_score and min_epss_score."""
         try:
             return await self._get("/api/settings", auth)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 403:
+        except BackendError as exc:
+            if exc.status == 403:
                 return await self._get("/api/settings/thresholds", auth)
             raise
 
