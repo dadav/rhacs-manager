@@ -273,6 +273,83 @@ class TestToolClientWiring:
         assert kwargs["image_name"] == "quay.io/app"
 
 
+PROMPT_NAMES = {"triage_namespace", "investigate_cve", "weekly_security_review"}
+
+
+class TestPromptRegistration:
+    def test_prompts_are_registered(self):
+        with patch.dict("os.environ", {"MCP_READONLY": "false"}, clear=False):
+            import mcp_server.config
+            import mcp_server.server
+
+            importlib.reload(mcp_server.config)
+            importlib.reload(mcp_server.server)
+
+            registered = set(mcp_server.server.mcp._prompt_manager._prompts.keys())
+            assert registered >= PROMPT_NAMES
+
+    def test_prompts_are_registered_in_readonly_mode_too(self):
+        with patch.dict("os.environ", {"MCP_READONLY": "true"}, clear=False):
+            import mcp_server.config
+            import mcp_server.server
+
+            importlib.reload(mcp_server.config)
+            importlib.reload(mcp_server.server)
+
+            registered = set(mcp_server.server.mcp._prompt_manager._prompts.keys())
+            assert registered >= PROMPT_NAMES
+
+
+class TestPromptRendering:
+    def test_triage_namespace_includes_namespace_and_tools(self):
+        from mcp_server.server import triage_namespace
+
+        messages = triage_namespace(namespace="payments")
+        assert len(messages) == 1
+        text = messages[0].content.text
+        assert "payments" in text
+        # The prompt should reference the actual tool names so the LLM uses them.
+        assert "search_cves" in text
+        assert "fix_overdue" in text
+        assert "get_upcoming_escalations" in text
+        assert "list_remediations" in text
+
+    def test_triage_namespace_with_cluster_includes_cluster(self):
+        from mcp_server.server import triage_namespace
+
+        messages = triage_namespace(namespace="payments", cluster="cluster-a")
+        text = messages[0].content.text
+        assert "cluster-a" in text
+        assert 'cluster="cluster-a"' in text
+
+    def test_triage_namespace_without_cluster_omits_cluster_arg(self):
+        from mcp_server.server import triage_namespace
+
+        text = triage_namespace(namespace="payments")[0].content.text
+        # No bare ``cluster=""`` in the rendered tool calls.
+        assert 'cluster=""' not in text
+
+    def test_investigate_cve_includes_id_and_tools(self):
+        from mcp_server.server import investigate_cve
+
+        text = investigate_cve(cve_id="CVE-2024-1234")[0].content.text
+        assert "CVE-2024-1234" in text
+        assert "get_cve_detail" in text
+        assert "get_cve_affected_deployments" in text
+        assert "get_image_layers" in text
+        assert "list_risk_acceptances" in text
+        assert "list_remediations" in text
+
+    def test_weekly_security_review_lists_tools(self):
+        from mcp_server.server import weekly_security_review
+
+        text = weekly_security_review()[0].content.text
+        assert "get_security_overview" in text
+        assert "get_upcoming_escalations" in text
+        assert "list_risk_acceptances" in text
+        assert "list_remediations" in text
+
+
 class TestWriteToolWiring:
     """Verify write tool functions build correct payloads."""
 

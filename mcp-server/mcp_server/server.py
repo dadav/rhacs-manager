@@ -12,6 +12,7 @@ import logging
 from typing import Literal
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.fastmcp.prompts import base
 
 from .api_client import AuthContext, RhacsManagerClient
 from .config import settings
@@ -410,6 +411,82 @@ async def get_settings(ctx: Context) -> str:
     auth = _extract_auth(ctx)
     logger.debug("get_settings called by user=%s", auth.forwarded_user)
     return await client.get_settings(auth)
+
+
+# ---------------------------------------------------------------------------
+# Prompts — named workflows that seed the conversation with which tools to
+# call and in what order. Prompts do not call the backend themselves; the LLM
+# drives the actual tool invocations once the prompt is resolved.
+# ---------------------------------------------------------------------------
+
+
+@mcp.prompt(title="Triage namespace")
+def triage_namespace(namespace: str, cluster: str = "") -> list[base.Message]:
+    """Walk through a triage of one namespace's CVEs.
+
+    Args:
+        namespace: The namespace name to triage (e.g. "payments")
+        cluster: Optional cluster name. If omitted, all clusters the user can see.
+    """
+    scope = f"namespace ``{namespace}``"
+    if cluster:
+        scope += f" in cluster ``{cluster}``"
+    cluster_arg = f', cluster="{cluster}"' if cluster else ""
+    return [
+        base.UserMessage(
+            f"Triage CVEs for {scope} using the rhacs-manager tools. Walk through these steps:\n\n"
+            f'1. Call ``search_cves(namespace="{namespace}"{cluster_arg}, prioritized_only=true)`` '
+            f"to surface CVEs the sec team has explicitly prioritized.\n"
+            f'2. Call ``search_cves(namespace="{namespace}"{cluster_arg}, fix_overdue=true)`` '
+            f"to find CVEs whose fix has been available longer than the configured threshold.\n"
+            f'3. Call ``get_upcoming_escalations(namespace="{namespace}"{cluster_arg})`` '
+            f"to see which CVEs are about to escalate.\n"
+            f'4. Call ``list_remediations(namespace="{namespace}")`` to check what is already being worked on.\n\n'
+            f"Then summarise: which CVEs need attention first, which already have a remediation in flight, "
+            f"and what the next concrete actions should be."
+        )
+    ]
+
+
+@mcp.prompt(title="Investigate CVE")
+def investigate_cve(cve_id: str) -> list[base.Message]:
+    """Deep-dive on a single CVE: blast radius, image origin, and current handling.
+
+    Args:
+        cve_id: The CVE identifier (e.g. CVE-2024-1234)
+    """
+    return [
+        base.UserMessage(
+            f"Investigate {cve_id} using the rhacs-manager tools:\n\n"
+            f'1. Call ``get_cve_detail(cve_id="{cve_id}")`` for severity, EPSS, fix status, '
+            f"``fix_available_since``, and any existing priority or risk acceptance.\n"
+            f'2. Call ``get_cve_affected_deployments(cve_id="{cve_id}")`` to see the blast radius.\n'
+            f"3. For the most-affected image, call ``get_image_layers(image_id=...)`` to identify "
+            f"which layer introduced the vulnerable component.\n"
+            f'4. Call ``list_risk_acceptances(cve_id="{cve_id}")`` and '
+            f'``list_remediations(cve_id="{cve_id}")`` to see how this CVE is already being handled.\n\n'
+            f"Then summarise: severity context, who is affected, whether a fix exists, "
+            f"and recommended next action (request risk acceptance, start a remediation, escalate, or no-op)."
+        )
+    ]
+
+
+@mcp.prompt(title="Weekly security review")
+def weekly_security_review() -> list[base.Message]:
+    """Produce a weekly security status report across visible scope."""
+    return [
+        base.UserMessage(
+            "Compile a weekly security review using the rhacs-manager tools:\n\n"
+            "1. Call ``get_security_overview()`` for headline counts, severity distribution, "
+            "fix-overdue total, priority CVEs, and high-EPSS CVEs.\n"
+            "2. Call ``get_upcoming_escalations()`` to flag CVEs approaching escalation deadlines.\n"
+            '3. Call ``list_risk_acceptances(status="requested")`` to surface pending review work.\n'
+            '4. Call ``list_remediations(status="in_progress")`` to show remediation work in flight.\n\n'
+            "Then produce a short report with: top 5 CVEs needing attention this week, "
+            "any escalations due in the next few days, and the state of the risk-acceptance and "
+            "remediation pipelines."
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
