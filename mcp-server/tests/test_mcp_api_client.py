@@ -298,6 +298,75 @@ class TestErrorHandling:
             assert "bad gateway" in exc_info.value.detail
 
 
+class TestDashboardTrim:
+    async def test_chart_only_fields_dropped(self, client, auth):
+        full_payload = {
+            "stat_total_cves": 42,
+            "stat_fix_overdue_cves": 3,
+            "fix_overdue_threshold_days": 30,
+            "severity_distribution": [{"severity": 4, "count": 5}],
+            "priority_cves": [],
+            "cve_trend": [{"date": "2026-05-01", "count": 1}],
+            "epss_matrix": [[0.5, 7.0]],
+            "cluster_heatmap": [{"cluster": "cluster-a"}],
+            "fixable_trend": [{"date": "2026-05-01", "fixable": 10}],
+            "mttr_by_severity": [{"severity": 4, "mttr_days": 7}],
+        }
+        instance = _mock_client(_mock_response(full_payload))
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+            result = await client.get_dashboard(auth)
+
+        trimmed = json.loads(result)
+        assert "cve_trend" not in trimmed
+        assert "epss_matrix" not in trimmed
+        assert "cluster_heatmap" not in trimmed
+        assert "fixable_trend" not in trimmed
+        assert "mttr_by_severity" not in trimmed
+        # Headline stats and ranked lists survive.
+        assert trimmed["stat_total_cves"] == 42
+        assert trimmed["stat_fix_overdue_cves"] == 3
+        assert trimmed["fix_overdue_threshold_days"] == 30
+        assert trimmed["severity_distribution"] == [{"severity": 4, "count": 5}]
+
+
+class TestCvesByImage:
+    async def test_by_image_path_and_params(self, client, auth):
+        instance = _mock_client(_mock_response([]))
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+            await client.get_cves_by_image(
+                auth,
+                cluster="cluster-a",
+                namespace="payments",
+                severity="critical",
+                fixable=True,
+                cvss_min=7.0,
+                image_name="quay.io/app",
+            )
+
+        call_args = instance.request.call_args
+        assert call_args[0] == ("GET", "/api/cves/by-image")
+        params = call_args[1]["params"]
+        assert params["cluster"] == "cluster-a"
+        assert params["namespace"] == "payments"
+        assert params["severity"] == 4  # critical -> int
+        assert params["fixable"] is True
+        assert params["cvss_min"] == 7.0
+        assert params["image_name"] == "quay.io/app"
+
+    async def test_by_image_no_filters(self, client, auth):
+        instance = _mock_client(_mock_response([]))
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+            await client.get_cves_by_image(auth)
+
+        assert instance.request.call_args[1]["params"] is None
+
+
 class TestEscalationsAndSettings:
     async def test_list_escalations_path_and_params(self, client, auth):
         mock_resp = _mock_response([])

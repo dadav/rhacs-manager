@@ -160,8 +160,27 @@ class RhacsManagerClient:
 
     # -- Read-only endpoints --
 
+    # Dashboard fields that are chart-rendering aids only — they describe
+    # plot points, not facts the LLM reasons over. Drop them before returning
+    # to keep the response token-efficient.
+    _DASHBOARD_CHART_FIELDS = (
+        "cve_trend",
+        "epss_matrix",
+        "cluster_heatmap",
+        "fixable_trend",
+        "mttr_by_severity",
+    )
+
     async def get_dashboard(self, auth: AuthContext) -> str:
-        return await self._get("/api/dashboard", auth)
+        raw = await self._get("/api/dashboard", auth)
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            return raw
+        if isinstance(data, dict):
+            for field in self._DASHBOARD_CHART_FIELDS:
+                data.pop(field, None)
+        return json.dumps(data, ensure_ascii=False)
 
     async def search_cves(
         self,
@@ -218,6 +237,39 @@ class RhacsManagerClient:
         if fix_overdue:
             params["fix_overdue"] = True
         return await self._get("/api/cves", auth, params)
+
+    async def get_cves_by_image(
+        self,
+        auth: AuthContext,
+        *,
+        cluster: str | None = None,
+        namespace: str | None = None,
+        search: str | None = None,
+        severity: str | int | None = None,
+        fixable: bool | None = None,
+        cvss_min: float | None = None,
+        component: str | None = None,
+        image_name: str | None = None,
+    ) -> str:
+        params: dict = {}
+        if cluster is not None:
+            params["cluster"] = cluster
+        if namespace is not None:
+            params["namespace"] = namespace
+        if search is not None:
+            params["search"] = search
+        sev = _normalize_severity(severity)
+        if sev is not None:
+            params["severity"] = sev
+        if fixable is not None:
+            params["fixable"] = fixable
+        if cvss_min is not None:
+            params["cvss_min"] = cvss_min
+        if component is not None:
+            params["component"] = component
+        if image_name is not None:
+            params["image_name"] = image_name
+        return await self._get("/api/cves/by-image", auth, params or None)
 
     async def get_cve(self, auth: AuthContext, cve_id: str) -> str:
         return await self._get(f"/api/cves/{cve_id}", auth)

@@ -82,6 +82,7 @@ class TestExtractAuth:
 READ_ONLY_TOOLS = {
     "get_security_overview",
     "search_cves",
+    "get_cves_by_image",
     "get_cve_detail",
     "get_cve_affected_deployments",
     "get_image_layers",
@@ -251,6 +252,25 @@ class TestToolClientWiring:
         result = await get_settings(mock_ctx)
         assert isinstance(client.get_settings.call_args[0][0], AuthContext)
         assert "min_cvss_score" in result
+
+    async def test_get_cves_by_image_forwards_filters(self, mock_ctx):
+        from mcp_server.server import client, get_cves_by_image
+
+        client.get_cves_by_image = AsyncMock(return_value="[]")
+        await get_cves_by_image(
+            mock_ctx,
+            cluster="cluster-a",
+            namespace="payments",
+            severity="critical",
+            fixable=True,
+            image_name="quay.io/app",
+        )
+        kwargs = client.get_cves_by_image.call_args[1]
+        assert kwargs["cluster"] == "cluster-a"
+        assert kwargs["namespace"] == "payments"
+        assert kwargs["severity"] == "critical"
+        assert kwargs["fixable"] is True
+        assert kwargs["image_name"] == "quay.io/app"
 
 
 class TestWriteToolWiring:

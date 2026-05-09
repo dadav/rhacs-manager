@@ -72,8 +72,12 @@ def _extract_auth(ctx: Context) -> AuthContext:
 async def get_security_overview(ctx: Context) -> str:
     """Get the security dashboard summary.
 
-    Returns severity distribution, fixability trends, MTTR, top EPSS CVEs,
-    cluster heatmap, and upcoming escalations.
+    Returns headline counts (``stat_*``), severity distribution, top priority and
+    high-EPSS CVEs, CVEs per namespace, fixability breakdown, aging buckets,
+    top vulnerable components, risk-acceptance pipeline counts, and the configured
+    ``fix_overdue_threshold_days``. Chart-only series (CVE trend, EPSS scatter,
+    cluster heatmap, fixability trend, MTTR breakdown) are omitted to keep the
+    payload compact — fetch them via the UI if needed.
     """
     auth = _extract_auth(ctx)
     logger.debug("get_security_overview called by user=%s", auth.forwarded_user)
@@ -168,6 +172,59 @@ async def search_cves(
         fix_overdue=fix_overdue,
         page=page,
         page_size=page_size,
+    )
+
+
+@mcp.tool()
+async def get_cves_by_image(
+    ctx: Context,
+    cluster: str | None = None,
+    namespace: str | None = None,
+    search: str | None = None,
+    severity: Severity | None = None,
+    fixable: bool | None = None,
+    cvss_min: float | None = None,
+    component: str | None = None,
+    image_name: str | None = None,
+) -> str:
+    """List container images grouped by their CVE burden.
+
+    Returns one entry per image with totals (``total_cves``, ``critical_cves``,
+    ``high_cves``, ``medium_cves``, ``low_cves``, ``fixable_cves``,
+    ``affected_deployments``, ``max_cvss``, ``max_epss``) and the namespaces and
+    clusters it runs in. Use this for "which images carry the worst CVE burden?"
+    style triage — the backend already does the per-image aggregation.
+
+    Args:
+        cluster: Optional cluster filter
+        namespace: Optional namespace filter
+        search: Free-text search (matches CVE id or component)
+        severity: Restrict to images that have a CVE at this severity (critical,
+            important, moderate, low)
+        fixable: If true, count only fixable CVEs
+        cvss_min: Restrict to CVEs at or above this CVSS score (0-10)
+        component: Filter by affected component name
+        image_name: Filter by image name substring
+    """
+    auth = _extract_auth(ctx)
+    logger.debug(
+        "get_cves_by_image called: cluster=%s namespace=%s severity=%s fixable=%s image=%s",
+        cluster,
+        namespace,
+        severity,
+        fixable,
+        image_name,
+    )
+    return await client.get_cves_by_image(
+        auth,
+        cluster=cluster,
+        namespace=namespace,
+        search=search,
+        severity=severity,
+        fixable=fixable,
+        cvss_min=cvss_min,
+        component=component,
+        image_name=image_name,
     )
 
 
