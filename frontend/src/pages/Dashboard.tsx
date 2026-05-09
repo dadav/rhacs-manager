@@ -159,12 +159,11 @@ export function Dashboard() {
               style={statLinkStyle}
             >
               <StatCard
-                label={t("dashboard.fixOverdue")}
-                value={data.stat_fix_overdue_cves}
-                color={data.stat_fix_overdue_cves > 0 ? "#c9190b" : undefined}
-                subtitle={t("dashboard.fixOverdueSubtitle", {
+                label={t("dashboard.fixOverdue", {
                   days: data.fix_overdue_threshold_days,
                 })}
+                value={data.stat_fix_overdue_cves}
+                color={data.stat_fix_overdue_cves > 0 ? "#c9190b" : undefined}
                 accentClass="stat-card--danger"
               />
             </Link>
