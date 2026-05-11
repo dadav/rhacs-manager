@@ -75,6 +75,11 @@ export function App() {
   const { t, i18n } = useTranslation();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [runTour, setRunTour] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const startTour = () => {
+    setIsSidebarOpen(true);
+    setRunTour(true);
+  };
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem("pf-theme") === "dark",
   );
@@ -126,6 +131,8 @@ export function App() {
           <PageToggleButton
             variant="plain"
             aria-label={t("app.toggleNav")}
+            isSidebarOpen={isSidebarOpen}
+            onSidebarToggle={() => setIsSidebarOpen((v) => !v)}
           >
             <BarsIcon />
           </PageToggleButton>
@@ -228,7 +235,7 @@ export function App() {
             <Button
               variant="plain"
               aria-label={t("app.showHelp")}
-              onClick={() => setRunTour(true)}
+              onClick={startTour}
               data-tour="help-button"
               style={{ color: "#e0e0e0" }}
             >
@@ -242,7 +249,7 @@ export function App() {
   );
 
   const sidebar = (
-    <PageSidebar>
+    <PageSidebar isSidebarOpen={isSidebarOpen}>
       <PageSidebarBody>
         <div data-tour="scope-selector">
           <ScopeSelector />
@@ -305,14 +312,13 @@ export function App() {
     <Page
       masthead={masthead}
       sidebar={sidebar}
-      isManagedSidebar
       skipToContent={<SkipToContent href="#main-content">{t('app.skipToContent')}</SkipToContent>}
       mainContainerId="main-content"
     >
       <OnboardingModal
         isOpen={!user.onboarding_completed}
         isFirstTime
-        onDismiss={() => setRunTour(true)}
+        onDismiss={startTour}
       />
       <GuidedTour run={runTour} onComplete={() => setRunTour(false)} isSecTeam={isSecTeam} />
       <ErrorBoundary>
