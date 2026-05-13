@@ -46,6 +46,10 @@ F = TypeVar("F", bound=Callable[..., Awaitable[None]])
 
 def instrument_job(job_name: str) -> Callable[[F], F]:
     """Decorator that records duration, run-count, and last-success for an async job."""
+    # Pre-create labeled child series so they appear in /metrics before the first run.
+    SCHEDULER_JOB_RUNS.labels(job=job_name, status="success")
+    SCHEDULER_JOB_RUNS.labels(job=job_name, status="failure")
+    SCHEDULER_JOB_DURATION.labels(job=job_name)
 
     def decorator(func: F) -> F:
         @wraps(func)

@@ -59,6 +59,29 @@ async def test_metrics_endpoint_absent_when_disabled(
     assert response.status_code == 404
 
 
+def test_scheduler_metrics_initialized_before_first_run() -> None:
+    # Importing scheduler triggers @instrument_job decorators, which pre-create label series
+    # on the module-level default registry. Scrape the registry directly to avoid re-instrumenting
+    # a second FastAPI app (which would clash on http_requests_inprogress).
+    from prometheus_client import generate_latest
+
+    import app.tasks.scheduler  # noqa: F401
+
+    body = generate_latest().decode()
+    expected_jobs = (
+        "expiry_check",
+        "expiry_warning",
+        "escalation_check",
+        "weekly_digest",
+        "remediation_overdue_check",
+        "remediation_auto_resolve",
+    )
+    for job in expected_jobs:
+        assert f'rhacs_manager_scheduler_job_runs_total{{job="{job}",status="success"}} 0.0' in body
+        assert f'rhacs_manager_scheduler_job_runs_total{{job="{job}",status="failure"}} 0.0' in body
+        assert f'rhacs_manager_scheduler_job_duration_seconds_count{{job="{job}"}} 0.0' in body
+
+
 async def test_instrument_job_records_success_and_failure() -> None:
     from app.metrics import SCHEDULER_JOB_RUNS, instrument_job
 
