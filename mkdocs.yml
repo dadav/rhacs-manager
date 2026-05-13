@@ -89,6 +89,7 @@ nav:
       - Database Backups: deployment/backup.md
       - Database Restore: deployment/restore.md
       - Container Images: deployment/containers.md
+      - Monitoring & Metrics: deployment/monitoring.md
   - API:
       - Overview: api/index.md
       - Endpoints: api/endpoints.md

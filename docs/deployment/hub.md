@@ -65,3 +65,7 @@ Expected health response:
 ```json
 { "status": "ok" }
 ```
+
+## Monitoring
+
+The chart deploys a Prometheus Operator `ServiceMonitor` by default (`backend.monitoring.enabled: true`) and exposes a named `metrics` port on the backend Service. See [Monitoring & Metrics](monitoring.md) for the available metrics and configuration knobs.

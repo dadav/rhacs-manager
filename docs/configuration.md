@@ -89,6 +89,12 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
 
+## Observability
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `METRICS_ENABLED` | `true` | Expose unauthenticated Prometheus metrics at `/metrics` on the API port. See [Monitoring & Metrics](deployment/monitoring.md). |
+
 ## Runtime Settings (`/api/settings`)
 
 Security team users manage runtime behavior via API/UI. Values are stored in `global_settings`.
