@@ -197,6 +197,7 @@
     "filterSeverity": "Filter severity",
     "filterFixable": "Fixable only",
     "filterPrioritized": "Prioritized only",
+    "filterFixOverdue": "Fix overdue",
     "requestRiskAcceptance": "Request risk acceptance",
     "noResults": "No vulnerabilities found",
     "noResultsHint": "Try adjusting filters or broadening the scope.",

@@ -445,6 +445,14 @@ export function CveList() {
               />
             </ToolbarItem>
             <ToolbarItem>
+              <Checkbox
+                id="filter-fix-overdue"
+                label={t('cves.filterFixOverdue')}
+                isChecked={urlFixOverdue}
+                onChange={(_, checked) => updateParams({ fix_overdue: checked ? 'true' : null })}
+              />
+            </ToolbarItem>
+            <ToolbarItem>
               <Button
                 variant="secondary"
                 style={advancedBtnStyle}

@@ -197,6 +197,7 @@
     "filterSeverity": "Schweregrad filtern",
     "filterFixable": "Nur behebbare",
     "filterPrioritized": "Nur priorisierte",
+    "filterFixOverdue": "Fix überfällig",
     "requestRiskAcceptance": "Risikoakzeptanz beantragen",
     "noResults": "Keine Schwachstellen gefunden",
     "noResultsHint": "Versuchen Sie, die Filter anzupassen oder den Scope zu erweitern.",
