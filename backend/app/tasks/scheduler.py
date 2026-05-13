@@ -9,6 +9,7 @@ from sqlalchemy import delete, func, select
 from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
 from ..mail import service as mail_svc
+from ..metrics import instrument_job
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
@@ -27,6 +28,7 @@ async def _get_settings(session) -> GlobalSettings | None:
     return result.scalar_one_or_none()
 
 
+@instrument_job("expiry_check")
 async def run_expiry_check() -> None:
     """Mark risk acceptances as expired if past their expiry date."""
     logger.info("Running expiry check")
@@ -49,6 +51,7 @@ async def run_expiry_check() -> None:
         await session.commit()
 
 
+@instrument_job("expiry_warning")
 async def run_expiry_warning() -> None:
     """Notify RA creators 7 days before risk acceptance expires."""
     logger.info("Running expiry warning check")
@@ -68,6 +71,7 @@ async def run_expiry_warning() -> None:
         await session.commit()
 
 
+@instrument_job("escalation_check")
 async def run_escalation_check() -> None:
     """Check for CVEs that should be escalated based on age and settings.
 
@@ -237,6 +241,7 @@ async def run_escalation_check() -> None:
         logger.info("Escalation check complete")
 
 
+@instrument_job("remediation_overdue_check")
 async def run_remediation_overdue_check() -> None:
     """Notify users about overdue remediations (target_date passed, still open/in_progress)."""
     logger.info("Running remediation overdue check")
@@ -255,6 +260,7 @@ async def run_remediation_overdue_check() -> None:
     logger.info("Remediation overdue check complete")
 
 
+@instrument_job("remediation_auto_resolve")
 async def run_remediation_auto_resolve() -> None:
     """Auto-resolve remediations when the CVE is no longer present in the namespace."""
     logger.info("Running remediation auto-resolve")
@@ -408,6 +414,7 @@ async def _send_digest() -> None:
             await mail_svc.send_weekly_digest(app_settings.management_email, stats)
 
 
+@instrument_job("weekly_digest")
 async def run_weekly_digest() -> None:
     """Send weekly CVE digest email to management_email (scheduled, checks day-of-week)."""
     logger.info("Running weekly digest")

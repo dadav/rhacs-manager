@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     # Scheduler
     scheduler_enabled: bool = Field(default=True)
 
+    # Prometheus metrics — exposes unauthenticated /metrics on the same port
+    metrics_enabled: bool = Field(default=True)
+
     # App
     app_base_url: str = Field(default="http://localhost:5173")
     badge_base_url: str = Field(

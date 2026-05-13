@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from .config import settings as app_settings
 from .database import app_engine, stackrox_engine
+from .metrics import setup_metrics
 from .routers import (
     audit,
     auth,
@@ -135,6 +136,9 @@ if app_settings.dev_mode:
     from .routers import dev
 
     app.include_router(dev.router, prefix="/api")
+
+
+setup_metrics(app)
 
 
 @app.get("/health")

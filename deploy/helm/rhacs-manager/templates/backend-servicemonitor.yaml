@@ -1,0 +1,26 @@
+{{- if and (eq (default "hub" .Values.mode) "hub") .Values.backend.enabled .Values.backend.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Values.backend.serviceName }}
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+    {{- with .Values.backend.monitoring.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.backend.deploymentName }}
+  {{- with .Values.backend.monitoring.serviceMonitor.namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  endpoints:
+    - port: {{ .Values.backend.monitoring.portName }}
+      path: {{ .Values.backend.monitoring.serviceMonitor.path }}
+      interval: {{ .Values.backend.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.backend.monitoring.serviceMonitor.scrapeTimeout }}
+      scheme: http
+{{- end }}

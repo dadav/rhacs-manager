@@ -473,6 +473,59 @@ backend:
   # type: object
   # additionalProperties: false
   # @schema
+  # -- Prometheus scraping (Service named port + ServiceMonitor). Backend exposes
+  # -- /metrics unauthenticated on the same port as the API. Set enabled=false to
+  # -- skip creating the ServiceMonitor when no Prometheus Operator is available.
+  monitoring:
+    # @schema
+    # type: boolean
+    # @schema
+    # -- Deploy a ServiceMonitor and expose a named metrics port on the backend Service.
+    enabled: true
+    # @schema
+    # type: string
+    # @schema
+    # -- Name of the Service port that the ServiceMonitor scrapes.
+    portName: metrics
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- ServiceMonitor (monitoring.coreos.com/v1) configuration.
+    serviceMonitor:
+      # @schema
+      # type: object
+      # additionalProperties: true
+      # @schema
+      # -- Extra labels to set on the ServiceMonitor (e.g. for non-default Prometheus
+      # -- Operator releaseSelectors). OpenShift User Workload Monitoring needs none.
+      additionalLabels: {}
+      # @schema
+      # type: string
+      # @schema
+      # -- Scrape interval.
+      interval: 30s
+      # @schema
+      # type: string
+      # @schema
+      # -- Scrape timeout.
+      scrapeTimeout: 10s
+      # @schema
+      # type: string
+      # @schema
+      # -- Metrics endpoint path on the backend.
+      path: /metrics
+      # @schema
+      # type: object
+      # additionalProperties: true
+      # @schema
+      # -- Optional namespaceSelector for the ServiceMonitor. Empty means the
+      # -- ServiceMonitor's own namespace.
+      namespaceSelector: {}
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
   # -- Backend Secret configuration.
   secret:
     # @schema

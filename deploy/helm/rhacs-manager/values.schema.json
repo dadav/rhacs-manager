@@ -183,6 +183,68 @@
           "title": "livenessProbe",
           "type": "object"
         },
+        "monitoring": {
+          "additionalProperties": false,
+          "description": "Prometheus scraping (Service named port + ServiceMonitor). Backend exposes\n/metrics unauthenticated on the same port as the API. Set enabled=false to\nskip creating the ServiceMonitor when no Prometheus Operator is available.",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Deploy a ServiceMonitor and expose a named metrics port on the backend Service.",
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "portName": {
+              "default": "metrics",
+              "description": "Name of the Service port that the ServiceMonitor scrapes.",
+              "title": "portName",
+              "type": "string"
+            },
+            "serviceMonitor": {
+              "additionalProperties": false,
+              "description": "ServiceMonitor (monitoring.coreos.com/v1) configuration.",
+              "properties": {
+                "additionalLabels": {
+                  "additionalProperties": true,
+                  "description": "Extra labels to set on the ServiceMonitor (e.g. for non-default Prometheus\nOperator releaseSelectors). OpenShift User Workload Monitoring needs none.",
+                  "required": [],
+                  "title": "additionalLabels",
+                  "type": "object"
+                },
+                "interval": {
+                  "default": "30s",
+                  "description": "Scrape interval.",
+                  "title": "interval",
+                  "type": "string"
+                },
+                "namespaceSelector": {
+                  "additionalProperties": true,
+                  "description": "Optional namespaceSelector for the ServiceMonitor. Empty means the\nServiceMonitor's own namespace.",
+                  "required": [],
+                  "title": "namespaceSelector",
+                  "type": "object"
+                },
+                "path": {
+                  "default": "/metrics",
+                  "description": "Metrics endpoint path on the backend.",
+                  "title": "path",
+                  "type": "string"
+                },
+                "scrapeTimeout": {
+                  "default": "10s",
+                  "description": "Scrape timeout.",
+                  "title": "scrapeTimeout",
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "title": "serviceMonitor",
+              "type": "object"
+            }
+          },
+          "required": [],
+          "title": "monitoring",
+          "type": "object"
+        },
         "nodeSelector": {
           "additionalProperties": true,
           "description": "Node selector for backend pods.",

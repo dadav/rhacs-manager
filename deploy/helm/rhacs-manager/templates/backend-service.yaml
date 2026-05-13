@@ -10,6 +10,14 @@ spec:
   selector:
     app: {{ .Values.backend.deploymentName }}
   ports:
-    - port: {{ .Values.backend.service.port }}
+    - name: http
+      port: {{ .Values.backend.service.port }}
       targetPort: {{ .Values.backend.service.targetPort }}
+      protocol: TCP
+    {{- if .Values.backend.monitoring.enabled }}
+    - name: {{ .Values.backend.monitoring.portName }}
+      port: {{ .Values.backend.service.targetPort }}
+      targetPort: {{ .Values.backend.service.targetPort }}
+      protocol: TCP
+    {{- end }}
 {{- end }}
