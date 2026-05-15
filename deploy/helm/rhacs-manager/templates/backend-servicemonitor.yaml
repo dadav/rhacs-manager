@@ -18,7 +18,7 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   endpoints:
-    - port: {{ .Values.backend.monitoring.portName }}
+    - port: http
       path: {{ .Values.backend.monitoring.serviceMonitor.path }}
       interval: {{ .Values.backend.monitoring.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.backend.monitoring.serviceMonitor.scrapeTimeout }}

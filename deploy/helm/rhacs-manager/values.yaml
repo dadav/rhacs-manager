@@ -473,20 +473,15 @@ backend:
   # type: object
   # additionalProperties: false
   # @schema
-  # -- Prometheus scraping (Service named port + ServiceMonitor). Backend exposes
-  # -- /metrics unauthenticated on the same port as the API. Set enabled=false to
-  # -- skip creating the ServiceMonitor when no Prometheus Operator is available.
+  # -- Prometheus scraping via ServiceMonitor. Backend exposes /metrics
+  # -- unauthenticated on the same port as the API. Set enabled=false to skip
+  # -- creating the ServiceMonitor when no Prometheus Operator is available.
   monitoring:
     # @schema
     # type: boolean
     # @schema
-    # -- Deploy a ServiceMonitor and expose a named metrics port on the backend Service.
+    # -- Deploy a ServiceMonitor scraping /metrics on the existing backend API port.
     enabled: true
-    # @schema
-    # type: string
-    # @schema
-    # -- Name of the Service port that the ServiceMonitor scrapes.
-    portName: metrics
     # @schema
     # type: object
     # additionalProperties: false

@@ -185,19 +185,13 @@
         },
         "monitoring": {
           "additionalProperties": false,
-          "description": "Prometheus scraping (Service named port + ServiceMonitor). Backend exposes\n/metrics unauthenticated on the same port as the API. Set enabled=false to\nskip creating the ServiceMonitor when no Prometheus Operator is available.",
+          "description": "Prometheus scraping via ServiceMonitor. Backend exposes /metrics\nunauthenticated on the same port as the API. Set enabled=false to skip\ncreating the ServiceMonitor when no Prometheus Operator is available.",
           "properties": {
             "enabled": {
               "default": true,
-              "description": "Deploy a ServiceMonitor and expose a named metrics port on the backend Service.",
+              "description": "Deploy a ServiceMonitor scraping /metrics on the existing backend API port.",
               "title": "enabled",
               "type": "boolean"
-            },
-            "portName": {
-              "default": "metrics",
-              "description": "Name of the Service port that the ServiceMonitor scrapes.",
-              "title": "portName",
-              "type": "string"
             },
             "serviceMonitor": {
               "additionalProperties": false,

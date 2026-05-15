@@ -39,13 +39,12 @@ Series for each job are pre-registered at startup so they appear in `/metrics` b
 
 ## Helm Configuration
 
-The Helm chart deploys a Prometheus Operator `ServiceMonitor` and exposes a named metrics port on the backend Service. Both are gated by `backend.monitoring.enabled` (default `true`).
+The Helm chart deploys a Prometheus Operator `ServiceMonitor` that scrapes `/metrics` on the backend Service's existing `http` port. It is gated by `backend.monitoring.enabled` (default `true`).
 
 ```yaml
 backend:
   monitoring:
     enabled: true
-    portName: metrics
     serviceMonitor:
       additionalLabels: {}
       interval: 30s
@@ -56,8 +55,7 @@ backend:
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `backend.monitoring.enabled` | `true` | Create the `ServiceMonitor` and expose the named metrics port |
-| `backend.monitoring.portName` | `metrics` | Service port name the `ServiceMonitor` scrapes |
+| `backend.monitoring.enabled` | `true` | Create the `ServiceMonitor` |
 | `backend.monitoring.serviceMonitor.additionalLabels` | `{}` | Extra labels (e.g. for non-default Prometheus Operator `releaseSelectors`; not required on OpenShift User Workload Monitoring) |
 | `backend.monitoring.serviceMonitor.interval` | `30s` | Scrape interval |
 | `backend.monitoring.serviceMonitor.scrapeTimeout` | `10s` | Scrape timeout |
