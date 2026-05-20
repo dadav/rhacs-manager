@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import _namespace_filter
+from ._common import VISIBILITY_HAVING, _namespace_filter
 
 
 async def get_fixability_stats(
@@ -39,12 +39,14 @@ async def get_fixability_breakdown(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> dict:
     """Fixable vs unfixable CVE counts with threshold/always-show filtering."""
     if namespaces is not None and len(namespaces) == 0:
         return {"fixable": 0, "unfixable": 0}
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -61,13 +63,7 @@ async def get_fixability_breakdown(
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
-        HAVING (
-            (
-                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-            )
-            OR ic.cvebaseinfo_cve = ANY(:always_show)
-        )
+        {VISIBILITY_HAVING}
     """)
     result = await session.execute(
         sql,
@@ -75,6 +71,7 @@ async def get_fixability_breakdown(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -178,6 +175,7 @@ async def get_fixable_trend(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """CVE first-seen trend per day, split into fixable/unfixable."""
     since = datetime.utcnow() - timedelta(days=days)
@@ -186,6 +184,7 @@ async def get_fixable_trend(
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -206,13 +205,7 @@ async def get_fixable_trend(
             WHERE ic.firstimageoccurrence >= :since
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         )
         SELECT
             DATE(first_seen) AS date,
@@ -229,6 +222,7 @@ async def get_fixable_trend(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -241,12 +235,14 @@ async def get_cve_aging(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """Age distribution of CVEs."""
     if namespaces is not None and len(namespaces) == 0:
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -263,13 +259,7 @@ async def get_cve_aging(
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
-        HAVING (
-            (
-                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-            )
-            OR ic.cvebaseinfo_cve = ANY(:always_show)
-        )
+        {VISIBILITY_HAVING}
     """)
     result = await session.execute(
         sql,
@@ -277,6 +267,7 @@ async def get_cve_aging(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )

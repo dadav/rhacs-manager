@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import _namespace_filter
+from ._common import VISIBILITY_HAVING, _namespace_filter
 
 
 async def get_severity_distribution(
@@ -12,11 +12,13 @@ async def get_severity_distribution(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     if namespaces is not None and len(namespaces) == 0:
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -35,13 +37,7 @@ async def get_severity_distribution(
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         )
         SELECT severity, COUNT(*) AS count
         FROM visible_cves
@@ -54,6 +50,7 @@ async def get_severity_distribution(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -66,11 +63,13 @@ async def get_cves_per_namespace(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     if namespaces is not None and len(namespaces) == 0:
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -91,13 +90,7 @@ async def get_cves_per_namespace(
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             {where_clause}
             GROUP BY d.namespace, d.clustername, ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         ),
         deduped AS (
             SELECT DISTINCT namespace, cve_id, MAX(severity) AS severity
@@ -124,6 +117,7 @@ async def get_cves_per_namespace(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -193,6 +187,7 @@ async def get_cve_trend(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """CVE first-seen trend per day over the last N days, broken down by severity."""
     since = datetime.utcnow() - timedelta(days=days)
@@ -201,6 +196,7 @@ async def get_cve_trend(
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -221,13 +217,7 @@ async def get_cve_trend(
             WHERE ic.firstimageoccurrence >= :since
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         )
         SELECT
             DATE(first_seen) AS date,
@@ -246,6 +236,7 @@ async def get_cve_trend(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -267,12 +258,14 @@ async def get_epss_risk_matrix(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """CVEs with cvss+epss for scatter plot. None namespaces = all."""
     if namespaces is not None and len(namespaces) == 0:
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -292,13 +285,7 @@ async def get_epss_risk_matrix(
         JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
-        HAVING (
-            (
-                MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-            )
-            OR ic.cvebaseinfo_cve = ANY(:always_show)
-        )
+        {VISIBILITY_HAVING}
         ORDER BY severity DESC, cvss DESC
     """)
     result = await session.execute(
@@ -307,6 +294,7 @@ async def get_epss_risk_matrix(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )
@@ -319,12 +307,14 @@ async def get_cluster_heatmap(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
 ) -> list[dict]:
     """CVE counts per cluster per severity."""
     if namespaces is not None and len(namespaces) == 0:
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -343,13 +333,7 @@ async def get_cluster_heatmap(
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         )
         SELECT
             d.clustername AS cluster,
@@ -369,6 +353,7 @@ async def get_cluster_heatmap(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             **ns_params,
         },
     )

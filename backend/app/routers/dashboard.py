@@ -29,6 +29,7 @@ from ..schemas.dashboard import (
     RiskAcceptancePipeline,
     SeverityCount,
 )
+from ..services.cve_filter_service import compute_suppression_sets
 from ..services.escalation_preview import compute_upcoming_escalations
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
@@ -95,6 +96,7 @@ async def _sx_severity_distribution(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_severity_distribution(
@@ -103,6 +105,7 @@ async def _sx_severity_distribution(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -111,6 +114,7 @@ async def _sx_cves_per_namespace(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cves_per_namespace(
@@ -119,6 +123,7 @@ async def _sx_cves_per_namespace(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -127,6 +132,7 @@ async def _sx_cve_trend(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cve_trend(
@@ -135,6 +141,7 @@ async def _sx_cve_trend(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -143,6 +150,7 @@ async def _sx_epss_risk_matrix(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_epss_risk_matrix(
@@ -151,6 +159,7 @@ async def _sx_epss_risk_matrix(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -159,6 +168,7 @@ async def _sx_cluster_heatmap(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cluster_heatmap(
@@ -167,6 +177,7 @@ async def _sx_cluster_heatmap(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -175,6 +186,7 @@ async def _sx_cve_aging(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cve_aging(
@@ -183,6 +195,7 @@ async def _sx_cve_aging(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -191,6 +204,7 @@ async def _sx_top_vulnerable_components(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_top_vulnerable_components(
@@ -199,6 +213,7 @@ async def _sx_top_vulnerable_components(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -207,6 +222,7 @@ async def _sx_fixability_breakdown(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> dict:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_fixability_breakdown(
@@ -215,6 +231,7 @@ async def _sx_fixability_breakdown(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -223,6 +240,7 @@ async def _sx_fixable_trend(
     min_cvss: float,
     min_epss: float,
     always_show: set[str],
+    exclude: set[str],
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_fixable_trend(
@@ -231,6 +249,7 @@ async def _sx_fixable_trend(
             min_cvss=min_cvss,
             min_epss=min_epss,
             always_show_cve_ids=always_show,
+            exclude_cve_ids=exclude,
         )
 
 
@@ -406,6 +425,19 @@ async def dashboard(
             cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
             ns_list_for_queries = namespaces
 
+        # Drop CVEs fully covered by approved suppression rules so dashboard panels
+        # match the default /cves list (show_suppressed=False). The same set is fed
+        # into every chart query below to keep all panels internally consistent.
+        suppressed_cve_ids, _ = await compute_suppression_sets(
+            app_db,
+            sx_db,
+            current_user,
+            [c["cve_id"] for c in cves],
+            ns_list_for_queries,
+        )
+        if suppressed_cve_ids:
+            cves = [c for c in cves if c["cve_id"] not in suppressed_cve_ids]
+
     enriched = _enrich_cves(cves, priorities, acceptances)
 
     # Stat cards
@@ -453,15 +485,15 @@ async def dashboard(
         risk_acceptance_pipeline,
         mttr_data,
     ) = await asyncio.gather(
-        _sx_severity_distribution(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_cves_per_namespace(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_cve_trend(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_epss_risk_matrix(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show),
-        _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show),
+        _sx_severity_distribution(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_cves_per_namespace(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_cve_trend(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_epss_risk_matrix(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _upcoming_escalations(upcoming_ns, settings),
         _ra_pipeline(),
         _mttr_by_severity(ns_list_for_queries),

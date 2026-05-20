@@ -216,6 +216,76 @@ async def _load_suppression_sets(
     )
 
 
+async def compute_suppression_sets(
+    app_db: AsyncSession,
+    sx_db: AsyncSession,
+    current_user: CurrentUser,
+    cve_ids_all: list[str],
+    ns_for_components: list[tuple[str, str]] | None,
+) -> tuple[set[str], set[str]]:
+    """Compute (approved_suppressed, requested_suppressed) CVE id sets for a user's view.
+
+    A CVE id lands in a set when approved (or requested) suppression rules fully
+    cover every (cluster, namespace) location where the CVE is visible to the user.
+    Shared by the /cves list and the dashboard so both hide exactly the same CVEs.
+
+    ``ns_for_components`` is the user's visible namespace list (``None`` = all
+    namespaces for sec-team / wildcard users). When component or namespace-scoped
+    rules require StackRox lookups but the caller passed ``None``, the concrete
+    all-namespaces list is resolved lazily so suppression still matches the /cves
+    list (which always passes a concrete list).
+    """
+    (
+        approved_cve_rules,
+        approved_component_rules,
+        requested_cve_rules,
+        requested_component_rules,
+    ) = await _load_suppression_sets(app_db)
+
+    has_component_rules = bool(approved_component_rules) or bool(requested_component_rules)
+    has_scoped_cve_rules = any(
+        (r.scope or {}).get("mode") == "namespace" for r in approved_cve_rules + requested_cve_rules
+    )
+
+    # The StackRox map queries need a concrete namespace list; resolve all
+    # namespaces only when a rule type actually requires those lookups.
+    map_ns = ns_for_components
+    if (has_component_rules or has_scoped_cve_rules) and map_ns is None and current_user.can_see_all_namespaces:
+        all_ns = await sx.list_namespaces(sx_db)
+        map_ns = [(r["namespace"], r["cluster_name"]) for r in all_ns]
+
+    component_version_map: dict[str, list[tuple[str, str]]] = {}
+    if has_component_rules and cve_ids_all and map_ns:
+        component_version_map = await sx.get_cve_component_version_map(sx_db, cve_ids_all, map_ns)
+
+    cve_namespace_map: dict[str, set[tuple[str, str]]] | None = None
+    if has_scoped_cve_rules and cve_ids_all:
+        cve_rule_cve_ids = list({r.cve_id for r in approved_cve_rules + requested_cve_rules if r.cve_id})
+        cve_namespace_map = await sx.get_cve_namespace_cluster_map(sx_db, cve_rule_cve_ids, map_ns)
+
+    user_ns_set: set[tuple[str, str]] | None = None
+    if not current_user.can_see_all_namespaces and current_user.has_namespaces:
+        user_ns_set = {(cl, ns) for ns, cl in (ns_for_components or [])}
+
+    suppressed_cve_ids = _compute_suppressed_cves(
+        approved_cve_rules,
+        approved_component_rules,
+        component_version_map,
+        cve_ids_all,
+        cve_namespace_map,
+        user_ns_set,
+    )
+    suppression_requested_cve_ids = _compute_suppressed_cves(
+        requested_cve_rules,
+        requested_component_rules,
+        component_version_map,
+        cve_ids_all,
+        cve_namespace_map,
+        user_ns_set,
+    )
+    return suppressed_cve_ids, suppression_requested_cve_ids
+
+
 async def fetch_filtered_cves(
     current_user: CurrentUser,
     app_db: AsyncSession,
@@ -289,50 +359,13 @@ async def fetch_filtered_cves(
     cve_ids_all = [c["cve_id"] for c in cves]
     component_map = await sx.get_cve_component_map(sx_db, cve_ids_all, ns_for_components) if cve_ids_all else {}
 
-    # Load suppression rules and compute suppressed CVE sets
-    (
-        approved_cve_rules,
-        approved_component_rules,
-        requested_cve_rules,
-        requested_component_rules,
-    ) = await _load_suppression_sets(app_db)
-
-    has_component_rules = bool(approved_component_rules) or bool(requested_component_rules)
-    component_version_map: dict[str, list[tuple[str, str]]] = {}
-    if has_component_rules and cve_ids_all:
-        component_version_map = await sx.get_cve_component_version_map(sx_db, cve_ids_all, ns_for_components)
-
-    # Build namespace map for scope-aware suppression
-    has_scoped_cve_rules = any(
-        (r.scope or {}).get("mode") == "namespace" for r in approved_cve_rules + requested_cve_rules
-    )
-    cve_namespace_map: dict[str, set[tuple[str, str]]] | None = None
-    if has_scoped_cve_rules and cve_ids_all:
-        cve_rule_cve_ids = list({r.cve_id for r in approved_cve_rules + requested_cve_rules if r.cve_id})
-        cve_namespace_map = await sx.get_cve_namespace_cluster_map(sx_db, cve_rule_cve_ids, ns_for_components)
-
-    # Build user namespace set for scope comparison
-    user_ns_set: set[tuple[str, str]] | None = None
-    if not current_user.can_see_all_namespaces and current_user.has_namespaces:
-        user_ns_set = {(cl, ns) for ns, cl in ns_for_components}
-    elif current_user.can_see_all_namespaces:
-        user_ns_set = None  # sees everything
-
-    suppressed_cve_ids = _compute_suppressed_cves(
-        approved_cve_rules,
-        approved_component_rules,
-        component_version_map,
+    # Load suppression rules and compute suppressed CVE sets (shared with dashboard)
+    suppressed_cve_ids, suppression_requested_cve_ids = await compute_suppression_sets(
+        app_db,
+        sx_db,
+        current_user,
         cve_ids_all,
-        cve_namespace_map,
-        user_ns_set,
-    )
-    suppression_requested_cve_ids = _compute_suppressed_cves(
-        requested_cve_rules,
-        requested_component_rules,
-        component_version_map,
-        cve_ids_all,
-        cve_namespace_map,
-        user_ns_set,
+        ns_for_components,
     )
 
     # Build items

@@ -144,6 +144,25 @@ async def test_dashboard_team_member_no_namespaces_returns_zeros(app, sx_mock):
     assert data["stat_total_cves"] == 0
 
 
+async def test_dashboard_excludes_suppressed_cves(sec_team_client: httpx.AsyncClient, sx_mock):
+    """CVEs hidden by approved suppression rules must not inflate the stat panels.
+
+    The /cves list hides suppressed CVEs by default (show_suppressed=False), so the
+    dashboard panels must drop the same CVEs to keep both counts in agreement.
+    """
+    # The single mocked CVE (CVE-2024-0001, critical + fixable) is fully suppressed.
+    with patch(
+        "app.routers.dashboard.compute_suppression_sets",
+        AsyncMock(return_value=({"CVE-2024-0001"}, set())),
+    ):
+        resp = await sec_team_client.get("/api/dashboard")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["stat_total_cves"] == 0
+    assert data["stat_fixable_critical_cves"] == 0
+
+
 async def test_dashboard_fixability_breakdown(sec_team_client: httpx.AsyncClient, sx_mock):
     resp = await sec_team_client.get("/api/dashboard")
     data = resp.json()

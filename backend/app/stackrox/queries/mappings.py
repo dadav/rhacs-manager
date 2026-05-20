@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import _namespace_filter
+from ._common import VISIBILITY_HAVING, _namespace_filter
 
 
 async def list_namespaces(session: AsyncSession) -> list[dict]:
@@ -118,6 +118,7 @@ async def get_top_vulnerable_components(
     min_cvss: float = 0.0,
     min_epss: float = 0.0,
     always_show_cve_ids: set[str] | None = None,
+    exclude_cve_ids: set[str] | None = None,
     limit: int = 10,
 ) -> list[dict]:
     """Top N components by CVE count, respecting visibility filters."""
@@ -125,6 +126,7 @@ async def get_top_vulnerable_components(
         return []
 
     always_show = list(always_show_cve_ids or [])
+    exclude = list(exclude_cve_ids or [])
 
     ns_params: dict = {}
     if namespaces:
@@ -143,13 +145,7 @@ async def get_top_vulnerable_components(
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
-            HAVING (
-                (
-                    MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
-                    AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
-                )
-                OR ic.cvebaseinfo_cve = ANY(:always_show)
-            )
+            {VISIBILITY_HAVING}
         )
         SELECT
             comp.name AS component_name,
@@ -176,6 +172,7 @@ async def get_top_vulnerable_components(
             "min_cvss": min_cvss,
             "min_epss": min_epss,
             "always_show": always_show,
+            "exclude_cve_ids": exclude,
             "limit": limit,
             **ns_params,
         },
