@@ -253,6 +253,18 @@ export function CveDetail() {
     );
   if (!cve) return null;
 
+  // Mirror CveRemediationSection: a remediation can only be created for an
+  // affected namespace that does not already have one. Hide the action-card
+  // button once every affected namespace is covered, otherwise it scrolls to
+  // a remediation section with no create form.
+  const remediationNamespaceKeys = new Set(
+    cve.affected_deployments_list.map((d) => `${d.namespace}:${d.cluster_name}`),
+  );
+  for (const r of workflowRemediations ?? []) {
+    remediationNamespaceKeys.delete(`${r.namespace}:${r.cluster_name}`);
+  }
+  const hasAvailableRemediationNs = remediationNamespaceKeys.size > 0;
+
   return (
     <>
       <PageSection variant="default">
@@ -701,7 +713,7 @@ export function CveDetail() {
                     </Button>
                   )}
 
-                  {!isSecTeam && (
+                  {!isSecTeam && hasAvailableRemediationNs && (
                     <Button
                       variant="secondary"
                       onClick={() => document.getElementById('remediation-section')?.scrollIntoView({ behavior: 'smooth' })}
