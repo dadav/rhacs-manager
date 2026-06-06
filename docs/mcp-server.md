@@ -60,7 +60,7 @@ The MCP server is configured via environment variables:
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `create_risk_acceptance`    | Create a risk acceptance for a CVE with justification and scope (`all`, `namespace`, `image`, or `deployment`).                                              |
 | `create_remediation`        | Start tracking remediation for a CVE in a namespace/cluster.                                                                                                 |
-| `update_remediation_status` | Progress a remediation through its workflow (`open`, `in_progress`, `resolved`, `verified`, `wont_fix`). `wont_fix` requires a reason; only sec team can verify. |
+| `update_remediation_status` | Progress a remediation through its workflow (`open`, `in_progress`, `resolved`, `wont_fix`). `resolved` is terminal (reopen to `in_progress` only) and there is no verification step. `wont_fix` requires a reason. (`verified` is accepted only as a legacy filter value, not a settable target.) |
 
 ## Prompts
 

@@ -284,7 +284,6 @@
     "startRemediation": "Start remediation from the CVE detail page.",
     "start": "Start",
     "resolved": "Resolved",
-    "verify": "Verify",
     "reopen": "Reopen",
     "deleteRemediation": "Delete",
     "commentsSection": "Comments",
@@ -340,12 +339,10 @@
     "workflowPrioritize": "Prioritize",
     "workflowRemediate": "Remediate / Accept Risk",
     "workflowResolve": "Resolved",
-    "workflowVerify": "Verify",
     "hintAssess": "Next step: Assess this vulnerability and create a remediation or risk acceptance.",
     "hintPrioritize": "Next step: Prioritize this vulnerability to keep it on your radar.",
     "hintRemediate": "Next step: Create a remediation or request a risk acceptance.",
     "hintResolve": "Next step: All remediations must be completed or risk accepted.",
-    "hintVerify": "Next step: Verify the completed remediations.",
     "hintComplete": "All workflow steps are complete."
   },
   "riskAcceptance": {
@@ -423,6 +420,7 @@
     "deleteFinal": "Delete permanently",
     "delete": "Delete",
     "whyAcceptable": "Why is this risk acceptable?",
+    "approvalHint": "Risk acceptances limited to a single namespace are approved immediately. Scopes covering 'All' or multiple namespaces require security team review.",
     "noAcceptancesFound": "No risk acceptances found.",
     "noAcceptancesHint": "Risk acceptances are created from the CVE detail page.",
     "commentsCount": "Comments ({{count}})",
@@ -543,7 +541,6 @@
     "createdBy": "Created by",
     "start": "Start",
     "markResolved": "Resolved",
-    "verify": "Verify",
     "reopen": "Reopen"
   },
   "badges": {

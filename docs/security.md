@@ -66,10 +66,9 @@ The backend does not infer `sec_team` from namespace visibility. It uses group m
 | Read CVEs in own scope | Yes | Yes | Yes |
 | Read all namespaces | No | Yes | Yes |
 | Thresholds bypassed for normal list visibility | No | No | Yes |
-| Create risk acceptances | Yes | Yes | No |
-| Approve/reject risk acceptances | No | No | Yes |
-| Create remediations | Yes | Yes | Yes |
-| Verify remediations | No | No | Yes |
+| Create risk acceptances (single-namespace, auto-approved) | Yes | Yes | No |
+| Approve/reject multi-team risk acceptances (`all` or multi-namespace) | No | No | Yes |
+| Create and resolve remediations | Yes | Yes | Yes |
 | Create badges | Yes | Yes | No |
 | Edit settings / audit / priorities | No | No | Yes |
 

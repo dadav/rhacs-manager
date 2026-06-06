@@ -151,6 +151,7 @@ Access control rules:
 ### Risk acceptance rules
 
 - Risk acceptance creation is CVE-contextual only.
+- Single-namespace scopes (mode `namespace`/`image`/`deployment` resolving to one `(cluster, namespace)`) auto-approve on create/update; `mode=all` or scopes spanning multiple namespaces require sec-team review. See `is_single_team_scope` in `backend/app/services/risk_acceptance_service.py`. Auto-approval is recorded with a `risk_acceptance_auto_approved` audit action.
 - `/risk-acceptances` is a list and review surface, not a standalone create form.
 - `risk_acceptances.scope` uses:
   - `mode`: `all | namespace | image | deployment`
@@ -162,9 +163,9 @@ Access control rules:
 ### Remediation rules
 
 - Remediations are namespace-scoped and unique on `(cve_id, namespace, cluster_name)`.
-- Status values: `open | in_progress | resolved | verified | wont_fix`
-- Expected path is `open -> in_progress -> resolved -> verified`
-- Only sec team verifies remediations.
+- Status values: `open | in_progress | resolved | wont_fix` (`verified` retained for legacy records only).
+- Expected path is `open -> in_progress -> resolved`. `resolved` is terminal (reopen to `in_progress` only).
+- Remediations are single-team daily ops; the owning team self-resolves and the sec team audits (no verification gate). Sec-team remediation notifications were removed; they consume the audit log and weekly digest instead.
 - `wont_fix` requires a reason.
 - Auto-resolution runs when StackRox no longer reports the CVE in that namespace.
 

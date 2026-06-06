@@ -223,6 +223,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                   style={{ display: 'block', marginTop: 4, height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
                 />
               </div>
+              <Alert variant="info" isInline isPlain title={t('riskAcceptance.approvalHint')} style={{ marginBottom: 12 }} />
               {error && <Alert variant="danger" isInline title={error} style={{ marginBottom: 12 }} />}
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="submit" variant="primary" isLoading={createRA.isPending}>

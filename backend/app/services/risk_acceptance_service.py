@@ -8,6 +8,20 @@ from fastapi import HTTPException
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 
 
+def is_single_team_scope(scope: RiskScope) -> bool:
+    """True if the scope stays within a single team (one cluster/namespace pair).
+
+    Team boundary is the namespace. A scope is single-team only when it targets
+    exactly one (cluster_name, namespace) pair. mode='all' is org-wide (multi-team),
+    and scopes spanning more than one namespace affect multiple teams. Single-team
+    scopes are auto-approved; multi-team scopes require sec-team review.
+    """
+    if scope.mode == "all":
+        return False
+    distinct = {(t.cluster_name, t.namespace) for t in scope.targets}
+    return len(distinct) == 1
+
+
 def scope_key(scope: RiskScope) -> str:
     """Compute a deterministic hash for a normalized scope."""
     canonical = json.dumps(scope.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))

@@ -30,11 +30,10 @@ _TRANSITIONS: dict[RemediationStatus, set[RemediationStatus]] = {
         RemediationStatus.wont_fix,
         RemediationStatus.open,
     },
-    RemediationStatus.resolved: {
-        RemediationStatus.verified,
-        RemediationStatus.in_progress,
-    },
-    RemediationStatus.verified: {RemediationStatus.in_progress},  # reopen
+    # resolved is terminal; only reopening to in_progress is allowed.
+    # (verification was removed: the owning team self-resolves, sec team audits.)
+    RemediationStatus.resolved: {RemediationStatus.in_progress},  # reopen
+    RemediationStatus.verified: {RemediationStatus.in_progress},  # legacy reopen
     RemediationStatus.wont_fix: {RemediationStatus.open},  # reopen
 }
 
@@ -290,10 +289,6 @@ async def update_remediation(
     if body.status is not None:
         new_status = RemediationStatus[body.status]
 
-        # Only sec team can verify
-        if new_status == RemediationStatus.verified and not current_user.is_sec_team:
-            raise HTTPException(403, "Nur das Security-Team kann Behebungen verifizieren")
-
         allowed = _TRANSITIONS.get(r.status, set())
         if new_status not in allowed:
             raise HTTPException(
@@ -313,8 +308,6 @@ async def update_remediation(
         if new_status == RemediationStatus.resolved:
             r.resolved_at = datetime.utcnow()
             r.resolved_by = current_user.id
-        elif new_status == RemediationStatus.verified:
-            r.verified_at = datetime.utcnow()
         elif new_status in (RemediationStatus.open, RemediationStatus.in_progress):
             # Reopen: clear resolution/verification timestamps
             if old_status in ("resolved", "verified", "wont_fix"):

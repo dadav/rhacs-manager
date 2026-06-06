@@ -4,7 +4,11 @@ import pytest
 from fastapi import HTTPException
 
 from app.schemas.risk_acceptance import RiskScope, RiskScopeTarget
-from app.services.risk_acceptance_service import scope_key, validate_and_resolve_scope
+from app.services.risk_acceptance_service import (
+    is_single_team_scope,
+    scope_key,
+    validate_and_resolve_scope,
+)
 
 
 class TestScopeKey:
@@ -130,3 +134,46 @@ class TestValidateAndResolveScope:
         )
         result = validate_and_resolve_scope(scope, self.DEPLOYMENTS)
         assert len(result.targets) == 1
+
+
+class TestIsSingleTeamScope:
+    def test_all_mode_is_multi_team(self):
+        assert is_single_team_scope(RiskScope(mode="all", targets=[])) is False
+
+    def test_single_namespace_is_single_team(self):
+        scope = RiskScope(
+            mode="namespace",
+            targets=[RiskScopeTarget(cluster_name="c1", namespace="ns1")],
+        )
+        assert is_single_team_scope(scope) is True
+
+    def test_multiple_namespaces_is_multi_team(self):
+        scope = RiskScope(
+            mode="namespace",
+            targets=[
+                RiskScopeTarget(cluster_name="c1", namespace="ns1"),
+                RiskScopeTarget(cluster_name="c1", namespace="ns2"),
+            ],
+        )
+        assert is_single_team_scope(scope) is False
+
+    def test_multiple_targets_one_namespace_is_single_team(self):
+        # image/deployment scopes with several targets in the same namespace stay single-team
+        scope = RiskScope(
+            mode="image",
+            targets=[
+                RiskScopeTarget(cluster_name="c1", namespace="ns1", image_name="img1"),
+                RiskScopeTarget(cluster_name="c1", namespace="ns1", image_name="img2"),
+            ],
+        )
+        assert is_single_team_scope(scope) is True
+
+    def test_same_namespace_different_clusters_is_multi_team(self):
+        scope = RiskScope(
+            mode="namespace",
+            targets=[
+                RiskScopeTarget(cluster_name="c1", namespace="ns1"),
+                RiskScopeTarget(cluster_name="c2", namespace="ns1"),
+            ],
+        )
+        assert is_single_team_scope(scope) is False

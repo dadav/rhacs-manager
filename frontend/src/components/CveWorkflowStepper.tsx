@@ -17,7 +17,7 @@ interface CveWorkflowStepperProps {
   isSecTeam: boolean;
 }
 
-type Phase = "discover" | "assess" | "prioritize" | "remediate" | "verify" | "resolve";
+type Phase = "discover" | "assess" | "prioritize" | "remediate" | "resolve";
 
 const TERMINAL_REMEDIATION_STATUSES = new Set<RemediationStatus>([
   RemediationStatus.resolved,
@@ -38,11 +38,6 @@ function computePhases(
     remediations.length > 0 &&
     remediations.every((r) => TERMINAL_REMEDIATION_STATUSES.has(r.status));
 
-  const allRemediationsVerified =
-    remediations !== undefined &&
-    remediations.length > 0 &&
-    remediations.every((r) => r.status === RemediationStatus.verified);
-
   const hasAnyRemediation =
     remediations !== undefined && remediations.length > 0;
 
@@ -55,7 +50,6 @@ function computePhases(
     assess: cve.has_risk_acceptance || hasAnyRemediation,
     prioritize: cve.has_priority,
     remediate: hasApprovedRa || allRemediationsTerminal,
-    verify: hasApprovedRa || allRemediationsVerified,
     resolve: hasApprovedRa || allRemediationsTerminal,
   };
 
@@ -77,14 +71,14 @@ function getCurrentPhase(phases: Record<Phase, boolean>, order: Phase[]): Phase 
   return order[order.length - 1];
 }
 
-const SEC_TEAM_PHASES: Phase[] = ["discover", "prioritize", "remediate", "verify"];
+const SEC_TEAM_PHASES: Phase[] = ["discover", "prioritize", "remediate", "resolve"];
 const MEMBER_PHASES: Phase[] = ["discover", "assess", "remediate", "resolve"];
 
 const SEC_TEAM_STEPS: { id: Phase; labelKey: string }[] = [
   { id: "discover", labelKey: "cveDetail.workflowDiscover" },
   { id: "prioritize", labelKey: "cveDetail.workflowPrioritize" },
   { id: "remediate", labelKey: "cveDetail.workflowRemediate" },
-  { id: "verify", labelKey: "cveDetail.workflowVerify" },
+  { id: "resolve", labelKey: "cveDetail.workflowResolve" },
 ];
 
 const MEMBER_STEPS: { id: Phase; labelKey: string }[] = [
@@ -98,7 +92,7 @@ const SEC_TEAM_HINTS: Partial<Record<Phase, string>> = {
   discover: "cveDetail.hintPrioritize",
   prioritize: "cveDetail.hintPrioritize",
   remediate: "cveDetail.hintRemediate",
-  verify: "cveDetail.hintVerify",
+  resolve: "cveDetail.hintResolve",
 };
 
 const MEMBER_HINTS: Partial<Record<Phase, string>> = {

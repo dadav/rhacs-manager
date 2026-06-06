@@ -96,7 +96,7 @@ export function CveRemediationSection({
         ) : remediations && remediations.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {remediations.map(r => (
-              <RemediationCard key={r.id} item={r} isSecTeam={isSecTeam} remStatusLabels={REM_STATUS_LABELS} dateLocale={dateLocale} />
+              <RemediationCard key={r.id} item={r} remStatusLabels={REM_STATUS_LABELS} dateLocale={dateLocale} />
             ))}
           </div>
         ) : (
@@ -167,7 +167,7 @@ export function CveRemediationSection({
   )
 }
 
-export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }: { item: RemediationItem; isSecTeam: boolean; remStatusLabels: Record<string, string>; dateLocale: string }) {
+export function RemediationCard({ item, remStatusLabels, dateLocale }: { item: RemediationItem; remStatusLabels: Record<string, string>; dateLocale: string }) {
   const { t } = useTranslation();
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
@@ -179,7 +179,6 @@ export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }
   }, [item.status])
 
   const mutationBusy = updateMutation.isPending || updateMutation.isSuccess
-  const canVerify = isSecTeam && item.status === RemediationStatus.resolved
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
   const canWontFix = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
@@ -239,11 +238,6 @@ export function RemediationCard({ item, isSecTeam, remStatusLabels, dateLocale }
         {canResolve && (
           <Button variant="secondary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
             {t('cveDetail.markResolvedBtn')}
-          </Button>
-        )}
-        {canVerify && (
-          <Button variant="primary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'verified' })}>
-            {t('cveDetail.verify')}
           </Button>
         )}
         {canWontFix && !showWontFix && (

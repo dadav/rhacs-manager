@@ -130,7 +130,11 @@ async def notify_remediation_created(
     remediation: "Remediation",  # type: ignore[name-defined]
     creator: "User",  # type: ignore[name-defined]
 ) -> None:
-    """Notify sec team about a new remediation."""
+    """Notify the assignee about a new remediation.
+
+    Remediations are namespace-scoped (single-team) daily ops. The sec team audits
+    them via the audit log and weekly digest rather than per-event notifications.
+    """
     link = "/remediations"
     title = f"Neue Behebung: {remediation.cve_id}"
     msg = (
@@ -138,9 +142,10 @@ async def notify_remediation_created(
         f" in {remediation.namespace}/{remediation.cluster_name} erstellt."
     )
 
-    for user in await _get_sec_team_users(session):
-        if user.id != creator.id:
-            await create_notification(session, user.id, NotificationType.remediation_created, title, msg, link)
+    if remediation.assigned_to and remediation.assigned_to != creator.id:
+        await create_notification(
+            session, remediation.assigned_to, NotificationType.remediation_created, title, msg, link
+        )
 
 
 async def notify_remediation_status_change(
@@ -163,23 +168,11 @@ async def notify_remediation_status_change(
     title = f"Behebung {new_label}: {remediation.cve_id}"
     msg = f"Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name}: {new_label}"
 
-    recipients: set[str] = set()
-
-    if new_status in ("resolved", "in_progress"):
-        # Notify sec team for verification / awareness
-        for user in await _get_sec_team_users(session):
-            recipients.add(user.id)
-
-    if new_status == "verified":
-        # Notify creator and assignee
-        recipients.add(remediation.created_by)
-        if remediation.assigned_to:
-            recipients.add(remediation.assigned_to)
-
-    if new_status == "wont_fix":
-        # Notify sec team for awareness
-        for user in await _get_sec_team_users(session):
-            recipients.add(user.id)
+    # Status changes are single-team daily ops: notify only the creator and assignee,
+    # not the sec team (they audit via the audit log and weekly digest).
+    recipients: set[str] = {remediation.created_by}
+    if remediation.assigned_to:
+        recipients.add(remediation.assigned_to)
 
     # Don't notify the actor
     recipients.discard(actor.id)
@@ -192,7 +185,11 @@ async def notify_remediation_overdue(
     session: AsyncSession,
     remediation: "Remediation",  # type: ignore[name-defined]
 ) -> None:
-    """Notify creator, assignee, and sec team about overdue remediation."""
+    """Notify the creator and assignee about an overdue remediation.
+
+    Overdue remediations are single-team ops; the sec team audits rather than being
+    paged per remediation.
+    """
     link = "/remediations"
     title = f"Behebung überfällig: {remediation.cve_id}"
     msg = f"Die Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} ist überfällig."
@@ -201,8 +198,6 @@ async def notify_remediation_overdue(
     recipients.add(remediation.created_by)
     if remediation.assigned_to:
         recipients.add(remediation.assigned_to)
-    for user in await _get_sec_team_users(session):
-        recipients.add(user.id)
 
     for user_id in recipients:
         await create_notification(session, user_id, NotificationType.remediation_overdue, title, msg, link)

@@ -25,6 +25,9 @@ from ..schemas.risk_acceptance import (
 )
 from ..services.audit_service import log_action
 from ..services.risk_acceptance_service import (
+    is_single_team_scope as _is_single_team_scope,
+)
+from ..services.risk_acceptance_service import (
     scope_key as _scope_key,
 )
 from ..services.risk_acceptance_service import (
@@ -136,19 +139,26 @@ async def create_risk_acceptance(
             "Für diese CVE und diesen Scope existiert bereits eine aktive Risikoakzeptanz",
         )
 
+    # Single-team scopes (one namespace the requester owns) auto-approve; multi-team
+    # scopes (mode=all or spanning namespaces) require sec-team review.
+    single_team = _is_single_team_scope(normalized_scope)
+
     ra = RiskAcceptance(
         cve_id=body.cve_id,
-        status=RiskStatus.requested,
+        status=RiskStatus.approved if single_team else RiskStatus.requested,
         justification=body.justification,
         scope=normalized_scope.model_dump(mode="json"),
         scope_key=scope_key,
         expires_at=body.expires_at,
         created_by=current_user.id,
+        reviewed_at=datetime.utcnow() if single_team else None,
     )
     db.add(ra)
     await db.flush()
 
     await log_action(db, current_user.id, "risk_acceptance_created", "risk_acceptance", str(ra.id))
+    if single_team:
+        await log_action(db, current_user.id, "risk_acceptance_auto_approved", "risk_acceptance", str(ra.id))
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -276,15 +286,21 @@ async def update_risk_acceptance(
         if existing.scalar_one_or_none():
             raise HTTPException(409, "Für diesen Scope existiert bereits eine aktive Risikoakzeptanz")
 
+    # Re-evaluate scope: single-team scopes re-auto-approve, multi-team scopes
+    # drop back to requested for sec-team review.
+    single_team = _is_single_team_scope(normalized_scope)
+
     ra.justification = body.justification
     ra.scope = normalized_scope.model_dump(mode="json")
     ra.scope_key = new_scope_key
     ra.expires_at = body.expires_at
-    ra.status = RiskStatus.requested
+    ra.status = RiskStatus.approved if single_team else RiskStatus.requested
     ra.reviewed_by = None
-    ra.reviewed_at = None
+    ra.reviewed_at = datetime.utcnow() if single_team else None
 
     await log_action(db, current_user.id, "risk_acceptance_updated", "risk_acceptance", str(ra.id))
+    if single_team:
+        await log_action(db, current_user.id, "risk_acceptance_auto_approved", "risk_acceptance", str(ra.id))
     await db.commit()
     return await _single_ra_response(ra, db)
 

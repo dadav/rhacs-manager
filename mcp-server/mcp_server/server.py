@@ -578,13 +578,14 @@ def _register_write_tools() -> None:
     ) -> str:
         """Update the status of a remediation.
 
-        Valid transitions: open -> in_progress -> resolved -> verified.
-        Use wont_fix with a reason to close without fixing.
-        Only sec team can set status to 'verified'.
+        Valid transitions: open -> in_progress -> resolved. resolved is terminal
+        (it can only be reopened to in_progress). Use wont_fix with a reason to close
+        without fixing. There is no verification step; the owning team self-resolves.
+        ('verified' is retained only for legacy records and cannot be set on new ones.)
 
         Args:
             remediation_id: The remediation record ID
-            status: New status (open, in_progress, resolved, verified, wont_fix)
+            status: New status (open, in_progress, resolved, wont_fix)
             reason: Required when setting status to wont_fix
         """
         auth = _extract_auth(ctx)

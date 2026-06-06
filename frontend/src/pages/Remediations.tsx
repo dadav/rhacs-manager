@@ -23,7 +23,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
-import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
 import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
@@ -35,7 +34,6 @@ const PER_PAGE = 20
 
 export function Remediations() {
   const { t, i18n } = useTranslation()
-  const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -282,7 +280,6 @@ export function Remediations() {
                   <RemediationRow
                     key={r.id}
                     item={r}
-                    isSecTeam={isSecTeam}
                     statusLabels={STATUS_LABELS}
                     localeDateFormat={localeDateFormat}
                     StatusBadge={StatusBadge}
@@ -311,14 +308,12 @@ export function Remediations() {
 
 function RemediationRow({
   item,
-  isSecTeam,
   statusLabels,
   localeDateFormat,
   StatusBadge,
   t,
 }: {
   item: RemediationItem
-  isSecTeam: boolean
   statusLabels: Record<string, string>
   localeDateFormat: string
   StatusBadge: React.ComponentType<{ status: string; isOverdue: boolean }>
@@ -332,7 +327,6 @@ function RemediationRow({
   }, [item.status])
 
   const mutationBusy = updateMutation.isPending || updateMutation.isSuccess
-  const canVerify = isSecTeam && item.status === RemediationStatus.resolved
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
   const canReopen = item.status === RemediationStatus.wont_fix
@@ -386,11 +380,6 @@ function RemediationRow({
         {canResolve && (
           <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
             {t('remediations.markResolved')}
-          </Button>
-        )}
-        {canVerify && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'verified' })}>
-            {t('remediations.verify')}
           </Button>
         )}
         {canReopen && (

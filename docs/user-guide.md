@@ -8,12 +8,12 @@ See [Configuration](configuration.md) for threshold and notification settings, a
 
 | User type | What they can do |
 |----------|-------------------|
-| `team_member` | Work on CVEs in accessible namespaces, request risk acceptances and suppression rules, create badges, create and update remediations |
-| `sec_team` | Everything above plus approve or reject risk acceptances and suppression rules, change priorities, edit settings, review audit data, verify remediations |
+| `team_member` | Work on CVEs in accessible namespaces, self-manage remediations end to end (including resolving them), request risk acceptances (single-namespace scopes are approved immediately) and suppression rules, create badges |
+| `sec_team` | Acts as an auditor: reviews audit data and the weekly digest, approves or rejects multi-team risk acceptances (`all` or multiple namespaces) and suppression rules, changes priorities, and edits settings. Sec team does not gate single-team daily work. |
 | Wildcard all-namespace user | Still a `team_member`, but receives `X-Forwarded-Namespaces: *` from the spoke and can browse all namespaces without gaining `sec_team` actions |
 
 !!! note
-    Wildcard all-namespace access changes visibility scope, not role. These users still follow the non-security-team CVSS/EPSS thresholds and cannot approve risk acceptances or verify remediations.
+    Wildcard all-namespace access changes visibility scope, not role. These users still follow the non-security-team CVSS/EPSS thresholds and cannot approve multi-team risk acceptances.
 
 ## Dashboard
 
@@ -79,15 +79,15 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 1. Start from a CVE detail page and choose **Start remediation**.
 2. Pick the affected namespace and optional assignee, target date, or notes.
-3. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`, `verified`.
+3. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
 4. If the work is intentionally not going to happen, use `wont_fix` and provide a reason.
 5. Reopen when needed:
    - `in_progress` can move back to `open`
-   - `resolved` and `verified` can move back to `in_progress`
+   - `resolved` can move back to `in_progress`
    - `wont_fix` can move back to `open`
 
-!!! warning
-    Only `sec_team` can move a remediation to `verified`.
+!!! note
+    Remediations are single-team daily work. The owning team resolves them itself; there is no sec-team verification step. The sec team audits remediation activity through the audit log and weekly digest. (`verified` remains a valid status only for historical records created before this change and can still be reopened.)
 
 !!! note
     The scheduler can auto-mark an `open` or `in_progress` remediation as `resolved` if StackRox no longer reports that CVE in the namespace's deployments.
@@ -203,18 +203,19 @@ Notifications appear in the bell menu and are stored per user.
 ### `team_member`
 
 - Can see CVEs, escalations, badges, remediations, risk acceptances, and suppression rules in allowed namespaces.
-- Can request or edit their own risk acceptances and suppression rules.
-- Can create badges and remediations.
-- Cannot approve risk acceptances or suppression rules, edit global settings, or verify remediations.
+- Can request or edit their own risk acceptances and suppression rules. Single-namespace risk acceptances take effect immediately (auto-approved).
+- Can create badges and manage remediations end to end, including resolving them.
+- Cannot approve multi-team risk acceptances or suppression rules, or edit global settings.
 
-### `sec_team`
+### `sec_team` (auditor)
 
 - Sees all namespaces.
-- Can approve or reject risk acceptances and suppression rules.
+- Reviews the **Audit Log** and the weekly digest; this is the primary way the sec team stays aware of single-team daily work.
+- Approves or rejects multi-team risk acceptances (`all` or multiple namespaces) and suppression rules.
 - Can edit thresholds, escalation rules, and digest settings in **Settings**.
-- Can verify remediations and manage priorities.
-- Can review **Audit Log**.
+- Manages priorities.
 - Can delete suppression rules.
+- Does not verify remediations and is not notified per remediation event; those are single-team responsibilities.
 
 ### Wildcard all-namespace user
 
