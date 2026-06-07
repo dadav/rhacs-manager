@@ -68,9 +68,9 @@ export function Badges() {
                     {t('badges.helpBody1')}
                   </p>
                   <p style={{ margin: '0 0 8px' }}>
-                    <strong>{t('badges.helpBody2Scope')}</strong> — {t('badges.helpBody2ScopeDesc')}<br />
-                    <strong>{t('badges.helpBody2Token')}</strong> — {t('badges.helpBody2TokenDesc')}<br />
-                    <strong>{t('badges.helpBody2Embed')}</strong> — {t('badges.helpBody2EmbedDesc')}
+                    <strong>{t('badges.helpBody2Scope')}</strong> - {t('badges.helpBody2ScopeDesc')}<br />
+                    <strong>{t('badges.helpBody2Token')}</strong> - {t('badges.helpBody2TokenDesc')}<br />
+                    <strong>{t('badges.helpBody2Embed')}</strong> - {t('badges.helpBody2EmbedDesc')}
                   </p>
                   <p style={{ margin: 0 }}>
                     {t('badges.helpBody3')}

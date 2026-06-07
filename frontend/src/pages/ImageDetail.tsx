@@ -284,7 +284,7 @@ export function ImageDetail() {
           <Card>
             <CardBody style={{ padding: 0 }}>
               <ExpandableSection
-                toggleText={`${t('imageDetail.layers')} — ${t('imageDetail.layerCount', { count: image.layers.length })}`}
+                toggleText={`${t('imageDetail.layers')} - ${t('imageDetail.layerCount', { count: image.layers.length })}`}
                 isIndented
               >
               <div style={{

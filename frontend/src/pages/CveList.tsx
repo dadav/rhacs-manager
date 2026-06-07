@@ -363,9 +363,9 @@ export function CveList() {
                   {t('cves.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('cves.helpBody2ByCve')}</strong> — {t('cves.helpBody2ByCveDesc')}<br />
-                  <strong>{t('cves.helpBody2ByImage')}</strong> — {t('cves.helpBody2ByImageDesc')}<br />
-                  <strong>{t('cves.helpBody2Actions')}</strong> — {t('cves.helpBody2ActionsDesc')}
+                  <strong>{t('cves.helpBody2ByCve')}</strong> - {t('cves.helpBody2ByCveDesc')}<br />
+                  <strong>{t('cves.helpBody2ByImage')}</strong> - {t('cves.helpBody2ByImageDesc')}<br />
+                  <strong>{t('cves.helpBody2Actions')}</strong> - {t('cves.helpBody2ActionsDesc')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('cves.helpBody3')}

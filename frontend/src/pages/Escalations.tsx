@@ -129,9 +129,9 @@ export function Escalations() {
                   {t('escalations.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('escalations.helpBody2Level1')}</strong> — {t('escalations.helpBody2Level1Desc')}<br />
-                  <strong>{t('escalations.helpBody2Level2')}</strong> — {t('escalations.helpBody2Level2Desc')}<br />
-                  <strong>{t('escalations.helpBody2Level3')}</strong> — {t('escalations.helpBody2Level3Desc')}
+                  <strong>{t('escalations.helpBody2Level1')}</strong> - {t('escalations.helpBody2Level1Desc')}<br />
+                  <strong>{t('escalations.helpBody2Level2')}</strong> - {t('escalations.helpBody2Level2Desc')}<br />
+                  <strong>{t('escalations.helpBody2Level3')}</strong> - {t('escalations.helpBody2Level3Desc')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('escalations.helpBody3')}

@@ -5,7 +5,7 @@ import type React from "react";
  * Centralizes magic color values and chart styles so pages stay consistent.
  */
 
-// Severity colors — used in tables, badges, charts
+// Severity colors - used in tables, badges, charts
 export const SEVERITY_COLORS = {
   critical: "#a30000",
   important: "#c9190b",

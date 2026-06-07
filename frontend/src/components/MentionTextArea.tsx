@@ -43,7 +43,7 @@ export function MentionTextArea({
         const textBeforeCursor = val.slice(0, cursorPos);
 
         // Match @[partial...  (user is typing inside brackets)
-        // or @partial        (user is typing without brackets — we filter live)
+        // or @partial        (user is typing without brackets - we filter live)
         // or @               (just typed @, show all users)
         const bracketMatch = textBeforeCursor.match(/@\[([^\]]*)$/);
         const bareMatch = textBeforeCursor.match(/(^|[\s])@([^\s@]*)$/);
@@ -194,7 +194,7 @@ export function MentionTextArea({
 
 /**
  * Renders a comment message with @[username] mentions highlighted.
- * The brackets are stripped in the display — only the @username is shown styled.
+ * The brackets are stripped in the display - only the @username is shown styled.
  */
 export function renderMentions(message: string): React.ReactNode {
   const parts = message.split(/(@\[[^\]]+\])/g);

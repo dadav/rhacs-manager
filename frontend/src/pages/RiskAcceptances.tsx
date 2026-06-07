@@ -99,10 +99,10 @@ export function RiskAcceptances() {
                   {t('riskAcceptance.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('riskAcceptance.helpBody2Requested')}</strong> — {t('riskAcceptance.helpBody2RequestedDesc')}<br />
-                  <strong>{t('riskAcceptance.helpBody2Approved')}</strong> — {t('riskAcceptance.helpBody2ApprovedDesc')}<br />
-                  <strong>{t('riskAcceptance.helpBody2Rejected')}</strong> — {t('riskAcceptance.helpBody2RejectedDesc')}<br />
-                  <strong>{t('riskAcceptance.helpBody2Expired')}</strong> — {t('riskAcceptance.helpBody2ExpiredDesc')}
+                  <strong>{t('riskAcceptance.helpBody2Requested')}</strong> - {t('riskAcceptance.helpBody2RequestedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Approved')}</strong> - {t('riskAcceptance.helpBody2ApprovedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Rejected')}</strong> - {t('riskAcceptance.helpBody2RejectedDesc')}<br />
+                  <strong>{t('riskAcceptance.helpBody2Expired')}</strong> - {t('riskAcceptance.helpBody2ExpiredDesc')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('riskAcceptance.helpBody3')}

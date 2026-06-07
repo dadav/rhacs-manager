@@ -80,9 +80,9 @@ export function Dashboard() {
                   {t('dashboard.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('dashboard.helpBody2Charts')}</strong> — {t('dashboard.helpBody2ChartsDesc')}<br />
-                  <strong>{t('dashboard.helpBody2Stats')}</strong> — {t('dashboard.helpBody2StatsDesc')}<br />
-                  <strong>{t('dashboard.helpBody2Priority')}</strong> — {t('dashboard.helpBody2PriorityDesc')}
+                  <strong>{t('dashboard.helpBody2Charts')}</strong> - {t('dashboard.helpBody2ChartsDesc')}<br />
+                  <strong>{t('dashboard.helpBody2Stats')}</strong> - {t('dashboard.helpBody2StatsDesc')}<br />
+                  <strong>{t('dashboard.helpBody2Priority')}</strong> - {t('dashboard.helpBody2PriorityDesc')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('dashboard.helpBody3')}

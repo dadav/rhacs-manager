@@ -141,10 +141,10 @@ export function Priorities() {
                     {t('priorities.helpBody1')}
                   </p>
                   <p style={{ margin: '0 0 8px' }}>
-                    <strong>{t('priorities.helpBody2Critical')}</strong> — {t('priorities.helpBody2CriticalDesc')}<br />
-                    <strong>{t('priorities.helpBody2High')}</strong> — {t('priorities.helpBody2HighDesc')}<br />
-                    <strong>{t('priorities.helpBody2Medium')}</strong> — {t('priorities.helpBody2MediumDesc')}<br />
-                    <strong>{t('priorities.helpBody2Low')}</strong> — {t('priorities.helpBody2LowDesc')}
+                    <strong>{t('priorities.helpBody2Critical')}</strong> - {t('priorities.helpBody2CriticalDesc')}<br />
+                    <strong>{t('priorities.helpBody2High')}</strong> - {t('priorities.helpBody2HighDesc')}<br />
+                    <strong>{t('priorities.helpBody2Medium')}</strong> - {t('priorities.helpBody2MediumDesc')}<br />
+                    <strong>{t('priorities.helpBody2Low')}</strong> - {t('priorities.helpBody2LowDesc')}
                   </p>
                   <p style={{ margin: 0 }}>
                     {t('priorities.helpBody3')}

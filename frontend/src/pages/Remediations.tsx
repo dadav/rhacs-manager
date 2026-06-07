@@ -110,10 +110,10 @@ export function Remediations() {
                   {t('remediations.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('remediations.helpBody2Open')}</strong> — {t('remediations.helpBody2OpenDesc')}<br />
-                  <strong>{t('remediations.helpBody2InProgress')}</strong> — {t('remediations.helpBody2InProgressDesc')}<br />
-                  <strong>{t('remediations.helpBody2Resolved')}</strong> — {t('remediations.helpBody2ResolvedDesc')}<br />
-                  <strong>{t('remediations.helpBody2Verified')}</strong> — {t('remediations.helpBody2VerifiedDesc')}
+                  <strong>{t('remediations.helpBody2Open')}</strong> - {t('remediations.helpBody2OpenDesc')}<br />
+                  <strong>{t('remediations.helpBody2InProgress')}</strong> - {t('remediations.helpBody2InProgressDesc')}<br />
+                  <strong>{t('remediations.helpBody2Resolved')}</strong> - {t('remediations.helpBody2ResolvedDesc')}<br />
+                  <strong>{t('remediations.helpBody2Verified')}</strong> - {t('remediations.helpBody2VerifiedDesc')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('remediations.helpBody3')}
@@ -350,7 +350,7 @@ function RemediationRow({
         <StatusBadge status={item.status} isOverdue={item.is_overdue} />
       </Td>
       <Td>
-        {item.assigned_to_name ?? <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>}
+        {item.assigned_to_name ?? <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>}
       </Td>
       <Td>
         {item.target_date ? (
@@ -362,7 +362,7 @@ function RemediationRow({
             {new Date(item.target_date).toLocaleDateString(localeDateFormat)}
           </span>
         ) : (
-          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
+          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>
         )}
       </Td>
       <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>

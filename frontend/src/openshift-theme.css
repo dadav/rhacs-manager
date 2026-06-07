@@ -19,7 +19,7 @@
 }
 
 /* ── Typography: Red Hat Display for headings ────────────────────────── */
-/* Red Hat Display is bundled by PatternFly — no external font import needed */
+/* Red Hat Display is bundled by PatternFly - no external font import needed */
 
 .pf-v6-c-title,
 .pf-v6-c-modal-box__title-text,
@@ -171,7 +171,7 @@
   background-color: var(--pf-t--global--background--color--secondary--hover, rgba(0, 102, 204, 0.06)) !important;
 }
 
-/* Sticky header — extra z-index so it stays above content */
+/* Sticky header - extra z-index so it stays above content */
 .pf-v6-c-table.pf-m-sticky-header thead {
   z-index: 2;
 }

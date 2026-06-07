@@ -9,7 +9,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-# Serve stage — nginx with API proxying to hub
+# Serve stage - nginx with API proxying to hub
 FROM nginxinc/nginx-unprivileged:alpine
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \

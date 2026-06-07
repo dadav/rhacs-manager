@@ -157,9 +157,9 @@ export function SuppressionRules() {
                   {t('suppressionRules.helpBody1')}
                 </p>
                 <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('suppressionRules.helpBody2Component')}</strong> — {t('suppressionRules.helpBody2ComponentDesc')}<br />
-                  <strong>{t('suppressionRules.helpBody2Cve')}</strong> — {t('suppressionRules.helpBody2CveDesc')}<br />
-                  <strong>{t('suppressionRules.helpBody2Scope')}</strong> — {t('suppressionRules.helpBody2ScopeDesc2')}
+                  <strong>{t('suppressionRules.helpBody2Component')}</strong> - {t('suppressionRules.helpBody2ComponentDesc')}<br />
+                  <strong>{t('suppressionRules.helpBody2Cve')}</strong> - {t('suppressionRules.helpBody2CveDesc')}<br />
+                  <strong>{t('suppressionRules.helpBody2Scope')}</strong> - {t('suppressionRules.helpBody2ScopeDesc2')}
                 </p>
                 <p style={{ margin: 0 }}>
                   {t('suppressionRules.helpBody3')}
@@ -275,7 +275,7 @@ export function SuppressionRules() {
                             </div>
                           )
                         ) : (
-                          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>—</span>
+                          <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>
                         )}
                       </Td>
                       <Td>

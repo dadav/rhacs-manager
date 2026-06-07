@@ -330,7 +330,7 @@ export function CveDetail() {
             <p>{cve.priority_reason}</p>
             {cve.priority_set_by_name && (
               <p style={{ ...subtleTextSm, marginTop: 4 }}>
-                — {cve.priority_set_by_name}
+                - {cve.priority_set_by_name}
                 {cve.priority_created_at &&
                   `, ${new Date(cve.priority_created_at).toLocaleDateString(dateLocale)}`}
               </p>
@@ -1187,7 +1187,7 @@ export function CveDetail() {
         aria-label={t('cveDetail.requestFalsePositive')}
         variant="medium"
       >
-        <ModalHeader title={`${t('cveDetail.requestFalsePositive')} — ${cveId}`} />
+        <ModalHeader title={`${t('cveDetail.requestFalsePositive')} - ${cveId}`} />
         <ModalBody>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
