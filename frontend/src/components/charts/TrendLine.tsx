@@ -38,6 +38,7 @@ export function TrendLine({ data }: Props) {
   }
 
   return (
+    <div role="img" aria-label={t('dashboard.trend')}>
     <ResponsiveContainer width="100%" height={220}>
       <AreaChart data={data} margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
         <defs>
@@ -87,5 +88,6 @@ export function TrendLine({ data }: Props) {
         ))}
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   )
 }

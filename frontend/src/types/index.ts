@@ -311,6 +311,8 @@ export interface DashboardData {
   stat_fixable_critical_cves: number
   stat_open_risk_acceptances: number
   stat_fix_overdue_cves: number
+  stat_in_remediation: number
+  stat_remediated: number
   fix_overdue_threshold_days: number
   severity_distribution: SeverityCount[]
   cves_per_namespace: NamespaceCveCount[]

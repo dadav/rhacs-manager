@@ -699,11 +699,13 @@ export function CveDetail() {
                       </Button>
                     </div>
                   ) : fpSuccess ? (
-                    <Alert
-                      variant="success"
-                      isInline
-                      title={t('cveDetail.fpSubmitSuccess')}
-                    />
+                    <div role="status" aria-live="polite">
+                      <Alert
+                        variant="success"
+                        isInline
+                        title={t('cveDetail.fpSubmitSuccess')}
+                      />
+                    </div>
                   ) : (
                     <Button
                       variant="secondary"
@@ -1189,21 +1191,24 @@ export function CveDetail() {
         <ModalBody>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
+              <label htmlFor="fp-reason" style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
                 {t('cveDetail.fpReasonLabel')}
               </label>
               <TextArea
+                id="fp-reason"
                 value={fpReason}
                 onChange={(_, v) => setFpReason(v)}
                 placeholder={t('cveDetail.fpReasonPlaceholder')}
+                aria-label={t('cveDetail.fpReasonLabel')}
                 rows={3}
               />
             </div>
             <div>
-              <label style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
+              <label htmlFor="fp-reference" style={{ fontWeight: 600, fontSize: 13, display: "block", marginBottom: 4 }}>
                 {t('cveDetail.fpReferenceLabel')}
               </label>
               <TextInput
+                id="fp-reference"
                 value={fpRefUrl}
                 onChange={(_, v) => setFpRefUrl(v)}
                 placeholder="https://..."
@@ -1273,7 +1278,9 @@ export function CveDetail() {
                 )}
               </div>
             </div>
-            {fpError && <Alert variant="danger" isInline title={fpError} />}
+            <div role="alert" aria-live="assertive">
+              {fpError && <Alert variant="danger" isInline title={fpError} />}
+            </div>
           </div>
         </ModalBody>
         <ModalFooter>

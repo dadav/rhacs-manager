@@ -2,13 +2,14 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..mail import service as mail_svc
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from ..models.user import User, UserRole
@@ -38,6 +39,18 @@ from ..stackrox import queries as sx
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/risk-acceptances", tags=["risk-acceptances"])
+
+
+async def _effective_namespaces(user: CurrentUser, sx_db: AsyncSession) -> list[tuple[str, str]]:
+    """Namespaces to scope StackRox lookups by.
+
+    Wildcard all-namespace users carry an empty ``user.namespaces`` list, so
+    expand them to every known namespace (same pattern as cves/dashboard routers).
+    """
+    if user.can_see_all_namespaces:
+        all_ns = await sx.list_namespaces(sx_db)
+        return [(r["namespace"], r["cluster_name"]) for r in all_ns]
+    return user.namespaces
 
 
 def _normalize_scope(scope: dict) -> RiskScope:
@@ -114,13 +127,14 @@ async def create_risk_acceptance(
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RiskAcceptanceResponse:
     if current_user.is_sec_team:
-        raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen beantragen")
+        raise ApiError(403, "ra_sec_team_cannot_request")
     if not current_user.has_namespaces:
-        raise HTTPException(400, "Keine Namespaces zugeordnet")
+        raise ApiError(400, "no_namespaces")
 
-    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, current_user.namespaces)
+    effective_ns = await _effective_namespaces(current_user, sx_db)
+    deployments = await sx.get_affected_deployments(sx_db, body.cve_id, effective_ns)
     if not deployments:
-        raise HTTPException(404, "CVE in Ihren Namespaces nicht gefunden")
+        raise ApiError(404, "cve_not_in_namespaces")
 
     normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
     scope_key = _scope_key(normalized_scope)
@@ -134,10 +148,7 @@ async def create_risk_acceptance(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(
-            409,
-            "Für diese CVE und diesen Scope existiert bereits eine aktive Risikoakzeptanz",
-        )
+        raise ApiError(409, "ra_duplicate_cve_scope")
 
     # Single-team scopes (one namespace the requester owns) auto-approve; multi-team
     # scopes (mode=all or spanning namespaces) require sec-team review.
@@ -177,7 +188,7 @@ async def list_risk_acceptances(
         try:
             query = query.where(RiskAcceptance.status == RiskStatus[status])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Status: {status}") from None
+            raise ApiError(400, "invalid_status", status=status) from None
 
     result = await db.execute(query)
     all_ras = result.scalars().all()
@@ -230,9 +241,9 @@ async def get_risk_acceptance(
     result = await db.execute(select(RiskAcceptance).options(*_RA_LOAD_OPTIONS).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not _user_can_access_ra(current_user, ra):
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
 
     count_result = await db.execute(
         select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
@@ -250,26 +261,24 @@ async def update_risk_acceptance(
 ) -> RiskAcceptanceResponse:
     """Team member modifies an approved/rejected acceptance → resets to 'requested'."""
     if current_user.is_sec_team:
-        raise HTTPException(403, "Security-Team kann keine Risikoakzeptanzen ändern")
+        raise ApiError(403, "ra_sec_team_cannot_modify")
 
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if ra.created_by != current_user.id:
-        raise HTTPException(403, "Nur der Ersteller kann die Risikoakzeptanz ändern")
+        raise ApiError(403, "ra_only_creator_can_modify")
     if ra.status not in (RiskStatus.approved, RiskStatus.rejected):
-        raise HTTPException(
-            400,
-            "Nur genehmigte oder abgelehnte Risikoakzeptanzen können geändert werden",
-        )
+        raise ApiError(400, "ra_only_approved_rejected_modifiable")
 
     if not current_user.has_namespaces:
-        raise HTTPException(400, "Keine Namespaces zugeordnet")
+        raise ApiError(400, "no_namespaces")
 
-    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, current_user.namespaces)
+    effective_ns = await _effective_namespaces(current_user, sx_db)
+    deployments = await sx.get_affected_deployments(sx_db, ra.cve_id, effective_ns)
     if not deployments:
-        raise HTTPException(404, "CVE in Ihren Namespaces nicht mehr gefunden")
+        raise ApiError(404, "cve_not_in_namespaces_anymore")
 
     normalized_scope = _validate_and_resolve_scope(body.scope, deployments)
     new_scope_key = _scope_key(normalized_scope)
@@ -284,7 +293,7 @@ async def update_risk_acceptance(
             )
         )
         if existing.scalar_one_or_none():
-            raise HTTPException(409, "Für diesen Scope existiert bereits eine aktive Risikoakzeptanz")
+            raise ApiError(409, "ra_duplicate_scope")
 
     # Re-evaluate scope: single-team scopes re-auto-approve, multi-team scopes
     # drop back to requested for sec-team review.
@@ -313,16 +322,16 @@ async def review_risk_acceptance(
     db: AsyncSession = Depends(get_app_db),
 ) -> RiskAcceptanceResponse:
     if not current_user.is_sec_team:
-        raise HTTPException(403, "Nur das Security-Team kann Risikoakzeptanzen bearbeiten")
+        raise ApiError(403, "ra_sec_team_only_review")
 
     result = await db.execute(
         select(RiskAcceptance).options(selectinload(RiskAcceptance.creator)).where(RiskAcceptance.id == ra_id)
     )
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if ra.status != RiskStatus.requested:
-        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können bewertet werden")
+        raise ApiError(400, "ra_only_requested_reviewable")
 
     ra.status = RiskStatus.approved if body.approved else RiskStatus.rejected
     ra.reviewed_by = current_user.id
@@ -373,22 +382,22 @@ async def assign_reviewer(
     db: AsyncSession = Depends(get_app_db),
 ) -> RiskAcceptanceResponse:
     if not current_user.is_sec_team:
-        raise HTTPException(403, "Nur das Security-Team kann Reviewer zuweisen")
+        raise ApiError(403, "ra_sec_team_only_assign")
 
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if ra.status != RiskStatus.requested:
-        raise HTTPException(400, "Nur beantragte Risikoakzeptanzen können zugewiesen werden")
+        raise ApiError(400, "ra_only_requested_assignable")
 
     # Verify the target user exists and is sec_team
     user_result = await db.execute(select(User).where(User.id == body.user_id))
     target_user = user_result.scalar_one_or_none()
     if not target_user:
-        raise HTTPException(404, "Benutzer nicht gefunden")
+        raise ApiError(404, "user_not_found")
     if target_user.role != UserRole.sec_team:
-        raise HTTPException(400, "Nur Security-Team-Mitglieder können als Reviewer zugewiesen werden")
+        raise ApiError(400, "ra_reviewer_must_be_sec")
 
     ra.assigned_to = body.user_id
 
@@ -425,9 +434,9 @@ async def cancel_risk_acceptance(
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not current_user.is_sec_team and ra.created_by != current_user.id:
-        raise HTTPException(403, "Nur der Ersteller kann die Risikoakzeptanz löschen")
+        raise ApiError(403, "ra_only_creator_can_delete")
 
     await log_action(db, current_user.id, "risk_acceptance_deleted", "risk_acceptance", str(ra.id))
     await db.delete(ra)
@@ -446,9 +455,9 @@ async def add_comment(
     )
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not _user_can_access_ra(current_user, ra):
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
 
     comment = RiskAcceptanceComment(
         risk_acceptance_id=ra_id,
@@ -493,9 +502,9 @@ async def list_comments(
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
     ra = result.scalar_one_or_none()
     if not ra:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not _user_can_access_ra(current_user, ra):
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
 
     comments_result = await db.execute(
         select(RiskAcceptanceComment)

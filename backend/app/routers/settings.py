@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.global_settings import GlobalSettings
 from ..schemas.settings import SettingsResponse, SettingsUpdate, ThresholdPreviewResponse, ThresholdResponse
 from ..services.audit_service import log_action
@@ -92,7 +93,7 @@ async def send_digest(
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except Exception:
         logger.exception("Failed to send digest")
-        raise HTTPException(status_code=500, detail="Digest-Versand fehlgeschlagen") from None
+        raise ApiError(500, "digest_send_failed") from None
 
     await log_action(
         db,

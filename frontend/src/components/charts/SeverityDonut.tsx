@@ -44,7 +44,10 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
     )
   }
 
+  const summary = chartData.map(d => `${d.value} ${d.name}`).join(', ')
+
   return (
+    <div role="img" aria-label={`${t('dashboard.severityDistribution')}: ${summary}`}>
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
         <Pie
@@ -72,5 +75,6 @@ export function SeverityDonut({ data, onSegmentClick }: Props) {
         <Legend wrapperStyle={{ color: 'inherit' }} />
       </PieChart>
     </ResponsiveContainer>
+    </div>
   )
 }

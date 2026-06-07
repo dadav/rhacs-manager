@@ -31,6 +31,7 @@ interface CveListParams {
   fix_overdue?: boolean
   remediation_status?: string
   show_suppressed?: boolean
+  show_remediated?: boolean
 }
 
 function buildQuery(params: CveListParams): string {

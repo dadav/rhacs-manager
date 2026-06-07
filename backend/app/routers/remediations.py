@@ -1,13 +1,14 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.remediation import Remediation, RemediationStatus
 from ..notifications import service as notif_svc
 from ..schemas.remediation import (
@@ -97,7 +98,7 @@ async def create_remediation(
 ) -> RemediationResponse:
     # Verify user has access to the namespace
     if not current_user.can_see_all_namespaces and (body.namespace, body.cluster_name) not in current_user.namespaces:
-        raise HTTPException(403, "Kein Zugriff auf diesen Namespace")
+        raise ApiError(403, "remediation_namespace_forbidden")
 
     # Verify the CVE exists in this namespace
     deployments = await sx.get_affected_deployments(
@@ -106,7 +107,7 @@ async def create_remediation(
         [(body.namespace, body.cluster_name)],
     )
     if not deployments:
-        raise HTTPException(404, "CVE in diesem Namespace nicht gefunden")
+        raise ApiError(404, "cve_not_in_namespace")
 
     # Check for existing remediation
     existing = await db.execute(
@@ -117,7 +118,7 @@ async def create_remediation(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "Für diese CVE existiert bereits eine Behebung in diesem Namespace")
+        raise ApiError(409, "remediation_duplicate")
 
     remediation = Remediation(
         cve_id=body.cve_id,
@@ -182,7 +183,7 @@ async def list_remediations(
         try:
             query = query.where(Remediation.status == RemediationStatus[status])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Status: {status}") from None
+            raise ApiError(400, "invalid_status", status=status) from None
 
     if cve_id:
         query = query.where(Remediation.cve_id == cve_id)
@@ -263,9 +264,9 @@ async def get_remediation(
     result = await db.execute(select(Remediation).options(*_REM_LOAD_OPTIONS).where(Remediation.id == remediation_id))
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not _user_can_access(current_user, r):
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
     return _build_response(r)
 
 
@@ -279,9 +280,9 @@ async def update_remediation(
     result = await db.execute(select(Remediation).where(Remediation.id == remediation_id))
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not _user_can_access(current_user, r):
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
 
     details: dict = {}
 
@@ -291,14 +292,11 @@ async def update_remediation(
 
         allowed = _TRANSITIONS.get(r.status, set())
         if new_status not in allowed:
-            raise HTTPException(
-                400,
-                f"Ungültiger Statusübergang: {r.status.value} → {new_status.value}",
-            )
+            raise ApiError(400, "invalid_status_transition", old=r.status.value, new=new_status.value)
 
         # wont_fix requires a reason
         if new_status == RemediationStatus.wont_fix and not body.wont_fix_reason:
-            raise HTTPException(400, "Für 'Wird nicht behoben' ist eine Begründung erforderlich")
+            raise ApiError(400, "remediation_wontfix_requires_reason")
 
         old_status = r.status.value
         r.status = new_status
@@ -357,13 +355,13 @@ async def delete_remediation(
     result = await db.execute(select(Remediation).where(Remediation.id == remediation_id))
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     if not current_user.is_sec_team and r.created_by != current_user.id:
-        raise HTTPException(403, "Nur der Ersteller oder das Security-Team kann Behebungen löschen")
+        raise ApiError(403, "remediation_only_creator_or_sec_delete")
 
     if r.status not in (RemediationStatus.open, RemediationStatus.wont_fix):
-        raise HTTPException(400, "Nur offene oder abgelehnte Behebungen können gelöscht werden")
+        raise ApiError(400, "remediation_only_open_rejected_deletable")
 
     await log_action(db, current_user.id, "remediation_deleted", "remediation", str(r.id))
     await db.delete(r)

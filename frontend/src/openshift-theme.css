@@ -3,6 +3,21 @@
  * Applied on top of the PF6 base CSS to match the OCP visual style.
  */
 
+/* ── Accessibility: visually-hidden text for screen readers ──────────── */
+/* Content stays in the accessibility tree but is removed from the visual layout.
+   Used to add non-color/non-icon cues (e.g. "(overdue)", "fixable") for SR users. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Typography: Red Hat Display for headings ────────────────────────── */
 /* Red Hat Display is bundled by PatternFly — no external font import needed */
 

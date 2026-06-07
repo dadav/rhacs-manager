@@ -1,7 +1,7 @@
 import time
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..badges.generator import generate_badge_svg
 from ..config import settings
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.badge import BadgeToken
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
@@ -167,16 +168,16 @@ async def create_badge(
     db: AsyncSession = Depends(get_app_db),
 ) -> BadgeResponse:
     if not current_user.has_namespaces:
-        raise HTTPException(400, "Keine Namespaces zugeordnet")
+        raise ApiError(400, "no_namespaces")
 
     # Validate namespace is in user's accessible namespaces
     if body.namespace and not current_user.has_all_namespaces:
         if body.cluster_name:
             if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
-                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+                raise ApiError(400, "badge_namespace_not_accessible")
         else:
             if not any(ns == body.namespace for ns, _ in current_user.namespaces):
-                raise HTTPException(400, "Namespace nicht in Ihren zugänglichen Namespaces")
+                raise ApiError(400, "badge_namespace_not_accessible")
 
     # When no namespace filter specified, store all user's namespaces
     # so the public SVG endpoint can query the right scope.
@@ -208,9 +209,9 @@ async def delete_badge(
     result = await db.execute(select(BadgeToken).where(BadgeToken.id == badge_id))
     badge = result.scalar_one_or_none()
     if not badge:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if not current_user.is_sec_team and badge.created_by != current_user.id:
-        raise HTTPException(403, "Kein Zugriff")
+        raise ApiError(403, "forbidden")
     _svg_cache.pop(badge.token, None)
     await db.delete(badge)
     await db.commit()

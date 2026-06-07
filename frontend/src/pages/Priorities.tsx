@@ -207,9 +207,15 @@ export function Priorities() {
                       <PriorityBadge level={p.priority} />
                     </Td>
                     <Td style={{ fontSize: 12 }}>{p.set_by_name}</Td>
-                    <Td style={{ fontSize: 12, color: p.deadline && new Date(p.deadline) < new Date() ? '#c9190b' : 'var(--pf-t--global--text--color--subtle)' }}>
-                      {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
-                    </Td>
+                    {(() => {
+                      const isOverdue = !!p.deadline && new Date(p.deadline) < new Date()
+                      return (
+                        <Td style={{ fontSize: 12, color: isOverdue ? '#c9190b' : 'var(--pf-t--global--text--color--subtle)' }}>
+                          {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
+                          {isOverdue && <span className="sr-only"> ({t('common.overdue')})</span>}
+                        </Td>
+                      )
+                    })()}
                     <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                       {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
                     </Td>
@@ -241,8 +247,8 @@ export function Priorities() {
           <ModalBody>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.cveId')} *</label>
-                <TextInput value={cveId} onChange={(_, v) => setCveId(v)} placeholder="CVE-2024-XXXXX" aria-label={t('priorities.cveId')} style={{ marginTop: 4 }} />
+                <label htmlFor="priority-cve-id" style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.cveId')} *</label>
+                <TextInput id="priority-cve-id" value={cveId} onChange={(_, v) => setCveId(v)} placeholder="CVE-2024-XXXXX" aria-label={t('priorities.cveId')} style={{ marginTop: 4 }} />
               </div>
               <FormGroup label={t('priorities.priority')}>
                 <FormSelect
@@ -256,19 +262,23 @@ export function Priorities() {
                 </FormSelect>
               </FormGroup>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.reason')} *</label>
-                <TextArea value={reason} onChange={(_, v) => setReason(v)} rows={3} style={{ marginTop: 4 }} />
+                <label htmlFor="priority-reason" style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.reason')} *</label>
+                <TextArea id="priority-reason" value={reason} onChange={(_, v) => setReason(v)} rows={3} aria-label={t('priorities.reason')} style={{ marginTop: 4 }} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.deadlineOptional')}</label>
+                <label htmlFor="priority-deadline" style={{ fontSize: 13, fontWeight: 600 }}>{t('priorities.deadlineOptional')}</label>
                 <input
+                  id="priority-deadline"
                   type="date"
                   value={deadline}
                   onChange={e => setDeadline(e.target.value)}
+                  aria-label={t('priorities.deadlineOptional')}
                   style={{ display: 'block', width: '100%', height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4, marginTop: 4 }}
                 />
               </div>
-              {formError && <Alert variant="danger" isInline title={formError} />}
+              <div role="alert" aria-live="assertive">
+                {formError && <Alert variant="danger" isInline title={formError} />}
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>

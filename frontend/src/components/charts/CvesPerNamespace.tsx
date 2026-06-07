@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 interface Props {
@@ -30,6 +31,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 }
 
 export function CvesPerNamespace({ data, onBarClick }: Props) {
+  const { t } = useTranslation()
   const portalRef = useRef<HTMLDivElement>(null)
   const [portalEl, setPortalEl] = useState<HTMLElement | undefined>()
   useEffect(() => { setPortalEl(portalRef.current ?? undefined) }, [])
@@ -45,8 +47,10 @@ export function CvesPerNamespace({ data, onBarClick }: Props) {
 
   const height = Math.max(220, top.length * 28)
 
+  const summary = top.map(d => `${d.namespace}: ${d.count}`).join(', ')
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} role="img" aria-label={`${t('dashboard.cvesPerNamespace')}: ${summary}`}>
       <div ref={portalRef} style={{ position: 'absolute', top: 0, left: 0, zIndex: 10, pointerEvents: 'none' }} />
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={top} layout="vertical" margin={{ left: 8, right: 20, top: 4, bottom: 4 }}>

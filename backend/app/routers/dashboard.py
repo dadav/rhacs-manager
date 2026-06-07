@@ -29,7 +29,10 @@ from ..schemas.dashboard import (
     RiskAcceptancePipeline,
     SeverityCount,
 )
-from ..services.cve_filter_service import compute_suppression_sets
+from ..services.cve_filter_service import (
+    compute_remediation_status,
+    compute_suppression_sets,
+)
 from ..services.escalation_preview import compute_upcoming_escalations
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
@@ -386,6 +389,8 @@ async def dashboard(
                 stat_fixable_critical_cves=0,
                 stat_open_risk_acceptances=0,
                 stat_fix_overdue_cves=0,
+                stat_in_remediation=0,
+                stat_remediated=0,
                 fix_overdue_threshold_days=settings.fix_overdue_threshold_days if settings else 30,
                 severity_distribution=[],
                 cves_per_namespace=[],
@@ -438,10 +443,17 @@ async def dashboard(
         if suppressed_cve_ids:
             cves = [c for c in cves if c["cve_id"] not in suppressed_cve_ids]
 
+        # Remediation progress (scoped to the user's visible namespaces). This does
+        # NOT alter stat_total_cves or the chart datasets; it powers progress cards
+        # so a team member sees work move forward without changing the totals.
+        rem_status = await compute_remediation_status(app_db, sx_db, [c["cve_id"] for c in cves], ns_list_for_queries)
+
     enriched = _enrich_cves(cves, priorities, acceptances)
 
     # Stat cards
     total = len(cves)
+    stat_in_remediation = sum(1 for v in rem_status.values() if v == "in_progress")
+    stat_remediated = sum(1 for v in rem_status.values() if v == "remediated")
     fixable_critical = sum(1 for c in cves if c.get("severity") == 4 and c.get("fixable"))
 
     fix_overdue_threshold_days = settings.fix_overdue_threshold_days if settings else 30
@@ -545,6 +557,8 @@ async def dashboard(
         stat_fixable_critical_cves=fixable_critical,
         stat_open_risk_acceptances=open_ra,
         stat_fix_overdue_cves=fix_overdue,
+        stat_in_remediation=stat_in_remediation,
+        stat_remediated=stat_remediated,
         fix_overdue_threshold_days=fix_overdue_threshold_days,
         severity_distribution=[
             SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"]) for r in sev_dist

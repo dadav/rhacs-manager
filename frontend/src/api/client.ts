@@ -1,3 +1,4 @@
+import i18n from '../i18n'
 import { getErrorMessage } from '../utils/errors'
 
 const BASE = '/api'
@@ -6,6 +7,8 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      // Tells the backend which language to localize error messages in.
+      'Accept-Language': i18n.language || 'de',
       ...options?.headers,
     },
     ...options,

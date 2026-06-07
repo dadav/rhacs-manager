@@ -693,6 +693,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       />
                       {showAssignDropdown && assignCandidates && assignCandidates.length > 0 && (
                         <div
+                          role="listbox"
                           style={{
                             position: 'absolute',
                             top: '100%',
@@ -711,6 +712,9 @@ function RiskAcceptanceView({ id }: { id: string }) {
                           {assignCandidates.map(user => (
                             <div
                               key={user.id}
+                              role="option"
+                              aria-selected={false}
+                              tabIndex={-1}
                               onMouseDown={(e) => {
                                 e.preventDefault()
                                 assignReviewer.mutate(user.id)

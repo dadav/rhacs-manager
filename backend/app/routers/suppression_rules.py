@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.suppression_rule import (
     SuppressionRule,
     SuppressionStatus,
@@ -139,7 +140,7 @@ async def create_suppression_rule(
         )
 
     if existing.scalar_one_or_none():
-        raise HTTPException(409, "Für dieses Ziel existiert bereits eine aktive Unterdrückungsregel")
+        raise ApiError(409, "suppression_duplicate")
 
     rule = SuppressionRule(
         status=initial_status,
@@ -191,13 +192,13 @@ async def list_suppression_rules(
         try:
             query = query.where(SuppressionRule.status == SuppressionStatus[status])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Status: {status}") from None
+            raise ApiError(400, "invalid_status", status=status) from None
 
     if type:
         try:
             query = query.where(SuppressionRule.type == SuppressionType[type])
         except KeyError:
-            raise HTTPException(400, f"Ungültiger Typ: {type}") from None
+            raise ApiError(400, "invalid_type", type=type) from None
 
     result = await db.execute(query)
     rules = list(result.scalars().all())
@@ -226,7 +227,7 @@ async def get_suppression_rule(
     result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     all_cve_ids = await sx.get_all_deployed_cve_ids(sx_db)
     all_cve_id_set = set(all_cve_ids)
@@ -250,14 +251,14 @@ async def update_suppression_rule(
     result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     # Creator can update while requested; sec team can always update
     if not current_user.is_sec_team:
         if rule.created_by != current_user.id:
-            raise HTTPException(403, "Nur der Ersteller kann die Regel ändern")
+            raise ApiError(403, "suppression_only_creator_modify")
         if rule.status != SuppressionStatus.requested:
-            raise HTTPException(400, "Nur beantragte Regeln können geändert werden")
+            raise ApiError(400, "suppression_only_requested_modifiable")
 
     rule.reason = body.reason
     rule.reference_url = body.reference_url
@@ -277,10 +278,7 @@ async def update_suppression_rule(
                 )
             )
             if conflict.scalar_one_or_none():
-                raise HTTPException(
-                    409,
-                    "Für dieses Ziel existiert bereits eine aktive Unterdrückungsregel",
-                )
+                raise ApiError(409, "suppression_duplicate")
         rule.scope = resolved_scope.model_dump(mode="json")
         rule.scope_key = new_scope_key
 
@@ -323,14 +321,14 @@ async def review_suppression_rule(
     db: AsyncSession = Depends(get_app_db),
 ) -> SuppressionRuleResponse:
     if not current_user.is_sec_team:
-        raise HTTPException(403, "Nur das Security-Team kann Unterdrückungsregeln überprüfen")
+        raise ApiError(403, "suppression_sec_team_only_review")
 
     result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     if rule.status != SuppressionStatus.requested:
-        raise HTTPException(400, "Nur beantragte Regeln können überprüft werden")
+        raise ApiError(400, "suppression_only_requested_reviewable")
 
     rule.status = SuppressionStatus.approved if body.approved else SuppressionStatus.rejected
     rule.reviewed_by = current_user.id
@@ -365,14 +363,14 @@ async def delete_suppression_rule(
     result = await db.execute(select(SuppressionRule).where(SuppressionRule.id == rule_id))
     rule = result.scalar_one_or_none()
     if not rule:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     # Team members can only withdraw their own requested rules
     if not current_user.is_sec_team:
         if rule.created_by != current_user.id:
-            raise HTTPException(403, "Nur der Ersteller kann die Regel zurückziehen")
+            raise ApiError(403, "suppression_only_creator_withdraw")
         if rule.status != SuppressionStatus.requested:
-            raise HTTPException(400, "Nur beantragte Regeln können zurückgezogen werden")
+            raise ApiError(400, "suppression_only_requested_withdrawable")
 
     await log_action(
         db,

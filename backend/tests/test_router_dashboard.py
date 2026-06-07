@@ -11,6 +11,8 @@ DASHBOARD_EXPECTED_KEYS = {
     "stat_upcoming_escalations",
     "stat_fixable_critical_cves",
     "stat_open_risk_acceptances",
+    "stat_in_remediation",
+    "stat_remediated",
     "severity_distribution",
     "cves_per_namespace",
     "priority_cves",
@@ -95,6 +97,7 @@ def sx_mock():
             patch("app.routers.dashboard._upcoming_escalations", return_value=[]),
             patch("app.routers.dashboard._ra_pipeline") as mock_ra_pipeline,
             patch("app.routers.dashboard._mttr_by_severity", return_value=[]),
+            patch("app.routers.dashboard.compute_remediation_status", AsyncMock(return_value={})),
         ):
             from app.schemas.dashboard import RiskAcceptancePipeline
 
@@ -161,6 +164,30 @@ async def test_dashboard_excludes_suppressed_cves(sec_team_client: httpx.AsyncCl
     data = resp.json()
     assert data["stat_total_cves"] == 0
     assert data["stat_fixable_critical_cves"] == 0
+
+
+async def test_dashboard_remediation_stats_default_zero(sec_team_client: httpx.AsyncClient, sx_mock):
+    """With no remediations, progress stats are zero and the total is unchanged."""
+    resp = await sec_team_client.get("/api/dashboard")
+    data = resp.json()
+    assert data["stat_in_remediation"] == 0
+    assert data["stat_remediated"] == 0
+    assert data["stat_total_cves"] == 1
+
+
+async def test_dashboard_remediation_stats_counts(sec_team_client: httpx.AsyncClient, sx_mock):
+    """Progress stats reflect remediation status without altering stat_total_cves."""
+    with patch(
+        "app.routers.dashboard.compute_remediation_status",
+        AsyncMock(return_value={"CVE-2024-0001": "in_progress", "CVE-2024-0002": "remediated"}),
+    ):
+        resp = await sec_team_client.get("/api/dashboard")
+    data = resp.json()
+    assert data["stat_in_remediation"] == 1
+    assert data["stat_remediated"] == 1
+    # Remediated CVEs are NOT removed from the total; the list hides them, the
+    # dashboard tells the whole story via the progress cards.
+    assert data["stat_total_cves"] == 1
 
 
 async def test_dashboard_fixability_breakdown(sec_team_client: httpx.AsyncClient, sx_mock):

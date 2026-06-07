@@ -1,6 +1,7 @@
 import { Card, CardBody } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { useTranslation } from "react-i18next";
+import type { CSSProperties } from "react";
 import type { ClusterHeatmapRow } from "../../types";
 import { HEATMAP_RGB, HEATMAP_SEVERITY_INDEX } from "../../tokens";
 import { ChartCardTitle } from "./ChartCardTitle";
@@ -12,6 +13,18 @@ const HEATMAP_COLS = [
   "important",
   "critical",
 ] as const;
+
+// Reset styles so the keyboard-accessible <button> reads as plain cell text.
+const cellButtonStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  color: "inherit",
+  font: "inherit",
+  padding: "6px 8px",
+};
 
 interface ClusterHeatmapProps {
   data: ClusterHeatmapRow[];
@@ -58,39 +71,61 @@ export function ClusterHeatmap({
             <Tbody>
               {data.map((row) => (
                 <Tr key={row.cluster}>
-                  <Td
-                    style={{ fontFamily: "monospace", cursor: "pointer" }}
-                    onClick={() => onClusterClick(row.cluster)}
-                  >
-                    {row.cluster}
+                  <Td style={{ fontFamily: "monospace", padding: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => onClusterClick(row.cluster)}
+                      aria-label={t("dashboard.heatmapClusterLabel", {
+                        cluster: row.cluster,
+                      })}
+                      style={{
+                        ...cellButtonStyle,
+                        textAlign: "left",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {row.cluster}
+                    </button>
                   </Td>
                   {HEATMAP_COLS.map((col) => {
                     const val = row[col];
                     const bgAlpha =
                       val > 0 ? Math.min(0.3 + val / 50, 1) : 0;
+                    const severityIndex = HEATMAP_SEVERITY_INDEX[col];
                     return (
                       <Td
                         key={col}
                         style={{
                           textAlign: "right",
+                          padding: val > 0 ? 0 : undefined,
                           background:
                             val > 0
                               ? `rgba(${HEATMAP_RGB[col]},${bgAlpha})`
                               : "transparent",
                           color: val > 0 ? "#151515" : "inherit",
-                          cursor: val > 0 ? "pointer" : "default",
                         }}
-                        onClick={
-                          val > 0
-                            ? () =>
-                                onCellClick(
-                                  row.cluster,
-                                  HEATMAP_SEVERITY_INDEX[col],
-                                )
-                            : undefined
-                        }
                       >
-                        {val > 0 ? val : "\u2013"}
+                        {val > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCellClick(row.cluster, severityIndex)
+                            }
+                            aria-label={t("dashboard.heatmapCellLabel", {
+                              count: val,
+                              severity: severityLabels[severityIndex],
+                              cluster: row.cluster,
+                            })}
+                            style={{
+                              ...cellButtonStyle,
+                              textAlign: "right",
+                            }}
+                          >
+                            {val}
+                          </button>
+                        ) : (
+                          "–"
+                        )}
                       </Td>
                     );
                   })}
@@ -98,11 +133,23 @@ export function ClusterHeatmap({
                     style={{
                       textAlign: "right",
                       fontWeight: 700,
-                      cursor: "pointer",
+                      padding: 0,
                     }}
-                    onClick={() => onClusterClick(row.cluster)}
                   >
-                    {row.total}
+                    <button
+                      type="button"
+                      onClick={() => onClusterClick(row.cluster)}
+                      aria-label={t("dashboard.heatmapClusterLabel", {
+                        cluster: row.cluster,
+                      })}
+                      style={{
+                        ...cellButtonStyle,
+                        textAlign: "right",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {row.total}
+                    </button>
                   </Td>
                 </Tr>
               ))}

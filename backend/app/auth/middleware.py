@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..database import AppSessionLocal
+from ..i18n import ApiError
 from ..models.namespace_contact import NamespaceContact
 from ..models.user import User, UserRole
 
@@ -34,10 +35,7 @@ def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
         if ns and cluster:
             pairs.append((ns, cluster))
     if len(pairs) > settings.max_namespace_count:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Zu viele Namespaces ({len(pairs)} > {settings.max_namespace_count})",
-        )
+        raise ApiError(400, "too_many_namespaces", count=len(pairs), max=settings.max_namespace_count)
     return pairs
 
 
@@ -195,7 +193,7 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     forwarded_namespaces_raw = request.headers.get("X-Forwarded-Namespaces", "")
 
     if not forwarded_user:
-        raise HTTPException(status_code=401, detail="X-Forwarded-User header fehlt")
+        raise ApiError(401, "forwarded_user_missing")
 
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
     has_all_namespaces = forwarded_namespaces_raw.strip() == "*"
@@ -240,7 +238,7 @@ async def _get_oidc_signing_key(token: str) -> object:
     header = jose_jwt.get_unverified_header(token)
     kid = header.get("kid")
     if not kid:
-        raise HTTPException(status_code=401, detail="Token hat kein kid im Header")
+        raise ApiError(401, "token_no_kid")
 
     # Check cache
     now = time.monotonic()
@@ -272,13 +270,13 @@ async def _get_oidc_signing_key(token: str) -> object:
         if key.get("kid") == kid:
             return key
 
-    raise HTTPException(status_code=401, detail="Kein passender OIDC-Schlüssel gefunden")
+    raise ApiError(401, "oidc_key_not_found")
 
 
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Nicht authentifiziert")
+        raise ApiError(401, "not_authenticated")
 
     token = auth_header.removeprefix("Bearer ")
     try:
@@ -296,11 +294,11 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         )
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Ungültiges Token")
+            raise ApiError(401, "invalid_token")
 
         # Validate issuer matches configured issuer
         if payload.get("iss") != settings.oidc_issuer:
-            raise HTTPException(status_code=401, detail="Token-Issuer stimmt nicht überein")
+            raise ApiError(401, "token_issuer_mismatch")
 
         # Extract standard OIDC claims
         username = payload.get("preferred_username", payload.get("sub", ""))
@@ -332,7 +330,7 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         raise
     except Exception as e:
         logger.warning("OIDC auth failed: %s", e)
-        raise HTTPException(status_code=401, detail="Authentifizierung fehlgeschlagen") from None
+        raise ApiError(401, "auth_failed") from None
 
 
 def _validate_api_key(request: Request) -> bool:
@@ -361,5 +359,5 @@ def require_sec_team(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> CurrentUser:
     if not current_user.is_sec_team:
-        raise HTTPException(status_code=403, detail="Nur für das Security-Team zugänglich")
+        raise ApiError(403, "sec_team_only")
     return current_user

@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from .config import settings as app_settings
 from .database import app_engine, stackrox_engine
+from .i18n import LanguageMiddleware
 from .metrics import setup_metrics
 from .routers import (
     audit,
@@ -89,6 +90,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Pin request language from Accept-Language so ApiError messages localize.
+app.add_middleware(LanguageMiddleware)
 
 # CORS: dev mode allows all origins; production uses configured origins or app_base_url
 if app_settings.dev_mode:

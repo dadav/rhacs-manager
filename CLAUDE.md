@@ -203,6 +203,7 @@ import { getErrorMessage } from '../utils/errors'
 
 ## Backend Rules
 
+- User-visible API errors must use `ApiError(status, "code")` from `backend/app/i18n.py`, never `HTTPException` with a hardcoded German string. Add the `code` with `de` + `en` text to the `MESSAGES` catalog in `app/i18n.py`. `LanguageMiddleware` resolves the language from the request `Accept-Language` header (sent by `frontend/src/api/client.ts`), defaulting to German. `exports.py` keeps its own `lang`-query bilingual catalog.
 - Keep StackRox SQL centralized in `backend/app/stackrox/queries.py`.
 - Keep routers thin; move multi-step business rules into `backend/app/services/` when the logic is not purely request mapping.
 - Scheduler startup and initial escalation check happen in the FastAPI lifespan.

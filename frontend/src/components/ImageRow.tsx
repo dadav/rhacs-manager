@@ -1,6 +1,5 @@
 import { Spinner } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { AngleRightIcon, AngleDownIcon } from '@patternfly/react-icons'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -19,14 +18,19 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
 
   return (
     <>
-      <Tr isClickable onClick={() => setExpanded(!expanded)}>
-        <Td style={{ width: 28 }}>
-          {expanded ? <AngleDownIcon /> : <AngleRightIcon />}
-        </Td>
+      <Tr>
+        <Td
+          expand={{
+            rowIndex: 0,
+            isExpanded: expanded,
+            onToggle: () => setExpanded(!expanded),
+            expandId: `image-row-${group.image_id}`,
+          }}
+          aria-label={expanded ? t('cves.collapseRow') : t('cves.expandRow')}
+        />
         <Td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.image_name}>
           <Link
             to={`/images/${encodeURIComponent(group.image_id)}`}
-            onClick={e => e.stopPropagation()}
             style={{ color: BRAND_BLUE }}
           >
             {group.image_name}
@@ -96,7 +100,9 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
                         </Td>
                         <Td><EpssBadge value={cve.epss_probability} /></Td>
                         <Td>
-                          {cve.fixable ? <span style={{ color: FIXABLE_COLOR }}>✓</span> : <span style={{ color: SEVERITY_COLORS.unknown }}>✗</span>}
+                          {cve.fixable
+                            ? <span style={{ color: FIXABLE_COLOR }} role="img" aria-label={t('cves.fixable')}>✓</span>
+                            : <span style={{ color: SEVERITY_COLORS.unknown }} role="img" aria-label={t('cves.notFixable')}>✗</span>}
                         </Td>
                         <Td style={{ fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</Td>
                         <Td style={{ textAlign: 'right' }}>{cve.affected_deployments}</Td>

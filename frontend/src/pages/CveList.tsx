@@ -101,6 +101,7 @@ export function CveList() {
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
   const urlRemediationStatus = searchParams.get('remediation_status') || ''
+  const urlShowRemediated = searchParams.get('show_remediated') === '1'
   const urlFixOverdue = searchParams.get('fix_overdue') === 'true'
   const urlCluster    = searchParams.get('cluster') || ''
   const urlNamespace  = searchParams.get('ns') || ''
@@ -209,6 +210,7 @@ export function CveList() {
     component: debouncedComponent || undefined,
     risk_status: urlRiskStatus || undefined,
     remediation_status: urlRemediationStatus || undefined,
+    show_remediated: urlShowRemediated || undefined,
     age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
     age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
     deployment: urlDeployment || undefined,
@@ -321,9 +323,11 @@ export function CveList() {
   }
 
   // --- Styles ---
-  const getRowStyle = (hasPriority: boolean): React.CSSProperties => ({
+  const getRowStyle = (hasPriority: boolean, remediationStatus?: string | null): React.CSSProperties => ({
     background: hasPriority ? 'rgba(236, 122, 8, 0.08)' : 'transparent',
     boxShadow: hasPriority ? 'inset 4px 0 0 #ec7a08' : 'none',
+    // De-emphasize fully remediated CVEs so handled work visibly recedes.
+    opacity: remediationStatus === 'remediated' ? 0.55 : 1,
   })
 
   const advancedBtnStyle: React.CSSProperties = {
@@ -450,6 +454,14 @@ export function CveList() {
                 label={t('cves.filterFixOverdue')}
                 isChecked={urlFixOverdue}
                 onChange={(_, checked) => updateParams({ fix_overdue: checked ? 'true' : null })}
+              />
+            </ToolbarItem>
+            <ToolbarItem>
+              <Checkbox
+                id="filter-show-remediated"
+                label={t('cves.filterShowRemediated')}
+                isChecked={urlShowRemediated}
+                onChange={(_, checked) => updateParams({ show_remediated: checked ? '1' : null })}
               />
             </ToolbarItem>
             <ToolbarItem>
@@ -753,7 +765,7 @@ export function CveList() {
                   </Thead>
                   <Tbody>
                     {data.items.map(cve => (
-                      <Tr key={cve.cve_id} style={getRowStyle(cve.has_priority)}>
+                      <Tr key={cve.cve_id} style={getRowStyle(cve.has_priority, cve.remediation_status)}>
                         <Td>
                           <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
                             {cve.cve_id}
@@ -768,11 +780,31 @@ export function CveList() {
                             </Tooltip>
                           )}
                           {cve.has_risk_acceptance && cve.risk_acceptance_status === 'approved' && (
-                            <span style={{
-                              marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
-                              background: `rgba(30, 143, 25, 0.18)`, color: FIXABLE_COLOR,
-                              border: `1px solid rgba(30, 143, 25, 0.45)`, padding: '1px 5px', borderRadius: 3,
-                            }}>ACK</span>
+                            <Tooltip content={t('cves.badgeAckTooltip')}>
+                              <span style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                                background: `rgba(30, 143, 25, 0.18)`, color: FIXABLE_COLOR,
+                                border: `1px solid rgba(30, 143, 25, 0.45)`, padding: '1px 5px', borderRadius: 3,
+                              }}>ACK</span>
+                            </Tooltip>
+                          )}
+                          {cve.remediation_status === 'in_progress' && (
+                            <Tooltip content={t('cves.badgeInProgressTooltip')}>
+                              <span style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                                background: 'rgba(0, 102, 204, 0.15)', color: BRAND_BLUE,
+                                border: '1px solid rgba(0, 102, 204, 0.4)', padding: '1px 5px', borderRadius: 3,
+                              }}>{t('cves.badgeInProgress')}</span>
+                            </Tooltip>
+                          )}
+                          {cve.remediation_status === 'remediated' && (
+                            <Tooltip content={t('cves.badgeRemediatedTooltip')}>
+                              <span style={{
+                                marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+                                background: 'rgba(108, 108, 108, 0.18)', color: '#6c6c6c',
+                                border: '1px solid rgba(108, 108, 108, 0.45)', padding: '1px 5px', borderRadius: 3,
+                              }}>{t('cves.badgeRemediated')}</span>
+                            </Tooltip>
                           )}
                         </Td>
                         <Td><SeverityBadge severity={cve.severity} /></Td>

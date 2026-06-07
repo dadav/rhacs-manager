@@ -3,8 +3,7 @@
 import hashlib
 import json
 
-from fastapi import HTTPException
-
+from ..i18n import ApiError
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 
 
@@ -42,7 +41,7 @@ def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -
         for target in body_scope.targets:
             key = (target.cluster_name, target.namespace)
             if key not in available_namespaces:
-                raise HTTPException(400, "Scope enthält Namespaces ohne diese CVE")
+                raise ApiError(400, "scope_namespaces_without_cve")
             normalized.add(key)
         targets = [
             RiskScopeTarget(cluster_name=cluster, namespace=namespace) for cluster, namespace in sorted(normalized)
@@ -53,10 +52,10 @@ def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -
         normalized_img: set[tuple[str, str, str]] = set()
         for target in body_scope.targets:
             if not target.image_name:
-                raise HTTPException(400, "Image-Scope erfordert image_name für jedes Target")
+                raise ApiError(400, "scope_image_requires_name")
             key = (target.cluster_name, target.namespace, target.image_name)
             if key not in available_images:
-                raise HTTPException(400, "Scope enthält Images ohne diese CVE")
+                raise ApiError(400, "scope_images_without_cve")
             normalized_img.add(key)
         targets = [
             RiskScopeTarget(cluster_name=cluster, namespace=namespace, image_name=image_name)
@@ -69,12 +68,12 @@ def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -
     seen_ids: set[str] = set()
     for target in body_scope.targets:
         if not target.deployment_id:
-            raise HTTPException(400, "Deployment-Scope erfordert deployment_id für jedes Target")
+            raise ApiError(400, "scope_deployment_requires_id")
         if target.deployment_id in seen_ids:
             continue
         deployment = by_deployment.get(target.deployment_id)
         if not deployment:
-            raise HTTPException(400, "Scope enthält Deployments ohne diese CVE")
+            raise ApiError(400, "scope_deployments_without_cve")
         seen_ids.add(target.deployment_id)
         normalized_targets.append(
             RiskScopeTarget(
@@ -86,7 +85,7 @@ def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -
         )
 
     if not normalized_targets:
-        raise HTTPException(400, "Für Deployment-Scope sind mindestens ein Target erforderlich")
+        raise ApiError(400, "scope_deployment_requires_target")
 
     normalized_targets.sort(key=lambda t: (t.cluster_name, t.namespace, t.deployment_id or ""))
     return RiskScope(mode="deployment", targets=normalized_targets)

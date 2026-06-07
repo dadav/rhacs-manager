@@ -1,8 +1,10 @@
 """Unit tests for pure functions in app.services.cve_filter_service."""
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+from app.models.remediation import RemediationStatus
 from app.models.suppression_rule import SuppressionStatus, SuppressionType
 from app.schemas.cve import SeverityLevel
 from app.services.cve_filter_service import (
@@ -11,6 +13,7 @@ from app.services.cve_filter_service import (
     _is_cve_suppressed_by_rules,
     _matches_component_rule,
     compute_per_rule_matched_counts,
+    compute_remediation_status,
 )
 
 
@@ -340,3 +343,71 @@ class TestBuildCveItem:
             component_map={"CVE-2024-0001": ["zlib", "openssl", "openssl"]},
         )
         assert item.component_names == ["openssl", "zlib"]
+
+
+# --- compute_remediation_status ---
+
+
+def _rem(cve_id: str, cluster: str, namespace: str, status: RemediationStatus) -> SimpleNamespace:
+    return SimpleNamespace(cve_id=cve_id, cluster_name=cluster, namespace=namespace, status=status)
+
+
+def _app_db_with(remediations: list) -> AsyncMock:
+    """Mock AsyncSession whose execute(...).scalars().all() returns the remediations."""
+    db = AsyncMock()
+    result = SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: remediations))
+    db.execute = AsyncMock(return_value=result)
+    return db
+
+
+async def _status(remediations: list, affected: dict[str, set[tuple[str, str]]], cve_ids: list[str]) -> dict[str, str]:
+    app_db = _app_db_with(remediations)
+    with patch(
+        "app.services.cve_filter_service.sx.get_cve_namespace_cluster_map",
+        AsyncMock(return_value=affected),
+    ):
+        return await compute_remediation_status(app_db, AsyncMock(), cve_ids, None)
+
+
+class TestComputeRemediationStatus:
+    async def test_empty_cve_ids_returns_empty(self):
+        result = await compute_remediation_status(AsyncMock(), AsyncMock(), [], None)
+        assert result == {}
+
+    async def test_no_remediation_is_unremediated(self):
+        result = await _status([], {"CVE-1": {("c1", "ns1")}}, ["CVE-1"])
+        assert result == {"CVE-1": "unremediated"}
+
+    async def test_open_remediation_is_in_progress(self):
+        rems = [_rem("CVE-1", "c1", "ns1", RemediationStatus.open)]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1")}}, ["CVE-1"])
+        assert result == {"CVE-1": "in_progress"}
+
+    async def test_all_pairs_terminal_is_remediated(self):
+        rems = [_rem("CVE-1", "c1", "ns1", RemediationStatus.resolved)]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1")}}, ["CVE-1"])
+        assert result == {"CVE-1": "remediated"}
+
+    async def test_wont_fix_counts_as_terminal(self):
+        rems = [_rem("CVE-1", "c1", "ns1", RemediationStatus.wont_fix)]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1")}}, ["CVE-1"])
+        assert result == {"CVE-1": "remediated"}
+
+    async def test_partial_terminal_coverage_is_unremediated(self):
+        # Two affected pairs, only one resolved.
+        rems = [_rem("CVE-1", "c1", "ns1", RemediationStatus.resolved)]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1"), ("c1", "ns2")}}, ["CVE-1"])
+        assert result == {"CVE-1": "unremediated"}
+
+    async def test_remediation_for_unaffected_pair_is_unremediated(self):
+        rems = [_rem("CVE-1", "c1", "nsX", RemediationStatus.resolved)]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1")}}, ["CVE-1"])
+        assert result == {"CVE-1": "unremediated"}
+
+    async def test_mixed_terminal_and_open_is_in_progress(self):
+        rems = [
+            _rem("CVE-1", "c1", "ns1", RemediationStatus.resolved),
+            _rem("CVE-1", "c1", "ns2", RemediationStatus.open),
+        ]
+        result = await _status(rems, {"CVE-1": {("c1", "ns1"), ("c1", "ns2")}}, ["CVE-1"])
+        assert result == {"CVE-1": "in_progress"}

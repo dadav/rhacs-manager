@@ -168,6 +168,32 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
+          <GridItem span={3} md={6} sm={12}>
+            <Link
+              to={scopedLink("/vulnerabilities?remediation_status=in_progress")}
+              style={statLinkStyle}
+            >
+              <StatCard
+                label={t("dashboard.inRemediation")}
+                value={data.stat_in_remediation}
+                color={data.stat_in_remediation > 0 ? "#0066cc" : undefined}
+                accentClass="stat-card--info"
+              />
+            </Link>
+          </GridItem>
+          <GridItem span={3} md={6} sm={12}>
+            <Link
+              to={scopedLink("/vulnerabilities?remediation_status=remediated")}
+              style={statLinkStyle}
+            >
+              <StatCard
+                label={t("dashboard.remediated")}
+                value={data.stat_remediated}
+                color={data.stat_remediated > 0 ? "#3e8635" : undefined}
+                accentClass="stat-card--success"
+              />
+            </Link>
+          </GridItem>
 
           {/* Priority / high-EPSS alerts */}
           {data.priority_cves.length > 0 && (

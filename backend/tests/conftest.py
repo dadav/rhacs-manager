@@ -40,7 +40,11 @@ def _build_app() -> FastAPI:
     async def _noop_lifespan(app: FastAPI):
         yield
 
+    from app.i18n import LanguageMiddleware
+
     test_app = FastAPI(lifespan=_noop_lifespan)
+    # Mirror production: localize ApiError messages from Accept-Language.
+    test_app.add_middleware(LanguageMiddleware)
     for router_module in [
         auth,
         dashboard,

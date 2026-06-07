@@ -1,13 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.cve_priority import CvePriority
 from ..notifications import service as notif_svc
 from ..schemas.priority import PriorityCreate, PriorityResponse, PriorityUpdate
@@ -52,7 +53,7 @@ async def get_priority(
     )
     priority = result.scalar_one_or_none()
     if not priority:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
     return _build_response(priority)
 
 
@@ -65,7 +66,7 @@ async def create_priority(
 ) -> PriorityResponse:
     existing = await db.execute(select(CvePriority).where(CvePriority.cve_id == body.cve_id))
     if existing.scalar_one_or_none():
-        raise HTTPException(409, f"{body.cve_id} ist bereits priorisiert")
+        raise ApiError(409, "already_prioritized", cve_id=body.cve_id)
 
     priority = CvePriority(
         cve_id=body.cve_id,
@@ -96,7 +97,7 @@ async def update_priority(
     result = await db.execute(select(CvePriority).where(CvePriority.id == priority_id))
     priority = result.scalar_one_or_none()
     if not priority:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     if body.priority is not None:
         priority.priority = body.priority
@@ -121,7 +122,7 @@ async def delete_priority(
     result = await db.execute(select(CvePriority).where(CvePriority.id == priority_id))
     priority = result.scalar_one_or_none()
     if not priority:
-        raise HTTPException(404, "Nicht gefunden")
+        raise ApiError(404, "not_found")
 
     await log_action(db, current_user.id, "priority_deleted", "cve_priority", str(priority.id))
     await db.delete(priority)

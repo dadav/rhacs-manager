@@ -146,6 +146,7 @@ export function MentionTextArea({
       {showDropdown && users && users.length > 0 && (
         <div
           ref={dropdownRef}
+          role="listbox"
           style={{
             position: "absolute",
             bottom: "100%",
@@ -165,6 +166,9 @@ export function MentionTextArea({
           {users.map((user, i) => (
             <div
               key={user.id}
+              role="option"
+              aria-selected={i === selectedIndex}
+              tabIndex={-1}
               onMouseDown={(e) => {
                 e.preventDefault();
                 insertMention(user.username);

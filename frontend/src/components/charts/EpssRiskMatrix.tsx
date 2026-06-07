@@ -77,8 +77,8 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
   const gridColor = 'var(--pf-t--global--border--color--default, #444548)'
 
   return (
-    <div>
-      <div style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle, #8a8d90)', marginBottom: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+    <div role="img" aria-label={`${t('dashboard.epssMatrix')}: ${t('dashboard.epssMatrixDescription')}`}>
+      <div style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle, #8a8d90)', marginBottom: 8, display: 'flex', gap: 16, flexWrap: 'wrap' }} aria-hidden="true">
         {Object.entries(DOT_COLORS).map(([sev, color]) => (
           <span key={sev} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />

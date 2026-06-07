@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
@@ -39,7 +40,7 @@ async def get_image_detail(
     timeline = await sx.get_image_cve_timeline(sx_db, image_id)
 
     if meta is None:
-        raise HTTPException(status_code=404, detail="Image not found")
+        raise ApiError(404, "image_not_found")
 
     # Resolve thresholds and namespace visibility
     settings = await _get_settings(app_db)

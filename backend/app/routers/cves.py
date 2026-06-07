@@ -1,13 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..i18n import ApiError
 from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
@@ -63,6 +64,7 @@ async def list_cves(
     deployment: str | None = Query(None),
     show_suppressed: bool = Query(False),
     remediation_status: str | None = Query(None),
+    show_remediated: bool = Query(False),
     fix_overdue: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
@@ -89,6 +91,7 @@ async def list_cves(
         deployment=deployment,
         show_suppressed=show_suppressed,
         remediation_status=remediation_status,
+        show_remediated=show_remediated,
         fix_overdue=fix_overdue,
     )
 
@@ -315,12 +318,12 @@ async def get_cve(
             first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
     else:
         if not current_user.has_namespaces:
-            raise HTTPException(404, "CVE nicht gefunden")
+            raise ApiError(404, "cve_not_found")
         ns = current_user.namespaces
         cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
 
     if not cve_data:
-        raise HTTPException(404, "CVE nicht gefunden")
+        raise ApiError(404, "cve_not_found")
 
     esc_expected: dict[int, datetime | None] = {1: None, 2: None, 3: None}
     first_seen = cve_data.get("first_seen")
@@ -522,9 +525,9 @@ async def update_cve_comment(
     result = await app_db.execute(select(CveComment).where(CveComment.id == comment_id, CveComment.cve_id == cve_id))
     comment = result.scalar_one_or_none()
     if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
+        raise ApiError(404, "comment_not_found")
     if comment.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Cannot edit another user's comment")
+        raise ApiError(403, "comment_edit_forbidden")
 
     comment.message = body.message
     comment.updated_at = datetime.utcnow()
@@ -556,9 +559,9 @@ async def delete_cve_comment(
     result = await app_db.execute(select(CveComment).where(CveComment.id == comment_id, CveComment.cve_id == cve_id))
     comment = result.scalar_one_or_none()
     if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
+        raise ApiError(404, "comment_not_found")
     if comment.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Cannot delete another user's comment")
+        raise ApiError(403, "comment_delete_forbidden")
 
     await app_db.delete(comment)
     await app_db.commit()
