@@ -1,0 +1,61 @@
+{#
+  Shared presentation macros for all RHACS CVE Manager emails.
+  Email-client safe: inline styles only, table-based, no flexbox/grid.
+  Severity scale matches the frontend (PatternFly hues), but text variants
+  are darkened for legible contrast on white.
+#}
+
+{% macro font() -%}
+-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif
+{%- endmacro %}
+
+{% macro mono() -%}
+'SFMono-Regular','SF Mono','Cascadia Mono',Consolas,'Liberation Mono',Menlo,monospace
+{%- endmacro %}
+
+{# Background hue for severity chips/rails #}
+{% macro sev_bg(s) -%}
+{% if s and s >= 4 %}#c9190b{% elif s == 3 %}#ec7a08{% elif s == 2 %}#f0ab00{% else %}#0066cc{% endif %}
+{%- endmacro %}
+
+{# Readable text hue for severity on white #}
+{% macro sev_text(s) -%}
+{% if s and s >= 4 %}#b1130a{% elif s == 3 %}#c2410c{% elif s == 2 %}#946a00{% else %}#0b57b8{% endif %}
+{%- endmacro %}
+
+{# Faint tinted surface for severity alert rows #}
+{% macro sev_tint(s) -%}
+{% if s and s >= 4 %}#fcf0ef{% elif s == 3 %}#fdf3eb{% elif s == 2 %}#fdf8ea{% else %}#eef4fc{% endif %}
+{%- endmacro %}
+
+{# Pill chip with uppercase label, white text on severity hue #}
+{% macro sev_chip(s, label) -%}
+<span style="display:inline-block;background:{{ sev_bg(s) }};color:#ffffff;padding:3px 11px;border-radius:999px;font-family:{{ mono() }};font-size:11px;font-weight:600;letter-spacing:.6px;line-height:1;text-transform:uppercase">{{ label }}</span>
+{%- endmacro %}
+
+{# Bulletproof, ink CTA button #}
+{% macro button(href, label) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 2px">
+  <tr>
+    <td align="center" bgcolor="#16161a" style="border-radius:7px">
+      <a href="{{ href }}" style="display:inline-block;padding:13px 28px;font-family:{{ font() }};font-size:14px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:7px;letter-spacing:.2px">{{ label }}&nbsp;&rarr;</a>
+    </td>
+  </tr>
+</table>
+{%- endmacro %}
+
+{# Opening of a bordered detail card with an uppercase mono eyebrow heading #}
+{% macro card_head(title) -%}
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e7e7ea;border-radius:8px;border-collapse:separate;overflow:hidden">
+  <tr>
+    <td style="background:#fafafa;padding:11px 18px;border-bottom:1px solid #e7e7ea;font-family:{{ mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#71717a">{{ title }}</td>
+  </tr>
+  <tr>
+    <td style="padding:0">
+{%- endmacro %}
+
+{% macro card_foot() -%}
+    </td>
+  </tr>
+</table>
+{%- endmacro %}

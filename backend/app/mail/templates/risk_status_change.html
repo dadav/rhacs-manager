@@ -1,26 +1,35 @@
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="utf-8"><title>Risikoakzeptanz {{ status }}</title></head>
-<body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px">
-<div style="max-width:600px;margin:auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)">
-  <div style="background:#151515;padding:20px 30px">
-    <h1 style="color:#fff;margin:0;font-size:18px">RHACS CVE Manager</h1>
-  </div>
-  <div style="padding:30px">
-    {% set color = "#1e8f19" if status == "genehmigt" else "#c9190b" %}
-    <h2 style="color:#151515;margin-top:0">Risikoakzeptanz <span style="color:{{ color }}">{{ status }}</span></h2>
-    <p>Ihre Risikoakzeptanz für <strong>{{ cve_id }}</strong> wurde von <strong>{{ reviewer_name }}</strong> <strong>{{ status }}</strong>.</p>
-    {% if comment %}
-    <div style="background:#f0f0f0;border-left:4px solid {{ color }};padding:12px 16px;margin:16px 0;border-radius:2px">
-      <p style="margin:0 0 6px 0"><strong>Kommentar:</strong></p>
-      <p style="margin:0;white-space:pre-wrap">{{ comment }}</p>
-    </div>
-    {% endif %}
-    <a href="{{ link }}" style="display:inline-block;background:#0066cc;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;margin-top:10px">Details ansehen</a>
-  </div>
-  <div style="background:#f0f0f0;padding:16px 30px;font-size:12px;color:#666">
-    Dies ist eine automatische Benachrichtigung vom RHACS CVE Manager.
-  </div>
-</div>
-</body>
-</html>
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{% set approved = status == "genehmigt" %}
+{% set tone = "#1e8f19" if approved else "#c9190b" %}
+{% set tone_tint = "#eef7ee" if approved else "#fcf0ef" %}
+
+{% block title %}Risikoakzeptanz {{ status }}{% endblock %}
+{% block preheader %}Ihre Risikoakzeptanz für {{ cve_id }} wurde {{ status }}.{% endblock %}
+
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#0f62fe">Risikoakzeptanz</div>
+  <h1 style="margin:8px 0 0;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">
+    Antrag <span style="color:{{ tone }}">{{ status }}</span>
+  </h1>
+
+  <p style="margin:14px 0 22px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    Ihre Risikoakzeptanz für <strong style="color:#16161a;font-family:{{ ui.mono() }};font-weight:600">{{ cve_id }}</strong>
+    wurde von <strong style="color:#16161a">{{ reviewer_name }}</strong> {{ status }}.
+  </p>
+
+  {% if comment %}
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:{{ tone_tint }};border:1px solid #e7e7ea;border-left:3px solid {{ tone }};border-radius:8px">
+    <tr>
+      <td style="padding:16px 20px">
+        <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#71717a;padding-bottom:8px">Kommentar des Prüfers</div>
+        <div style="font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#27272a;white-space:pre-wrap">{{ comment }}</div>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <div style="height:24px;line-height:24px;font-size:0">&nbsp;</div>
+  {{ ui.button(link, "Details ansehen") }}
+{% endblock %}

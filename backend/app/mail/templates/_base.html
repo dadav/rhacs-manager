@@ -1,0 +1,54 @@
+{% import "_components.html" as ui %}<!DOCTYPE html>
+<html lang="de" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>{% block title %}RHACS CVE Manager{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f1f3;font-family:{{ ui.font() }};-webkit-font-smoothing:antialiased">
+
+  <!-- Preheader (inbox preview, hidden in body) -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f1f1f3;font-size:1px;line-height:1px;mso-hide:all">{% block preheader %}RHACS CVE Manager{% endblock %}&#8203;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;&#847;</div>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f1f1f3">
+    <tr>
+      <td align="center" style="padding:32px 16px">
+
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:600px;max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(16,16,26,.06),0 8px 24px rgba(16,16,26,.06)">
+
+          <!-- Header band -->
+          <tr>
+            <td style="background:#16161a;padding:26px 36px 0">
+              <div style="font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:2.6px;text-transform:uppercase;color:#7a7a85">Sicherheitsbenachrichtigung</div>
+              <div style="font-family:{{ ui.font() }};font-size:18px;font-weight:700;letter-spacing:-.2px;color:#ffffff;padding:6px 0 22px">RHACS&nbsp;<span style="color:#9b9ba6;font-weight:500">CVE&nbsp;Manager</span></div>
+            </td>
+          </tr>
+          <tr><td style="height:3px;background:#0f62fe;line-height:3px;font-size:0">&nbsp;</td></tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding:34px 36px 8px">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 36px 30px">
+              <div style="border-top:1px solid #ededf0;padding-top:18px">
+                <div style="font-family:{{ ui.font() }};font-size:12px;line-height:1.6;color:#9b9ba6">{% block footer %}Automatische Benachrichtigung. Bitte nicht auf diese E-Mail antworten.{% endblock %}</div>
+                <div style="font-family:{{ ui.mono() }};font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#c2c2cb;padding-top:8px">RHACS CVE Manager</div>
+              </div>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

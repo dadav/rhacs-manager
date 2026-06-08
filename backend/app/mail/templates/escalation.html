@@ -1,117 +1,95 @@
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="utf-8"><title>Eskalation: {{ cve_id }}</title></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f0f0f0;margin:0;padding:20px">
-<div style="max-width:640px;margin:auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)">
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
 
-  <!-- Header -->
-  <div style="background:#151515;padding:24px 32px;display:flex;align-items:center">
-    <h1 style="color:#fff;margin:0;font-size:18px;font-weight:600">RHACS CVE Manager</h1>
-  </div>
+{# Level tone: 1 = amber, 2 = red, 3+ = deep red #}
+{% set lvl_rail = "#7d1007" if level >= 3 else ("#c9190b" if level == 2 else "#f0ab00") %}
+{% set lvl_tint = "#fbeeed" if level >= 3 else ("#fcf0ef" if level == 2 else "#fdf8ea") %}
+{% set lvl_text = "#7d1007" if level >= 3 else ("#b1130a" if level == 2 else "#946a00") %}
+{% set lvl_word = "Kritisch" if level >= 3 else ("Hoch" if level == 2 else "") %}
 
-  <!-- Escalation level banner -->
-  {% if level >= 3 %}
-  <div style="background:#7d1007;padding:14px 32px;color:#fff">
-  {% elif level == 2 %}
-  <div style="background:#c9190b;padding:14px 32px;color:#fff">
-  {% else %}
-  <div style="background:#f0ab00;padding:14px 32px;color:#151515">
+{% block title %}CVE-Eskalation Stufe {{ level }}: {{ cve_id }}{% endblock %}
+{% block preheader %}{{ cve_id }} wurde auf Stufe {{ level }} eskaliert in {{ namespace }} / {{ cluster_name }}.{% endblock %}
+
+{% block content %}
+
+  <!-- Escalation alert row -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:{{ lvl_tint }};border-radius:8px">
+    <tr>
+      <td width="4" style="background:{{ lvl_rail }};border-radius:8px 0 0 8px;font-size:0;line-height:0">&nbsp;</td>
+      <td style="padding:13px 18px">
+        <span style="font-family:{{ ui.mono() }};font-size:13px;font-weight:700;letter-spacing:.3px;color:{{ lvl_text }}">&#9650;&nbsp;Eskalation Stufe {{ level }}</span>{% if lvl_word %}<span style="font-family:{{ ui.font() }};font-size:13px;color:{{ lvl_text }}">&nbsp;&middot; {{ lvl_word }}</span>{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:22px 0;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    Die folgende Schwachstelle wurde auf <strong style="color:#16161a">Stufe {{ level }}</strong> eskaliert und erfordert Ihre Aufmerksamkeit.
+  </p>
+
+  <!-- CVE detail card -->
+  {{ ui.card_head("CVE-Details") }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a;width:130px">CVE</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ cve_id }}</td>
+      </tr>
+      {% if severity %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Schweregrad</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2">
+          {% if severity >= 4 %}{{ ui.sev_chip(4, "Kritisch") }}
+          {% elif severity == 3 %}{{ ui.sev_chip(3, "Hoch") }}
+          {% elif severity == 2 %}{{ ui.sev_chip(2, "Mittel") }}
+          {% else %}{{ ui.sev_chip(1, "Gering") }}{% endif %}
+        </td>
+      </tr>
+      {% endif %}
+      {% if cvss is not none %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">CVSS</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ "%.1f"|format(cvss) }}</td>
+      </tr>
+      {% endif %}
+      {% if epss_probability is not none %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">EPSS</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ "%.1f"|format(epss_probability * 100) }}%</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Namespace</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;color:#16161a">{{ namespace }}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 18px;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Cluster</td>
+        <td style="padding:12px 18px;font-family:{{ ui.mono() }};font-size:14px;color:#16161a">{{ cluster_name }}</td>
+      </tr>
+    </table>
+  {{ ui.card_foot() }}
+
+  <!-- Affected deployments -->
+  {% if deployments %}
+  <div style="height:20px;line-height:20px;font-size:0">&nbsp;</div>
+  {{ ui.card_head("Betroffene Deployments · " ~ deployments|length) }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      {% for dep in deployments[:10] %}
+      <tr>
+        <td style="padding:10px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.font() }};font-size:13px;font-weight:600;color:#16161a;width:42%;vertical-align:top">{{ dep.deployment_name }}</td>
+        <td style="padding:10px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.mono() }};font-size:12px;color:#71717a;word-break:break-all;vertical-align:top">{{ dep.image_name }}</td>
+      </tr>
+      {% endfor %}
+      {% if deployments|length > 10 %}
+      <tr>
+        <td colspan="2" style="padding:10px 18px;border-top:1px solid #f0f0f2;background:#fafafa;font-family:{{ ui.font() }};font-size:12px;color:#71717a">und {{ deployments|length - 10 }} weitere</td>
+      </tr>
+      {% endif %}
+    </table>
+  {{ ui.card_foot() }}
   {% endif %}
-    <strong style="font-size:15px">&#9888; Eskalation Stufe {{ level }}{% if level >= 3 %} &mdash; Kritisch{% elif level == 2 %} &mdash; Hoch{% endif %}</strong>
-  </div>
 
-  <!-- Body -->
-  <div style="padding:28px 32px">
-    <p style="margin:0 0 20px;color:#333;font-size:14px;line-height:1.5">
-      Die folgende CVE wurde auf <strong>Stufe {{ level }}</strong> eskaliert und erfordert Ihre Aufmerksamkeit.
-    </p>
+  <p style="margin:24px 0 20px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    Bitte prüfen Sie die Schwachstelle und ergreifen Sie entsprechende Maßnahmen.
+  </p>
 
-    <!-- CVE info card -->
-    <div style="border:1px solid #d2d2d2;border-radius:6px;overflow:hidden;margin-bottom:24px">
-      <div style="background:#f5f5f5;padding:10px 16px;border-bottom:1px solid #d2d2d2">
-        <strong style="font-size:13px;color:#6a6e73;text-transform:uppercase;letter-spacing:0.5px">CVE-Details</strong>
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73;width:120px;border-bottom:1px solid #eee">CVE</td>
-          <td style="padding:10px 16px;font-size:14px;font-weight:600;color:#151515;border-bottom:1px solid #eee">{{ cve_id }}</td>
-        </tr>
-        {% if severity %}
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73;border-bottom:1px solid #eee">Schweregrad</td>
-          <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #eee">
-            {% if severity >= 4 %}
-            <span style="display:inline-block;background:#7d1007;color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600">KRITISCH</span>
-            {% elif severity >= 3 %}
-            <span style="display:inline-block;background:#c9190b;color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600">HOCH</span>
-            {% elif severity >= 2 %}
-            <span style="display:inline-block;background:#f0ab00;color:#151515;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600">MITTEL</span>
-            {% else %}
-            <span style="display:inline-block;background:#3e8635;color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600">GERING</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endif %}
-        {% if cvss is not none %}
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73;border-bottom:1px solid #eee">CVSS</td>
-          <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #eee">{{ "%.1f"|format(cvss) }}</td>
-        </tr>
-        {% endif %}
-        {% if epss_probability is not none %}
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73;border-bottom:1px solid #eee">EPSS</td>
-          <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #eee">{{ "%.1f"|format(epss_probability * 100) }}%</td>
-        </tr>
-        {% endif %}
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73;border-bottom:1px solid #eee">Namespace</td>
-          <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #eee">{{ namespace }}</td>
-        </tr>
-        <tr>
-          <td style="padding:10px 16px;font-size:13px;color:#6a6e73">Cluster</td>
-          <td style="padding:10px 16px;font-size:14px">{{ cluster_name }}</td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Affected deployments -->
-    {% if deployments %}
-    <div style="border:1px solid #d2d2d2;border-radius:6px;overflow:hidden;margin-bottom:24px">
-      <div style="background:#f5f5f5;padding:10px 16px;border-bottom:1px solid #d2d2d2">
-        <strong style="font-size:13px;color:#6a6e73;text-transform:uppercase;letter-spacing:0.5px">Betroffene Deployments ({{ deployments|length }})</strong>
-      </div>
-      <table style="width:100%;border-collapse:collapse">
-        <tr style="background:#fafafa">
-          <th style="padding:8px 16px;font-size:12px;color:#6a6e73;text-align:left;border-bottom:1px solid #eee;font-weight:600">Deployment</th>
-          <th style="padding:8px 16px;font-size:12px;color:#6a6e73;text-align:left;border-bottom:1px solid #eee;font-weight:600">Image</th>
-        </tr>
-        {% for dep in deployments[:10] %}
-        <tr>
-          <td style="padding:8px 16px;font-size:13px;border-bottom:1px solid #eee;color:#151515">{{ dep.deployment_name }}</td>
-          <td style="padding:8px 16px;font-size:12px;border-bottom:1px solid #eee;color:#6a6e73;word-break:break-all">{{ dep.image_name }}</td>
-        </tr>
-        {% endfor %}
-        {% if deployments|length > 10 %}
-        <tr>
-          <td colspan="2" style="padding:8px 16px;font-size:12px;color:#6a6e73;font-style:italic">… und {{ deployments|length - 10 }} weitere</td>
-        </tr>
-        {% endif %}
-      </table>
-    </div>
-    {% endif %}
-
-    <p style="margin:0 0 20px;color:#333;font-size:14px;line-height:1.5">
-      Bitte prüfen Sie die CVE und ergreifen Sie entsprechende Maßnahmen.
-    </p>
-
-    <a href="{{ link }}" style="display:inline-block;background:#0066cc;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px;font-size:14px;font-weight:600">Eskalation ansehen</a>
-  </div>
-
-  <!-- Footer -->
-  <div style="background:#f5f5f5;padding:16px 32px;font-size:12px;color:#6a6e73;border-top:1px solid #d2d2d2">
-    Dies ist eine automatische Benachrichtigung vom RHACS CVE Manager.
-  </div>
-</div>
-</body>
-</html>
+  {{ ui.button(link, "Eskalation ansehen") }}
+{% endblock %}

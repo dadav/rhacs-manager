@@ -1,137 +1,110 @@
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="utf-8"><title>Wöchentlicher CVE-Bericht</title></head>
-<body style="font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px">
-<div style="max-width:640px;margin:auto;background:#fff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)">
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
 
-  <!-- Header -->
-  <div style="background:#151515;padding:20px 30px">
-    <h1 style="color:#fff;margin:0;font-size:18px">RHACS CVE Manager</h1>
-  </div>
+{% block title %}Wöchentlicher CVE-Bericht{% endblock %}
+{% block preheader %}{{ stats.total_cves }} CVEs gesamt, {{ stats.critical_cves }} kritisch, {{ stats.new_cves_7d }} neu diese Woche.{% endblock %}
 
-  <div style="padding:30px">
-    <h2 style="color:#151515;margin-top:0;margin-bottom:20px">Wöchentlicher CVE-Bericht</h2>
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#0f62fe">Wochenbericht</div>
+  <h1 style="margin:8px 0 24px;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">CVE-Lage im Überblick</h1>
 
-    <!-- Section 1: Kennzahlen -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="width:25%;padding:4px">
-          <div style="background:#f0f0f0;border-radius:4px;padding:14px 12px;text-align:center">
-            <div style="font-size:24px;font-weight:bold;color:#151515">{{ stats.total_cves }}</div>
-            <div style="font-size:12px;color:#666;margin-top:4px">Gesamt CVEs</div>
-          </div>
-        </td>
-        <td style="width:25%;padding:4px">
-          <div style="background:#faeae8;border-radius:4px;padding:14px 12px;text-align:center">
-            <div style="font-size:24px;font-weight:bold;color:#c9190b">{{ stats.critical_cves }}</div>
-            <div style="font-size:12px;color:#c9190b;margin-top:4px">Kritisch</div>
-          </div>
-        </td>
-        <td style="width:25%;padding:4px">
-          <div style="background:#e7f1fa;border-radius:4px;padding:14px 12px;text-align:center">
-            <div style="font-size:24px;font-weight:bold;color:#0066cc">{{ stats.new_cves_7d }}</div>
-            <div style="font-size:12px;color:#0066cc;margin-top:4px">Neu diese Woche</div>
-          </div>
-        </td>
-        <td style="width:25%;padding:4px">
-          <div style="background:#e9f7e9;border-radius:4px;padding:14px 12px;text-align:center">
-            <div style="font-size:24px;font-weight:bold;color:#3e8635">{{ stats.fixable_cves }}</div>
-            <div style="font-size:12px;color:#3e8635;margin-top:4px">Behebbar</div>
-          </div>
-        </td>
-      </tr>
-    </table>
+  <!-- Kennzahlen -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:separate;border-spacing:8px 0;margin:0 -8px 28px">
+    <tr>
+      {% set cards = [
+        ("Gesamt", stats.total_cves, "#16161a", "#f4f4f5"),
+        ("Kritisch", stats.critical_cves, "#c9190b", "#fcf0ef"),
+        ("Neu (7T)", stats.new_cves_7d, "#0f62fe", "#eef4fc"),
+        ("Behebbar", stats.fixable_cves, "#3e8635", "#edf6ec")
+      ] %}
+      {% for label, value, color, bg in cards %}
+      <td width="25%" style="background:{{ bg }};border-radius:9px;padding:16px 12px;text-align:center;vertical-align:top">
+        <div style="font-family:{{ ui.mono() }};font-size:26px;font-weight:700;line-height:1;color:{{ color }}">{{ value }}</div>
+        <div style="font-family:{{ ui.font() }};font-size:11px;font-weight:600;color:#71717a;padding-top:7px">{{ label }}</div>
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
 
-    <!-- Section 2: Schweregrad-Verteilung -->
-    {% set sev_total = stats.severity_dist.values() | sum %}
-    {% if sev_total > 0 %}
-    <h3 style="font-size:14px;color:#151515;margin:0 0 8px">Schweregrad-Verteilung</h3>
-    <div style="display:flex;width:100%;height:20px;border-radius:4px;overflow:hidden;margin-bottom:24px">
-      {% if stats.severity_dist[4] > 0 %}
-      <div style="width:{{ (stats.severity_dist[4] / sev_total * 100) | round(1) }}%;background:#c9190b;height:20px" title="Kritisch: {{ stats.severity_dist[4] }}"></div>
+  <!-- Schweregrad-Verteilung -->
+  {% set sev_total = stats.severity_dist.values() | sum %}
+  {% if sev_total > 0 %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:#71717a;margin-bottom:10px">Schweregrad-Verteilung</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-radius:6px;overflow:hidden;table-layout:fixed">
+    <tr>
+      {% for sev, color in [(4,"#c9190b"),(3,"#ec7a08"),(2,"#f0ab00"),(1,"#0066cc")] %}
+      {% if stats.severity_dist[sev] > 0 %}
+      <td width="{{ (stats.severity_dist[sev] / sev_total * 100) | round(2) }}%" style="background:{{ color }};height:22px;line-height:22px;font-size:0">&nbsp;</td>
       {% endif %}
-      {% if stats.severity_dist[3] > 0 %}
-      <div style="width:{{ (stats.severity_dist[3] / sev_total * 100) | round(1) }}%;background:#ec7a08;height:20px" title="Wichtig: {{ stats.severity_dist[3] }}"></div>
-      {% endif %}
-      {% if stats.severity_dist[2] > 0 %}
-      <div style="width:{{ (stats.severity_dist[2] / sev_total * 100) | round(1) }}%;background:#f0ab00;height:20px" title="Mittel: {{ stats.severity_dist[2] }}"></div>
-      {% endif %}
-      {% if stats.severity_dist[1] > 0 %}
-      <div style="width:{{ (stats.severity_dist[1] / sev_total * 100) | round(1) }}%;background:#0066cc;height:20px" title="Niedrig: {{ stats.severity_dist[1] }}"></div>
-      {% endif %}
-    </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:12px;color:#666">
-      <tr>
-        <td><span style="display:inline-block;width:10px;height:10px;background:#c9190b;border-radius:2px;margin-right:4px"></span>Kritisch: {{ stats.severity_dist[4] }}</td>
-        <td><span style="display:inline-block;width:10px;height:10px;background:#ec7a08;border-radius:2px;margin-right:4px"></span>Wichtig: {{ stats.severity_dist[3] }}</td>
-        <td><span style="display:inline-block;width:10px;height:10px;background:#f0ab00;border-radius:2px;margin-right:4px"></span>Mittel: {{ stats.severity_dist[2] }}</td>
-        <td><span style="display:inline-block;width:10px;height:10px;background:#0066cc;border-radius:2px;margin-right:4px"></span>Niedrig: {{ stats.severity_dist[1] }}</td>
-      </tr>
-    </table>
-    {% endif %}
+      {% endfor %}
+    </tr>
+  </table>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:12px 0 28px">
+    <tr>
+      {% for sev, color, name in [(4,"#c9190b","Kritisch"),(3,"#ec7a08","Wichtig"),(2,"#f0ab00","Mittel"),(1,"#0066cc","Niedrig")] %}
+      <td width="25%" style="font-family:{{ ui.font() }};font-size:12px;color:#52525b;vertical-align:middle">
+        <span style="display:inline-block;width:9px;height:9px;background:{{ color }};border-radius:2px;margin-right:6px"></span>{{ name }}
+        <span style="font-family:{{ ui.mono() }};font-weight:600;color:#16161a"> {{ stats.severity_dist[sev] }}</span>
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+  {% endif %}
 
-    <!-- Section 3: Handlungsbedarf -->
-    <h3 style="font-size:14px;color:#151515;margin:0 0 8px">Handlungsbedarf</h3>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-      <tr style="background:#f0f0f0">
-        <td style="padding:8px 12px">Offene Risikoakzeptanzen</td>
-        <td style="padding:8px 12px;text-align:right;font-weight:bold">{{ stats.open_risk_acceptances }}</td>
-      </tr>
+  <!-- Handlungsbedarf -->
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:#71717a;margin-bottom:10px">Handlungsbedarf</div>
+  {{ ui.card_head("Offene Vorgänge") }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      {% set rows = [
+        ("Offene Risikoakzeptanzen", stats.open_risk_acceptances, "#16161a"),
+        ("Aktive Eskalationen", stats.pending_escalations, "#16161a")
+      ] %}
+      {% for label, value, color in rows %}
       <tr>
-        <td style="padding:8px 12px">Aktive Eskalationen</td>
-        <td style="padding:8px 12px;text-align:right;font-weight:bold">{{ stats.pending_escalations }}</td>
-      </tr>
-      <tr style="background:#f0f0f0">
-        <td style="padding:8px 12px">
-          Offene Behebungen
-          {% if stats.remediations_overdue > 0 %}
-          <span style="color:#c9190b;font-weight:bold;margin-left:8px">({{ stats.remediations_overdue }} überfällig)</span>
-          {% endif %}
-        </td>
-        <td style="padding:8px 12px;text-align:right;font-weight:bold">{{ stats.remediations_open }}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 12px">Diese Woche behoben</td>
-        <td style="padding:8px 12px;text-align:right;font-weight:bold;color:#3e8635">{{ stats.remediations_resolved_7d }}</td>
-      </tr>
-    </table>
-
-    <!-- Section 4: Top CVEs nach Ausnutzungswahrscheinlichkeit -->
-    {% if stats.top_epss_cves %}
-    <h3 style="font-size:14px;color:#151515;margin:0 0 8px">Top CVEs nach Ausnutzungswahrscheinlichkeit</h3>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px">
-      <tr style="background:#151515;color:#fff">
-        <th style="padding:8px 10px;text-align:left">CVE-ID</th>
-        <th style="padding:8px 10px;text-align:right">EPSS</th>
-        <th style="padding:8px 10px;text-align:center">Schweregrad</th>
-        <th style="padding:8px 10px;text-align:right">Deployments</th>
-        <th style="padding:8px 10px;text-align:center">Behebbar</th>
-      </tr>
-      {% for cve in stats.top_epss_cves %}
-      <tr style="{% if loop.index is odd %}background:#f9f9f9{% endif %}">
-        <td style="padding:6px 10px;font-family:monospace">{{ cve.cve_id }}</td>
-        <td style="padding:6px 10px;text-align:right">{{ "%.1f"|format(cve.epss_probability * 100) }}%</td>
-        <td style="padding:6px 10px;text-align:center">
-          {% if cve.severity == 4 %}<span style="color:#c9190b;font-weight:bold">Kritisch</span>
-          {% elif cve.severity == 3 %}<span style="color:#ec7a08;font-weight:bold">Wichtig</span>
-          {% elif cve.severity == 2 %}<span style="color:#f0ab00">Mittel</span>
-          {% else %}<span style="color:#0066cc">Niedrig</span>{% endif %}
-        </td>
-        <td style="padding:6px 10px;text-align:right">{{ cve.affected_deployments }}</td>
-        <td style="padding:6px 10px;text-align:center">{% if cve.fixable %}<span style="color:#3e8635">Ja</span>{% else %}Nein{% endif %}</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#3f3f46">{{ label }}</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;text-align:right;font-family:{{ ui.mono() }};font-size:14px;font-weight:700;color:{{ color }}">{{ value }}</td>
       </tr>
       {% endfor %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#3f3f46">
+          Offene Behebungen{% if stats.remediations_overdue > 0 %}<span style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;color:#c9190b">&nbsp;&middot; {{ stats.remediations_overdue }} überfällig</span>{% endif %}
+        </td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;text-align:right;font-family:{{ ui.mono() }};font-size:14px;font-weight:700;color:#16161a">{{ stats.remediations_open }}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 18px;font-family:{{ ui.font() }};font-size:13px;color:#3f3f46">Diese Woche behoben</td>
+        <td style="padding:12px 18px;text-align:right;font-family:{{ ui.mono() }};font-size:14px;font-weight:700;color:#3e8635">{{ stats.remediations_resolved_7d }}</td>
+      </tr>
     </table>
-    {% endif %}
+  {{ ui.card_foot() }}
 
-    <!-- CTA -->
-    <a href="{{ link }}" style="display:inline-block;background:#0066cc;color:#fff;padding:10px 20px;text-decoration:none;border-radius:4px;margin-top:10px">Dashboard öffnen</a>
-  </div>
+  <!-- Top CVEs nach EPSS -->
+  {% if stats.top_epss_cves %}
+  <div style="height:28px;line-height:28px;font-size:0">&nbsp;</div>
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.1px;text-transform:uppercase;color:#71717a;margin-bottom:10px">Top CVEs nach Ausnutzungswahrscheinlichkeit</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e7e7ea;border-radius:8px;border-collapse:separate;overflow:hidden">
+    <tr style="background:#16161a">
+      <th style="padding:10px 14px;text-align:left;font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9b9ba6">CVE</th>
+      <th style="padding:10px 14px;text-align:right;font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9b9ba6">EPSS</th>
+      <th style="padding:10px 14px;text-align:left;font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9b9ba6">Schwere</th>
+      <th style="padding:10px 14px;text-align:right;font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9b9ba6">Depl.</th>
+      <th style="padding:10px 14px;text-align:center;font-family:{{ ui.mono() }};font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#9b9ba6">Fix</th>
+    </tr>
+    {% for cve in stats.top_epss_cves %}
+    <tr style="background:{% if loop.index is odd %}#ffffff{% else %}#fafafa{% endif %}">
+      <td style="padding:10px 14px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.mono() }};font-size:12px;font-weight:600;color:#16161a">{{ cve.cve_id }}</td>
+      <td style="padding:10px 14px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}text-align:right;font-family:{{ ui.mono() }};font-size:13px;font-weight:600;color:#16161a">{{ "%.1f"|format(cve.epss_probability * 100) }}%</td>
+      <td style="padding:10px 14px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.font() }};font-size:12px;font-weight:600;color:{{ ui.sev_text(cve.severity) }}">
+        {% if cve.severity == 4 %}Kritisch{% elif cve.severity == 3 %}Wichtig{% elif cve.severity == 2 %}Mittel{% else %}Niedrig{% endif %}
+      </td>
+      <td style="padding:10px 14px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}text-align:right;font-family:{{ ui.mono() }};font-size:13px;color:#52525b">{{ cve.affected_deployments }}</td>
+      <td style="padding:10px 14px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}text-align:center;font-family:{{ ui.font() }};font-size:12px;color:{% if cve.fixable %}#3e8635{% else %}#a1a1aa{% endif %}">{% if cve.fixable %}&#10003;{% else %}&ndash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
 
-  <!-- Footer -->
-  <div style="background:#f0f0f0;padding:16px 30px;font-size:12px;color:#666">
-    Dies ist eine automatische Benachrichtigung vom RHACS CVE Manager.
-  </div>
-</div>
-</body>
-</html>
+  <div style="height:28px;line-height:28px;font-size:0">&nbsp;</div>
+  {{ ui.button(link, "Dashboard öffnen") }}
+{% endblock %}
+{% block footer %}Wöchentlicher Bericht des RHACS CVE Managers. Bitte nicht auf diese E-Mail antworten.{% endblock %}
