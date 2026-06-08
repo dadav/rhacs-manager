@@ -51,6 +51,9 @@ vi.mock('../hooks/useScope', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
+  // i18n/index.ts calls i18n.use(initReactI18next) at import time; provide a stub
+  // so the mock does not drop this export when client.ts is loaded transitively.
+  initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
       if (opts?.count !== undefined) return `${key} (${opts.count})`
