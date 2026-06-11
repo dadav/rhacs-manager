@@ -32,6 +32,11 @@ type config struct {
 	KubeAPIURL           string
 	GroupCacheTTLSeconds int
 	AllNamespacesGroups  []string // groups that get wildcard (*) namespace access
+	// TrustForwardedGroups allows falling back to the inbound X-Forwarded-Groups
+	// header when token-based group lookup yields nothing. Off by default: a client
+	// could otherwise spoof the header to claim sec-team / all-namespaces membership.
+	// Only enable when this injector exclusively receives traffic from oauth-proxy.
+	TrustForwardedGroups bool
 }
 
 func loadConfig() config {
@@ -66,6 +71,11 @@ func loadConfig() config {
 			if g != "" {
 				c.AllNamespacesGroups = append(c.AllNamespacesGroups, g)
 			}
+		}
+	}
+	if v := os.Getenv("TRUST_FORWARDED_GROUPS"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			c.TrustForwardedGroups = b
 		}
 	}
 	return c
@@ -275,72 +285,21 @@ func fetchAndUpdate(ctx context.Context, client kubernetes.Interface, cache *nsC
 	)
 }
 
-func main() {
-	cfg := loadConfig()
-
-	slog.Info("starting auth-header-injector",
-		"listen", cfg.ListenAddr,
-		"upstream", cfg.UpstreamAddr,
-		"cluster", cfg.ClusterName,
-		"annotation", cfg.NamespaceAnnotation,
-		"group_annotation", cfg.GroupAnnotation,
-		"email_annotation", cfg.EmailAnnotation,
-		"cache_ttl_seconds", cfg.CacheTTLSeconds,
-		"group_cache_ttl_seconds", cfg.GroupCacheTTLSeconds,
-		"all_namespaces_groups", cfg.AllNamespacesGroups,
-	)
-
-	// K8s client (in-cluster).
-	restCfg, err := rest.InClusterConfig()
-	if err != nil {
-		slog.Error("failed to get in-cluster config", "error", err)
-		os.Exit(1)
-	}
-	clientset, err := kubernetes.NewForConfig(restCfg)
-	if err != nil {
-		slog.Error("failed to create k8s client", "error", err)
-		os.Exit(1)
-	}
-
-	cache := &nsCache{
-		userToNS:  make(map[string][]string),
-		groupToNS: make(map[string][]string),
-		nsEmails:  make(map[string]string),
-	}
-
-	tokenCache := newTokenGroupsCache(time.Duration(cfg.GroupCacheTTLSeconds) * time.Second)
-
-	// HTTP client for OpenShift user API calls (skip TLS verification for in-cluster).
-	apiHTTPClient := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go refreshLoop(ctx, clientset, cache, cfg)
-
-	// Reverse proxy to upstream (nginx).
-	upstream, err := url.Parse(cfg.UpstreamAddr)
-	if err != nil {
-		slog.Error("invalid UPSTREAM_ADDR", "error", err)
-		os.Exit(1)
-	}
-	proxy := httputil.NewSingleHostReverseProxy(upstream)
-
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+// newProxyHandler builds the request handler that resolves namespaces/groups and
+// proxies upstream. fetchGroups looks up a token's OpenShift groups (injected so
+// tests can stub it without a live API).
+func newProxyHandler(
+	proxy http.Handler,
+	cache *nsCache,
+	tokenCache *tokenGroupsCache,
+	cfg config,
+	fetchGroups func(token string) ([]string, error),
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		user := r.Header.Get("X-Forwarded-User")
 		if user == "" {
-			// No user header -- forward with empty namespaces.
+			// No user header -- forward with empty namespaces/groups so a client
+			// cannot smuggle any of these values to the upstream.
 			r.Header.Set("X-Forwarded-Namespaces", "")
 			r.Header.Set("X-Forwarded-Namespace-Emails", "")
 			r.Header.Set("X-Forwarded-Groups", "")
@@ -358,7 +317,7 @@ func main() {
 			groups, ok := tokenCache.get(accessToken)
 			if !ok {
 				var err error
-				groups, err = fetchUserGroups(cfg.KubeAPIURL, accessToken, apiHTTPClient)
+				groups, err = fetchGroups(accessToken)
 				if err != nil {
 					slog.Warn("failed to fetch user groups", "user", user, "error", err)
 					// Cache empty result briefly to avoid hammering the API, but expire
@@ -373,14 +332,21 @@ func main() {
 			userGroups = groups
 		}
 
-		// Also check X-Forwarded-Groups header from oauth-proxy (if already set).
-		if fwdGroups := r.Header.Get("X-Forwarded-Groups"); fwdGroups != "" && len(userGroups) == 0 {
-			for _, g := range strings.Split(fwdGroups, ",") {
-				g = strings.TrimSpace(g)
-				if g != "" {
-					userGroups = append(userGroups, g)
+		// The inbound X-Forwarded-Groups header is client-controllable, so it is
+		// only used as a fallback when explicitly trusted. When untrusted, strip it
+		// up front so a spoofed value can never reach the upstream via any later
+		// path (e.g. the wildcard branch or the empty-userGroups case below).
+		if cfg.TrustForwardedGroups {
+			if fwdGroups := r.Header.Get("X-Forwarded-Groups"); fwdGroups != "" && len(userGroups) == 0 {
+				for _, g := range strings.Split(fwdGroups, ",") {
+					g = strings.TrimSpace(g)
+					if g != "" {
+						userGroups = append(userGroups, g)
+					}
 				}
 			}
+		} else {
+			r.Header.Del("X-Forwarded-Groups")
 		}
 
 		// Check if user belongs to an all-namespaces group.
@@ -444,7 +410,77 @@ func main() {
 			"namespaces", strings.Join(nsPairs, ","),
 		)
 		proxy.ServeHTTP(w, r)
+	}
+}
+
+func main() {
+	cfg := loadConfig()
+
+	slog.Info("starting auth-header-injector",
+		"listen", cfg.ListenAddr,
+		"upstream", cfg.UpstreamAddr,
+		"cluster", cfg.ClusterName,
+		"annotation", cfg.NamespaceAnnotation,
+		"group_annotation", cfg.GroupAnnotation,
+		"email_annotation", cfg.EmailAnnotation,
+		"cache_ttl_seconds", cfg.CacheTTLSeconds,
+		"group_cache_ttl_seconds", cfg.GroupCacheTTLSeconds,
+		"all_namespaces_groups", cfg.AllNamespacesGroups,
+		"trust_forwarded_groups", cfg.TrustForwardedGroups,
+	)
+
+	// K8s client (in-cluster).
+	restCfg, err := rest.InClusterConfig()
+	if err != nil {
+		slog.Error("failed to get in-cluster config", "error", err)
+		os.Exit(1)
+	}
+	clientset, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		slog.Error("failed to create k8s client", "error", err)
+		os.Exit(1)
+	}
+
+	cache := &nsCache{
+		userToNS:  make(map[string][]string),
+		groupToNS: make(map[string][]string),
+		nsEmails:  make(map[string]string),
+	}
+
+	tokenCache := newTokenGroupsCache(time.Duration(cfg.GroupCacheTTLSeconds) * time.Second)
+
+	// HTTP client for OpenShift user API calls (skip TLS verification for in-cluster).
+	apiHTTPClient := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go refreshLoop(ctx, clientset, cache, cfg)
+
+	// Reverse proxy to upstream (nginx).
+	upstream, err := url.Parse(cfg.UpstreamAddr)
+	if err != nil {
+		slog.Error("invalid UPSTREAM_ADDR", "error", err)
+		os.Exit(1)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(upstream)
+
+	fetchGroups := func(token string) ([]string, error) {
+		return fetchUserGroups(cfg.KubeAPIURL, token, apiHTTPClient)
+	}
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
 	})
+
+	mux.HandleFunc("/", newProxyHandler(proxy, cache, tokenCache, cfg, fetchGroups))
 
 	server := &http.Server{
 		Addr:         cfg.ListenAddr,

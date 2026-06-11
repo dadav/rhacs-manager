@@ -55,7 +55,7 @@ It reads the returned `groups` array and merges:
 - user-based namespaces from `rhacs-manager.io/users`
 - group-based namespaces from `rhacs-manager.io/groups`
 
-If no groups were resolved from the OpenShift user API, the injector can reuse `X-Forwarded-Groups` from oauth-proxy as a fallback.
+If no groups were resolved from the OpenShift user API, the injector can reuse `X-Forwarded-Groups` from oauth-proxy as a fallback — but only when `TRUST_FORWARDED_GROUPS=true`. That header is client-controllable, so the fallback is **disabled by default**: a client could otherwise spoof sec-team / all-namespaces group membership whenever the API lookup fails. With the flag off, the inbound `X-Forwarded-Groups` header is stripped before the request reaches the upstream. Enable the fallback only when the injector exclusively receives traffic from oauth-proxy.
 
 ## Role Hierarchy
 

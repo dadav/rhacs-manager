@@ -1,7 +1,13 @@
 import i18n from '../i18n'
+import { extractApiError } from '../utils/errors'
 import type { ScopeParams } from '../hooks/useScope'
 
 const BASE = '/api'
+
+// Tells the backend which language to localize error messages in (mirrors api/client.ts).
+function langHeaders(): Record<string, string> {
+  return { 'Accept-Language': i18n.language || 'de' }
+}
 
 interface ExportFilters {
   search?: string
@@ -28,14 +34,9 @@ function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {
 }
 
 async function fetchBlob(url: string): Promise<Blob> {
-  const res = await fetch(url)
+  const res = await fetch(url, { headers: langHeaders() })
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`
-    try {
-      const body = await res.json()
-      detail = body?.detail || detail
-    } catch { /* ignore */ }
-    throw new Error(detail)
+    throw new Error(await extractApiError(res))
   }
   return res.blob()
 }
@@ -97,16 +98,12 @@ export async function importExcel(
   const lang = i18n.language
   const res = await fetch(`${BASE}/exports/excel/import?confirm=${confirm}&lang=${lang}`, {
     method: 'POST',
+    headers: langHeaders(),
     body: formData,
   })
 
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`
-    try {
-      const body = await res.json()
-      detail = body?.detail || detail
-    } catch { /* ignore */ }
-    throw new Error(detail)
+    throw new Error(await extractApiError(res))
   }
 
   return res.json()

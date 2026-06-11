@@ -301,7 +301,7 @@ async def import_excel(
 
     # Parse
     try:
-        parsed_rows = parse_import_excel(content)
+        parsed_rows = parse_import_excel(content, lang)
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
 

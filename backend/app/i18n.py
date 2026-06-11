@@ -85,6 +85,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     # Settings
     "digest_send_failed": {"de": "Digest-Versand fehlgeschlagen", "en": "Digest delivery failed"},
+    "digest_no_management_email": {
+        "de": "Keine Management-E-Mail konfiguriert",
+        "en": "No management email configured",
+    },
     # Priorities
     "already_prioritized": {"de": "{cve_id} ist bereits priorisiert", "en": "{cve_id} is already prioritized"},
     # Risk acceptances
@@ -143,6 +147,32 @@ MESSAGES: dict[str, dict[str, str]] = {
     "ra_reviewer_must_be_sec": {
         "de": "Nur Security-Team-Mitglieder können als Reviewer zugewiesen werden",
         "en": "Only security team members can be assigned as reviewers",
+    },
+    # Scope mode validation (Pydantic request validators)
+    "scope_all_no_targets": {
+        "de": "Für Scope-Modus 'all' dürfen keine Targets angegeben werden",
+        "en": "No targets may be specified for scope mode 'all'",
+    },
+    "scope_targets_required": {
+        "de": "Für den gewählten Scope-Modus sind Targets erforderlich",
+        "en": "Targets are required for the selected scope mode",
+    },
+    # Suppression rule field validation (Pydantic request validators)
+    "suppression_component_name_required": {
+        "de": "component_name ist erforderlich für Typ 'component'",
+        "en": "component_name is required for type 'component'",
+    },
+    "suppression_scope_not_allowed": {
+        "de": "scope ist für Typ 'component' nicht erlaubt",
+        "en": "scope is not allowed for type 'component'",
+    },
+    "suppression_cve_id_required": {
+        "de": "cve_id ist erforderlich für Typ 'cve'",
+        "en": "cve_id is required for type 'cve'",
+    },
+    "suppression_fields_not_allowed": {
+        "de": "component_name und version_pattern sind für Typ 'cve' nicht erlaubt",
+        "en": "component_name and version_pattern are not allowed for type 'cve'",
     },
     # Risk acceptance scope validation
     "scope_namespaces_without_cve": {
@@ -232,7 +262,13 @@ MESSAGES: dict[str, dict[str, str]] = {
 
 
 def t(code: str, lang: str | None = None, **params: object) -> str:
-    """Resolve a message code to a localized string for the current request."""
+    """Resolve a message code to a localized string for the current request.
+
+    Looks up ``MESSAGES[code]`` for the active (or given) language, falls back to
+    German, then to the raw code, and fills any ``{placeholder}`` params. This is
+    the single place message resolution happens; ``ApiError`` and Pydantic
+    validators both go through it (the latter via the ``translate`` alias).
+    """
     lang = lang or get_language()
     entry = MESSAGES.get(code)
     if entry is None:
@@ -246,12 +282,17 @@ def t(code: str, lang: str | None = None, **params: object) -> str:
     return text
 
 
+# Explicit alias for call sites (e.g. Pydantic validators) that resolve a code
+# to text directly rather than raising an ApiError.
+translate = t
+
+
 class ApiError(HTTPException):
     """HTTPException whose detail is a localized message resolved at raise time."""
 
     def __init__(self, status_code: int, code: str, **params: object) -> None:
         self.code = code
-        super().__init__(status_code=status_code, detail=t(code, **params))
+        super().__init__(status_code=status_code, detail=translate(code, **params))
 
 
 class LanguageMiddleware:

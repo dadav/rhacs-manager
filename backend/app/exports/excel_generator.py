@@ -21,6 +21,8 @@ TRANSLATIONS: dict[str, dict] = {
         "no": "Nein",
         "sheet_data": "CVE-Daten",
         "sheet_help": "Anleitung",
+        "import_sheet_not_found": "Tabellenblatt '{names}' nicht gefunden",
+        "import_missing_columns": "Fehlende Spalten: {cols}",
         "help_title": "CVE-Import Anleitung",
         "columns": [
             ("CVE-ID", 18),
@@ -81,6 +83,8 @@ HINWEISE:
         "no": "No",
         "sheet_data": "CVE Data",
         "sheet_help": "Instructions",
+        "import_sheet_not_found": "Sheet '{names}' not found",
+        "import_missing_columns": "Missing columns: {cols}",
         "help_title": "CVE Import Instructions",
         "columns": [
             ("CVE-ID", 18),
@@ -248,14 +252,17 @@ def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
     return buf.getvalue()
 
 
-def parse_import_excel(file_bytes: bytes) -> list[dict]:
+def parse_import_excel(file_bytes: bytes, lang: str = "de") -> list[dict]:
     """Parse an uploaded Excel file and extract rows with non-empty justification.
 
-    Accepts files exported in either German or English (sheet name and column headers).
+    ``lang`` only controls the language of raised ``ValueError`` messages so the
+    user sees a single-language error; parsing itself accepts files exported in
+    either German or English (sheet name and column headers).
 
     Returns a list of dicts with keys:
       cve_id, justification, expires_at
     """
+    msgs = _get_translations(lang)
     wb = load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
 
     # Find the data sheet by trying known names
@@ -266,7 +273,7 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
             break
     if sheet_name is None:
         names_str = " / ".join(sorted(_SHEET_DATA_NAMES))
-        raise ValueError(f"Sheet '{names_str}' nicht gefunden / not found")
+        raise ValueError(msgs["import_sheet_not_found"].format(names=names_str))
 
     ws = wb[sheet_name]
 
@@ -278,7 +285,7 @@ def parse_import_excel(file_bytes: bytes) -> list[dict]:
     present = {_COLUMN_CANONICAL.get(h, h) for h in headers if h is not None}
     missing = expected_canonical - present
     if missing:
-        raise ValueError(f"Fehlende Spalten / Missing columns: {', '.join(sorted(missing))}")
+        raise ValueError(msgs["import_missing_columns"].format(cols=", ".join(sorted(missing))))
 
     # Build column map using canonical keys
     col_map: dict[str, int] = {}

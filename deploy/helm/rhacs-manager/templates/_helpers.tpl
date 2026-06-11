@@ -162,6 +162,8 @@ spec:
         - name: ALL_NAMESPACES_GROUPS
           value: {{ .authHeaderInjector.allNamespacesGroups | quote }}
         {{- end }}
+        - name: TRUST_FORWARDED_GROUPS
+          value: {{ .authHeaderInjector.trustForwardedGroups | quote }}
       {{- with .authHeaderInjector.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

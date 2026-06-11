@@ -1256,6 +1256,12 @@
               ],
               "title": "securityContext",
               "type": "object"
+            },
+            "trustForwardedGroups": {
+              "default": false,
+              "description": "Trust the inbound X-Forwarded-Groups header as a fallback when token-based group lookup yields nothing. Keep false unless this injector exclusively receives traffic from oauth-proxy; otherwise a client could spoof group membership.",
+              "title": "trustForwardedGroups",
+              "type": "boolean"
             }
           },
           "required": [],
@@ -2449,6 +2455,12 @@
               ],
               "title": "securityContext",
               "type": "object"
+            },
+            "trustForwardedGroups": {
+              "default": false,
+              "description": "Trust the inbound X-Forwarded-Groups header as a fallback when token-based group lookup yields nothing. Keep false unless this injector exclusively receives traffic from oauth-proxy; otherwise a client could spoof group membership.",
+              "title": "trustForwardedGroups",
+              "type": "boolean"
             }
           },
           "required": [],

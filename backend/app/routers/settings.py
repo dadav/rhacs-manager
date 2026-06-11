@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,8 +89,10 @@ async def send_digest(
 
     try:
         await run_digest_now()
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except ValueError:
+        # The scheduler signals "no management email configured" via ValueError;
+        # map it to a localized message rather than echoing the German text.
+        raise ApiError(400, "digest_no_management_email") from None
     except Exception:
         logger.exception("Failed to send digest")
         raise ApiError(500, "digest_send_failed") from None

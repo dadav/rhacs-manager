@@ -66,3 +66,20 @@ export function getErrorMessage(error: unknown, fallback = DEFAULT_ERROR_MESSAGE
   const message = stringifyUnknown(error)
   return message === DEFAULT_ERROR_MESSAGE ? fallback : message
 }
+
+/**
+ * Read a failed fetch Response and return a user-visible error message.
+ * Parses the JSON body via getErrorMessage (handling FastAPI validation-error
+ * arrays), falling back to "HTTP <status>" when the body is missing or unparsable.
+ * Shared by api/client.ts and api/exports.ts so all fetch paths extract errors
+ * the same way.
+ */
+export async function extractApiError(res: Response): Promise<string> {
+  const fallback = `HTTP ${res.status}`
+  try {
+    const body = await res.json()
+    return getErrorMessage(body, fallback)
+  } catch {
+    return fallback
+  }
+}

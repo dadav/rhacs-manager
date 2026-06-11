@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..i18n import translate
+
 
 class RiskScopeTarget(BaseModel):
     cluster_name: str = Field(min_length=1, max_length=255)
@@ -19,9 +21,9 @@ class RiskScope(BaseModel):
     @model_validator(mode="after")
     def validate_mode_targets(self) -> "RiskScope":
         if self.mode == "all" and self.targets:
-            raise ValueError("Für Scope-Modus 'all' dürfen keine Targets angegeben werden")
+            raise ValueError(translate("scope_all_no_targets"))
         if self.mode != "all" and not self.targets:
-            raise ValueError("Für den gewählten Scope-Modus sind Targets erforderlich")
+            raise ValueError(translate("scope_targets_required"))
         return self
 
 

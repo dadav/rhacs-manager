@@ -1,5 +1,5 @@
 import i18n from '../i18n'
-import { getErrorMessage } from '../utils/errors'
+import { extractApiError } from '../utils/errors'
 
 const BASE = '/api'
 
@@ -15,16 +15,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`
-
-    try {
-      const errBody = await res.json()
-      detail = getErrorMessage(errBody, detail)
-    } catch {
-      // ignore json parse errors
-    }
-
-    throw new Error(detail)
+    throw new Error(await extractApiError(res))
   }
 
   if (res.status === 204) {

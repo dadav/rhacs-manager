@@ -22,6 +22,9 @@ The spoke frontend deployment contains three containers:
 - Writes `X-Forwarded-Groups` from the resolved OpenShift user groups
 - If the user belongs to a configured `ALL_NAMESPACES_GROUPS` group, the injector emits `X-Forwarded-Namespaces: *` instead of enumerating namespaces
 
+!!! warning "Trust model"
+    The injector resolves groups from the OpenShift user API using the request's access token. The inbound `X-Forwarded-Groups` header is **client-controllable** and is ignored (and stripped) by default, since a client could otherwise spoof sec-team / all-namespaces group membership whenever the API lookup fails. Only set `TRUST_FORWARDED_GROUPS=true` when this injector exclusively receives traffic from oauth-proxy and that proxy is the sole writer of `X-Forwarded-Groups`. Never expose the injector directly to clients.
+
 Configuration:
 
 | Variable                  | Default                             | Description                                                          |
@@ -33,6 +36,7 @@ Configuration:
 | `CACHE_TTL_SECONDS`       | `300`                               | Cache refresh interval                                               |
 | `GROUP_CACHE_TTL_SECONDS` | `60`                                | Group lookup cache interval                                          |
 | `ALL_NAMESPACES_GROUPS`   | `""`                                | Comma-separated groups that should receive wildcard namespace access |
+| `TRUST_FORWARDED_GROUPS`  | `false`                             | Trust the inbound `X-Forwarded-Groups` header as a fallback when token-based group lookup yields nothing. Keep `false` unless the injector exclusively receives oauth-proxy traffic (see trust model above) |
 
 `*` namespace access is for users who need fleet-wide visibility without receiving backend `sec_team` privileges. The hub interprets this as full namespace scope, not as an administrative role change.
 

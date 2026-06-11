@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Alert, PageSection, Button } from '@patternfly/react-core'
 import i18n from '../i18n'
+import { getErrorMessage } from '../utils/errors'
 
 interface Props { children: ReactNode }
 interface State { error: Error | null }
@@ -29,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>
             }
           >
-            <p>{this.state.error.message}</p>
+            <p>{getErrorMessage(this.state.error)}</p>
           </Alert>
         </PageSection>
       )

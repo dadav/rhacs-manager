@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..i18n import translate
 from .risk_acceptance import RiskScopeTarget
 
 
@@ -14,9 +15,9 @@ class SuppressionScope(BaseModel):
     @model_validator(mode="after")
     def validate_mode_targets(self) -> "SuppressionScope":
         if self.mode == "all" and self.targets:
-            raise ValueError("Für Scope-Modus 'all' dürfen keine Targets angegeben werden")
+            raise ValueError(translate("scope_all_no_targets"))
         if self.mode == "namespace" and not self.targets:
-            raise ValueError("Für den Scope-Modus 'namespace' sind Targets erforderlich")
+            raise ValueError(translate("scope_targets_required"))
         return self
 
 
@@ -33,14 +34,14 @@ class SuppressionRuleCreate(BaseModel):
     def validate_type_fields(self) -> "SuppressionRuleCreate":
         if self.type == "component":
             if not self.component_name:
-                raise ValueError("component_name ist erforderlich für Typ 'component'")
+                raise ValueError(translate("suppression_component_name_required"))
             if self.scope is not None:
-                raise ValueError("scope ist für Typ 'component' nicht erlaubt")
+                raise ValueError(translate("suppression_scope_not_allowed"))
         elif self.type == "cve":
             if not self.cve_id:
-                raise ValueError("cve_id ist erforderlich für Typ 'cve'")
+                raise ValueError(translate("suppression_cve_id_required"))
             if self.component_name or self.version_pattern:
-                raise ValueError("component_name und version_pattern sind für Typ 'cve' nicht erlaubt")
+                raise ValueError(translate("suppression_fields_not_allowed"))
             if self.scope is None:
                 self.scope = SuppressionScope(mode="all", targets=[])
         return self
