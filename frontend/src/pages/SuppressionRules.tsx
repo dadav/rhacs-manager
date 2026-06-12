@@ -14,7 +14,6 @@ import {
   ModalHeader,
   PageSection,
   Popover,
-  Skeleton,
   TextArea,
   TextInput,
   Title,
@@ -22,8 +21,11 @@ import {
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
+import { formatDate, formatDateTime } from '../utils/format'
+import { TableSkeletonRows } from '../components/TableSkeleton'
+import { useToast } from '../components/ToastContext'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -44,29 +46,19 @@ function normalizeStatusFilter(raw: string | null): string {
   return (STATUS_KEYS as readonly string[]).includes(raw) ? raw : ''
 }
 
-function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
-  return (
-    <Tbody>
-      {Array.from({ length: rows }).map((_, i) => (
-        <Tr key={i}>
-          {Array.from({ length: columns }).map((_, j) => (
-            <Td key={j}><Skeleton /></Td>
-          ))}
-        </Tr>
-      ))}
-    </Tbody>
-  )
-}
-
 function DeleteRuleInline({ ruleId }: { ruleId: string }) {
   const { t } = useTranslation()
+  const { addToast } = useToast()
   const deleteMutation = useDeleteSuppressionRule(ruleId)
   return (
     <InlineConfirmButton
       label={t('common.delete')}
       confirmLabel={t('suppressionRules.deleteFinal')}
       cancelLabel={t('common.cancel')}
-      onConfirm={() => deleteMutation.mutateAsync()}
+      onConfirm={async () => {
+        await deleteMutation.mutateAsync()
+        addToast(t('toast.suppressionRuleDeleted'))
+      }}
     />
   )
 }
@@ -74,7 +66,9 @@ function DeleteRuleInline({ ruleId }: { ruleId: string }) {
 export function SuppressionRules() {
   const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
-  const [statusFilter, setStatusFilter] = useState('')
+  const { addToast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusFilter = normalizeStatusFilter(searchParams.get('status'))
   const [showCreate, setShowCreate] = useState(false)
   const [detailRule, setDetailRule] = useState<SuppressionRule | null>(null)
   const [reviewId, setReviewId] = useState<string | null>(null)
@@ -89,7 +83,14 @@ export function SuppressionRules() {
   }
 
   const { data, isLoading, error } = useSuppressionRules(statusFilter || undefined)
-  const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+
+  function setStatus(s: string) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (s) next.set('status', s); else next.delete('status')
+      return next
+    }, { replace: true })
+  }
 
   const [createType, setCreateType] = useState<SuppressionType>('component')
   const [createComponentName, setCreateComponentName] = useState('')
@@ -128,6 +129,7 @@ export function SuppressionRules() {
       })
       setShowCreate(false)
       resetCreateForm()
+      addToast(t('toast.suppressionRuleCreated'))
     } catch (e) {
       setCreateError(getErrorMessage(e))
     }
@@ -139,6 +141,7 @@ export function SuppressionRules() {
       await reviewMutation.mutateAsync({ approved: reviewApprove, comment: reviewComment || undefined })
       setReviewId(null)
       setReviewComment('')
+      addToast(t('toast.suppressionRuleReviewed'))
     } catch {
       // error handled by query
     }
@@ -181,7 +184,7 @@ export function SuppressionRules() {
             {STATUS_KEYS.map((value) => (
               <button
                 key={value}
-                onClick={() => setStatusFilter(value)}
+                onClick={() => setStatus(value)}
                 aria-label={`${t('suppressionRules.filterByStatus')}: ${statusLabels[value]}`}
                 style={filterButton(statusFilter === value)}
               >
@@ -220,7 +223,7 @@ export function SuppressionRules() {
                 </Tr>
               </Thead>
               {isLoading ? (
-                <SkeletonRows columns={8} />
+                <Tbody><TableSkeletonRows columns={8} /></Tbody>
               ) : (
                 <Tbody>
                   {data!.map((rule: SuppressionRule) => (
@@ -290,7 +293,7 @@ export function SuppressionRules() {
                       </Td>
                       <Td style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rule.created_by_name}</Td>
                       <Td style={{ fontSize: 12, whiteSpace: 'nowrap', color: 'var(--pf-t--global--text--color--subtle)' }}>
-                        {new Date(rule.created_at).toLocaleDateString(localeDateLocale)}
+                        {formatDate(rule.created_at, i18n.language)}
                       </Td>
                       <Td style={{ textAlign: 'right', fontWeight: 600 }}>
                         {rule.matched_cve_count}
@@ -612,7 +615,7 @@ export function SuppressionRules() {
               <DescriptionListGroup>
                 <DescriptionListTerm>{t('suppressionRules.createdAt')}</DescriptionListTerm>
                 <DescriptionListDescription>
-                  {new Date(detailRule.created_at).toLocaleString(localeDateLocale)}
+                  {formatDateTime(detailRule.created_at, i18n.language)}
                 </DescriptionListDescription>
               </DescriptionListGroup>
 
@@ -627,7 +630,7 @@ export function SuppressionRules() {
                 <DescriptionListGroup>
                   <DescriptionListTerm>{t('suppressionRules.reviewedAt')}</DescriptionListTerm>
                   <DescriptionListDescription>
-                    {new Date(detailRule.reviewed_at).toLocaleString(localeDateLocale)}
+                    {formatDateTime(detailRule.reviewed_at, i18n.language)}
                   </DescriptionListDescription>
                 </DescriptionListGroup>
               )}

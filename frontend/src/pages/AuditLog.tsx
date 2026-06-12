@@ -7,12 +7,13 @@ import {
   ExpandableSection,
   PageSection,
   Pagination,
-  Skeleton,
   Title,
   Tooltip,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
+import { formatDateTime } from '../utils/format'
+import { TableSkeletonRows } from '../components/TableSkeleton'
 import { useState } from 'react'
 import { useAuditLog } from '../api/audit'
 import { useTranslation } from 'react-i18next'
@@ -41,26 +42,10 @@ function DetailsCell({ details }: { details: Record<string, unknown> }) {
   )
 }
 
-function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
-  return (
-    <Tbody>
-      {Array.from({ length: rows }).map((_, i) => (
-        <Tr key={i}>
-          {Array.from({ length: columns }).map((_, j) => (
-            <Td key={j}><Skeleton /></Td>
-          ))}
-        </Tr>
-      ))}
-    </Tbody>
-  )
-}
-
 export function AuditLog() {
   const { t, i18n } = useTranslation()
   const [page, setPage] = useState(1)
   const { data, isLoading, error } = useAuditLog(page)
-
-  const localeString = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   function actionLabel(action: string): string {
     const key = `auditLog.actions.${action}`
@@ -95,13 +80,13 @@ export function AuditLog() {
                 </Tr>
               </Thead>
               {isLoading ? (
-                <SkeletonRows columns={6} />
+                <Tbody><TableSkeletonRows columns={6} /></Tbody>
               ) : (
                 <Tbody>
                   {data!.items.map(entry => (
                     <Tr key={entry.id}>
                       <Td style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)', whiteSpace: 'nowrap' }}>
-                        {new Date(entry.created_at).toLocaleString(localeString)}
+                        {formatDateTime(entry.created_at, i18n.language)}
                       </Td>
                       <Td style={{ fontSize: 12 }}>{entry.username ?? '–'}</Td>
                       <Td style={{ fontSize: 12 }}>

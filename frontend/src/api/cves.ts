@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, ImageCveGroup, ImageCveDetail } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
@@ -53,6 +53,7 @@ export function useCves(params: CveListParams = {}, scope: ScopeParams = {}) {
   return useQuery({
     queryKey: cveKeys.list(merged as Record<string, unknown>),
     queryFn: () => api.get<Paginated<CveListItem>>(`/cves${buildQuery(merged)}`),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -96,6 +97,7 @@ export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterPara
   return useQuery({
     queryKey: ['cves', 'by-image', merged],
     queryFn: () => api.get<ImageCveGroup[]>(`/cves/by-image${buildQuery(merged)}`),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -113,6 +115,7 @@ export function useCvesForImage(imageId: string, scope: ScopeParams = {}, filter
       return api.get<ImageCveDetail[]>(`/cves/by-image/${encodeURIComponent(imageId)}/cves${s ? `?${s}` : ''}`)
     },
     enabled: !!imageId,
+    placeholderData: keepPreviousData,
   })
 }
 

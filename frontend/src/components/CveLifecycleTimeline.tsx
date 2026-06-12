@@ -1,12 +1,13 @@
 import { ProgressStep, ProgressStepper } from "@patternfly/react-core";
 import { useTranslation } from "react-i18next";
 import { CveDetail, RiskStatus } from "../types";
+import { formatDate } from "../utils/format";
 
 export function CveLifecycleTimeline({ cve }: { cve: CveDetail }) {
   const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
+  // null -> undefined (no description) rather than the '–' placeholder
   const fmt = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString(dateLocale) : undefined;
+    iso ? formatDate(iso, i18n.language) : undefined;
 
   type Step = { id: string; label: string; date: string | null; done: boolean };
 

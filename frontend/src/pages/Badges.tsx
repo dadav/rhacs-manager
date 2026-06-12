@@ -17,6 +17,7 @@ import {
 } from '@patternfly/react-core'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
+import { useToast } from '../components/ToastContext'
 import { useState } from 'react'
 import { useBadges, useCreateBadge, useDeleteBadge } from '../api/badges'
 import { useScope } from '../hooks/useScope'
@@ -24,6 +25,7 @@ import { useTranslation } from 'react-i18next'
 
 export function Badges() {
   const { t, i18n } = useTranslation()
+  const { addToast } = useToast()
   const { scopeParams } = useScope()
   const { data: badges, isLoading, error } = useBadges(scopeParams)
   const createBadge = useCreateBadge()
@@ -49,6 +51,7 @@ export function Badges() {
       setCluster('')
       setLabel('')
       setFormError('')
+      addToast(t('toast.badgeCreated'))
     } catch (err) {
       setFormError(getErrorMessage(err))
     }
@@ -125,7 +128,7 @@ export function Badges() {
                     <Button
                       variant="plain"
                       size="sm"
-                      onClick={() => deleteBadge.mutate(badge.id)}
+                      onClick={() => deleteBadge.mutate(badge.id, { onSuccess: () => addToast(t('toast.badgeDeleted')) })}
                       aria-label={`${t('common.delete')} ${badge.label || t('badges.cveBadge')}`}
                       style={{ color: '#c9190b', fontSize: 12 }}
                     >

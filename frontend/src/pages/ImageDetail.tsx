@@ -20,6 +20,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useImageDetail } from '../api/images'
 import { ImageCveTimeline } from '../components/charts/ImageCveTimeline'
 import { getErrorMessage } from '../utils/errors'
+import { formatCvss, formatDate, formatDateTime } from '../utils/format'
 import {
   SEVERITY_COLORS,
   FIXABLE_COLOR,
@@ -60,7 +61,6 @@ export function ImageDetail() {
   const decodedId = imageId ? decodeURIComponent(imageId) : ''
   const navigate = useNavigate()
   const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const { data: image, isLoading, error } = useImageDetail(decodedId)
 
   if (isLoading) {
@@ -158,15 +158,15 @@ export function ImageDetail() {
                     )}
                     <DetailRow
                       label={t('imageDetail.created')}
-                      value={image.created ? new Date(image.created).toLocaleDateString(dateLocale) : '–'}
+                      value={formatDate(image.created, i18n.language)}
                     />
                     <DetailRow
                       label={t('imageDetail.lastScanned')}
-                      value={image.last_scanned ? new Date(image.last_scanned).toLocaleString(dateLocale) : '–'}
+                      value={formatDateTime(image.last_scanned, i18n.language)}
                     />
                     <DetailRow
                       label={t('imageDetail.lastUpdated')}
-                      value={image.last_updated ? new Date(image.last_updated).toLocaleString(dateLocale) : '–'}
+                      value={formatDateTime(image.last_updated, i18n.language)}
                     />
                     <DetailRow
                       label={t('imageDetail.componentCount')}
@@ -247,7 +247,7 @@ export function ImageDetail() {
                             fontWeight: 700,
                             color: image.top_cvss >= 9 ? SEVERITY_COLORS.critical : 'inherit',
                           }}>
-                            {image.top_cvss.toFixed(1)}
+                            {formatCvss(image.top_cvss)}
                           </div>
                         </CardBody>
                       </Card>

@@ -29,6 +29,7 @@ import { CheckCircleIcon, EllipsisVIcon, PencilAltIcon, TrashIcon } from "@patte
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
+import { formatCvss, formatDate, formatDateTime } from "../utils/format";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail, useEditCveComment, useDeleteCveComment } from "../api/cves";
 import { usePresence } from "../api/presence";
@@ -113,7 +114,6 @@ export function CveDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
   const { isSecTeam, user } = useAuth();
   const { scopeParams } = useScope();
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
@@ -332,7 +332,7 @@ export function CveDetail() {
               <p style={{ ...subtleTextSm, marginTop: 4 }}>
                 - {cve.priority_set_by_name}
                 {cve.priority_created_at &&
-                  `, ${new Date(cve.priority_created_at).toLocaleDateString(dateLocale)}`}
+                  `, ${formatDate(cve.priority_created_at, i18n.language)}`}
               </p>
             )}
           </Alert>
@@ -482,7 +482,7 @@ export function CveDetail() {
                             color: cve.cvss >= 9 ? "#c9190b" : "inherit",
                           }}
                         >
-                          {cve.cvss.toFixed(1)}
+                          {formatCvss(cve.cvss)}
                         </span>
                       }
                     />
@@ -514,38 +514,20 @@ export function CveDetail() {
                     )}
                     <DetailRow
                       label={t('cves.firstSeen')}
-                      value={
-                        cve.first_seen
-                          ? new Date(cve.first_seen).toLocaleDateString(dateLocale)
-                          : "–"
-                      }
+                      value={formatDate(cve.first_seen, i18n.language)}
                     />
                     <DetailRow
                       label={t('cves.publishedOn')}
-                      value={
-                        cve.published_on
-                          ? new Date(cve.published_on).toLocaleDateString(
-                              dateLocale,
-                            )
-                          : "–"
-                      }
+                      value={formatDate(cve.published_on, i18n.language)}
                     />
                     <DetailRow
                       label={t('cves.fixAvailableSince')}
-                      value={
-                        cve.fix_available_since
-                          ? new Date(cve.fix_available_since).toLocaleDateString(
-                              dateLocale,
-                            )
-                          : "–"
-                      }
+                      value={formatDate(cve.fix_available_since, i18n.language)}
                     />
                     {cve.first_system_occurrence && (
                       <DetailRow
                         label={t('cves.firstSystemOccurrence')}
-                        value={new Date(
-                          cve.first_system_occurrence,
-                        ).toLocaleDateString(dateLocale)}
+                        value={formatDate(cve.first_system_occurrence, i18n.language)}
                       />
                     )}
                     {cve.operating_system && (
@@ -557,9 +539,7 @@ export function CveDetail() {
                     {cve.priority_deadline && (
                       <DetailRow
                         label={t('cves.deadline')}
-                        value={new Date(
-                          cve.priority_deadline,
-                        ).toLocaleDateString(dateLocale)}
+                        value={formatDate(cve.priority_deadline, i18n.language)}
                       />
                     )}
                   </Tbody>
@@ -903,9 +883,7 @@ export function CveDetail() {
                                     whiteSpace: "nowrap",
                                   }}
                                 >
-                                  {d.first_seen
-                                    ? new Date(d.first_seen).toLocaleDateString(dateLocale)
-                                    : "–"}
+                                  {formatDate(d.first_seen, i18n.language)}
                                 </Td>
                               </Tr>
                             ))
@@ -1010,7 +988,7 @@ export function CveDetail() {
                                   color: "var(--pf-t--global--text--color--subtle)",
                                 }}
                               >
-                                {new Date(c.created_at).toLocaleString(dateLocale)}
+                                {formatDateTime(c.created_at, i18n.language)}
                                 {c.updated_at && (
                                   <span style={{ marginLeft: 4, fontStyle: "italic" }}>
                                     {t('cveDetail.edited')}

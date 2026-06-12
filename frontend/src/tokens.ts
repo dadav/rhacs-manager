@@ -55,6 +55,14 @@ export const PRIORITY_COLORS = {
   low: "#0066cc",
 } as const;
 
+// Priority level → PF Label color mapping
+export const PRIORITY_LABEL_COLORS: Record<string, 'red' | 'orange' | 'yellow' | 'blue'> = {
+  critical: 'red',
+  high: 'orange',
+  medium: 'yellow',
+  low: 'blue',
+};
+
 // Remediation status → PF Label color mapping
 export const REMEDIATION_LABEL_COLORS: Record<
   string,

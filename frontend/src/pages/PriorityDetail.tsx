@@ -13,6 +13,7 @@ import {
   Title,
 } from '@patternfly/react-core'
 import { getErrorMessage } from '../utils/errors'
+import { formatDate } from '../utils/format'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { usePriority, useDeletePriority } from '../api/priorities'
@@ -51,7 +52,6 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
 export function PriorityDetail() {
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const navigate = useNavigate()
   const { data: priority, isLoading, error } = usePriority(id ?? '')
   const { data: me } = useCurrentUser()
@@ -122,9 +122,9 @@ export function PriorityDetail() {
                       [t('priorities.cveId'), <Link to={`/vulnerabilities/${priority.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>{priority.cve_id}</Link>],
                       [t('priorities.priority'), <PriorityBadge level={priority.priority} />],
                       [t('priorities.setBy'), priority.set_by_name],
-                      [t('priorities.deadline'), priority.deadline ? new Date(priority.deadline).toLocaleDateString(dateLocale) : '–'],
-                      [t('priorities.createdAt'), new Date(priority.created_at).toLocaleDateString(dateLocale)],
-                      [t('priorities.updatedAt'), new Date(priority.updated_at).toLocaleDateString(dateLocale)],
+                      [t('priorities.deadline'), formatDate(priority.deadline, i18n.language)],
+                      [t('priorities.createdAt'), formatDate(priority.created_at, i18n.language)],
+                      [t('priorities.updatedAt'), formatDate(priority.updated_at, i18n.language)],
                     ] as [string, React.ReactNode][]).map(([label, value], i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', width: 160 }}>{label}</td>

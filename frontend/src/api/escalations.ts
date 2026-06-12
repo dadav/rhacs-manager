@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { api } from './client'
 import type { Escalation, UpcomingEscalation } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
@@ -15,6 +15,7 @@ export function useEscalations(scope: ScopeParams = {}) {
   return useQuery({
     queryKey: ['escalations', scope],
     queryFn: () => api.get<Escalation[]>(`/escalations${buildQs(scope)}`),
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -22,5 +23,6 @@ export function useUpcomingEscalations(scope: ScopeParams = {}) {
   return useQuery({
     queryKey: ['escalations', 'upcoming', scope],
     queryFn: () => api.get<UpcomingEscalation[]>(`/escalations/upcoming${buildQs(scope)}`),
+    placeholderData: keepPreviousData,
   })
 }

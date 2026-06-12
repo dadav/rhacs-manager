@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useTranslation } from 'react-i18next'
+import { formatCvss, formatEpssPercent } from '../../utils/format'
 import { Severity } from '../../types'
 
 const DOT_COLORS: Record<number, string> = {
@@ -49,8 +50,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
       fontSize: 12,
     }}>
       <strong>{d.cve_id}</strong>
-      <div>CVSS: {d.cvss.toFixed(1)}</div>
-      <div>EPSS: {(d.epss * 100).toFixed(1)}%</div>
+      <div>CVSS: {formatCvss(d.cvss)}</div>
+      <div>EPSS: {formatEpssPercent(d.epss)}</div>
     </div>
   )
 }

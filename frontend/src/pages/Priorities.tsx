@@ -16,7 +16,6 @@ import {
   ModalHeader,
   PageSection,
   Popover,
-  Skeleton,
   TextArea,
   TextInput,
   Title,
@@ -24,13 +23,16 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { ListIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
+import { formatDate } from '../utils/format'
+import { TableSkeletonRows } from '../components/TableSkeleton'
+import { useToast } from '../components/ToastContext'
 import { useState } from 'react'
 import { useCreatePriority, useDeletePriority, usePriorities, useUpdatePriority } from '../api/priorities'
 import { useCurrentUser } from '../api/auth'
 import { PriorityLevel } from '../types'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { PRIORITY_COLORS, BRAND_BLUE } from '../tokens'
+import { PRIORITY_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import { InlineConfirmButton } from '../components/common/InlineConfirmButton'
 
 const PRIORITY_LEVEL_KEYS: { key: string; value: PriorityLevel }[] = [
@@ -39,13 +41,6 @@ const PRIORITY_LEVEL_KEYS: { key: string; value: PriorityLevel }[] = [
   { key: 'priority.medium', value: PriorityLevel.medium },
   { key: 'priority.low', value: PriorityLevel.low },
 ]
-
-const PRIORITY_LABEL_COLORS: Record<string, 'red' | 'orange' | 'yellow' | 'blue'> = {
-  critical: 'red',
-  high: 'orange',
-  medium: 'yellow',
-  low: 'blue',
-}
 
 function PriorityBadge({ level }: { level: PriorityLevel }) {
   const { t } = useTranslation()
@@ -59,33 +54,24 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
 
 function DeletePriorityInline({ priorityId }: { priorityId: string }) {
   const { t } = useTranslation()
+  const { addToast } = useToast()
   const deletePriority = useDeletePriority()
   return (
     <InlineConfirmButton
       label={t('priorities.delete')}
       confirmLabel={t('priorities.deleteFinal')}
       cancelLabel={t('common.cancel')}
-      onConfirm={() => deletePriority.mutateAsync(priorityId)}
+      onConfirm={async () => {
+        await deletePriority.mutateAsync(priorityId)
+        addToast(t('toast.priorityDeleted'))
+      }}
     />
-  )
-}
-
-function SkeletonRows({ columns, rows = 5 }: { columns: number; rows?: number }) {
-  return (
-    <Tbody>
-      {Array.from({ length: rows }).map((_, i) => (
-        <Tr key={i}>
-          {Array.from({ length: columns }).map((_, j) => (
-            <Td key={j}><Skeleton /></Td>
-          ))}
-        </Tr>
-      ))}
-    </Tbody>
   )
 }
 
 export function Priorities() {
   const { t, i18n } = useTranslation()
+  const { addToast } = useToast()
   const { data: me } = useCurrentUser()
   const { data, isLoading, error } = usePriorities()
   const createPriority = useCreatePriority()
@@ -97,8 +83,6 @@ export function Priorities() {
   const [reason, setReason] = useState('')
   const [deadline, setDeadline] = useState('')
   const [formError, setFormError] = useState('')
-
-  const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   const priorityOptions = PRIORITY_LEVEL_KEYS.map(o => ({
     label: t(o.key),
@@ -120,6 +104,7 @@ export function Priorities() {
       setReason('')
       setDeadline('')
       setFormError('')
+      addToast(t('toast.priorityCreated'))
     } catch (err) {
       setFormError(getErrorMessage(err))
     }
@@ -193,7 +178,7 @@ export function Priorities() {
               </Tr>
             </Thead>
             {isLoading ? (
-              <SkeletonRows columns={columnCount} />
+              <Tbody><TableSkeletonRows columns={columnCount} /></Tbody>
             ) : (
               <Tbody>
                 {data!.map(p => (
@@ -211,13 +196,13 @@ export function Priorities() {
                       const isOverdue = !!p.deadline && new Date(p.deadline) < new Date()
                       return (
                         <Td style={{ fontSize: 12, color: isOverdue ? '#c9190b' : 'var(--pf-t--global--text--color--subtle)' }}>
-                          {p.deadline ? new Date(p.deadline).toLocaleDateString(localeDateLocale) : '–'}
+                          {formatDate(p.deadline, i18n.language)}
                           {isOverdue && <span className="sr-only"> ({t('common.overdue')})</span>}
                         </Td>
                       )
                     })()}
                     <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                      {new Date(p.created_at).toLocaleDateString(localeDateLocale)}
+                      {formatDate(p.created_at, i18n.language)}
                     </Td>
                     <Td>
                       <Button

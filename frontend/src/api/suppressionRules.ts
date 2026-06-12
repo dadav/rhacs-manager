@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { SuppressionRule, SuppressionScope, SuppressionType } from '../types'
 
@@ -15,6 +15,7 @@ export function useSuppressionRules(status?: string, type?: string) {
   return useQuery({
     queryKey: suppressionKeys.list(status, type),
     queryFn: () => api.get<SuppressionRule[]>(`/suppression-rules${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   })
 }
 

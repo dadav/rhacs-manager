@@ -1,5 +1,6 @@
 import { Label, Tooltip } from '@patternfly/react-core'
 import { useTranslation } from 'react-i18next'
+import { formatEpssPercent } from '../../utils/format'
 
 interface Props {
   value: number  // 0.0 - 1.0
@@ -7,7 +8,6 @@ interface Props {
 
 export function EpssBadge({ value }: Props) {
   const { t } = useTranslation()
-  const pct = (value * 100).toFixed(1)
 
   let color: 'red' | 'yellow' | 'green' = 'green'
   if (value >= 0.5) color = 'red'
@@ -16,7 +16,7 @@ export function EpssBadge({ value }: Props) {
   return (
     <Tooltip content={t('cves.epssTooltip')}>
       <Label color={color} isCompact>
-        {pct}%
+        {formatEpssPercent(value)}
       </Label>
     </Tooltip>
   )

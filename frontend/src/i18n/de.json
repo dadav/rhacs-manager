@@ -28,6 +28,22 @@
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten",
     "retry": "Erneut versuchen"
   },
+  "toast": {
+    "riskAcceptanceCreated": "Risikoakzeptanz erstellt",
+    "riskAcceptanceUpdated": "Risikoakzeptanz aktualisiert",
+    "commentPosted": "Kommentar gespeichert",
+    "riskAcceptanceReviewed": "Risikoakzeptanz geprüft",
+    "riskAcceptanceCancelled": "Risikoakzeptanz storniert",
+    "remediationUpdated": "Behebung aktualisiert",
+    "priorityCreated": "Priorität erstellt",
+    "priorityDeleted": "Priorität gelöscht",
+    "suppressionRuleCreated": "Unterdrückungsregel erstellt",
+    "suppressionRuleDeleted": "Unterdrückungsregel gelöscht",
+    "suppressionRuleReviewed": "Unterdrückungsregel geprüft",
+    "badgeCreated": "Badge erstellt",
+    "badgeDeleted": "Badge gelöscht",
+    "settingsSaved": "Einstellungen gespeichert"
+  },
   "common": {
     "loading": "Laden...",
     "error": "Fehler",

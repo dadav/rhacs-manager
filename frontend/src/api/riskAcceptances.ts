@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { RiskAcceptance, RiskComment, RiskScope } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
@@ -18,6 +18,7 @@ export function useRiskAcceptances(status?: string, scope: ScopeParams = {}) {
   return useQuery({
     queryKey: raKeys.list(status, scope),
     queryFn: () => api.get<RiskAcceptance[]>(`/risk-acceptances${qs ? `?${qs}` : ''}`),
+    placeholderData: keepPreviousData,
   })
 }
 

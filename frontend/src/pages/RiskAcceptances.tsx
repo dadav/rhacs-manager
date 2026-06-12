@@ -5,7 +5,6 @@ import {
   EmptyStateBody,
   PageSection,
   Popover,
-  Skeleton,
   Title,
   ToggleGroup,
   ToggleGroupItem,
@@ -16,6 +15,8 @@ import {
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { getErrorMessage } from '../utils/errors'
+import { formatDate } from '../utils/format'
+import { TableSkeleton } from '../components/TableSkeleton'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useRiskAcceptances, useCancelRiskAcceptance } from '../api/riskAcceptances'
@@ -84,8 +85,6 @@ export function RiskAcceptances() {
   const { data: me } = useCurrentUser()
   const { data, isLoading, error } = useRiskAcceptances(statusFilter || undefined, scopeParams)
 
-  const localeDateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
-
   return (
     <>
       <PageSection variant="default">
@@ -139,32 +138,7 @@ export function RiskAcceptances() {
 
       <PageSection variant="default" isFilled>
         {isLoading ? (
-          <Table variant="compact" isStickyHeader>
-            <Thead>
-              <Tr>
-                <Th>{t('riskAcceptance.cveId')}</Th>
-                <Th>{t('riskAcceptance.status')}</Th>
-                <Th>{t('riskAcceptance.requestedBy')}</Th>
-                <Th>{t('riskAcceptance.requestedAt')}</Th>
-                <Th>{t('riskAcceptance.reviewedAt')}</Th>
-                <Th></Th>
-                <Th></Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Tr key={i}>
-                  <Td><Skeleton width="120px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="100px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="60px" /></Td>
-                  <Td><Skeleton width="60px" /></Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <TableSkeleton columns={8} />
         ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
@@ -206,10 +180,10 @@ export function RiskAcceptances() {
                   <Td style={{ fontSize: 12 }}>{ra.created_by_name}</Td>
                   <Td style={{ fontSize: 12 }}>{ra.assigned_to_name ?? '–'}</Td>
                   <Td style={subtleTextSm}>
-                    {new Date(ra.created_at).toLocaleDateString(localeDateLocale)}
+                    {formatDate(ra.created_at, i18n.language)}
                   </Td>
                   <Td style={subtleTextSm}>
-                    {ra.reviewed_at ? new Date(ra.reviewed_at).toLocaleDateString(localeDateLocale) : '–'}
+                    {formatDate(ra.reviewed_at, i18n.language)}
                   </Td>
                   <Td>
                     <Button

@@ -29,6 +29,7 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
+import { formatCvss, formatDate } from '../utils/format'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
@@ -83,8 +84,6 @@ export function CveList() {
     { label: t('cves.remediationInProgress'), value: 'in_progress' },
     { label: t('cves.remediationRemediated'), value: 'remediated' },
   ]
-
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
 
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -809,7 +808,7 @@ export function CveList() {
                         </Td>
                         <Td><SeverityBadge severity={cve.severity} /></Td>
                         <Td style={{ fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-                          {cve.cvss.toFixed(1)}
+                          {formatCvss(cve.cvss)}
                         </Td>
                         <Td><EpssBadge value={cve.epss_probability} /></Td>
                         <Td style={{ textAlign: 'right' }}>{cve.affected_images}</Td>
@@ -818,13 +817,13 @@ export function CveList() {
                           {cve.fixable ? <span style={{ color: FIXABLE_COLOR }}>✓</span> : <span style={{ color: SEVERITY_COLORS.unknown }}>✗</span>}
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
+                          {formatDate(cve.first_seen, i18n.language)}
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {cve.published_on ? new Date(cve.published_on).toLocaleDateString(dateLocale) : '–'}
+                          {formatDate(cve.published_on, i18n.language)}
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {cve.fix_available_since ? new Date(cve.fix_available_since).toLocaleDateString(dateLocale) : '–'}
+                          {formatDate(cve.fix_available_since, i18n.language)}
                         </Td>
                       </Tr>
                     ))}

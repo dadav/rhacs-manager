@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { RemediationItem, RemediationStats } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
@@ -34,6 +34,7 @@ export function useRemediations(params: RemediationListParams = {}, scope: Scope
   return useQuery({
     queryKey: remediationKeys.list(merged as Record<string, unknown>),
     queryFn: () => api.get<RemediationItem[]>(`/remediations${buildQuery(merged)}`),
+    placeholderData: keepPreviousData,
   })
 }
 

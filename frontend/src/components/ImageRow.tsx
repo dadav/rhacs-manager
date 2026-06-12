@@ -9,10 +9,10 @@ import { SeverityBadge } from '../components/common/SeverityBadge'
 import type { ImageCveGroup } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
+import { formatCvss, formatDate } from '../utils/format'
 
 export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
   const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
   const [expanded, setExpanded] = useState(false)
   const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
 
@@ -42,7 +42,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
         <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.moderate }}>{group.medium_cves || '–'}</Td>
         <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.unknown }}>{group.low_cves || '–'}</Td>
         <Td style={{ fontWeight: group.max_cvss >= 9 ? 700 : 400, color: group.max_cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-          {group.max_cvss.toFixed(1)}
+          {formatCvss(group.max_cvss)}
         </Td>
         <Td><EpssBadge value={group.max_epss} /></Td>
         <Td style={{ textAlign: 'right' }}>
@@ -96,7 +96,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
                         </Td>
                         <Td><SeverityBadge severity={cve.severity} /></Td>
                         <Td style={{ fontWeight: cve.cvss >= 9 ? 700 : 400, color: cve.cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-                          {cve.cvss.toFixed(1)}
+                          {formatCvss(cve.cvss)}
                         </Td>
                         <Td><EpssBadge value={cve.epss_probability} /></Td>
                         <Td>
@@ -107,7 +107,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
                         <Td style={{ fontFamily: 'monospace', fontSize: 11 }}>{cve.fixed_by ?? '–'}</Td>
                         <Td style={{ textAlign: 'right' }}>{cve.affected_deployments}</Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {cve.first_seen ? new Date(cve.first_seen).toLocaleDateString(dateLocale) : '–'}
+                          {formatDate(cve.first_seen, i18n.language)}
                         </Td>
                       </Tr>
                     ))}

@@ -10,7 +10,6 @@ import {
   Pagination,
   Popover,
   SearchInput,
-  Skeleton,
   Title,
   Toolbar,
   ToolbarContent,
@@ -19,9 +18,12 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { CheckCircleIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { formatDate, formatEpssPercent } from '../utils/format'
+import { TableSkeleton } from '../components/TableSkeleton'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useDebounce } from '../hooks/useDebounce'
 import { useEscalations, useUpcomingEscalations } from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
@@ -92,15 +94,46 @@ export function Escalations() {
     )
   }
 
-  const localeDateFormat = i18n.language === 'de' ? 'de-DE' : 'en-US'
+  // --- Filter state from URL (prefixed so the two sections don't collide) ---
+  const [searchParams, setSearchParams] = useSearchParams()
+  const upLevelFilter = searchParams.get('up_level') || ''
+  const upSeverityFilter = searchParams.get('up_severity') || ''
+  const upPage = Math.max(1, Number(searchParams.get('up_page')) || 1)
 
-  const [upLevelFilter, setUpLevelFilter] = useState('')
-  const [upSeverityFilter, setUpSeverityFilter] = useState('')
-  const [upPage, setUpPage] = useState(1)
+  const activeLevelFilter = searchParams.get('level') || ''
+  const urlActiveSearch = searchParams.get('search') || ''
+  const activePage = Math.max(1, Number(searchParams.get('page')) || 1)
 
-  const [activeLevelFilter, setActiveLevelFilter] = useState('')
-  const [activeSearch, setActiveSearch] = useState('')
-  const [activePage, setActivePage] = useState(1)
+  const [activeSearchInput, setActiveSearchInput] = useState(urlActiveSearch)
+  const debouncedActiveSearch = useDebounce(activeSearchInput, 300)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ search: debouncedActiveSearch || null }, 'page')
+  }, [debouncedActiveSearch])
+  useEffect(() => { mountedRef.current = true }, [])
+
+  function updateParams(changes: Record<string, string | null>, pageKeyToReset?: string) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (pageKeyToReset) next.delete(pageKeyToReset)
+      for (const [key, val] of Object.entries(changes)) {
+        next.delete(key)
+        if (val !== null) next.set(key, val)
+      }
+      return next
+    }, { replace: true })
+  }
+
+  function setPageParam(key: string, p: number) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (p === 1) next.delete(key); else next.set(key, String(p))
+      return next
+    }, { replace: true })
+  }
+  const setUpPage = (p: number) => setPageParam('up_page', p)
+  const setActivePage = (p: number) => setPageParam('page', p)
 
   const filteredUpcoming = useMemo(
     () => filterUpcoming(upcoming.data ?? [], upLevelFilter, upSeverityFilter),
@@ -110,8 +143,8 @@ export function Escalations() {
   const upPaged = filteredUpcoming.slice((upPage - 1) * PER_PAGE, upPage * PER_PAGE)
 
   const filteredActive = useMemo(
-    () => filterActive(data ?? [], activeLevelFilter, activeSearch),
-    [data, activeLevelFilter, activeSearch],
+    () => filterActive(data ?? [], activeLevelFilter, debouncedActiveSearch),
+    [data, activeLevelFilter, debouncedActiveSearch],
   )
   const activeTotal = filteredActive.length
   const activePaged = filteredActive.slice((activePage - 1) * PER_PAGE, activePage * PER_PAGE)
@@ -155,30 +188,7 @@ export function Escalations() {
       <PageSection>
         <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.upcoming')}</Title>
         {upcoming.isLoading ? (
-          <Table variant="compact" isStickyHeader>
-            <Thead>
-              <Tr>
-                <Th>{t('cves.cveId')}</Th>
-                <Th>{t('cves.severity')}</Th>
-                <Th>EPSS</Th>
-                <Th>{t('escalations.ageDays')}</Th>
-                <Th>{t('escalations.nextLevel')}</Th>
-                <Th>{t('escalations.daysUntil')}</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {[1, 2, 3].map(i => (
-                <Tr key={i}>
-                  <Td><Skeleton width="120px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="50px" /></Td>
-                  <Td><Skeleton width="40px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="60px" /></Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <TableSkeleton columns={6} />
         ) : upcoming.error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(upcoming.error)}`} />
         ) : !upcoming.data?.length ? (
@@ -200,7 +210,7 @@ export function Escalations() {
                 <ToolbarItem>
                   <FormSelect
                     value={upLevelFilter}
-                    onChange={(_e, v) => { setUpLevelFilter(v); setUpPage(1) }}
+                    onChange={(_e, v) => updateParams({ up_level: v || null }, 'up_page')}
                     aria-label={t('escalations.filterLevel')}
                     style={FORM_SELECT_STYLE}
                   >
@@ -213,7 +223,7 @@ export function Escalations() {
                 <ToolbarItem>
                   <FormSelect
                     value={upSeverityFilter}
-                    onChange={(_e, v) => { setUpSeverityFilter(v); setUpPage(1) }}
+                    onChange={(_e, v) => updateParams({ up_severity: v || null }, 'up_page')}
                     aria-label={t('escalations.filterSeverity')}
                     style={FORM_SELECT_STYLE}
                   >
@@ -260,7 +270,7 @@ export function Escalations() {
                           </Link>
                         </Td>
                         <Td>{SEVERITY_LABELS[u.severity] ?? `${u.severity}`}</Td>
-                        <Td>{(u.epss_probability * 100).toFixed(1)}%</Td>
+                        <Td>{formatEpssPercent(u.epss_probability)}</Td>
                         <Td>{u.current_age_days}</Td>
                         <Td><LevelBadge level={u.next_level} /></Td>
                         <Td style={{ fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
@@ -291,28 +301,7 @@ export function Escalations() {
       <PageSection variant="default" isFilled>
         <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.active')}</Title>
         {isLoading ? (
-          <Table variant="compact" isStickyHeader>
-            <Thead>
-              <Tr>
-                <Th>{t('cves.cveId')}</Th>
-                <Th>{t('cves.namespace')}</Th>
-                <Th>{t('escalations.level')}</Th>
-                <Th>{t('escalations.triggeredAt')}</Th>
-                {isSecTeam && <Th>{t('escalations.notified')}</Th>}
-              </Tr>
-            </Thead>
-            <Tbody>
-              {[1, 2, 3].map(i => (
-                <Tr key={i}>
-                  <Td><Skeleton width="120px" /></Td>
-                  <Td><Skeleton width="150px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  {isSecTeam && <Td><Skeleton width="60px" /></Td>}
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <TableSkeleton columns={isSecTeam ? 5 : 4} />
         ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !data?.length ? (
@@ -333,9 +322,9 @@ export function Escalations() {
                 <ToolbarItem>
                   <SearchInput
                     placeholder={t('escalations.searchPlaceholder')}
-                    value={activeSearch}
-                    onChange={(_e, v) => { setActiveSearch(v); setActivePage(1) }}
-                    onClear={() => { setActiveSearch(''); setActivePage(1) }}
+                    value={activeSearchInput}
+                    onChange={(_e, v) => setActiveSearchInput(v)}
+                    onClear={() => setActiveSearchInput('')}
                     aria-label={t('escalations.searchLabel')}
                     style={{ width: 220 }}
                   />
@@ -343,7 +332,7 @@ export function Escalations() {
                 <ToolbarItem>
                   <FormSelect
                     value={activeLevelFilter}
-                    onChange={(_e, v) => { setActiveLevelFilter(v); setActivePage(1) }}
+                    onChange={(_e, v) => updateParams({ level: v || null }, 'page')}
                     aria-label={t('escalations.filterLevelLabel')}
                     style={FORM_SELECT_STYLE}
                   >
@@ -382,7 +371,7 @@ export function Escalations() {
                         <Td>{e.cluster_name}/{e.namespace}</Td>
                         <Td><LevelBadge level={e.level} /></Td>
                         <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                          {new Date(e.triggered_at).toLocaleDateString(localeDateFormat)}
+                          {formatDate(e.triggered_at, i18n.language)}
                         </Td>
                         {isSecTeam && (
                           <Td style={{ fontSize: 12 }}>

@@ -3,15 +3,14 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
-  FormSelect,
-  FormSelectOption,
   Label,
   PageSection,
   Pagination,
   Popover,
   SearchInput,
-  Skeleton,
   Title,
+  ToggleGroup,
+  ToggleGroupItem,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -19,16 +18,20 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
-import { useEffect, useMemo, useState } from 'react'
+import { formatDate } from '../utils/format'
+import { TableSkeleton } from '../components/TableSkeleton'
+import { useToast } from '../components/ToastContext'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useDebounce } from '../hooks/useDebounce'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
 import { useScope } from '../hooks/useScope'
 import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
 import { RemediationStatus } from '../types'
 
-const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
+const STATUS_TOGGLE_KEYS = ['', 'open', 'in_progress', 'resolved', 'verified', 'wont_fix'] as const
 
 const PER_PAGE = 20
 
@@ -45,12 +48,41 @@ export function Remediations() {
     wont_fix: t('remediations.statusWontFix'),
   }
 
-  const localeDateFormat = i18n.language === 'de' ? 'de-DE' : 'en-US'
-
+  // --- Filter state from URL ---
   const statusFilter = searchParams.get('status') ?? ''
-  const [searchCve, setSearchCve] = useState('')
-  const [overdueFilter, setOverdueFilter] = useState(false)
-  const [page, setPage] = useState(1)
+  const urlSearch = searchParams.get('search') || ''
+  const overdueFilter = searchParams.get('overdue') === '1'
+  const page = Math.max(1, Number(searchParams.get('page')) || 1)
+
+  // Local input + debounced URL write for the CVE search box
+  const [searchInput, setSearchInput] = useState(urlSearch)
+  const debouncedSearch = useDebounce(searchInput, 300)
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    if (!mountedRef.current) return
+    updateParams({ search: debouncedSearch || null })
+  }, [debouncedSearch])
+  useEffect(() => { mountedRef.current = true }, [])
+
+  function updateParams(changes: Record<string, string | null>, resetPage = true) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (resetPage) next.delete('page')
+      for (const [key, val] of Object.entries(changes)) {
+        next.delete(key)
+        if (val !== null) next.set(key, val)
+      }
+      return next
+    }, { replace: true })
+  }
+
+  function setPage(p: number) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (p === 1) next.delete('page'); else next.set('page', String(p))
+      return next
+    }, { replace: true })
+  }
 
   const { data, isLoading, error } = useRemediations(
     {
@@ -63,26 +95,15 @@ export function Remediations() {
 
   const filtered = useMemo(() => {
     let items = data ?? []
-    if (searchCve) {
-      const q = searchCve.toUpperCase()
+    if (debouncedSearch) {
+      const q = debouncedSearch.toUpperCase()
       items = items.filter(r => r.cve_id.toUpperCase().includes(q))
     }
     return items
-  }, [data, searchCve])
+  }, [data, debouncedSearch])
 
   const total = filtered.length
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
-
-  const setStatus = (s: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (s) {
-      next.set('status', s)
-    } else {
-      next.delete('status')
-    }
-    setSearchParams(next, { replace: true })
-    setPage(1)
-  }
 
   function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
     return (
@@ -150,13 +171,10 @@ export function Remediations() {
                 tabIndex={0}
                 onClick={() => {
                   if (key === 'overdue') {
-                    setOverdueFilter(!overdueFilter)
-                    setStatus('')
+                    updateParams({ overdue: overdueFilter ? null : '1', status: null })
                   } else {
-                    setOverdueFilter(false)
-                    setStatus(statusFilter === key ? '' : key)
+                    updateParams({ status: statusFilter === key ? null : key, overdue: null })
                   }
-                  setPage(1)
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -193,60 +211,30 @@ export function Remediations() {
             <ToolbarItem>
               <SearchInput
                 placeholder={t('remediations.searchPlaceholder')}
-                value={searchCve}
-                onChange={(_e, v) => { setSearchCve(v); setPage(1) }}
-                onClear={() => { setSearchCve(''); setPage(1) }}
+                value={searchInput}
+                onChange={(_e, v) => setSearchInput(v)}
+                onClear={() => setSearchInput('')}
                 aria-label={t('remediations.searchLabel')}
                 style={{ width: 220 }}
               />
             </ToolbarItem>
             <ToolbarItem>
-              <FormSelect
-                value={statusFilter}
-                onChange={(_e, v) => { setStatus(v); setOverdueFilter(false) }}
-                aria-label={t('remediations.filterStatus')}
-                style={FORM_SELECT_STYLE}
-              >
-                <FormSelectOption value="" label={t('remediations.allStatuses')} />
-                <FormSelectOption value="open" label={t('remediations.statusOpen')} />
-                <FormSelectOption value="in_progress" label={t('remediations.statusInProgress')} />
-                <FormSelectOption value="resolved" label={t('remediations.statusResolved')} />
-                <FormSelectOption value="verified" label={t('remediations.statusVerified')} />
-                <FormSelectOption value="wont_fix" label={t('remediations.statusWontFix')} />
-              </FormSelect>
+              <ToggleGroup aria-label={t('remediations.filterStatus')}>
+                {STATUS_TOGGLE_KEYS.map(value => (
+                  <ToggleGroupItem
+                    key={value || 'all'}
+                    text={value ? STATUS_LABELS[value] : t('remediations.allStatuses')}
+                    isSelected={statusFilter === value}
+                    onChange={() => updateParams({ status: value || null, overdue: null })}
+                  />
+                ))}
+              </ToggleGroup>
             </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
 
         {isLoading ? (
-          <Table variant="compact" isStickyHeader>
-            <Thead>
-              <Tr>
-                <Th>{t('remediations.cve')}</Th>
-                <Th>{t('remediations.namespace')}</Th>
-                <Th>{t('remediations.status')}</Th>
-                <Th>{t('remediations.assignedTo')}</Th>
-                <Th>{t('remediations.dueDate')}</Th>
-                <Th>{t('remediations.created')}</Th>
-                <Th>{t('remediations.createdBy')}</Th>
-                <Th width={10}>{t('common.actions')}</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Tr key={i}>
-                  <Td><Skeleton width="120px" /></Td>
-                  <Td><Skeleton width="150px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="100px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="80px" /></Td>
-                  <Td><Skeleton width="60px" /></Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <TableSkeleton columns={8} />
         ) : error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
         ) : !filtered.length ? (
@@ -281,7 +269,7 @@ export function Remediations() {
                     key={r.id}
                     item={r}
                     statusLabels={STATUS_LABELS}
-                    localeDateFormat={localeDateFormat}
+                    lang={i18n.language}
                     StatusBadge={StatusBadge}
                     t={t}
                   />
@@ -309,16 +297,17 @@ export function Remediations() {
 function RemediationRow({
   item,
   statusLabels,
-  localeDateFormat,
+  lang,
   StatusBadge,
   t,
 }: {
   item: RemediationItem
   statusLabels: Record<string, string>
-  localeDateFormat: string
+  lang: string
   StatusBadge: React.ComponentType<{ status: string; isOverdue: boolean }>
   t: (key: string) => string
 }) {
+  const { addToast } = useToast()
   const updateMutation = useUpdateRemediation(item.id)
 
   // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
@@ -330,6 +319,13 @@ function RemediationRow({
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
   const canReopen = item.status === RemediationStatus.wont_fix
+
+  function changeStatus(status: string) {
+    updateMutation.mutate(
+      { status },
+      { onSuccess: () => addToast(t('toast.remediationUpdated')) },
+    )
+  }
 
   return (
     <Tr
@@ -359,31 +355,31 @@ function RemediationRow({
             fontWeight: item.is_overdue ? 600 : 400,
             fontSize: 12,
           }}>
-            {new Date(item.target_date).toLocaleDateString(localeDateFormat)}
+            {formatDate(item.target_date, lang)}
           </span>
         ) : (
           <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>
         )}
       </Td>
       <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-        {new Date(item.created_at).toLocaleDateString(localeDateFormat)}
+        {formatDate(item.created_at, lang)}
       </Td>
       <Td>
         <span style={{ fontSize: 12 }}>{item.created_by_name}</span>
       </Td>
       <Td style={{ whiteSpace: 'nowrap' }}>
         {canProgress && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('in_progress')}>
             {t('remediations.start')}
           </Button>
         )}
         {canResolve && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'resolved' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('resolved')}>
             {t('remediations.markResolved')}
           </Button>
         )}
         {canReopen && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'open' })}>
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('open')}>
             {t('remediations.reopen')}
           </Button>
         )}

@@ -20,6 +20,7 @@ import {
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
+import { useToast } from '../components/ToastContext'
 import { useEffect, useState } from 'react'
 import { useSendDigest, useSettings, useThresholdPreview, useUpdateSettings } from '../api/settings'
 import { useTranslation } from 'react-i18next'
@@ -139,7 +140,7 @@ function EscalationRuleRow({
         )
       })}
       <Td>
-        <Button variant="plain" onClick={onDelete} style={{ color: '#c9190b', fontSize: 12 }}>✕</Button>
+        <Button variant="plain" onClick={onDelete} aria-label={t('common.delete')} style={{ color: '#c9190b', fontSize: 12 }}>✕</Button>
       </Td>
     </Tr>
   )
@@ -147,6 +148,7 @@ function EscalationRuleRow({
 
 export function Settings() {
   const { t, i18n } = useTranslation()
+  const { addToast } = useToast()
   const { data: settings, isLoading, error } = useSettings()
   const updateSettings = useUpdateSettings()
   const sendDigest = useSendDigest()
@@ -198,6 +200,7 @@ export function Settings() {
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+    addToast(t('toast.settingsSaved'))
   }
 
   function addRule() {

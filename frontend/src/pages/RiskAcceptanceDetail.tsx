@@ -17,6 +17,8 @@ import {
 import { MentionTextArea, renderMentions } from '../components/MentionTextArea'
 import { ViewerIndicator } from '../components/ViewerIndicator'
 import { getErrorMessage } from '../utils/errors'
+import { formatDate, formatDateTime } from '../utils/format'
+import { useToast } from '../components/ToastContext'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { usePresence } from '../api/presence'
@@ -34,8 +36,8 @@ const STATUS_COLORS: Record<RiskStatus, string> = {
 }
 
 function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
-  const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+  const { t } = useTranslation()
+  const { addToast } = useToast()
   const navigate = useNavigate()
   const createRA = useCreateRiskAcceptance()
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(cveId)
@@ -123,6 +125,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
         scope: buildScope(),
         expires_at: expiresAt || null,
       })
+      addToast(t('toast.riskAcceptanceCreated'))
       navigate(`/risk-acceptances/${ra.id}`)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -242,8 +245,8 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
 }
 
 function EditRiskAcceptanceForm({ raId }: { raId: string }) {
-  const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+  const { t } = useTranslation()
+  const { addToast } = useToast()
   const navigate = useNavigate()
   const { data: ra, isLoading: isRaLoading, error: raError } = useRiskAcceptance(raId)
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(ra?.cve_id ?? '')
@@ -349,6 +352,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
         scope: buildScope(),
         expires_at: expiresAt || null,
       })
+      addToast(t('toast.riskAcceptanceUpdated'))
       navigate(`/risk-acceptances/${raId}`)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -499,7 +503,7 @@ export function RiskAcceptanceDetail() {
 
 function RiskAcceptanceView({ id }: { id: string }) {
   const { t, i18n } = useTranslation()
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US'
+  const { addToast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
   const { data: ra, isLoading, error } = useRiskAcceptance(id)
@@ -555,12 +559,14 @@ function RiskAcceptanceView({ id }: { id: string }) {
     if (!newComment.trim()) return
     await addComment.mutateAsync(newComment)
     setNewComment('')
+    addToast(t('toast.commentPosted'))
   }
 
   async function handleReview(approved: boolean) {
     try {
       await review.mutateAsync({ approved })
       setReviewError('')
+      addToast(t('toast.riskAcceptanceReviewed'))
     } catch (err) {
       setReviewError(getErrorMessage(err))
     }
@@ -602,6 +608,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     onClick={async () => {
                       try {
                         await cancelRA.mutateAsync()
+                        addToast(t('toast.riskAcceptanceCancelled'))
                         navigate('/risk-acceptances')
                       } catch (err) {
                         setCancelError(getErrorMessage(err))
@@ -637,11 +644,11 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       [t('riskAcceptance.cveId'), <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
                       [t('riskAcceptance.scope'), `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
                       [t('riskAcceptance.requestedBy'), ra.created_by_name],
-                      [t('riskAcceptance.requestedAt'), new Date(ra.created_at).toLocaleDateString(dateLocale)],
-                      [t('riskAcceptance.expiresOn'), ra.expires_at ? new Date(ra.expires_at).toLocaleDateString(dateLocale) : '–'],
+                      [t('riskAcceptance.requestedAt'), formatDate(ra.created_at, i18n.language)],
+                      [t('riskAcceptance.expiresOn'), formatDate(ra.expires_at, i18n.language)],
                       ra.assigned_to_name ? [t('riskAcceptance.assignedTo'), ra.assigned_to_name] : null,
                       ra.reviewed_by_name ? [t('riskAcceptance.reviewedBy'), ra.reviewed_by_name] : null,
-                      ra.reviewed_at ? [t('riskAcceptance.reviewedAt'), new Date(ra.reviewed_at).toLocaleDateString(dateLocale)] : null,
+                      ra.reviewed_at ? [t('riskAcceptance.reviewedAt'), formatDate(ra.reviewed_at, i18n.language)] : null,
                     ] as ([string, React.ReactNode] | null)[]).filter((row): row is [string, React.ReactNode] => row !== null).map(([label, value], i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--pf-t--global--border--color--default)' }}>
                         <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)', width: 160 }}>{label}</td>
@@ -788,7 +795,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                             )}
                           </span>
                           <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                            {new Date(c.created_at).toLocaleString(dateLocale)}
+                            {formatDateTime(c.created_at, i18n.language)}
                           </span>
                         </div>
                         <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{renderMentions(c.message)}</p>

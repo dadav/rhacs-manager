@@ -21,6 +21,7 @@ import {
   REMEDIATION_LABEL_COLORS,
   FIXABLE_COLOR,
 } from "../tokens";
+import { formatDate } from "../utils/format";
 
 export function CveRemediationSection({
   cveId,
@@ -29,8 +30,7 @@ export function CveRemediationSection({
   cveId: string
   deployments: { namespace: string; cluster_name: string }[]
 }) {
-  const { t, i18n } = useTranslation();
-  const dateLocale = i18n.language === 'de' ? 'de-DE' : 'en-US';
+  const { t } = useTranslation();
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const { data: remediations, isLoading } = useRemediationsByCve(cveId, scopeParams)
@@ -96,7 +96,7 @@ export function CveRemediationSection({
         ) : remediations && remediations.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {remediations.map(r => (
-              <RemediationCard key={r.id} item={r} remStatusLabels={REM_STATUS_LABELS} dateLocale={dateLocale} />
+              <RemediationCard key={r.id} item={r} remStatusLabels={REM_STATUS_LABELS} />
             ))}
           </div>
         ) : (
@@ -167,8 +167,8 @@ export function CveRemediationSection({
   )
 }
 
-export function RemediationCard({ item, remStatusLabels, dateLocale }: { item: RemediationItem; remStatusLabels: Record<string, string>; dateLocale: string }) {
-  const { t } = useTranslation();
+export function RemediationCard({ item, remStatusLabels }: { item: RemediationItem; remStatusLabels: Record<string, string> }) {
+  const { t, i18n } = useTranslation();
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
@@ -218,11 +218,11 @@ export function RemediationCard({ item, remStatusLabels, dateLocale }: { item: R
         {item.assigned_to_name && <span>{t('cveDetail.assignedLabel', { name: item.assigned_to_name })}</span>}
         {item.target_date && (
           <span style={{ color: item.is_overdue ? '#c9190b' : undefined, fontWeight: item.is_overdue ? 600 : 400 }}>
-            {t('cveDetail.dueLabel', { date: new Date(item.target_date).toLocaleDateString(dateLocale) })}
+            {t('cveDetail.dueLabel', { date: formatDate(item.target_date, i18n.language) })}
             {item.is_overdue && ` ${t('cveDetail.overdueLabel')}`}
           </span>
         )}
-        <span>{t('cveDetail.createdInfo', { date: new Date(item.created_at).toLocaleDateString(dateLocale), name: item.created_by_name })}</span>
+        <span>{t('cveDetail.createdInfo', { date: formatDate(item.created_at, i18n.language), name: item.created_by_name })}</span>
       </div>
       {item.notes && (
         <p style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--pf-t--global--text--color--regular)', whiteSpace: 'pre-wrap' }}>

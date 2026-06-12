@@ -28,6 +28,22 @@
     "unexpected": "An unexpected error occurred",
     "retry": "Try again"
   },
+  "toast": {
+    "riskAcceptanceCreated": "Risk acceptance created",
+    "riskAcceptanceUpdated": "Risk acceptance updated",
+    "commentPosted": "Comment posted",
+    "riskAcceptanceReviewed": "Risk acceptance reviewed",
+    "riskAcceptanceCancelled": "Risk acceptance cancelled",
+    "remediationUpdated": "Remediation updated",
+    "priorityCreated": "Priority created",
+    "priorityDeleted": "Priority deleted",
+    "suppressionRuleCreated": "Suppression rule created",
+    "suppressionRuleDeleted": "Suppression rule deleted",
+    "suppressionRuleReviewed": "Suppression rule reviewed",
+    "badgeCreated": "Badge created",
+    "badgeDeleted": "Badge deleted",
+    "settingsSaved": "Settings saved"
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
