@@ -1357,7 +1357,7 @@
                   "type": "string"
                 },
                 "repository": {
-                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "default": "registry.access.redhat.com/openshift4/ose-oauth-proxy",
                   "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
