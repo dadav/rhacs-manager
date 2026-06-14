@@ -1150,7 +1150,7 @@ frontend:
       # type: string
       # @schema
       # -- Image repository.
-      repository: registry.access.redhat.com/openshift4/ose-oauth-proxy
+      repository: registry.redhat.io/openshift4/ose-oauth-proxy
       # @schema
       # type: string
       # @schema
