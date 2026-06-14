@@ -9,5 +9,12 @@
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "automerge": true
     }
+  ],
+  "hostRules": [
+    {
+      "matchHost": "registry.redhat.io",
+      "username": "{{ secrets.REDHAT_USERNAME }}",
+      "password": "{{ secrets.REDHAT_TOKEN }}"
+    }
   ]
 }
