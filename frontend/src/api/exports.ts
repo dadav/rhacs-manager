@@ -33,7 +33,7 @@ function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {
   return s ? `?${s}` : ''
 }
 
-async function fetchBlob(url: string): Promise<Blob> {
+export async function fetchBlob(url: string): Promise<Blob> {
   const res = await fetch(url, { headers: langHeaders() })
   if (!res.ok) {
     throw new Error(await extractApiError(res))
@@ -41,7 +41,7 @@ async function fetchBlob(url: string): Promise<Blob> {
   return res.blob()
 }
 
-function downloadBlob(blob: Blob, filename: string) {
+export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

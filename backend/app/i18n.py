@@ -66,6 +66,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "invalid_status": {"de": "Ungültiger Status: {status}", "en": "Invalid status: {status}"},
     "invalid_type": {"de": "Ungültiger Typ: {type}", "en": "Invalid type: {type}"},
+    "invalid_date": {"de": "Ungültiges Datum (Format: JJJJ-MM-TT)", "en": "Invalid date (format: YYYY-MM-DD)"},
     "invalid_status_transition": {
         "de": "Ungültiger Statusübergang: {old} → {new}",
         "en": "Invalid status transition: {old} → {new}",
