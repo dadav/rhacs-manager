@@ -3,7 +3,11 @@ name = "rhacs-manager-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115.0",
+    # Cap below 0.137: FastAPI 0.137 wraps included routers in _IncludedRouter
+    # objects with no `.path`, which crashes prometheus-fastapi-instrumentator's
+    # route-name resolution on every request (500 on all /api routes). Lift the
+    # cap once the instrumentator ships the fix (upstream issue trallnag #370 / PR #371).
+    "fastapi>=0.115.0,<0.137",
     "uvicorn[standard]>=0.30.0",
     "sqlalchemy[asyncio]>=2.0.0",
     "asyncpg>=0.29.0",
