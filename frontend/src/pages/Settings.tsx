@@ -4,6 +4,8 @@ import {
   Card,
   CardBody,
   CardTitle,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   FormSelect,
@@ -17,7 +19,6 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
-import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useToast } from '../components/ToastContext'
@@ -48,101 +49,151 @@ const EPSS_OPTIONS = [
   { value: 0.9, label: '90%' },
 ]
 
-function EscalationRuleRow({
+// One labeled day input. Each escalation level needs a short "→ Ln" caption so the
+// field is unambiguous once the table header is gone.
+function DayField({
+  levelLabel,
+  ariaLabel,
+  value,
+  onMinus,
+  onPlus,
+  onChange,
+}: {
+  levelLabel: string
+  ariaLabel: string
+  value: number | ''
+  onMinus: () => void
+  onPlus: () => void
+  onChange: (raw: string) => void
+}) {
+  return (
+    <FlexItem>
+      <div style={{ fontSize: 'var(--pf-t--global--font--size--sm)', color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 4 }}>
+        {levelLabel}
+      </div>
+      <NumberInput
+        value={value}
+        min={1}
+        size={4}
+        onMinus={onMinus}
+        onPlus={onPlus}
+        onChange={e => onChange((e.target as HTMLInputElement).value)}
+        inputAriaLabel={ariaLabel}
+      />
+    </FlexItem>
+  )
+}
+
+function EscalationRuleCard({
+  index,
   rule,
   onChange,
   onDelete,
   severityOptions,
 }: {
+  index: number
   rule: EscalationRule
   onChange: (r: EscalationRule) => void
   onDelete: () => void
   severityOptions: { value: number; label: string }[]
 }) {
   const { t } = useTranslation()
+  const levelLabels = [t('settings.levelShort1'), t('settings.levelShort2'), t('settings.levelShort3')]
+  const beforeKeys = ['days_to_level1', 'days_to_level2', 'days_to_level3'] as const
+  const afterKeys = [
+    'days_to_level1_after_fix_available',
+    'days_to_level2_after_fix_available',
+    'days_to_level3_after_fix_available',
+  ] as const
+
   return (
-    <Tr>
-      <Td>
-        <FormSelect
-          value={rule.severity_min}
-          onChange={(_e, v) => onChange({ ...rule, severity_min: Number(v) })}
-          aria-label={t('settings.severityMin')}
-          style={{ width: 120 }}
-        >
-          {severityOptions.map(o => (
-            <FormSelectOption key={o.value} value={o.value} label={o.label} />
-          ))}
-        </FormSelect>
-      </Td>
-      <Td>
-        <FormSelect
-          value={rule.epss_threshold}
-          onChange={(_e, v) => onChange({ ...rule, epss_threshold: Number(v) })}
-          aria-label={t('settings.minEpssCol')}
-          style={{ width: 90 }}
-        >
-          {EPSS_OPTIONS.map(o => (
-            <FormSelectOption key={o.value} value={o.value} label={o.label} />
-          ))}
-        </FormSelect>
-      </Td>
-      <Td>
-        <NumberInput
-          value={rule.days_to_level1}
-          min={1}
-          onMinus={() => onChange({ ...rule, days_to_level1: Math.max(1, rule.days_to_level1 - 1) })}
-          onPlus={() => onChange({ ...rule, days_to_level1: rule.days_to_level1 + 1 })}
-          onChange={e => onChange({ ...rule, days_to_level1: Number((e.target as HTMLInputElement).value) })}
-          inputAriaLabel={t('settings.daysToLevel1')}
-          style={{ width: 120 }}
-        />
-      </Td>
-      <Td>
-        <NumberInput
-          value={rule.days_to_level2}
-          min={1}
-          onMinus={() => onChange({ ...rule, days_to_level2: Math.max(1, rule.days_to_level2 - 1) })}
-          onPlus={() => onChange({ ...rule, days_to_level2: rule.days_to_level2 + 1 })}
-          onChange={e => onChange({ ...rule, days_to_level2: Number((e.target as HTMLInputElement).value) })}
-          inputAriaLabel={t('settings.daysToLevel2')}
-          style={{ width: 120 }}
-        />
-      </Td>
-      <Td>
-        <NumberInput
-          value={rule.days_to_level3}
-          min={1}
-          onMinus={() => onChange({ ...rule, days_to_level3: Math.max(1, rule.days_to_level3 - 1) })}
-          onPlus={() => onChange({ ...rule, days_to_level3: rule.days_to_level3 + 1 })}
-          onChange={e => onChange({ ...rule, days_to_level3: Number((e.target as HTMLInputElement).value) })}
-          inputAriaLabel={t('settings.daysToLevel3')}
-          style={{ width: 120 }}
-        />
-      </Td>
-      {([1, 2, 3] as const).map(level => {
-        const key = `days_to_level${level}_after_fix_available` as const
-        const v = rule[key]
-        return (
-          <Td key={key}>
-            <NumberInput
+    <div
+      style={{
+        border: '1px solid var(--pf-t--global--border--color--default)',
+        borderRadius: 'var(--pf-t--global--border--radius--small)',
+        padding: 16,
+      }}
+    >
+      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsCenter' }}>
+        <FlexItem>
+          <strong>{t('settings.ruleLabel', { n: index + 1 })}</strong>
+        </FlexItem>
+        <FlexItem>
+          <Button variant="link" isDanger isInline onClick={onDelete}>
+            {t('settings.deleteRule')}
+          </Button>
+        </FlexItem>
+      </Flex>
+
+      {/* Condition: when severity >= X and EPSS >= Y */}
+      <Flex
+        alignItems={{ default: 'alignItemsCenter' }}
+        spaceItems={{ default: 'spaceItemsSm' }}
+        style={{ marginTop: 12, marginBottom: 16 }}
+      >
+        <FlexItem>{t('settings.whenSeverity')}</FlexItem>
+        <FlexItem>
+          <FormSelect
+            value={rule.severity_min}
+            onChange={(_e, v) => onChange({ ...rule, severity_min: Number(v) })}
+            aria-label={t('settings.severityMin')}
+            style={{ width: 130 }}
+          >
+            {severityOptions.map(o => (
+              <FormSelectOption key={o.value} value={o.value} label={o.label} />
+            ))}
+          </FormSelect>
+        </FlexItem>
+        <FlexItem>{t('settings.andEpss')}</FlexItem>
+        <FlexItem>
+          <FormSelect
+            value={rule.epss_threshold}
+            onChange={(_e, v) => onChange({ ...rule, epss_threshold: Number(v) })}
+            aria-label={t('settings.minEpssCol')}
+            style={{ width: 100 }}
+          >
+            {EPSS_OPTIONS.map(o => (
+              <FormSelectOption key={o.value} value={o.value} label={o.label} />
+            ))}
+          </FormSelect>
+        </FlexItem>
+      </Flex>
+
+      {/* Escalation deadlines */}
+      <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{t('settings.escalationDeadlines')}</div>
+      <Flex spaceItems={{ default: 'spaceItemsMd' }} style={{ marginBottom: 16 }}>
+        {beforeKeys.map((key, i) => (
+          <DayField
+            key={key}
+            levelLabel={levelLabels[i]}
+            ariaLabel={t(`settings.daysToLevel${i + 1}`)}
+            value={rule[key]}
+            onMinus={() => onChange({ ...rule, [key]: Math.max(1, rule[key] - 1) })}
+            onPlus={() => onChange({ ...rule, [key]: rule[key] + 1 })}
+            onChange={raw => onChange({ ...rule, [key]: Number(raw) })}
+          />
+        ))}
+      </Flex>
+
+      {/* Deadlines after a fix becomes available (nullable) */}
+      <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{t('settings.escalationDeadlinesAfterFix')}</div>
+      <Flex spaceItems={{ default: 'spaceItemsMd' }}>
+        {afterKeys.map((key, i) => {
+          const v = rule[key]
+          return (
+            <DayField
+              key={key}
+              levelLabel={levelLabels[i]}
+              ariaLabel={t(`settings.daysToLevel${i + 1}AfterFix`)}
               value={v ?? ''}
-              min={1}
               onMinus={() => onChange({ ...rule, [key]: Math.max(1, (v ?? 1) - 1) })}
               onPlus={() => onChange({ ...rule, [key]: (v ?? 0) + 1 })}
-              onChange={e => {
-                const raw = (e.target as HTMLInputElement).value
-                onChange({ ...rule, [key]: raw === '' ? null : Number(raw) })
-              }}
-              inputAriaLabel={t(`settings.daysToLevel${level}AfterFix`)}
-              style={{ width: 120 }}
+              onChange={raw => onChange({ ...rule, [key]: raw === '' ? null : Number(raw) })}
             />
-          </Td>
-        )
-      })}
-      <Td>
-        <Button variant="plain" onClick={onDelete} aria-label={t('common.delete')} style={{ color: '#c9190b', fontSize: 12 }}>✕</Button>
-      </Td>
-    </Tr>
+          )
+        })}
+      </Flex>
+    </div>
   )
 }
 
@@ -292,34 +343,19 @@ export function Settings() {
                 </span>
               </CardTitle>
               <CardBody>
-                <div style={{ overflowX: 'auto' }}>
-                  <Table variant="compact">
-                    <Thead>
-                      <Tr>
-                        <Th>{t('settings.severityMin')}</Th>
-                        <Th>{t('settings.minEpssCol')}</Th>
-                        <Th>{t('settings.daysToLevel1')}</Th>
-                        <Th>{t('settings.daysToLevel2')}</Th>
-                        <Th>{t('settings.daysToLevel3')}</Th>
-                        <Th>{t('settings.daysToLevel1AfterFix')}</Th>
-                        <Th>{t('settings.daysToLevel2AfterFix')}</Th>
-                        <Th>{t('settings.daysToLevel3AfterFix')}</Th>
-                        <Th></Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {escalationRules.map((rule, i) => (
-                        <EscalationRuleRow
-                          key={i}
-                          rule={rule}
-                          severityOptions={SEVERITY_OPTIONS}
-                          onChange={r => setEscalationRules(rs => rs.map((x, j) => j === i ? r : x))}
-                          onDelete={() => setEscalationRules(rs => rs.filter((_, j) => j !== i))}
-                        />
-                      ))}
-                    </Tbody>
-                  </Table>
-                </div>
+                <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsMd' }}>
+                  {escalationRules.map((rule, i) => (
+                    <FlexItem key={i}>
+                      <EscalationRuleCard
+                        index={i}
+                        rule={rule}
+                        severityOptions={SEVERITY_OPTIONS}
+                        onChange={r => setEscalationRules(rs => rs.map((x, j) => j === i ? r : x))}
+                        onDelete={() => setEscalationRules(rs => rs.filter((_, j) => j !== i))}
+                      />
+                    </FlexItem>
+                  ))}
+                </Flex>
                 <Button variant="link" onClick={addRule} style={{ marginTop: 8 }}>{t('settings.addRule')}</Button>
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--pf-t--global--border--color--default)' }}>
                   <FormGroup
