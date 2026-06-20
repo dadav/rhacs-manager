@@ -239,6 +239,16 @@ jobs:
             yq -i 'del(.metadata.labels | select(length == 0))' "$f"
             yq -i 'del(.spec.template.metadata.labels | select(length == 0))' "$f"
           done
+      - name: Package Helm chart
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/helm
+          base_version="$(helm show chart deploy/helm/rhacs-manager | awk '/^version:/ {print $2}')"
+          helm package deploy/helm/rhacs-manager \
+            --destination .artifacts/helm \
+            --version "${base_version}" \
+            --app-version "${base_version}"
       - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -414,7 +424,8 @@ jobs:
           shopt -s nullglob
           report_files=(trivy-report-*.json)
           manifest_files=(.artifacts/manifests/*.yaml)
-          attach_files=("${report_files[@]}" "${manifest_files[@]}")
+          chart_files=(.artifacts/helm/*.tgz)
+          attach_files=("${report_files[@]}" "${manifest_files[@]}" "${chart_files[@]}")
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release edit "${RELEASE_TAG}" \
