@@ -17,6 +17,7 @@ spoke:
   secret:
     stringData:
       HUB_API_URL: "https://rhacs-manager-api.apps.hub.example.com"
+      # MUST match one of the entries in the hub's backend SPOKE_API_KEYS list.
       SPOKE_API_KEY: "REPLACE_WITH_SHARED_API_KEY"
       CLUSTER_NAME: "spoke-cluster-name"
   route:

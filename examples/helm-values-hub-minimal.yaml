@@ -4,14 +4,23 @@
 #     -n rhacs-manager --create-namespace \
 #     -f examples/helm-values-hub-minimal.yaml
 #
-# Generate a cookie secret:
+# Generate the oauth-proxy cookie secret and the app SECRET_KEY:
 #   openssl rand -base64 32
+#
+# Shared API key: backend.secret.stringData.SPOKE_API_KEYS and
+# frontend.secret.stringData.SPOKE_API_KEY must use the SAME value. The hub
+# frontend authenticates to the backend with X-Api-Key, and the backend only
+# accepts keys listed in SPOKE_API_KEYS.
 
 mode: hub
 
 frontend:
   oauthProxy:
     cookieSecret: "REPLACE_WITH_BASE64_32_BYTE_SECRET"
+  secret:
+    stringData:
+      # MUST match one of the entries in backend.secret.stringData.SPOKE_API_KEYS below.
+      SPOKE_API_KEY: "REPLACE_WITH_SHARED_API_KEY"
 
 route:
   frontend:
@@ -22,9 +31,12 @@ route:
 backend:
   secret:
     stringData:
+      # REQUIRED: strong random value, e.g. `openssl rand -base64 32`
+      SECRET_KEY: "REPLACE_WITH_BASE64_32_BYTE_SECRET"
       APP_BASE_URL: "https://rhacs-manager.apps.cluster.example.com"
       BADGE_BASE_URL: "https://rhacs-manager-api.apps.cluster.example.com"
-      # JSON list of allowed spoke API keys. Spoke clusters must use one of these.
+      # JSON list of allowed spoke API keys. The hub frontend and every spoke
+      # cluster must use one of these. Keep in sync with the SPOKE_API_KEY above.
       SPOKE_API_KEYS: "[\"REPLACE_WITH_SHARED_API_KEY\"]"
       SMTP_HOST: "smtp.example.com"
       SMTP_PORT: "587"
