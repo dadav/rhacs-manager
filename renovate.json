@@ -13,6 +13,11 @@
       "description": "Do not update the ose-oauth-proxy image",
       "matchPackageNames": ["registry.redhat.io/openshift4/ose-oauth-proxy"],
       "enabled": false
+    },
+    {
+      "description": "Do not update fastapi to >= 0.137 (pinned in backend/pyproject.toml)",
+      "matchPackageNames": ["fastapi"],
+      "allowedVersions": "<0.137"
     }
   ]
 }
