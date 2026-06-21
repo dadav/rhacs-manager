@@ -134,6 +134,8 @@
     "helpBody2PriorityDesc": " - Eigene Tabellen für vom Security-Team priorisierte CVEs und solche mit der höchsten Ausnutzungswahrscheinlichkeit.",
     "helpBody3": "Security-Team-Mitglieder sehen organisationsweite Daten. Reguläre Nutzer sehen nur CVEs in ihren berechtigten Namespaces, gefiltert nach CVSS- und EPSS-Schwellenwerten.",
     "totalCves": "Gesamt CVEs",
+    "noCves": "Keine CVEs gefunden",
+    "noCvesHint": "In den ausgewählten Namespaces wurden keine CVEs gefunden. Passen Sie den Scope an oder erweitern Sie ihn.",
     "escalations": "Eskalationen",
     "fixableCriticalCves": "Behebbare kritische CVEs",
     "openRiskAcceptances": "Offene Risikoakzeptanzen",

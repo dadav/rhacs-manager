@@ -11,7 +11,7 @@ import {
   Popover,
   Title,
 } from "@patternfly/react-core";
-import { OutlinedQuestionCircleIcon } from "@patternfly/react-icons";
+import { OutlinedQuestionCircleIcon, SearchIcon } from "@patternfly/react-icons";
 import { getErrorMessage } from "../utils/errors";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router";
@@ -65,38 +65,55 @@ export function Dashboard() {
 
   if (!data) return null;
 
+  const header = (
+    <PageSection variant="default">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Title headingLevel="h1" size="xl">
+          {t("dashboard.title")}
+        </Title>
+        <Popover
+          headerContent={t('dashboard.whatIs')}
+          bodyContent={
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 8px' }}>
+                {t('dashboard.helpBody1')}
+              </p>
+              <p style={{ margin: '0 0 8px' }}>
+                <strong>{t('dashboard.helpBody2Charts')}</strong> - {t('dashboard.helpBody2ChartsDesc')}<br />
+                <strong>{t('dashboard.helpBody2Stats')}</strong> - {t('dashboard.helpBody2StatsDesc')}<br />
+                <strong>{t('dashboard.helpBody2Priority')}</strong> - {t('dashboard.helpBody2PriorityDesc')}
+              </p>
+              <p style={{ margin: 0 }}>
+                {t('dashboard.helpBody3')}
+              </p>
+            </div>
+          }
+          position="right"
+        >
+          <Button variant="plain" aria-label={t('dashboard.helpLabel')} style={{ padding: '4px 6px' }}>
+            <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+          </Button>
+        </Popover>
+      </div>
+    </PageSection>
+  );
+
+  if (data.stat_total_cves === 0) {
+    return (
+      <>
+        {header}
+        <PageSection variant="default" isFilled>
+          <EmptyState titleText={t("dashboard.noCves")} icon={SearchIcon}>
+            <EmptyStateBody>{t("dashboard.noCvesHint")}</EmptyStateBody>
+          </EmptyState>
+        </PageSection>
+      </>
+    );
+  }
+
   return (
     <>
-      <PageSection variant="default">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Title headingLevel="h1" size="xl">
-            {t("dashboard.title")}
-          </Title>
-          <Popover
-            headerContent={t('dashboard.whatIs')}
-            bodyContent={
-              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-                <p style={{ margin: '0 0 8px' }}>
-                  {t('dashboard.helpBody1')}
-                </p>
-                <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('dashboard.helpBody2Charts')}</strong> - {t('dashboard.helpBody2ChartsDesc')}<br />
-                  <strong>{t('dashboard.helpBody2Stats')}</strong> - {t('dashboard.helpBody2StatsDesc')}<br />
-                  <strong>{t('dashboard.helpBody2Priority')}</strong> - {t('dashboard.helpBody2PriorityDesc')}
-                </p>
-                <p style={{ margin: 0 }}>
-                  {t('dashboard.helpBody3')}
-                </p>
-              </div>
-            }
-            position="right"
-          >
-            <Button variant="plain" aria-label={t('dashboard.helpLabel')} style={{ padding: '4px 6px' }}>
-              <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
-            </Button>
-          </Popover>
-        </div>
-      </PageSection>
+      {header}
 
       <PageSection variant="default" isFilled>
         <Grid hasGutter>

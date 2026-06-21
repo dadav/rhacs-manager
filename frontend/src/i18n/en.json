@@ -134,6 +134,8 @@
     "helpBody2PriorityDesc": " - Dedicated tables for CVEs marked as priority by the security team and those with the highest exploitation probability.",
     "helpBody3": "Security team members see organization-wide data. Regular users see only CVEs in their permitted namespaces, filtered by CVSS and EPSS thresholds.",
     "totalCves": "Total CVEs",
+    "noCves": "No CVEs found",
+    "noCvesHint": "No CVEs were found in the selected namespaces. Try adjusting or widening the scope.",
     "escalations": "Escalations",
     "fixableCriticalCves": "Fixable critical CVEs",
     "openRiskAcceptances": "Open risk acceptances",
