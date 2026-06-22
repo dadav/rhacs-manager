@@ -88,6 +88,37 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
 | `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
+| `SCHEDULER_ENABLED` | `true` | Run the background job scheduler in this process. See [Background Scheduler](#background-scheduler). |
+
+## Background Scheduler
+
+`SCHEDULER_ENABLED` toggles the in-process [APScheduler](https://apscheduler.readthedocs.io/) job runner. It is read once at startup:
+
+- `true` — the scheduler starts and an escalation check runs immediately on boot.
+- `false` — no background jobs run; the process serves HTTP only and logs `Scheduler disabled (SCHEDULER_ENABLED=false)`.
+
+The scheduled jobs (all times UTC):
+
+| Job | Time | Purpose |
+|-----|------|---------|
+| `expiry_check` | 01:00 | Mark approved risk acceptances as expired once past their expiry date |
+| `weekly_digest` | 07:00 | Send the management digest email (only on the configured `digest_day`) |
+| `expiry_warning` | 07:30 | Email risk-acceptance creators 7 days before expiry |
+| `escalation_check` | 08:00 | Create and clean up escalations and send escalation emails |
+| `remediation_overdue_check` | 08:30 | Notify owners of overdue remediations |
+| `remediation_auto_resolve` | 09:00 | Auto-resolve remediations when the CVE is no longer reported in the namespace |
+
+### Deployment: one worker, never the API
+
+The Helm chart runs the backend image as two deployments split by this flag:
+
+- The **API/backend** deployment sets `SCHEDULER_ENABLED=false` and only serves HTTP. It can be scaled to multiple replicas safely.
+- The **worker** deployment sets `SCHEDULER_ENABLED=true` and runs the jobs above.
+
+!!! warning "Run the scheduler in exactly one process"
+    The scheduler has no distributed locking. If more than one running process has `SCHEDULER_ENABLED=true`, every process fires the jobs independently, producing duplicate escalation emails, digests, and expiry notifications. Keep the worker at a single replica and leave `SCHEDULER_ENABLED=false` everywhere else.
+
+If escalation, digest, expiry, or auto-resolution behavior is missing in a cluster, confirm the **worker** deployment is running, not just the backend. The config default of `true` exists only for the single-process local dev workflow (`just dev`).
 
 ## Observability
 
