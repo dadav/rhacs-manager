@@ -104,6 +104,7 @@ The scheduled jobs (all times UTC):
 | `expiry_check` | 01:00 | Mark approved risk acceptances as expired once past their expiry date |
 | `weekly_digest` | 07:00 | Send the management digest email (only on the configured `digest_day`) |
 | `expiry_warning` | 07:30 | Email risk-acceptance creators 7 days before expiry |
+| `escalation_warning` | 07:45 | Email namespace contacts before a CVE escalates (within `escalation_warning_days`) |
 | `escalation_check` | 08:00 | Create and clean up escalations and send escalation emails |
 | `remediation_overdue_check` | 08:30 | Notify owners of overdue remediations |
 | `remediation_auto_resolve` | 09:00 | Auto-resolve remediations when the CVE is no longer reported in the namespace |
@@ -135,7 +136,7 @@ Security team users manage runtime behavior via API/UI. Values are stored in `gl
 | `min_cvss_score` | `0.0` | Minimum CVSS threshold |
 | `min_epss_score` | `0.0` | Minimum EPSS threshold |
 | `escalation_rules` | Built-in defaults | Rule set for level escalation |
-| `escalation_warning_days` | `3` | Lead time used for upcoming escalation warnings |
+| `escalation_warning_days` | `3` | Lead time for the upcoming-escalation preview and pre-escalation warning emails |
 | `digest_day` | `0` | Weekly digest day (`0` = Monday) |
 | `management_email` | `""` | Digest recipient (runtime override) |
 

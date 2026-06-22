@@ -1,0 +1,94 @@
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{# Warning is always amber — it precedes the escalation, regardless of target level. #}
+{% set warn_rail = "#f0ab00" %}
+{% set warn_tint = "#fdf8ea" %}
+{% set warn_text = "#946a00" %}
+
+{% block title %}CVE-Eskalation in {{ days_until }} Tagen: {{ cve_id }}{% endblock %}
+{% block preheader %}{{ cve_id }} wird in {{ days_until }} Tagen auf Stufe {{ level }} eskaliert in {{ namespace }} / {{ cluster_name }}.{% endblock %}
+
+{% block content %}
+
+  <!-- Warning alert row -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:{{ warn_tint }};border-radius:8px">
+    <tr>
+      <td width="4" style="background:{{ warn_rail }};border-radius:8px 0 0 8px;font-size:0;line-height:0">&nbsp;</td>
+      <td style="padding:13px 18px">
+        <span style="font-family:{{ ui.mono() }};font-size:13px;font-weight:700;letter-spacing:.3px;color:{{ warn_text }}">&#9650;&nbsp;Eskalation in {{ days_until }} Tagen</span><span style="font-family:{{ ui.font() }};font-size:13px;color:{{ warn_text }}">&nbsp;&middot; Stufe {{ level }}</span>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:22px 0;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    Die folgende Schwachstelle wird in <strong style="color:#16161a">{{ days_until }} Tagen</strong> auf <strong style="color:#16161a">Stufe {{ level }}</strong> eskaliert, sofern sie bis dahin nicht behoben oder eine Risikoakzeptanz erstellt wird.
+  </p>
+
+  <!-- CVE detail card -->
+  {{ ui.card_head("CVE-Details") }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a;width:130px">CVE</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ cve_id }}</td>
+      </tr>
+      {% if severity %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Schweregrad</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2">
+          {% if severity >= 4 %}{{ ui.sev_chip(4, "Kritisch") }}
+          {% elif severity == 3 %}{{ ui.sev_chip(3, "Hoch") }}
+          {% elif severity == 2 %}{{ ui.sev_chip(2, "Mittel") }}
+          {% else %}{{ ui.sev_chip(1, "Gering") }}{% endif %}
+        </td>
+      </tr>
+      {% endif %}
+      {% if cvss is not none %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">CVSS</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ "%.1f"|format(cvss) }}</td>
+      </tr>
+      {% endif %}
+      {% if epss_probability is not none %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">EPSS</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;font-weight:600;color:#16161a">{{ "%.1f"|format(epss_probability * 100) }}%</td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Namespace</td>
+        <td style="padding:12px 18px;border-bottom:1px solid #f0f0f2;font-family:{{ ui.mono() }};font-size:14px;color:#16161a">{{ namespace }}</td>
+      </tr>
+      <tr>
+        <td style="padding:12px 18px;font-family:{{ ui.font() }};font-size:13px;color:#71717a">Cluster</td>
+        <td style="padding:12px 18px;font-family:{{ ui.mono() }};font-size:14px;color:#16161a">{{ cluster_name }}</td>
+      </tr>
+    </table>
+  {{ ui.card_foot() }}
+
+  <!-- Affected deployments -->
+  {% if deployments %}
+  <div style="height:20px;line-height:20px;font-size:0">&nbsp;</div>
+  {{ ui.card_head("Betroffene Deployments · " ~ deployments|length) }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      {% for dep in deployments[:10] %}
+      <tr>
+        <td style="padding:10px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.font() }};font-size:13px;font-weight:600;color:#16161a;width:42%;vertical-align:top">{{ dep.deployment_name }}</td>
+        <td style="padding:10px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.mono() }};font-size:12px;color:#71717a;word-break:break-all;vertical-align:top">{{ dep.image_name }}</td>
+      </tr>
+      {% endfor %}
+      {% if deployments|length > 10 %}
+      <tr>
+        <td colspan="2" style="padding:10px 18px;border-top:1px solid #f0f0f2;background:#fafafa;font-family:{{ ui.font() }};font-size:12px;color:#71717a">und {{ deployments|length - 10 }} weitere</td>
+      </tr>
+      {% endif %}
+    </table>
+  {{ ui.card_foot() }}
+  {% endif %}
+
+  <p style="margin:24px 0 20px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    Bitte beheben Sie die Schwachstelle rechtzeitig oder erstellen Sie eine Risikoakzeptanz, um die Eskalation zu vermeiden.
+  </p>
+
+  {{ ui.button(link, "Schwachstelle ansehen") }}
+{% endblock %}

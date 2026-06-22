@@ -11,7 +11,7 @@ from ..database import AppSessionLocal, StackRoxSessionLocal
 from ..mail import service as mail_svc
 from ..metrics import instrument_job
 from ..models.cve_priority import CvePriority
-from ..models.escalation import Escalation
+from ..models.escalation import Escalation, EscalationWarning
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus
@@ -241,6 +241,191 @@ async def run_escalation_check() -> None:
         logger.info("Escalation check complete")
 
 
+@instrument_job("escalation_warning")
+async def run_escalation_warning() -> None:
+    """Email namespace contacts before a CVE escalates.
+
+    Mirrors run_escalation_check's per-(namespace, cluster) iteration, but instead
+    of firing when a level deadline is already past, it warns when the next not-yet-
+    reached level falls within settings.escalation_warning_days. Deduplicated via
+    the escalation_warnings table so a contact is emailed at most once per
+    (cve_id, level, namespace, cluster_name).
+    """
+    logger.info("Running escalation warning check")
+    async with AppSessionLocal() as app_session:
+        settings = await _get_settings(app_session)
+        if not settings or not settings.escalation_rules:
+            return
+
+        warning_days = settings.escalation_warning_days
+        min_cvss = float(settings.min_cvss_score) if settings.min_cvss_score else 0.0
+        min_epss = float(settings.min_epss_score) if settings.min_epss_score else 0.0
+
+        # Approved risk acceptances are excluded from escalation entirely.
+        accepted_result = await app_session.execute(
+            select(RiskAcceptance.cve_id).where(
+                RiskAcceptance.status == RiskStatus.approved,
+            )
+        )
+        accepted_ids = {row[0] for row in accepted_result}
+
+        # always_show: prioritized CVEs + non-approved active RAs bypass thresholds.
+        prio_result = await app_session.execute(select(CvePriority.cve_id))
+        always_show = {row[0] for row in prio_result}
+        active_ra_result = await app_session.execute(
+            select(RiskAcceptance.cve_id).where(
+                RiskAcceptance.status == RiskStatus.requested,
+            )
+        )
+        always_show |= {row[0] for row in active_ra_result}
+
+        async with StackRoxSessionLocal() as sx_session:
+            from ..stackrox.queries import (
+                get_affected_deployments,
+                get_cves_by_namespace_detail,
+                list_namespaces,
+            )
+
+            all_ns_rows = await list_namespaces(sx_session)
+            all_ns = [(r["namespace"], r["cluster_name"]) for r in all_ns_rows]
+            if not all_ns:
+                return
+
+            cve_rows = await get_cves_by_namespace_detail(
+                sx_session,
+                all_ns,
+                min_cvss,
+                min_epss,
+                always_show,
+            )
+
+            for row in cve_rows:
+                if row["cve_id"] in accepted_ids:
+                    continue
+
+                now = datetime.utcnow()
+                ns_name = row["namespace"]
+                cluster = row["cluster_name"]
+
+                for rule in settings.escalation_rules:
+                    if not rule_matches(rule, row.get("severity", 0), float(row.get("epss_probability", 0))):
+                        continue
+
+                    deadlines = level_deadlines(
+                        rule,
+                        first_seen=row.get("first_seen"),
+                        fix_available_since=row.get("fix_available_since"),
+                    )
+
+                    # Next not-yet-due level for this rule (smallest level still in the future).
+                    candidate = None
+                    for lvl in sorted(deadlines):
+                        if (deadlines[lvl] - now).days <= 0:
+                            continue  # already due — run_escalation_check handles it
+                        candidate = lvl
+                        break
+                    if candidate is None:
+                        continue
+
+                    days_until = (deadlines[candidate] - now).days
+                    if not (0 < days_until <= warning_days):
+                        break  # next level is beyond the warning window
+
+                    # Skip if already escalated or already warned for this exact level.
+                    already_escalated = await app_session.execute(
+                        select(Escalation).where(
+                            Escalation.cve_id == row["cve_id"],
+                            Escalation.level == candidate,
+                            Escalation.namespace == ns_name,
+                            Escalation.cluster_name == cluster,
+                        )
+                    )
+                    if already_escalated.scalar_one_or_none():
+                        break
+                    already_warned = await app_session.execute(
+                        select(EscalationWarning).where(
+                            EscalationWarning.cve_id == row["cve_id"],
+                            EscalationWarning.level == candidate,
+                            EscalationWarning.namespace == ns_name,
+                            EscalationWarning.cluster_name == cluster,
+                        )
+                    )
+                    if already_warned.scalar_one_or_none():
+                        break
+
+                    # Resolve recipient: namespace contact -> default -> management.
+                    contact_result = await app_session.execute(
+                        select(NamespaceContact).where(
+                            NamespaceContact.namespace == ns_name,
+                            NamespaceContact.cluster_name == cluster,
+                        )
+                    )
+                    contact = contact_result.scalar_one_or_none()
+                    recipient = None
+                    if contact:
+                        recipient = contact.escalation_email
+                    elif app_settings.default_escalation_email:
+                        recipient = app_settings.default_escalation_email
+                    elif app_settings.management_email:
+                        recipient = app_settings.management_email
+
+                    if recipient:
+                        deploy_rows = await get_affected_deployments(
+                            sx_session,
+                            row["cve_id"],
+                            [(ns_name, cluster)],
+                        )
+                        try:
+                            await mail_svc.send_escalation_warning_email(
+                                recipient,
+                                cve_id=row["cve_id"],
+                                namespace=ns_name,
+                                cluster_name=cluster,
+                                level=candidate,
+                                days_until=days_until,
+                                severity=row.get("severity"),
+                                cvss=row.get("cvss"),
+                                epss_probability=row.get("epss_probability"),
+                                deployments=deploy_rows,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Failed to send escalation warning email for %s to %s",
+                                row["cve_id"],
+                                recipient,
+                            )
+                            break
+
+                    # Record dedup row even if no recipient, so we don't re-evaluate daily.
+                    app_session.add(
+                        EscalationWarning(
+                            cve_id=row["cve_id"],
+                            namespace=ns_name,
+                            cluster_name=cluster,
+                            level=candidate,
+                        )
+                    )
+                    break  # one warning per (cve, namespace, cluster) per run
+
+        # Cleanup: drop warnings for CVEs no longer visible (below thresholds/accepted).
+        visible_cve_ids = {row["cve_id"] for row in cve_rows} | always_show
+        all_warn_result = await app_session.execute(select(EscalationWarning.id, EscalationWarning.cve_id))
+        stale_ids = [
+            warn_id
+            for warn_id, cve_id in all_warn_result
+            if cve_id not in visible_cve_ids and cve_id not in accepted_ids
+        ]
+        if stale_ids:
+            await app_session.execute(delete(EscalationWarning).where(EscalationWarning.id.in_(stale_ids)))
+            logger.info(
+                "Cleaned up %d stale escalation warnings for CVEs below thresholds",
+                len(stale_ids),
+            )
+
+        await app_session.commit()
+        logger.info("Escalation warning check complete")
+
+
 @instrument_job("remediation_overdue_check")
 async def run_remediation_overdue_check() -> None:
     """Notify users about overdue remediations (target_date passed, still open/in_progress)."""
@@ -449,6 +634,13 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=7,
         minute=30,
         id="expiry_warning",
+    )
+    scheduler.add_job(
+        run_escalation_warning,
+        "cron",
+        hour=7,
+        minute=45,
+        id="escalation_warning",
     )
     scheduler.add_job(
         run_escalation_check,

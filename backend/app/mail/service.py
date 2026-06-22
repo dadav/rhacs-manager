@@ -105,6 +105,36 @@ async def send_escalation_email(
     await send_email(to_email, f"CVE-Eskalation Stufe {level}: {cve_id}", html)
 
 
+async def send_escalation_warning_email(
+    to_email: str,
+    cve_id: str,
+    namespace: str,
+    cluster_name: str,
+    level: int,
+    days_until: int,
+    base_url: str | None = None,
+    severity: int | None = None,
+    cvss: float | None = None,
+    epss_probability: float | None = None,
+    deployments: list[dict] | None = None,
+) -> None:
+    base_url = base_url or settings.app_base_url
+    tmpl = _jinja_env.get_template("escalation_warning.html")
+    html = tmpl.render(
+        cve_id=cve_id,
+        namespace=namespace,
+        cluster_name=cluster_name,
+        level=level,
+        days_until=days_until,
+        severity=severity,
+        cvss=cvss,
+        epss_probability=epss_probability,
+        deployments=deployments or [],
+        link=f"{base_url}/eskalationen",
+    )
+    await send_email(to_email, f"CVE-Eskalation in {days_until} Tagen: {cve_id}", html)
+
+
 async def send_weekly_digest(
     to_email: str,
     stats: dict,

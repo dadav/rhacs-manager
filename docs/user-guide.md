@@ -153,7 +153,7 @@ The **Escalations** page shows both active escalations and upcoming ones.
   - Level 1: user notification
   - Level 2: user and security notification
   - Level 3: management escalation
-- The warning period comes from `escalation_warning_days` and is used for the upcoming-escalation preview.
+- The warning period comes from `escalation_warning_days`. It drives both the upcoming-escalation preview and a pre-escalation warning email: when a CVE is within that many days of reaching a level it has not yet hit, the namespace contact (or `DEFAULT_ESCALATION_EMAIL`/`MANAGEMENT_EMAIL` fallback) is emailed once per `(CVE, level, namespace, cluster)`.
 
 !!! note
     CVEs with approved risk acceptances are skipped during escalation checks.
