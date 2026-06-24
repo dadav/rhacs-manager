@@ -57,6 +57,7 @@ async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
         label=b.label,
         created_at=b.created_at,
         badge_url=_badge_url(b.token),
+        scope_namespaces=b.scope_namespaces,
     )
 
 

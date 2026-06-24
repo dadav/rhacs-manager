@@ -14,7 +14,9 @@ import {
   Skeleton,
   TextInput,
   Title,
+  Tooltip,
 } from '@patternfly/react-core'
+import type { BadgeToken } from '../types'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { useToast } from '../components/ToastContext'
@@ -38,6 +40,28 @@ export function Badges() {
   const [formError, setFormError] = useState('')
   const toAbsoluteBadgeUrl = (url: string) =>
     url.startsWith('http') ? url : new URL(url, window.location.origin).toString()
+
+  // scope_namespaces entries are [namespace, cluster] pairs.
+  const formatPair = ([ns, cluster]: [string, string]) => `${cluster || '*'}/${ns}`
+
+  function renderScope(badge: BadgeToken) {
+    if (badge.namespace) {
+      return `${badge.cluster_name}/${badge.namespace}`
+    }
+    const scope = badge.scope_namespaces
+    if (scope && scope.length > 0) {
+      const text =
+        scope.length > 1
+          ? `${formatPair(scope[0])} ${t('badges.scopeMore', { count: scope.length - 1 })}`
+          : formatPair(scope[0])
+      return (
+        <Tooltip content={`${t('badges.scopeTooltip')}: ${scope.map(formatPair).join(', ')}`}>
+          <span>{text}</span>
+        </Tooltip>
+      )
+    }
+    return `${badge.cluster_name ?? ''}/${t('badges.allScope')}`
+  }
 
   async function handleCreate() {
     try {
@@ -116,7 +140,7 @@ export function Badges() {
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ fontWeight: 600, marginBottom: 2 }}>{badge.label || t('badges.cveBadge')}</div>
                       <div style={{ fontSize: 11, color: '#6a6e73', fontFamily: 'monospace' }}>
-                        {badge.cluster_name}/{badge.namespace ?? t('badges.allScope')}
+                        {renderScope(badge)}
                       </div>
                     </div>
 

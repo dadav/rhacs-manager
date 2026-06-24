@@ -602,6 +602,8 @@
     "noBadgesHint": "Erstellen Sie einen Badge, um CVE-Anzahlen in Ihre Projektdokumentation einzubetten.",
     "cveBadge": "CVE Badge",
     "allScope": "alle",
+    "scopeMore": "+{{count}} weitere",
+    "scopeTooltip": "Sichtbare Namespaces",
     "copyUrl": "URL kopieren",
     "copiedUrl": "✓ Kopiert",
     "copiedMd": "✓ Kopiert",

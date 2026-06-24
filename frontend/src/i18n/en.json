@@ -602,6 +602,8 @@
     "noBadgesHint": "Create a badge to embed CVE counts in your project docs.",
     "cveBadge": "CVE Badge",
     "allScope": "all",
+    "scopeMore": "+{{count}} more",
+    "scopeTooltip": "Scoped namespaces",
     "copyUrl": "Copy URL",
     "copiedUrl": "✓ Copied",
     "copiedMd": "✓ Copied",

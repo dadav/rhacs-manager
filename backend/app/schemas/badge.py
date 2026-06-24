@@ -21,3 +21,4 @@ class BadgeResponse(BaseModel):
     label: str
     created_at: datetime
     badge_url: str
+    scope_namespaces: list | None = None

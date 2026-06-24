@@ -278,6 +278,7 @@ export interface BadgeToken {
   label: string
   created_at: string
   badge_url: string
+  scope_namespaces: [string, string][] | null
 }
 
 export interface SeverityCount {
