@@ -2,7 +2,7 @@ import time
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -45,6 +45,29 @@ def _badge_url(token: str) -> str:
     if settings.badge_base_url:
         return f"{settings.badge_base_url.rstrip('/')}{path}"
     return path
+
+
+def _user_can_see_badge(user: CurrentUser, badge: BadgeToken) -> bool:
+    """Scope-aware badge visibility.
+
+    Privileged users (sec team or wildcard) see every badge. A scoped user sees a
+    badge only if its scope is fully contained in their visible namespaces; all-scope
+    badges (no namespace and no stored scope_namespaces) are hidden from scoped users.
+    """
+    if user.can_see_all_namespaces:
+        return True
+    user_ns = set(user.namespaces)  # set of (namespace, cluster)
+    # Explicit single-namespace badge.
+    if badge.namespace:
+        if badge.cluster_name:
+            return (badge.namespace, badge.cluster_name) in user_ns
+        return any(ns == badge.namespace for ns, _ in user_ns)
+    # Multi-namespace scoped badge: every scoped pair must be visible (subset).
+    if badge.scope_namespaces:
+        scope = {(entry[0], entry[1]) for entry in badge.scope_namespaces}
+        return scope <= user_ns
+    # All-scope badge -> privileged users only.
+    return False
 
 
 async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
@@ -146,20 +169,14 @@ async def list_badges(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> list[BadgeResponse]:
-    if current_user.can_see_all_namespaces:
-        query = select(BadgeToken).order_by(BadgeToken.created_at.desc())
-    else:
-        query = (
-            select(BadgeToken).where(BadgeToken.created_by == current_user.id).order_by(BadgeToken.created_at.desc())
-        )
-
+    result = await db.execute(select(BadgeToken).order_by(BadgeToken.created_at.desc()))
+    badges = [b for b in result.scalars().all() if _user_can_see_badge(current_user, b)]
+    # Optional narrowing by the UI's selected scope.
     if cluster:
-        query = query.where(or_(BadgeToken.cluster_name == cluster, BadgeToken.cluster_name.is_(None)))
+        badges = [b for b in badges if b.cluster_name == cluster or b.cluster_name is None]
     if namespace:
-        query = query.where(or_(BadgeToken.namespace == namespace, BadgeToken.namespace.is_(None)))
-
-    result = await db.execute(query)
-    return [await _build_response(b, db) for b in result.scalars().all()]
+        badges = [b for b in badges if b.namespace == namespace or b.namespace is None]
+    return [await _build_response(b, db) for b in badges]
 
 
 @router.post("", response_model=BadgeResponse, status_code=201)
