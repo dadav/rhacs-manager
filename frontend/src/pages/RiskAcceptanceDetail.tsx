@@ -6,6 +6,7 @@ import {
   Card,
   CardBody,
   CardTitle,
+  ExpandableSection,
   Grid,
   GridItem,
   PageSection,
@@ -20,7 +21,7 @@ import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatDateTime } from '../utils/format'
 import { useToast } from '../components/ToastContext'
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { usePresence } from '../api/presence'
 import { useAddComment, useAssignReviewer, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser, useUserSearch } from '../api/auth'
@@ -550,6 +551,31 @@ function RiskAcceptanceView({ id }: { id: string }) {
     deployment: t('riskAcceptance.scopeDeployment'),
   }
 
+  function renderScope(scope: RiskScope): React.ReactNode {
+    const label = SCOPE_MODE_LABELS[scope.mode]
+    if (scope.mode === 'all' || scope.targets.length === 0) {
+      return label
+    }
+    return (
+      <ExpandableSection toggleText={`${label} (${scope.targets.length})`}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {scope.targets.map((target, i) => (
+            <li key={i} style={{ padding: '4px 0', borderTop: i > 0 ? '1px solid var(--pf-t--global--border--color--default)' : undefined }}>
+              <div style={{ fontSize: 13 }}>
+                {target.namespace} <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>@ {target.cluster_name}</span>
+              </div>
+              {(target.image_name || target.deployment_id) && (
+                <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--pf-t--global--text--color--subtle)', wordBreak: 'break-all' }}>
+                  {target.image_name || target.deployment_id}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </ExpandableSection>
+    )
+  }
+
   if (isLoading) return <PageSection><Spinner aria-label={t('common.loading')} /></PageSection>
   if (error) return <PageSection><Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} /></PageSection>
   if (!ra) return null
@@ -641,8 +667,8 @@ function RiskAcceptanceView({ id }: { id: string }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      [t('riskAcceptance.cveId'), <span style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</span>],
-                      [t('riskAcceptance.scope'), `${SCOPE_MODE_LABELS[ra.scope.mode]} (${ra.scope.targets.length})`],
+                      [t('riskAcceptance.cveId'), <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</Link>],
+                      [t('riskAcceptance.scope'), renderScope(ra.scope)],
                       [t('riskAcceptance.requestedBy'), ra.created_by_name],
                       [t('riskAcceptance.requestedAt'), formatDate(ra.created_at, i18n.language)],
                       [t('riskAcceptance.expiresOn'), formatDate(ra.expires_at, i18n.language)],
