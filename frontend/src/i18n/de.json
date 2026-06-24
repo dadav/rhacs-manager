@@ -380,6 +380,12 @@
       "riskAcceptanceRequested": "Risikoakzeptanz beantragt",
       "remediation": "Behebung: {{status}}",
       "falsePositive": "Als False Positive unterdrückt"
+    },
+    "riskAcceptancePill": {
+      "label": "Risikoakzeptanz: {{status}}",
+      "tooltipAll": "Risikoakzeptanz ({{status}}) gilt für alle betroffenen Deployments.",
+      "tooltipPartial": "Risikoakzeptanz ({{status}}) gilt nur für {{covered}} von {{total}} betroffenen Deployments. Die übrigen bleiben offen.",
+      "tooltipGeneric": "Für diese CVE existiert eine Risikoakzeptanz ({{status}})."
     }
   },
   "riskAcceptance": {

@@ -348,17 +348,35 @@ export function CveDetail() {
               {t('cveDetail.prioritizedLabel')}
             </Label>
           )}
-          {cve.has_risk_acceptance && cve.risk_acceptance_status && (
-            <Label
-              isCompact
-              style={{
-                background: STATUS_COLORS[cve.risk_acceptance_status],
-                color: "#fff",
-              }}
-            >
-              {STATUS_LABELS[cve.risk_acceptance_status]}
-            </Label>
-          )}
+          {cve.has_risk_acceptance && cve.risk_acceptance_status && (() => {
+            const total = cve.affected_deployments_list.length;
+            const covered = cve.affected_deployments_list.filter(
+              (d) => d.risk_acceptance_status === cve.risk_acceptance_status,
+            ).length;
+            const isPartial = total > 0 && covered > 0 && covered < total;
+            const statusLabel = STATUS_LABELS[cve.risk_acceptance_status];
+            const tooltip =
+              covered === 0
+                ? t("cveDetail.riskAcceptancePill.tooltipGeneric", { status: statusLabel })
+                : isPartial
+                  ? t("cveDetail.riskAcceptancePill.tooltipPartial", { status: statusLabel, covered, total })
+                  : t("cveDetail.riskAcceptancePill.tooltipAll", { status: statusLabel });
+            return (
+              <Tooltip content={tooltip}>
+                <Label
+                  isCompact
+                  icon={<ShieldAltIcon />}
+                  style={{
+                    background: STATUS_COLORS[cve.risk_acceptance_status],
+                    color: "#fff",
+                  }}
+                >
+                  {t("cveDetail.riskAcceptancePill.label", { status: statusLabel })}
+                  {isPartial ? ` (${covered}/${total})` : ""}
+                </Label>
+              </Tooltip>
+            );
+          })()}
           {cve.is_suppressed && (
             <Label color="green" isCompact>
               {t('suppressionRules.suppressedLabel')}

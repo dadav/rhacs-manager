@@ -380,6 +380,12 @@
       "riskAcceptanceRequested": "Risk acceptance requested",
       "remediation": "Remediation: {{status}}",
       "falsePositive": "Suppressed as false positive"
+    },
+    "riskAcceptancePill": {
+      "label": "Risk acceptance: {{status}}",
+      "tooltipAll": "Risk acceptance ({{status}}) applies to all affected deployments.",
+      "tooltipPartial": "Risk acceptance ({{status}}) applies to only {{covered}} of {{total}} affected deployments. The rest remain open.",
+      "tooltipGeneric": "A risk acceptance ({{status}}) exists for this CVE."
     }
   },
   "riskAcceptance": {
