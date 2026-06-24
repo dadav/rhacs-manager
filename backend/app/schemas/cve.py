@@ -21,6 +21,11 @@ class AffectedDeployment(BaseModel):
     image_name: str
     image_id: str = ""
     first_seen: datetime | None = None
+    # Per-deployment coverage flags: a CVE-level risk acceptance / remediation /
+    # false-positive may only apply to a subset of affected deployments.
+    risk_acceptance_status: str | None = None
+    remediation_status: str | None = None
+    is_suppressed: bool = False
 
 
 class AffectedComponent(BaseModel):

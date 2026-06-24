@@ -23,9 +23,10 @@ import {
   TextArea,
   TextInput,
   Title,
+  Tooltip,
 } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
-import { CheckCircleIcon, EllipsisVIcon, PencilAltIcon, TrashIcon } from "@patternfly/react-icons";
+import { BanIcon, CheckCircleIcon, EllipsisVIcon, PencilAltIcon, ShieldAltIcon, TrashIcon, WrenchIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
@@ -44,7 +45,7 @@ import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
 import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
-import { CveDetail as CveDetailType, RiskStatus } from "../types";
+import { AffectedDeployment, CveDetail as CveDetailType, RiskStatus } from "../types";
 import {
   STATUS_COLORS,
   BRAND_BLUE,
@@ -106,6 +107,58 @@ function DetailRow({
       </Td>
       <Td style={{ fontSize: 13 }}>{value}</Td>
     </Tr>
+  );
+}
+
+// Small per-deployment coverage indicators: a CVE-level risk acceptance,
+// remediation, or false-positive may only cover a subset of the affected
+// deployments. Each icon is wrapped in a Tooltip explaining the coverage.
+function DeploymentCoverageIcons({ deployment }: { deployment: AffectedDeployment }) {
+  const { t } = useTranslation();
+
+  const remStatusLabels: Record<string, string> = {
+    open: t("remediations.statusOpen"),
+    in_progress: t("remediations.statusInProgress"),
+    resolved: t("remediations.statusResolved"),
+    verified: t("remediations.statusVerified"),
+    wont_fix: t("remediations.statusWontFix"),
+  };
+
+  const ra = deployment.risk_acceptance_status;
+  const rem = deployment.remediation_status;
+  const suppressed = deployment.is_suppressed;
+
+  if (!ra && !rem && !suppressed) return null;
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, flexShrink: 0 }}>
+      {ra && (
+        <Tooltip
+          content={
+            ra === RiskStatus.approved
+              ? t("cveDetail.coverage.riskAcceptanceApproved")
+              : t("cveDetail.coverage.riskAcceptanceRequested")
+          }
+        >
+          <ShieldAltIcon
+            style={{
+              fontSize: 11,
+              color: ra === RiskStatus.approved ? STATUS_COLORS.approved : STATUS_COLORS.requested,
+            }}
+          />
+        </Tooltip>
+      )}
+      {rem && (
+        <Tooltip content={t("cveDetail.coverage.remediation", { status: remStatusLabels[rem] ?? rem })}>
+          <WrenchIcon style={{ fontSize: 11, color: "#ec7a08" }} />
+        </Tooltip>
+      )}
+      {suppressed && (
+        <Tooltip content={t("cveDetail.coverage.falsePositive")}>
+          <BanIcon style={{ fontSize: 11, color: STATUS_COLORS.approved }} />
+        </Tooltip>
+      )}
+    </span>
   );
 }
 
@@ -828,16 +881,26 @@ export function CveDetail() {
                           {pageItems.length > 0 ? (
                             pageItems.map((d) => (
                               <Tr key={`${d.deployment_id}-${d.image_name}`}>
-                                <Td
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontSize: 11,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {d.deployment_name}
+                                <Td style={{ fontSize: 11 }}>
+                                  <span
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      minWidth: 0,
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontFamily: "monospace",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {d.deployment_name}
+                                    </span>
+                                    <DeploymentCoverageIcons deployment={d} />
+                                  </span>
                                 </Td>
                                 <Td
                                   style={{

@@ -14,7 +14,9 @@ from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
+from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
+from ..models.suppression_rule import SuppressionRule, SuppressionStatus, SuppressionType
 from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.common import PaginatedResponse
@@ -32,6 +34,7 @@ from ..schemas.cve import (
 )
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.escalation_rules import level_deadlines, rule_matches
+from ..services.risk_acceptance_service import deployment_covered_by_scope
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
 
@@ -298,7 +301,10 @@ async def get_cve(
         )
     )
     ra_result = await app_db.execute(ra_query)
-    acceptance = ra_result.scalars().first()
+    active_acceptances = list(ra_result.scalars().all())
+    # Ordered approved-first, then most recent (see ra_query), so the first row
+    # is the one surfaced as the CVE-level status.
+    acceptance = active_acceptances[0] if active_acceptances else None
 
     esc_result = await app_db.execute(select(Escalation).where(Escalation.cve_id == cve_id))
     escalations = esc_result.scalars().all()
@@ -387,6 +393,34 @@ async def get_cve(
             if uncovered and app_settings.default_escalation_email:
                 contact_emails = sorted(set(contact_emails) | {app_settings.default_escalation_email})
 
+    # Per-deployment coverage: a CVE-level risk acceptance / remediation /
+    # false-positive may only apply to a subset of the affected deployments.
+    # Matching against the (already visibility-filtered) deployment list keeps
+    # the annotations scoped to what the user is allowed to see.
+    approved_scopes = [a.scope for a in active_acceptances if a.status == RiskStatus.approved]
+    requested_scopes = [a.scope for a in active_acceptances if a.status == RiskStatus.requested]
+
+    rem_result = await app_db.execute(select(Remediation).where(Remediation.cve_id == cve_id))
+    remediation_status_by_ns: dict[tuple[str, str], str] = {
+        (r.namespace, r.cluster_name): r.status.value for r in rem_result.scalars().all()
+    }
+
+    sup_result = await app_db.execute(
+        select(SuppressionRule).where(
+            SuppressionRule.type == SuppressionType.cve,
+            SuppressionRule.cve_id == cve_id,
+            SuppressionRule.status == SuppressionStatus.approved,
+        )
+    )
+    suppression_scopes = [s.scope for s in sup_result.scalars().all()]
+
+    def _ra_status_for(deployment: dict) -> str | None:
+        if any(deployment_covered_by_scope(scope, deployment) for scope in approved_scopes):
+            return RiskStatus.approved.value
+        if any(deployment_covered_by_scope(scope, deployment) for scope in requested_scopes):
+            return RiskStatus.requested.value
+        return None
+
     return CveDetail(
         cve_id=cve_data["cve_id"],
         severity=SeverityLevel(cve_data.get("severity", 0)),
@@ -435,6 +469,9 @@ async def get_cve(
                 image_name=d.get("image_name", ""),
                 image_id=d.get("image_id", ""),
                 first_seen=d.get("first_seen"),
+                risk_acceptance_status=_ra_status_for(d),
+                remediation_status=remediation_status_by_ns.get((d["namespace"], d["cluster_name"])),
+                is_suppressed=any(deployment_covered_by_scope(scope, d) for scope in suppression_scopes),
             )
             for d in deployments
         ],

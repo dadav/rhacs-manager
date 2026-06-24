@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from app.schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from app.services.risk_acceptance_service import (
+    deployment_covered_by_scope,
     is_single_team_scope,
     scope_key,
     validate_and_resolve_scope,
@@ -177,3 +178,52 @@ class TestIsSingleTeamScope:
             ],
         )
         assert is_single_team_scope(scope) is False
+
+
+class TestDeploymentCoveredByScope:
+    DEPLOYMENT = {
+        "deployment_id": "d1",
+        "cluster_name": "c1",
+        "namespace": "ns1",
+        "image_name": "img1",
+    }
+
+    def test_all_mode_covers_everything(self):
+        assert deployment_covered_by_scope({"mode": "all", "targets": []}, self.DEPLOYMENT) is True
+
+    def test_namespace_match(self):
+        scope = {"mode": "namespace", "targets": [{"cluster_name": "c1", "namespace": "ns1"}]}
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is True
+
+    def test_namespace_no_match(self):
+        scope = {"mode": "namespace", "targets": [{"cluster_name": "c1", "namespace": "ns2"}]}
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is False
+
+    def test_image_match(self):
+        scope = {
+            "mode": "image",
+            "targets": [{"cluster_name": "c1", "namespace": "ns1", "image_name": "img1"}],
+        }
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is True
+
+    def test_image_no_match(self):
+        scope = {
+            "mode": "image",
+            "targets": [{"cluster_name": "c1", "namespace": "ns1", "image_name": "other"}],
+        }
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is False
+
+    def test_deployment_match(self):
+        scope = {"mode": "deployment", "targets": [{"deployment_id": "d1"}]}
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is True
+
+    def test_deployment_no_match(self):
+        scope = {"mode": "deployment", "targets": [{"deployment_id": "d999"}]}
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is False
+
+    def test_accepts_riskscope_object(self):
+        scope = RiskScope(
+            mode="namespace",
+            targets=[RiskScopeTarget(cluster_name="c1", namespace="ns1")],
+        )
+        assert deployment_covered_by_scope(scope, self.DEPLOYMENT) is True

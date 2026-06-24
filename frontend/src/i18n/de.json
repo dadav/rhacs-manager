@@ -374,7 +374,13 @@
     "hintPrioritize": "Nächster Schritt: Priorisieren Sie diese Schwachstelle, um sie im Blick zu behalten.",
     "hintRemediate": "Nächster Schritt: Erstellen Sie eine Behebung oder beantragen Sie eine Risikoakzeptanz.",
     "hintResolve": "Nächster Schritt: Alle Behebungen müssen abgeschlossen oder das Risiko akzeptiert werden.",
-    "hintComplete": "Alle Workflow-Schritte sind abgeschlossen."
+    "hintComplete": "Alle Workflow-Schritte sind abgeschlossen.",
+    "coverage": {
+      "riskAcceptanceApproved": "Risikoakzeptanz genehmigt",
+      "riskAcceptanceRequested": "Risikoakzeptanz beantragt",
+      "remediation": "Behebung: {{status}}",
+      "falsePositive": "Als False Positive unterdrückt"
+    }
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",

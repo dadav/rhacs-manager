@@ -112,6 +112,9 @@ export interface AffectedDeployment {
   image_name: string
   image_id: string
   first_seen: string | null
+  risk_acceptance_status?: RiskStatus | string | null
+  remediation_status?: string | null
+  is_suppressed?: boolean
 }
 
 export interface AffectedComponent {

@@ -374,7 +374,13 @@
     "hintPrioritize": "Next step: Prioritize this vulnerability to keep it on your radar.",
     "hintRemediate": "Next step: Create a remediation or request a risk acceptance.",
     "hintResolve": "Next step: All remediations must be completed or risk accepted.",
-    "hintComplete": "All workflow steps are complete."
+    "hintComplete": "All workflow steps are complete.",
+    "coverage": {
+      "riskAcceptanceApproved": "Risk acceptance approved",
+      "riskAcceptanceRequested": "Risk acceptance requested",
+      "remediation": "Remediation: {{status}}",
+      "falsePositive": "Suppressed as false positive"
+    }
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",

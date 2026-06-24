@@ -27,6 +27,39 @@ def scope_key(scope: RiskScope) -> str:
     return hashlib.md5(canonical.encode("utf-8")).hexdigest()
 
 
+def deployment_covered_by_scope(scope: dict | RiskScope, deployment: dict) -> bool:
+    """True if a single affected deployment falls within the given scope.
+
+    Mirrors the per-mode matching used when validating scope targets. Accepts a
+    plain dict because risk-acceptance / suppression scopes are stored as JSONB.
+    Suppression scopes only use modes 'all' and 'namespace'; the extra modes are
+    handled here so the same helper serves both call sites.
+    """
+    if isinstance(scope, RiskScope):
+        scope = scope.model_dump(mode="json")
+
+    mode = scope.get("mode", "all")
+    targets = scope.get("targets", []) or []
+
+    cluster = deployment["cluster_name"]
+    namespace = deployment["namespace"]
+
+    if mode == "all":
+        return True
+    if mode == "namespace":
+        return any(t["cluster_name"] == cluster and t["namespace"] == namespace for t in targets)
+    if mode == "image":
+        image_name = deployment.get("image_name", "")
+        return any(
+            t["cluster_name"] == cluster and t["namespace"] == namespace and t.get("image_name") == image_name
+            for t in targets
+        )
+    if mode == "deployment":
+        deployment_id = str(deployment["deployment_id"])
+        return any(str(t.get("deployment_id")) == deployment_id for t in targets)
+    return False
+
+
 def validate_and_resolve_scope(body_scope: RiskScope, deployments: list[dict]) -> RiskScope:
     """Validate scope targets against affected deployments and return normalized scope."""
     by_deployment = {str(d["deployment_id"]): d for d in deployments}
