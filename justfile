@@ -369,9 +369,13 @@ release version:
       exit 1
     fi
 
-    # Update appVersion in Chart.yaml
+    # Update chart version and appVersion in Chart.yaml.
+    # The release workflow packages with `helm show chart ... version` for BOTH
+    # --version and --app-version, so the chart `version` field is what actually
+    # drives the published appVersion. Bump both to keep them in sync.
+    sed -i "s/^version: .*/version: ${app_version}/" deploy/helm/rhacs-manager/Chart.yaml
     sed -i "s/^appVersion: .*/appVersion: \"${app_version}\"/" deploy/helm/rhacs-manager/Chart.yaml
-    echo "Updated Chart.yaml appVersion to ${app_version}"
+    echo "Updated Chart.yaml version and appVersion to ${app_version}"
 
     # Update version in frontend/package.json
     sed -i "s/\"version\": \".*\"/\"version\": \"${app_version}\"/" frontend/package.json
