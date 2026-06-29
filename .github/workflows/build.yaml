@@ -218,6 +218,7 @@ jobs:
             -n rhacs-manager \
             --set frontend.oauthProxy.cookieSecret=CHANGE_ME \
             --set mcp.enabled=true \
+            --set mcp.secret.stringData.MCP_API_KEY=CHANGE_ME \
             --show-only templates/frontend-deployment.yaml \
             > .artifacts/manifests/rhacs-manager-hub-mcp.yaml
           helm template rhacs-manager-spoke-mcp deploy/helm/rhacs-manager \
