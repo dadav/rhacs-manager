@@ -42,6 +42,11 @@ spec:
           env:
             - name: UV_CACHE_DIR
               value: /tmp/uv-cache
+            # Scheduler runs only in the dedicated single-replica worker deployment.
+            # Force it off here so the backend Secret's SCHEDULER_ENABLED value can never
+            # turn it on across the multi-replica backend and cause duplicate cron emails.
+            - name: SCHEDULER_ENABLED
+              value: "false"
             - name: APP_DB_HOST
               value: {{ .Values.backend.env.appDbHost | quote }}
             - name: APP_DB_USER
