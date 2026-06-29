@@ -100,10 +100,15 @@ mcp:
   enabled: true
   readonly: false # set to true for read-only mode
   secret:
-    name: rhacs-manager-mcp # must contain MCP_API_KEY
+    create: true # chart creates the secret from stringData below
+    name: rhacs-manager-mcp
+    stringData:
+      MCP_API_KEY: "<key matching a backend SPOKE_API_KEYS entry>"
 ```
 
 The `MCP_API_KEY` must match one of the `SPOKE_API_KEYS` configured on the backend. The MCP server calls the backend directly via the in-cluster service URL.
+
+By default (`secret.create: true`) the chart creates the `rhacs-manager-mcp` secret for you, and an empty `MCP_API_KEY` fails the install with a clear error. To manage the secret yourself, set `secret.create: false` and pre-create a secret named `rhacs-manager-mcp` containing an `MCP_API_KEY` key.
 
 ### Spoke Mode
 
@@ -123,7 +128,8 @@ In spoke mode, the MCP server uses the same `HUB_API_URL` and `SPOKE_API_KEY` fr
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \
   -n rhacs-manager \
   --set mcp.enabled=true \
-  --set mcp.readonly=true
+  --set mcp.readonly=true \
+  --set mcp.secret.stringData.MCP_API_KEY=<key-matching-a-backend-SPOKE_API_KEYS-entry>
 
 # Spoke deployment with MCP enabled
 helm upgrade --install rhacs-manager deploy/helm/rhacs-manager \

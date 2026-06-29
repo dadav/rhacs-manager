@@ -1938,11 +1938,34 @@
           "additionalProperties": false,
           "description": "Kubernetes secret containing MCP_API_KEY for hub backend authentication.",
           "properties": {
+            "create": {
+              "default": true,
+              "description": "Create the MCP Secret resource. Disable to reference an externally\nmanaged secret of the same name.",
+              "title": "create",
+              "type": "boolean"
+            },
             "name": {
               "default": "rhacs-manager-mcp",
               "description": "Name of the Kubernetes secret.",
               "title": "name",
               "type": "string"
+            },
+            "stringData": {
+              "additionalProperties": true,
+              "description": "Secret string data entries. MCP_API_KEY must match one of the backend\nSPOKE_API_KEYS entries.",
+              "properties": {
+                "MCP_API_KEY": {
+                  "default": "",
+                  "description": "REQUIRED when create is true: must match a backend SPOKE_API_KEYS entry",
+                  "title": "MCP_API_KEY",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "MCP_API_KEY"
+              ],
+              "title": "stringData",
+              "type": "object"
             }
           },
           "required": [],

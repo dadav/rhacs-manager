@@ -2103,7 +2103,22 @@ mcp:
   # -- Kubernetes secret containing MCP_API_KEY for hub backend authentication.
   secret:
     # @schema
+    # type: boolean
+    # @schema
+    # -- Create the MCP Secret resource. Disable to reference an externally
+    # managed secret of the same name.
+    create: true
+    # @schema
     # type: string
     # @schema
     # -- Name of the Kubernetes secret.
     name: rhacs-manager-mcp
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Secret string data entries. MCP_API_KEY must match one of the backend
+    # SPOKE_API_KEYS entries.
+    stringData:
+      # REQUIRED when create is true: must match a backend SPOKE_API_KEYS entry
+      MCP_API_KEY: ""
