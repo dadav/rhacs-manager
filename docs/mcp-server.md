@@ -34,6 +34,7 @@ The MCP server is configured via environment variables:
 | `MCP_API_KEY`     | (empty)                                                    | Shared secret for backend spoke proxy auth.                                                                                                                                                |
 | `MCP_CA_BUNDLE`   | `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`     | Path to a CA bundle for TLS verification when calling the backend. Set to `false` to disable verification, or empty to use system defaults. Missing files fall back to default verification. |
 | `MCP_LOG_LEVEL`   | `info`                                                     | Python logging level (`debug`, `info`, `warning`, `error`, `critical`).                                                                                                                    |
+| `SSL_CERT_FILE`   | (empty)                                                    | Standard OpenSSL variable. When set, this file becomes the base trust store of the SSL context, and the `MCP_CA_BUNDLE` CA is added on top. The Helm chart points it at the injected cluster trusted CA bundle. |
 
 ## Available Tools
 
@@ -120,6 +121,12 @@ spoke:
 ```
 
 In spoke mode, the MCP server uses the same `HUB_API_URL` and `SPOKE_API_KEY` from the spoke secret to reach the hub backend — identical to how the spoke frontend proxies `/api/` requests.
+
+### Cluster Trusted CA Bundle
+
+The hub route certificate is typically signed by the cluster's ingress or enterprise CA, not by the OpenShift service CA. To make TLS verification against the hub work out of the box, the chart creates a ConfigMap labeled `config.openshift.io/inject-trusted-cabundle: "true"` (`rhacs-manager-mcp-trusted-cabundle`). The Cluster Network Operator injects the cluster-wide trusted CA bundle (system roots plus any proxy `additionalTrustBundle`) into it, and the chart mounts it into the MCP server container with `SSL_CERT_FILE` pointing at it.
+
+The MCP server's resulting trust store is the cluster trusted CA bundle plus the service CA from `MCP_CA_BUNDLE`. On non-OpenShift clusters the ConfigMap stays empty and the mount is harmless.
 
 ### Example
 

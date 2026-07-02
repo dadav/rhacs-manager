@@ -11,4 +11,17 @@ metadata:
   annotations:
     service.beta.openshift.io/inject-cabundle: "true"
 data: {}
+---
+{{- /* The Cluster Network Operator injects the cluster-wide trusted CA bundle
+       (system roots + proxy additionalTrustBundle) as ca-bundle.crt. Needed in
+       spoke mode where the hub route cert is signed by the ingress/enterprise CA. */}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rhacs-manager-mcp-trusted-cabundle
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+    config.openshift.io/inject-trusted-cabundle: "true"
+data: {}
 {{- end }}

@@ -68,6 +68,10 @@ spec:
       {{- if $mcpVals.caBundle -}}
         {{- $mcpEnv = append $mcpEnv (dict "name" "MCP_CA_BUNDLE" "value" $mcpVals.caBundle) -}}
       {{- end -}}
+      {{- /* The mcp-server builds its SSL context with ssl.create_default_context(),
+             which loads SSL_CERT_FILE as the base trust store, then adds the service
+             CA from MCP_CA_BUNDLE on top. Final trust = cluster bundle + service CA. */}}
+      {{- $mcpEnv = append $mcpEnv (dict "name" "SSL_CERT_FILE" "value" "/etc/pki/ca-trust/extracted/pem/ca-bundle.crt") -}}
       {{- $mcpContainer := dict
         "name" "mcp-server"
         "image" (printf "%s:%s" $mcpVals.image.repository (include "rhacs-manager.imageTag" (dict "tag" $mcpVals.image.tag "chart" .Chart)))
@@ -76,7 +80,10 @@ spec:
         "ports" (list (dict "containerPort" 8001))
         "env" $mcpEnv
         "resources" $mcpVals.resources
-        "volumeMounts" (list (dict "name" "mcp-cabundle" "mountPath" "/etc/pki/tls/service-ca" "readOnly" true))
+        "volumeMounts" (list
+          (dict "name" "mcp-cabundle" "mountPath" "/etc/pki/tls/service-ca" "readOnly" true)
+          (dict "name" "mcp-trusted-cabundle" "mountPath" "/etc/pki/ca-trust/extracted/pem" "readOnly" true)
+        )
       -}}
       {{- if $mcpVals.securityContext -}}
         {{- $mcpContainer = merge $mcpContainer (dict "securityContext" $mcpVals.securityContext) -}}
@@ -99,7 +106,10 @@ spec:
       "affinity" $affinity
       "topologySpreadConstraints" $topologySpreadConstraints
       "extraContainers" $extraContainers
-      "extraVolumes" (ternary (list (dict "name" "mcp-cabundle" "configMap" (dict "name" "rhacs-manager-mcp-cabundle"))) list $mcpEnabled)
+      "extraVolumes" (ternary (list
+        (dict "name" "mcp-cabundle" "configMap" (dict "name" "rhacs-manager-mcp-cabundle"))
+        (dict "name" "mcp-trusted-cabundle" "configMap" (dict "name" "rhacs-manager-mcp-trusted-cabundle"))
+      ) list $mcpEnabled)
       "mcpPlainHttp" (and $mcpEnabled (dig "plainHttp" "enabled" false $mcpVals))
       "mcpPlainHttpPort" (dig "plainHttp" "port" 8082 $mcpVals)
       "chart" .Chart
