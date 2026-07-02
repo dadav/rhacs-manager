@@ -26,7 +26,9 @@ _log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 logging.basicConfig(level=_log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-mcp = FastMCP("rhacs-manager", host="0.0.0.0", port=settings.port)
+# stateless_http is required: the sidecar runs behind a multi-replica frontend
+# Service with no session affinity, so no instance may hold in-memory sessions.
+mcp = FastMCP("rhacs-manager", host="0.0.0.0", port=settings.port, stateless_http=True)
 client = RhacsManagerClient()
 
 

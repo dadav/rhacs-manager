@@ -209,6 +209,7 @@ import { getErrorMessage } from '../utils/errors'
 - Scheduler startup and initial escalation check happen in the FastAPI lifespan.
 - Dev-only routes are registered only when `DEV_MODE=true`.
 - Alembic should resolve DB config through `app.config.settings.effective_app_db_url`, not a separate hardcoded fallback.
+- The mcp-server sidecar must stay stateless (`stateless_http=True` in `mcp-server/mcp_server/server.py`): frontend pods run multiple replicas behind a Service without session affinity, so in-memory MCP sessions break when requests switch pods.
 
 ## Docs Rules
 
