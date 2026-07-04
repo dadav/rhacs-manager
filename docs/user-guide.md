@@ -28,14 +28,20 @@ The **Dashboard** page is the operational starting point. Every card or chart is
 
 ### Highlight Sections
 
+These action-first sections sit at the top of the dashboard.
+
 - **Prioritized CVEs** shows CVEs manually prioritized by the security team.
 - **High exploitation risk (EPSS)** highlights the CVEs with the highest exploit probability.
+- **What to fix first** is a ranked, plain-language table of the most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher because an image update resolves them directly. Each row shows the affected deployment count and the fix version when known.
 
 ### Charts
 
 - **EPSS Risk Matrix** plots each CVE as a point. The upper-right area represents the most urgent combination of severity and exploit probability.
 - **Cluster Heatmap** compares clusters by severity distribution so you can spot hotspots quickly.
 - **CVE Aging Distribution** groups CVEs by age based on `first_seen`, which helps identify long-running backlog.
+- **CVE totals over time** is a real trend: it charts the actual number of visible CVEs per day (by severity) from a daily snapshot, so a falling line means genuine progress. History accrues from the day snapshots start being recorded; until at least two days exist the card shows a hint instead of a chart. For teams spanning multiple namespaces the same CVE may be counted once per namespace.
+- **Newly discovered CVEs** is a histogram of CVEs by their first-seen date over the last 90 days. It answers "what arrived recently", not "how big is the backlog" (use **CVE totals over time** for that).
+- **Mean Time to Remediate by Severity** is a security-team audit metric and is shown only to `sec_team`. It averages the time from first-seen to resolution across completed, manually tracked remediations.
 - **Risk Acceptance Pipeline** is visible only to `sec_team` and links directly to `requested`, `approved`, `rejected`, and `expired` views.
 
 ## CVE Triage Workflow

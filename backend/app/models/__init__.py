@@ -2,6 +2,7 @@ from .audit_log import AuditLog
 from .badge import BadgeToken
 from .cve_comment import CveComment
 from .cve_priority import CvePriority, PriorityLevel
+from .cve_snapshot import CveSnapshot
 from .escalation import Escalation
 from .global_settings import GlobalSettings
 from .namespace_contact import NamespaceContact
@@ -20,6 +21,7 @@ __all__ = [
     "CveComment",
     "CvePriority",
     "PriorityLevel",
+    "CveSnapshot",
     "GlobalSettings",
     "Escalation",
     "BadgeToken",

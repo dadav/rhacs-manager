@@ -385,3 +385,72 @@ async def get_cluster_heatmap(
         clusters[c]["total"] += row["count"]
 
     return list(clusters.values())
+
+
+async def get_snapshot_counts(
+    session: AsyncSession,
+    min_cvss: float,
+    min_epss: float,
+    always_show_cve_ids: set[str],
+    exclude_cve_ids: set[str],
+) -> list[dict]:
+    """Per-(cluster, namespace, severity) CVE counts plus org-wide '*' rows.
+
+    count_total excludes suppressed CVEs; count_visible additionally applies the
+    global CVSS/EPSS thresholds with the always-show bypass. The '*'/'*' rows are
+    deduplicated across namespaces (a CVE in several namespaces counts once).
+    """
+    always_show = list(always_show_cve_ids)
+    exclude = list(exclude_cve_ids)
+
+    sql = text("""
+        WITH per_ns_cve AS (
+            SELECT d.clustername AS cluster_name,
+                   d.namespace,
+                   ic.cvebaseinfo_cve AS cve_id,
+                   MAX(ic.severity) AS severity,
+                   MAX(COALESCE(ic.cvss, 0)) AS cvss,
+                   MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss
+            FROM deployments d
+            JOIN deployments_containers dc ON dc.deployments_id = d.id
+            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            WHERE NOT (ic.cvebaseinfo_cve = ANY(:exclude))
+            GROUP BY d.clustername, d.namespace, ic.cvebaseinfo_cve
+        ),
+        per_ns AS (
+            SELECT cluster_name, namespace, severity,
+                   COUNT(*) AS count_total,
+                   COUNT(*) FILTER (
+                       WHERE (cvss >= :min_cvss AND epss >= :min_epss)
+                          OR cve_id = ANY(:always_show)
+                   ) AS count_visible
+            FROM per_ns_cve
+            GROUP BY cluster_name, namespace, severity
+        ),
+        org_cve AS (
+            SELECT cve_id,
+                   MAX(severity) AS severity,
+                   MAX(cvss) AS cvss,
+                   MAX(epss) AS epss
+            FROM per_ns_cve
+            GROUP BY cve_id
+        ),
+        org AS (
+            SELECT '*' AS cluster_name, '*' AS namespace, severity,
+                   COUNT(*) AS count_total,
+                   COUNT(*) FILTER (
+                       WHERE (cvss >= :min_cvss AND epss >= :min_epss)
+                          OR cve_id = ANY(:always_show)
+                   ) AS count_visible
+            FROM org_cve
+            GROUP BY severity
+        )
+        SELECT * FROM per_ns
+        UNION ALL
+        SELECT * FROM org
+    """)
+    result = await session.execute(
+        sql,
+        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "exclude": exclude},
+    )
+    return [dict(row._mapping) for row in result]

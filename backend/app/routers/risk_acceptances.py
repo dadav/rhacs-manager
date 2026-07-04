@@ -22,14 +22,22 @@ from ..schemas.risk_acceptance import (
     RiskAcceptanceResponse,
     RiskAcceptanceReview,
     RiskAcceptanceUpdate,
-    RiskScope,
 )
 from ..services.audit_service import log_action
+from ..services.risk_acceptance_service import (
+    get_scope_namespaces as _get_scope_namespaces,
+)
 from ..services.risk_acceptance_service import (
     is_single_team_scope as _is_single_team_scope,
 )
 from ..services.risk_acceptance_service import (
+    normalize_scope as _normalize_scope,
+)
+from ..services.risk_acceptance_service import (
     scope_key as _scope_key,
+)
+from ..services.risk_acceptance_service import (
+    user_can_access_ra as _user_can_access_ra,
 )
 from ..services.risk_acceptance_service import (
     validate_and_resolve_scope as _validate_and_resolve_scope,
@@ -51,35 +59,6 @@ async def _effective_namespaces(user: CurrentUser, sx_db: AsyncSession) -> list[
         all_ns = await sx.list_namespaces(sx_db)
         return [(r["namespace"], r["cluster_name"]) for r in all_ns]
     return user.namespaces
-
-
-def _normalize_scope(scope: dict) -> RiskScope:
-    if isinstance(scope, dict) and "mode" in scope and "targets" in scope:
-        return RiskScope.model_validate(scope)
-    # Legacy records used {} or {images, namespaces}. Treat missing mode as global.
-    return RiskScope(mode="all", targets=[])
-
-
-def _get_scope_namespaces(scope: dict) -> set[tuple[str, str]]:
-    """Extract (namespace, cluster_name) pairs from a risk acceptance scope."""
-    ns_scope = _normalize_scope(scope)
-    if ns_scope.mode == "all":
-        return set()
-    return {(t.namespace, t.cluster_name) for t in ns_scope.targets}
-
-
-def _user_can_access_ra(user: CurrentUser, ra: RiskAcceptance) -> bool:
-    """Check if user can access a risk acceptance based on namespace overlap."""
-    if user.can_see_all_namespaces:
-        return True
-    if ra.created_by == user.id:
-        return True
-    scope_ns = _get_scope_namespaces(ra.scope)
-    if not scope_ns:
-        # 'all' scope — accessible to anyone with any namespace
-        return user.has_namespaces
-    user_ns = set(user.namespaces)
-    return bool(scope_ns & user_ns)
 
 
 def _build_response(ra: RiskAcceptance, comment_count: int) -> RiskAcceptanceResponse:

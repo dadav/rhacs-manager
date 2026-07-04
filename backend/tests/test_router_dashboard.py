@@ -24,8 +24,9 @@ DASHBOARD_EXPECTED_KEYS = {
     "top_vulnerable_components",
     "risk_acceptance_pipeline",
     "fixability_breakdown",
-    "fixable_trend",
+    "cve_history",
     "mttr_by_severity",
+    "fix_first_cves",
 }
 
 
@@ -56,7 +57,7 @@ def _patch_sx_queries():
     mock_sx.get_cve_aging.return_value = []
     mock_sx.get_top_vulnerable_components.return_value = []
     mock_sx.get_fixability_breakdown.return_value = {"fixable": 1, "unfixable": 0}
-    mock_sx.get_fixable_trend.return_value = []
+    mock_sx.get_snapshot_counts.return_value = []
     mock_sx.list_namespaces.return_value = []
     return mock_sx
 
@@ -93,7 +94,7 @@ def sx_mock():
             patch("app.routers.dashboard._sx_cve_aging", return_value=[]),
             patch("app.routers.dashboard._sx_top_vulnerable_components", return_value=[]),
             patch("app.routers.dashboard._sx_fixability_breakdown", return_value={"fixable": 1, "unfixable": 0}),
-            patch("app.routers.dashboard._sx_fixable_trend", return_value=[]),
+            patch("app.routers.dashboard._cve_history", return_value=[]),
             patch("app.routers.dashboard._upcoming_escalations", return_value=[]),
             patch("app.routers.dashboard._ra_pipeline") as mock_ra_pipeline,
             patch("app.routers.dashboard._mttr_by_severity", return_value=[]),
@@ -196,3 +197,11 @@ async def test_dashboard_fixability_breakdown(sec_team_client: httpx.AsyncClient
     fb = data["fixability_breakdown"]
     assert "fixable" in fb
     assert "unfixable" in fb
+
+
+async def test_dashboard_fix_first_includes_actionable_cve(sec_team_client: httpx.AsyncClient, sx_mock):
+    """The fix-first list surfaces the actionable (fixable, not risk-accepted) CVE."""
+    resp = await sec_team_client.get("/api/dashboard")
+    data = resp.json()
+    assert isinstance(data["fix_first_cves"], list)
+    assert [c["cve_id"] for c in data["fix_first_cves"]] == ["CVE-2024-0001"]

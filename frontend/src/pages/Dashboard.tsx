@@ -31,7 +31,7 @@ import { AgingDistribution } from "../components/dashboard/AgingDistribution";
 import { NamespaceBreakdown } from "../components/dashboard/NamespaceBreakdown";
 import { TopComponents } from "../components/dashboard/TopComponents";
 import { FixabilityDonut } from "../components/dashboard/FixabilityDonut";
-import { FixableTrend } from "../components/dashboard/FixableTrend";
+import { FixFirstList } from "../components/dashboard/FixFirstList";
 import { PriorityCveAlert } from "../components/dashboard/PriorityCveAlert";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 
@@ -117,6 +117,18 @@ export function Dashboard() {
 
       <PageSection variant="default" isFilled>
         <Grid hasGutter>
+          {/* Priority / high-EPSS alerts (action-first, above the stats) */}
+          {data.priority_cves.length > 0 && (
+            <GridItem span={12}>
+              <PriorityCveAlert variant="priority" cves={data.priority_cves} />
+            </GridItem>
+          )}
+          {data.high_epss_cves.length > 0 && (
+            <GridItem span={12}>
+              <PriorityCveAlert variant="high-epss" cves={data.high_epss_cves} />
+            </GridItem>
+          )}
+
           {/* Stat cards */}
           <GridItem span={3} md={6} sm={12}>
             <Link to={scopedLink("/vulnerabilities")} style={statLinkStyle}>
@@ -212,18 +224,10 @@ export function Dashboard() {
             </Link>
           </GridItem>
 
-          {/* Priority / high-EPSS alerts */}
-          {data.priority_cves.length > 0 && (
+          {/* Fix these first (actionable ranked list for ops teams) */}
+          {data.fix_first_cves.length > 0 && (
             <GridItem span={12}>
-              <PriorityCveAlert variant="priority" cves={data.priority_cves} />
-            </GridItem>
-          )}
-          {data.high_epss_cves.length > 0 && (
-            <GridItem span={12}>
-              <PriorityCveAlert
-                variant="high-epss"
-                cves={data.high_epss_cves}
-              />
+              <FixFirstList data={data.fix_first_cves} />
             </GridItem>
           )}
 
@@ -333,10 +337,31 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* Fixable Trend */}
-          {data.fixable_trend.length > 0 && (
+          {/* Top Vulnerable Components (most actionable chart for ops) */}
+          {data.top_vulnerable_components.length > 0 && (
             <GridItem span={12}>
-              <FixableTrend data={data.fixable_trend} />
+              <TopComponents
+                data={data.top_vulnerable_components}
+                onBarClick={(componentName, fixable) =>
+                  navigate(
+                    `/vulnerabilities?component=${encodeURIComponent(componentName)}&fixable=${fixable}&advanced=1`,
+                  )
+                }
+              />
+            </GridItem>
+          )}
+
+          {/* CVEs per Namespace */}
+          {data.cves_per_namespace.length > 0 && (
+            <GridItem span={12}>
+              <NamespaceBreakdown
+                data={data.cves_per_namespace}
+                onBarClick={(namespace, severity) =>
+                  navigate(
+                    `/vulnerabilities?namespace=${encodeURIComponent(namespace)}&severity=${severity}`,
+                  )
+                }
+              />
             </GridItem>
           )}
 
@@ -359,14 +384,9 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* MTTR by Severity */}
-          <GridItem span={6}>
-            <MttrChart data={data.mttr_by_severity} />
-          </GridItem>
-
           {/* CVE Aging Distribution */}
           {data.aging_distribution.some((b) => b.count > 0) && (
-            <GridItem span={6}>
+            <GridItem span={isSecTeam ? 6 : 12}>
               <AgingDistribution
                 data={data.aging_distribution}
                 onBucketClick={(ageMin, ageMax) => {
@@ -380,7 +400,35 @@ export function Dashboard() {
             </GridItem>
           )}
 
-          {/* CVE Trend */}
+          {/* MTTR by Severity (sec-team audit KPI only) */}
+          {isSecTeam && (
+            <GridItem span={6}>
+              <MttrChart data={data.mttr_by_severity} />
+            </GridItem>
+          )}
+
+          {/* CVE totals over time (real trend from daily snapshots) */}
+          <GridItem span={12}>
+            <Card>
+              <ChartCardTitle
+                title={t("dashboard.cveHistory")}
+                helpKey="dashboard.help.cveHistory"
+              />
+              <CardBody>
+                {data.cve_history.length < 2 ? (
+                  <EmptyState>
+                    <EmptyStateBody>
+                      {t("dashboard.historyEmpty")}
+                    </EmptyStateBody>
+                  </EmptyState>
+                ) : (
+                  <TrendLine data={data.cve_history} />
+                )}
+              </CardBody>
+            </Card>
+          </GridItem>
+
+          {/* Newly discovered CVEs (first-seen histogram) */}
           <GridItem span={12}>
             <Card>
               <ChartCardTitle
@@ -392,34 +440,6 @@ export function Dashboard() {
               </CardBody>
             </Card>
           </GridItem>
-
-          {/* CVEs per Namespace */}
-          {data.cves_per_namespace.length > 0 && (
-            <GridItem span={12}>
-              <NamespaceBreakdown
-                data={data.cves_per_namespace}
-                onBarClick={(namespace, severity) =>
-                  navigate(
-                    `/vulnerabilities?namespace=${encodeURIComponent(namespace)}&severity=${severity}`,
-                  )
-                }
-              />
-            </GridItem>
-          )}
-
-          {/* Top Vulnerable Components */}
-          {data.top_vulnerable_components.length > 0 && (
-            <GridItem span={12}>
-              <TopComponents
-                data={data.top_vulnerable_components}
-                onBarClick={(componentName, fixable) =>
-                  navigate(
-                    `/vulnerabilities?component=${encodeURIComponent(componentName)}&fixable=${fixable}&advanced=1`,
-                  )
-                }
-              />
-            </GridItem>
-          )}
         </Grid>
       </PageSection>
     </>

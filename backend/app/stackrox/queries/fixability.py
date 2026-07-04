@@ -168,67 +168,6 @@ async def get_cve_ids_for_deployment(
     return [row.cve_id for row in result]
 
 
-async def get_fixable_trend(
-    session: AsyncSession,
-    namespaces: list[tuple[str, str]] | None = None,
-    days: int = 30,
-    min_cvss: float = 0.0,
-    min_epss: float = 0.0,
-    always_show_cve_ids: set[str] | None = None,
-    exclude_cve_ids: set[str] | None = None,
-) -> list[dict]:
-    """CVE first-seen trend per day, split into fixable/unfixable."""
-    since = datetime.utcnow() - timedelta(days=days)
-
-    if namespaces is not None and len(namespaces) == 0:
-        return []
-
-    always_show = list(always_show_cve_ids or [])
-    exclude = list(exclude_cve_ids or [])
-
-    ns_params: dict = {}
-    if namespaces:
-        ns_fragment, ns_params = _namespace_filter(namespaces)
-        where_clause = f"AND {ns_fragment}"
-    else:
-        where_clause = ""
-
-    sql = text(f"""
-        WITH visible_cves AS (
-            SELECT
-                ic.cvebaseinfo_cve AS cve_id,
-                MIN(ic.firstimageoccurrence) AS first_seen,
-                BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable
-            FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
-            WHERE ic.firstimageoccurrence >= :since
-            {where_clause}
-            GROUP BY ic.cvebaseinfo_cve
-            {VISIBILITY_HAVING}
-        )
-        SELECT
-            DATE(first_seen) AS date,
-            COUNT(*) FILTER (WHERE any_fixable) AS fixable,
-            COUNT(*) FILTER (WHERE NOT any_fixable) AS unfixable
-        FROM visible_cves
-        GROUP BY DATE(first_seen)
-        ORDER BY date
-    """)
-    result = await session.execute(
-        sql,
-        {
-            "since": since,
-            "min_cvss": min_cvss,
-            "min_epss": min_epss,
-            "always_show": always_show,
-            "exclude_cve_ids": exclude,
-            **ns_params,
-        },
-    )
-    return [{"date": str(row.date), "fixable": row.fixable, "unfixable": row.unfixable} for row in result]
-
-
 async def get_cve_aging(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,

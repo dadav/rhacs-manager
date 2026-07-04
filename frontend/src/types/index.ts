@@ -329,8 +329,9 @@ export interface DashboardData {
   top_vulnerable_components: ComponentCveCount[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
   fixability_breakdown: FixabilityCount
-  fixable_trend: FixableTrendPoint[]
+  cve_history: CveHistoryPoint[]
   mttr_by_severity: MttrSeverity[]
+  fix_first_cves: CveListItem[]
 }
 
 export interface EpssMatrixPoint {
@@ -380,10 +381,13 @@ export interface FixabilityCount {
   unfixable: number
 }
 
-export interface FixableTrendPoint {
+export interface CveHistoryPoint {
   date: string
-  fixable: number
-  unfixable: number
+  critical: number
+  important: number
+  moderate: number
+  low: number
+  unknown: number
 }
 
 export interface ThresholdInfo {

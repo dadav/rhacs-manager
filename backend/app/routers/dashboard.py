@@ -19,11 +19,11 @@ from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
     ComponentCveCount,
+    CveHistoryPoint,
     CveTrendPoint,
     DashboardData,
     EpssMatrixPoint,
     FixabilityCount,
-    FixableTrendPoint,
     MttrSeverity,
     NamespaceCveCount,
     RiskAcceptancePipeline,
@@ -34,6 +34,7 @@ from ..services.cve_filter_service import (
     compute_suppression_sets,
 )
 from ..services.escalation_preview import compute_upcoming_escalations
+from ..services.risk_acceptance_service import user_can_access_ra
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
 
@@ -238,22 +239,47 @@ async def _sx_fixability_breakdown(
         )
 
 
-async def _sx_fixable_trend(
-    ns: list[tuple[str, str]] | None,
-    min_cvss: float,
-    min_epss: float,
-    always_show: set[str],
-    exclude: set[str],
-) -> list[dict]:
-    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
-        return await sx.get_fixable_trend(
-            db,
-            ns,
-            min_cvss=min_cvss,
-            min_epss=min_epss,
-            always_show_cve_ids=always_show,
-            exclude_cve_ids=exclude,
-        )
+async def _cve_history(
+    ns_list: list[tuple[str, str]] | None,
+    use_visible_counts: bool,
+    days: int = 90,
+) -> list[CveHistoryPoint]:
+    """Aggregate stored snapshots into a per-day severity series.
+
+    ns_list None => use the org-wide '*' rows (exact, deduped across namespaces).
+    Otherwise sum the user's namespace rows (a CVE present in several visible
+    namespaces counts once per namespace, same semantics as NamespaceBreakdown).
+    """
+    from collections import defaultdict
+
+    from ..models.cve_snapshot import CveSnapshot
+
+    since = datetime.now(UTC).date() - timedelta(days=days)
+    async with AppSessionLocal() as db:
+        q = select(
+            CveSnapshot.snapshot_date,
+            CveSnapshot.severity,
+            func.sum(CveSnapshot.count_visible if use_visible_counts else CveSnapshot.count_total),
+        ).where(CveSnapshot.snapshot_date >= since)
+        if ns_list is None:
+            q = q.where(CveSnapshot.namespace == "*")
+        else:
+            q = q.where(
+                CveSnapshot.namespace != "*",
+                tuple_(CveSnapshot.namespace, CveSnapshot.cluster_name).in_(ns_list),
+            )
+        q = q.group_by(CveSnapshot.snapshot_date, CveSnapshot.severity)
+        rows = (await db.execute(q)).all()
+
+    by_date: dict = defaultdict(lambda: {"critical": 0, "important": 0, "moderate": 0, "low": 0, "unknown": 0})
+    sev_key = {4: "critical", 3: "important", 2: "moderate", 1: "low", 0: "unknown"}
+    for snapshot_date, severity, count in rows:
+        by_date[snapshot_date][sev_key.get(severity, "unknown")] += int(count or 0)
+    return [CveHistoryPoint(date=str(d), **v) for d, v in sorted(by_date.items())]
+
+
+async def _empty_mttr() -> list[MttrSeverity]:
+    return []
 
 
 async def _upcoming_escalations(
@@ -403,8 +429,9 @@ async def dashboard(
                 top_vulnerable_components=[],
                 risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
                 fixability_breakdown=FixabilityCount(fixable=0, unfixable=0),
-                fixable_trend=[],
+                cve_history=[],
                 mttr_by_severity=[],
+                fix_first_cves=[],
             )
         namespaces = narrow_namespaces(current_user.namespaces, cluster, namespace)
 
@@ -474,12 +501,16 @@ async def dashboard(
             escalations_result = await app_db.execute(select(func.count(Escalation.id)))
     escalations = escalations_result.scalar() or 0
 
-    open_ra_result = await app_db.execute(
-        select(func.count(RiskAcceptance.id)).where(
-            RiskAcceptance.status == RiskStatus.requested,
+    # Open risk acceptances: sec team sees the global count; regular users only
+    # count RAs they can actually see in the /risk-acceptances list.
+    if current_user.is_sec_team:
+        open_ra_result = await app_db.execute(
+            select(func.count(RiskAcceptance.id)).where(RiskAcceptance.status == RiskStatus.requested)
         )
-    )
-    open_ra = open_ra_result.scalar() or 0
+        open_ra = open_ra_result.scalar() or 0
+    else:
+        open_ra_rows = await app_db.execute(select(RiskAcceptance).where(RiskAcceptance.status == RiskStatus.requested))
+        open_ra = sum(1 for ra in open_ra_rows.scalars().all() if user_can_access_ra(current_user, ra))
 
     # Run all chart queries + upcoming escalations + RA pipeline concurrently
     upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
@@ -492,7 +523,7 @@ async def dashboard(
         aging_rows,
         top_components_rows,
         fixability_data,
-        fixable_trend_rows,
+        cve_history_data,
         upcoming_escalations,
         risk_acceptance_pipeline,
         mttr_data,
@@ -505,10 +536,10 @@ async def dashboard(
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
-        _sx_fixable_trend(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
+        _cve_history(ns_list_for_queries, use_visible_counts=not current_user.is_sec_team),
         _upcoming_escalations(upcoming_ns, settings),
         _ra_pipeline(),
-        _mttr_by_severity(ns_list_for_queries),
+        _mttr_by_severity(ns_list_for_queries) if current_user.is_sec_team else _empty_mttr(),
     )
 
     epss_matrix = [
@@ -549,6 +580,19 @@ async def dashboard(
             -x.epss_probability,
         ),
     )[:8]
+
+    # "Fix first" ranking for ops teams: actionable CVEs ordered by
+    # sec-team priority, then fixability, then exploitation probability, then
+    # severity. Fixable CVEs rank above unfixable ones; risk-accepted CVEs are excluded.
+    fix_first = sorted(
+        (item for item in unique_items if not item.has_risk_acceptance),
+        key=lambda x: (
+            not x.has_priority,
+            not x.fixable,
+            -x.epss_probability,
+            -x.severity.value,
+        ),
+    )[:10]
 
     return DashboardData(
         stat_total_cves=total,
@@ -594,9 +638,7 @@ async def dashboard(
         top_vulnerable_components=top_vulnerable_components,
         risk_acceptance_pipeline=risk_acceptance_pipeline,
         fixability_breakdown=FixabilityCount(**fixability_data),
-        fixable_trend=[
-            FixableTrendPoint(date=r["date"], fixable=r["fixable"], unfixable=r["unfixable"])
-            for r in fixable_trend_rows
-        ],
+        cve_history=cve_history_data,
         mttr_by_severity=mttr_data,
+        fix_first_cves=fix_first,
     )

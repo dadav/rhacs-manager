@@ -74,10 +74,13 @@ class FixabilityCount(BaseModel):
     unfixable: int
 
 
-class FixableTrendPoint(BaseModel):
+class CveHistoryPoint(BaseModel):
     date: str  # YYYY-MM-DD
-    fixable: int
-    unfixable: int
+    critical: int = 0
+    important: int = 0
+    moderate: int = 0
+    low: int = 0
+    unknown: int = 0
 
 
 class ThresholdPreview(BaseModel):
@@ -107,5 +110,6 @@ class DashboardData(BaseModel):
     top_vulnerable_components: list[ComponentCveCount]
     risk_acceptance_pipeline: RiskAcceptancePipeline
     fixability_breakdown: FixabilityCount
-    fixable_trend: list[FixableTrendPoint]
+    cve_history: list[CveHistoryPoint]
     mttr_by_severity: list[MttrSeverity]
+    fix_first_cves: list[CveListItem]

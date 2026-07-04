@@ -2,9 +2,14 @@
 
 import hashlib
 import json
+from typing import TYPE_CHECKING
 
 from ..i18n import ApiError
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
+
+if TYPE_CHECKING:
+    from ..auth.middleware import CurrentUser
+    from ..models.risk_acceptance import RiskAcceptance
 
 
 def is_single_team_scope(scope: RiskScope) -> bool:
@@ -25,6 +30,35 @@ def scope_key(scope: RiskScope) -> str:
     """Compute a deterministic hash for a normalized scope."""
     canonical = json.dumps(scope.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
     return hashlib.md5(canonical.encode("utf-8")).hexdigest()
+
+
+def normalize_scope(scope: dict) -> RiskScope:
+    if isinstance(scope, dict) and "mode" in scope and "targets" in scope:
+        return RiskScope.model_validate(scope)
+    # Legacy records used {} or {images, namespaces}. Treat missing mode as global.
+    return RiskScope(mode="all", targets=[])
+
+
+def get_scope_namespaces(scope: dict) -> set[tuple[str, str]]:
+    """Extract (namespace, cluster_name) pairs from a risk acceptance scope."""
+    ns_scope = normalize_scope(scope)
+    if ns_scope.mode == "all":
+        return set()
+    return {(t.namespace, t.cluster_name) for t in ns_scope.targets}
+
+
+def user_can_access_ra(user: "CurrentUser", ra: "RiskAcceptance") -> bool:
+    """Check if user can access a risk acceptance based on namespace overlap."""
+    if user.can_see_all_namespaces:
+        return True
+    if ra.created_by == user.id:
+        return True
+    scope_ns = get_scope_namespaces(ra.scope)
+    if not scope_ns:
+        # 'all' scope — accessible to anyone with any namespace
+        return user.has_namespaces
+    user_ns = set(user.namespaces)
+    return bool(scope_ns & user_ns)
 
 
 def deployment_covered_by_scope(scope: dict | RiskScope, deployment: dict) -> bool:

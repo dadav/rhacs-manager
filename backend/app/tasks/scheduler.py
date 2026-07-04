@@ -620,6 +620,55 @@ async def run_digest_now() -> None:
     await _send_digest()
 
 
+@instrument_job("cve_snapshot")
+async def run_cve_snapshot() -> None:
+    """Store daily CVE counts per namespace for the dashboard history chart."""
+    from types import SimpleNamespace
+
+    from ..models.cve_snapshot import CveSnapshot
+    from ..services.cve_filter_service import compute_suppression_sets
+    from ..stackrox import queries as sx
+
+    logger.info("Running CVE snapshot")
+    today = datetime.utcnow().date()
+
+    async with AppSessionLocal() as app_db, StackRoxSessionLocal() as sx_db:
+        settings = await _get_settings(app_db)
+        min_cvss = float(settings.min_cvss_score) if settings else 0.0
+        min_epss = float(settings.min_epss_score) if settings else 0.0
+
+        prio_result = await app_db.execute(select(CvePriority.cve_id))
+        ra_result = await app_db.execute(
+            select(RiskAcceptance.cve_id).where(RiskAcceptance.status.in_([RiskStatus.requested, RiskStatus.approved]))
+        )
+        always_show = set(prio_result.scalars().all()) | set(ra_result.scalars().all())
+
+        all_cves = await sx.get_all_cves(sx_db, 0.0, 0.0, set())
+        org_user = SimpleNamespace(can_see_all_namespaces=True, has_namespaces=True, is_sec_team=True)
+        suppressed, _ = await compute_suppression_sets(app_db, sx_db, org_user, [c["cve_id"] for c in all_cves], None)
+
+        rows = await sx.get_snapshot_counts(sx_db, min_cvss, min_epss, always_show, suppressed)
+
+        # Idempotent per day: replace today's snapshot on re-run.
+        await app_db.execute(delete(CveSnapshot).where(CveSnapshot.snapshot_date == today))
+        for r in rows:
+            app_db.add(
+                CveSnapshot(
+                    snapshot_date=today,
+                    cluster_name=r["cluster_name"],
+                    namespace=r["namespace"],
+                    severity=int(r["severity"] or 0),
+                    count_total=int(r["count_total"]),
+                    count_visible=int(r["count_visible"]),
+                )
+            )
+        # Retention: keep 400 days.
+        cutoff = today - timedelta(days=400)
+        await app_db.execute(delete(CveSnapshot).where(CveSnapshot.snapshot_date < cutoff))
+        await app_db.commit()
+        logger.info("CVE snapshot stored: %d rows for %s", len(rows), today)
+
+
 def setup_scheduler() -> AsyncIOScheduler:
     scheduler.add_job(
         run_expiry_check,
@@ -669,5 +718,12 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=9,
         minute=0,
         id="remediation_auto_resolve",
+    )
+    scheduler.add_job(
+        run_cve_snapshot,
+        "cron",
+        hour=2,
+        minute=0,
+        id="cve_snapshot",
     )
     return scheduler

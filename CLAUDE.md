@@ -139,7 +139,10 @@ Access control rules:
 - Prioritized CVEs must always sort to the top in `/cves`, regardless of selected sort column.
 - Dashboard chart datasets must apply the same visibility logic as `stat_total_cves`.
 - Severity distribution must classify each visible CVE exactly once so the bucket sum matches `stat_total_cves`.
-- Dashboard payload includes both `priority_cves` and `high_epss_cves`.
+- Dashboard payload includes both `priority_cves` and `high_epss_cves`, plus `fix_first_cves` (ranked actionable list) and `cve_history` (real per-day totals).
+- `stat_open_risk_acceptances` is scoped: sec team sees the global `requested` count; regular users only count RAs they can access (`user_can_access_ra`), so the stat matches the `/risk-acceptances?status=requested` list.
+- The `cve_history` trend is sourced from the `cve_snapshots` table, filled by the daily `cve_snapshot` scheduler job (runs in the single `worker` process only). The `'*'`/`'*'` rows are org-wide counts deduplicated across namespaces; per-namespace rows may count a CVE once per namespace. `count_visible` applies CVSS/EPSS thresholds (always-show CVEs bypass), `count_total` does not.
+- `mttr_by_severity` is a sec-team-only audit metric; the endpoint returns an empty list for non-sec-team users.
 
 ### CVE detail and workflow rules
 
