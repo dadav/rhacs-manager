@@ -69,7 +69,6 @@ class TestGetRequests:
         [
             ("get_dashboard", (), "/api/dashboard"),
             ("get_cve", ("CVE-2024-1234",), "/api/cves/CVE-2024-1234"),
-            ("get_cve_deployments", ("CVE-2024-1234",), "/api/cves/CVE-2024-1234/deployments"),
             ("get_me", (), "/api/auth/me"),
         ],
     )
@@ -234,6 +233,23 @@ class TestPostRequests:
             assert json.loads(result) == {"id": "rem-1"}
             instance.request.assert_called_once()
             assert instance.request.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
+
+    async def test_create_suppression_rule(self, client, auth):
+        mock_resp = _mock_response({"id": "sup-1"}, status_code=201)
+        instance = _mock_client(mock_resp)
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            data = {"type": "cve", "cve_id": "CVE-2024-1234", "reason": "not applicable here"}
+            result = await client.create_suppression_rule(auth, data)
+
+            assert json.loads(result) == {"id": "sup-1"}
+            instance.request.assert_called_once()
+            call_args = instance.request.call_args
+            assert call_args[0][0] == "POST"
+            assert call_args[0][1] == "/api/suppression-rules"
+            assert call_args[1]["json"] == data
 
 
 class TestPatchRequests:

@@ -84,13 +84,11 @@ READ_ONLY_TOOLS = {
     "search_cves",
     "get_cves_by_image",
     "get_cve_detail",
-    "get_cve_affected_deployments",
     "get_image_layers",
     "list_risk_acceptances",
     "list_remediations",
     "get_my_info",
-    "list_escalations",
-    "get_upcoming_escalations",
+    "get_escalations",
     "get_settings",
 }
 
@@ -98,6 +96,7 @@ WRITE_TOOLS = {
     "create_risk_acceptance",
     "create_remediation",
     "update_remediation_status",
+    "request_cve_suppression",
 }
 
 
@@ -178,13 +177,6 @@ class TestToolClientWiring:
         assert client.get_cve.call_args[0][1] == "CVE-2024-1234"
         assert "CVE-2024-1234" in result
 
-    async def test_get_cve_affected_deployments_forwards_id(self, mock_ctx):
-        from mcp_server.server import client, get_cve_affected_deployments
-
-        client.get_cve_deployments = AsyncMock(return_value="[]")
-        await get_cve_affected_deployments(mock_ctx, cve_id="CVE-2024-1234")
-        assert client.get_cve_deployments.call_args[0][1] == "CVE-2024-1234"
-
     async def test_list_risk_acceptances_forwards_filters(self, mock_ctx):
         from mcp_server.server import client, list_risk_acceptances
 
@@ -229,21 +221,25 @@ class TestToolClientWiring:
         assert kwargs["deployment"] == "api"
         assert kwargs["age_min"] == 10
 
-    async def test_list_escalations_forwards_filters(self, mock_ctx):
-        from mcp_server.server import client, list_escalations
+    async def test_get_escalations_default_lists_triggered(self, mock_ctx):
+        from mcp_server.server import client, get_escalations
 
         client.list_escalations = AsyncMock(return_value="[]")
-        await list_escalations(mock_ctx, cluster="cluster-a", namespace="payments")
+        client.get_upcoming_escalations = AsyncMock(return_value="[]")
+        await get_escalations(mock_ctx, cluster="cluster-a", namespace="payments")
         assert client.list_escalations.call_args[1]["cluster"] == "cluster-a"
         assert client.list_escalations.call_args[1]["namespace"] == "payments"
+        client.get_upcoming_escalations.assert_not_called()
 
-    async def test_get_upcoming_escalations_forwards_filters(self, mock_ctx):
-        from mcp_server.server import client, get_upcoming_escalations
+    async def test_get_escalations_upcoming_calls_upcoming(self, mock_ctx):
+        from mcp_server.server import client, get_escalations
 
+        client.list_escalations = AsyncMock(return_value="[]")
         client.get_upcoming_escalations = AsyncMock(return_value="[]")
-        await get_upcoming_escalations(mock_ctx, namespace="payments")
+        await get_escalations(mock_ctx, upcoming=True, namespace="payments")
         assert client.get_upcoming_escalations.call_args[1]["namespace"] == "payments"
         assert client.get_upcoming_escalations.call_args[1]["cluster"] is None
+        client.list_escalations.assert_not_called()
 
     async def test_get_settings_calls_settings(self, mock_ctx):
         from mcp_server.server import client, get_settings
@@ -311,7 +307,7 @@ class TestPromptRendering:
         # The prompt should reference the actual tool names so the LLM uses them.
         assert "search_cves" in text
         assert "fix_overdue" in text
-        assert "get_upcoming_escalations" in text
+        assert "get_escalations" in text
         assert "list_remediations" in text
 
     def test_triage_namespace_with_cluster_includes_cluster(self):
@@ -335,7 +331,7 @@ class TestPromptRendering:
         text = investigate_cve(cve_id="CVE-2024-1234")[0].content.text
         assert "CVE-2024-1234" in text
         assert "get_cve_detail" in text
-        assert "get_cve_affected_deployments" in text
+        assert "affected_deployments_list" in text
         assert "get_image_layers" in text
         assert "list_risk_acceptances" in text
         assert "list_remediations" in text
@@ -345,7 +341,7 @@ class TestPromptRendering:
 
         text = weekly_security_review()[0].content.text
         assert "get_security_overview" in text
-        assert "get_upcoming_escalations" in text
+        assert "get_escalations" in text
         assert "list_risk_acceptances" in text
         assert "list_remediations" in text
 
@@ -471,3 +467,47 @@ class TestWriteToolWiring:
         payload = mcp_server.server.client.update_remediation.call_args[0][2]
         assert payload == {"status": "in_progress"}
         assert "wont_fix_reason" not in payload
+
+    async def test_request_cve_suppression_builds_payload(self, mock_ctx):
+        import mcp_server.server
+
+        mcp_server.server.client.create_suppression_rule = AsyncMock(return_value='{"id": "sup-1"}')
+
+        tool_fn = mcp_server.server.mcp._tool_manager._tools["request_cve_suppression"].fn
+
+        await tool_fn(
+            mock_ctx,
+            cve_id="CVE-2024-1234",
+            reason="Not applicable: vulnerable code path is never invoked",
+            scope_mode="namespace",
+            scope_targets=[{"cluster_name": "cluster-a", "namespace": "payments"}],
+        )
+
+        call_auth = mcp_server.server.client.create_suppression_rule.call_args[0][0]
+        assert isinstance(call_auth, AuthContext)
+        payload = mcp_server.server.client.create_suppression_rule.call_args[0][1]
+        assert payload["type"] == "cve"
+        assert payload["cve_id"] == "CVE-2024-1234"
+        assert payload["scope"]["mode"] == "namespace"
+        assert payload["scope"]["targets"] == [{"cluster_name": "cluster-a", "namespace": "payments"}]
+        assert "reference_url" not in payload
+
+    async def test_request_cve_suppression_includes_reference_url(self, mock_ctx):
+        import mcp_server.server
+
+        mcp_server.server.client.create_suppression_rule = AsyncMock(return_value='{"id": "sup-2"}')
+
+        tool_fn = mcp_server.server.mcp._tool_manager._tools["request_cve_suppression"].fn
+
+        await tool_fn(
+            mock_ctx,
+            cve_id="CVE-2024-5678",
+            reason="Vendor VEX marks this not affected",
+            scope_mode="all",
+            reference_url="https://vendor.example/vex/CVE-2024-5678",
+        )
+
+        payload = mcp_server.server.client.create_suppression_rule.call_args[0][1]
+        assert payload["scope"]["mode"] == "all"
+        assert payload["scope"]["targets"] == []
+        assert payload["reference_url"] == "https://vendor.example/vex/CVE-2024-5678"

@@ -47,13 +47,11 @@ The MCP server is configured via environment variables:
 | `get_security_overview`        | Dashboard summary: headline stats (`stat_*`, including `stat_fix_overdue_cves`), severity distribution, top priority and high-EPSS CVEs, fixability, aging buckets, top vulnerable components, and risk-acceptance pipeline counts. Chart-only series (CVE/fixability trend, EPSS scatter, cluster heatmap, MTTR breakdown) are stripped to keep the payload compact. |
 | `search_cves`                  | Search and filter CVEs across visible namespaces. Supports `search`, `severity`, `fixable`, `namespace`, `cluster`, `component`, `deployment`, `cvss_min`, `epss_min`, `age_min/age_max`, `prioritized_only`, `risk_status`, `remediation_status`, `fix_overdue` (RHACS 4.10), and pagination. Results include `fix_available_since`. |
 | `get_cves_by_image`            | List container images grouped by CVE burden — totals, severity breakdown, max CVSS/EPSS, fixable counts, affected deployments, namespaces, clusters. Filterable by cluster, namespace, severity, fixability, CVSS floor, component, or image name. |
-| `get_cve_detail`               | Full CVE detail with scores, components, timeline, Red Hat / NVD links, and risk-acceptance status. Includes the RHACS 4.10 fields `fix_available_since` and (for sec-team callers) `first_system_occurrence`. |
-| `get_cve_affected_deployments` | List deployments affected by a specific CVE.                                                                                                                      |
-| `get_image_layers`             | Containerfile (Dockerfile) layer instructions for an image plus metadata and CVE summary. Useful after `get_cve_affected_deployments` to identify which layer introduced a vulnerable component. |
+| `get_cve_detail`               | Full CVE detail with scores, components, the affected deployments (`affected_deployments_list` — the blast radius, with per-deployment risk-acceptance/remediation/suppression flags), timeline, Red Hat / NVD links, and risk-acceptance status. Includes the RHACS 4.10 fields `fix_available_since` and (for sec-team callers) `first_system_occurrence`. |
+| `get_image_layers`             | Containerfile (Dockerfile) layer instructions for an image plus metadata and CVE summary. Useful after `get_cve_detail` to identify which layer introduced a vulnerable component. |
 | `list_risk_acceptances`        | List risk acceptances filtered by status (`requested`, `approved`, `rejected`, `expired`) or CVE.                                                                 |
 | `list_remediations`            | List remediation records filtered by status (`open`, `in_progress`, `resolved`, `verified`, `wont_fix`), CVE, or namespace.                                       |
-| `list_escalations`             | List escalations that have already been triggered for visible CVEs (level, namespace, cluster, triggered timestamp, notification state).                          |
-| `get_upcoming_escalations`     | List CVEs approaching escalation deadlines based on configured rules. Rules can be anchored on `first_seen` or, for RHACS 4.10, on `fix_available_since`.        |
+| `get_escalations`              | List escalations for visible CVEs. Default (`upcoming=false`) returns escalations already triggered (level, namespace, cluster, triggered timestamp, notification state); `upcoming=true` returns CVEs approaching escalation deadlines. Rules can be anchored on `first_seen` or, for RHACS 4.10, on `fix_available_since`. |
 | `get_settings`                 | Current global settings. Sec-team callers get the full payload (thresholds, escalation rules with the RHACS 4.10 `days_to_levelN_after_fix_available` anchors, `fix_overdue_threshold_days`, digest schedule, management email); other callers fall back to public thresholds. |
 | `get_my_info`                  | Current user identity, role, and visible namespaces.                                                                                                              |
 
@@ -61,7 +59,8 @@ The MCP server is configured via environment variables:
 
 | Tool                        | Description                                                                                                                                                  |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `create_risk_acceptance`    | Create a risk acceptance for a CVE with justification and scope (`all`, `namespace`, `image`, or `deployment`).                                              |
+| `create_risk_acceptance`    | Document that a **real** vulnerability is consciously accepted without an immediate fix, with justification and scope (`all`, `namespace`, `image`, or `deployment`). Single-namespace scopes auto-approve; `all`/multi-namespace scopes go to sec-team review. |
+| `request_cve_suppression`   | Request suppression of a CVE that is a **false positive or not applicable** (finding is wrong/irrelevant), with a reason and scope (`all` or `namespace`). Team-member requests await sec-team review; sec-team callers approve directly. Use this instead of `create_risk_acceptance` when the vulnerability does not actually apply. |
 | `create_remediation`        | Start tracking remediation for a CVE in a namespace/cluster.                                                                                                 |
 | `update_remediation_status` | Progress a remediation through its workflow (`open`, `in_progress`, `resolved`, `wont_fix`). `resolved` is terminal (reopen to `in_progress` only) and there is no verification step. `wont_fix` requires a reason. (`verified` is accepted only as a legacy filter value, not a settable target.) |
 
@@ -72,7 +71,7 @@ The MCP server also registers named workflow prompts. Prompts are templates that
 | Prompt                    | Arguments              | Workflow                                                                                                                                                                |
 | ------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `triage_namespace`        | `namespace`, `cluster?` | Walks through prioritized CVEs → fix-overdue CVEs → upcoming escalations → in-flight remediations for one namespace, then summarises the next concrete actions.        |
-| `investigate_cve`         | `cve_id`               | Deep-dive on a single CVE: detail → blast radius → image layer that introduced the component → existing risk acceptances and remediations → recommended next action.   |
+| `investigate_cve`         | `cve_id`               | Deep-dive on a single CVE: detail (including the affected-deployments blast radius) → image layer that introduced the component → existing risk acceptances and remediations → recommended next action.   |
 | `weekly_security_review`  | (none)                 | Compiles a weekly status report: security overview → upcoming escalations → pending risk-acceptance reviews → remediation work in flight.                              |
 
 ## Local Development
@@ -229,6 +228,6 @@ mcpServers:
 
 ## Readonly Mode
 
-When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations. Read-only tools and prompts remain available.
+When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `request_cve_suppression`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations. Read-only tools and prompts remain available.
 
 This is recommended for initial rollouts or environments where AI-driven changes are not yet approved.

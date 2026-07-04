@@ -274,9 +274,6 @@ class RhacsManagerClient:
     async def get_cve(self, auth: AuthContext, cve_id: str) -> str:
         return await self._get(f"/api/cves/{cve_id}", auth)
 
-    async def get_cve_deployments(self, auth: AuthContext, cve_id: str) -> str:
-        return await self._get(f"/api/cves/{cve_id}/deployments", auth)
-
     async def list_risk_acceptances(
         self,
         auth: AuthContext,
@@ -366,3 +363,6 @@ class RhacsManagerClient:
 
     async def update_remediation(self, auth: AuthContext, remediation_id: str, data: dict) -> str:
         return await self._patch(f"/api/remediations/{remediation_id}", auth, data)
+
+    async def create_suppression_rule(self, auth: AuthContext, data: dict) -> str:
+        return await self._post("/api/suppression-rules", auth, data)
