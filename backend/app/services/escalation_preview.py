@@ -11,7 +11,7 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..stackrox import queries as sx
-from .escalation_rules import level_deadlines, rule_matches
+from .escalation_rules import level_deadlines, pick_matching_rule
 
 
 class UpcomingEscalation(BaseModel):
@@ -90,32 +90,32 @@ async def compute_upcoming_escalations(
         age_days = (now - first_seen).days if first_seen else 0
         existing_levels = existing_escalations.get(cve_id, set())
 
-        for rule in settings.escalation_rules:
-            if not rule_matches(rule, severity, float(epss)):
-                continue
+        # Strictest matching rule only — must mirror the scheduler's escalation check.
+        rule = pick_matching_rule(settings.escalation_rules, severity, float(epss))
+        if rule is None:
+            continue
 
-            deadlines = level_deadlines(
-                rule,
-                first_seen=first_seen,
-                fix_available_since=cve.get("fix_available_since"),
-            )
-            for level in sorted(deadlines):
-                if level in existing_levels:
-                    continue
-                days_remaining = (deadlines[level] - now).days
-                if 0 < days_remaining <= warning_days:
-                    upcoming.append(
-                        UpcomingEscalation(
-                            cve_id=cve_id,
-                            severity=severity,
-                            epss_probability=float(epss),
-                            current_age_days=age_days,
-                            next_level=level,
-                            days_until_escalation=days_remaining,
-                        )
+        deadlines = level_deadlines(
+            rule,
+            first_seen=first_seen,
+            fix_available_since=cve.get("fix_available_since"),
+        )
+        for level in sorted(deadlines):
+            if level in existing_levels:
+                continue
+            days_remaining = (deadlines[level] - now).days
+            if 0 < days_remaining <= warning_days:
+                upcoming.append(
+                    UpcomingEscalation(
+                        cve_id=cve_id,
+                        severity=severity,
+                        epss_probability=float(epss),
+                        current_age_days=age_days,
+                        next_level=level,
+                        days_until_escalation=days_remaining,
                     )
-                    break  # only report the nearest upcoming level per rule
-            break  # apply first matching rule only
+                )
+                break  # only report the nearest upcoming level
 
     upcoming.sort(key=lambda u: u.days_until_escalation)
     return upcoming

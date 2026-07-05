@@ -22,9 +22,24 @@ _ANCHORS: tuple[tuple[str, str], ...] = (
 
 
 def rule_matches(rule: dict, severity: int, epss_probability: float) -> bool:
+    """Both thresholds must be met. An unset/zero threshold imposes no constraint,
+    e.g. the default CRITICAL rule has epss_threshold 0.0 = "any EPSS"."""
     severity_ok = severity >= rule.get("severity_min", 0)
     epss_ok = epss_probability >= rule.get("epss_threshold", 0.0)
-    return severity_ok or epss_ok
+    return severity_ok and epss_ok
+
+
+def pick_matching_rule(rules: list[dict], severity: int, epss_probability: float) -> dict | None:
+    """Return the strictest matching rule, or None.
+
+    Strictest = highest severity_min, then highest epss_threshold. This makes a
+    CRITICAL CVE use the dedicated severity_min=4 rule instead of whichever
+    matching rule happens to come first in the configured list.
+    """
+    matching = [r for r in rules if rule_matches(r, severity, epss_probability)]
+    if not matching:
+        return None
+    return max(matching, key=lambda r: (r.get("severity_min", 0), r.get("epss_threshold", 0.0)))
 
 
 def level_deadlines(

@@ -239,6 +239,8 @@ Escalation rules are stored in `global_settings.escalation_rules` as a JSON arra
 }
 ```
 
+A rule matches a CVE when both thresholds are met (`severity >= severity_min` and `EPSS >= epss_threshold`; a threshold of `0` imposes no constraint). When several rules match, the strictest one applies: highest `severity_min`, then highest `epss_threshold`.
+
 The scheduler checks CVE ages against these rules and creates escalation records scoped by `(cve_id, namespace, cluster_name, level)`.
 
 When a namespace has no `rhacs-manager.io/escalation-email` annotation, escalation delivery falls back to `DEFAULT_ESCALATION_EMAIL` if configured, then to `MANAGEMENT_EMAIL`.

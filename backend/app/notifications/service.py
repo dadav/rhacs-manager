@@ -91,6 +91,20 @@ async def notify_risk_expiring(
     title = f"Risikoakzeptanz läuft ab: {acceptance.cve_id}"
     msg = f"Die Risikoakzeptanz für {acceptance.cve_id} läuft in 7 Tagen ab."
 
+    # The expiry-warning job runs daily over a 7-day window; dedup so the
+    # creator is warned once per acceptance, not once per day.
+    existing = await session.execute(
+        select(Notification.id)
+        .where(
+            Notification.user_id == acceptance.created_by,
+            Notification.type == NotificationType.risk_expiring,
+            Notification.link == link,
+        )
+        .limit(1)
+    )
+    if existing.scalar_one_or_none():
+        return
+
     # Notify the RA creator
     await create_notification(session, acceptance.created_by, NotificationType.risk_expiring, title, msg, link)
 

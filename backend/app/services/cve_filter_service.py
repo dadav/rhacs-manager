@@ -491,17 +491,11 @@ async def fetch_filtered_cves(
     elif risk_status in ("requested", "approved"):
         items = [i for i in items if i.risk_acceptance_status == risk_status]
 
-    # Component filter
+    # Component filter — reuse the scoped component_map so matches respect the
+    # cluster/namespace selection instead of the user's full visibility.
     if component and items:
         comp_lower = component.lower()
-        cve_ids = [i.cve_id for i in items]
-        if current_user.can_see_all_namespaces:
-            all_ns = await sx.list_namespaces(sx_db)
-            ns_list: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
-        else:
-            ns_list = current_user.namespaces
-        comp_cve_map = await sx.get_cve_component_map(sx_db, cve_ids, ns_list)
-        items = [i for i in items if any(comp_lower in c.lower() for c in comp_cve_map.get(i.cve_id, []))]
+        items = [i for i in items if any(comp_lower in c.lower() for c in component_map.get(i.cve_id, []))]
 
     # Fix-overdue filter: fix has been available longer than configured threshold
     if fix_overdue:
@@ -541,7 +535,6 @@ async def fetch_filtered_cves(
 
     # Deployment filter
     if deployment and items:
-        cve_ids = [i.cve_id for i in items]
         if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
             dep_ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]

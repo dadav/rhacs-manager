@@ -310,8 +310,11 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         # Determine role from groups
         role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
 
-        # Namespaces from JWT claims (if available)
+        # Namespaces from JWT claims (if available); IdPs may emit the claim as
+        # a list or a comma-separated string (same as groups above).
         ns_claim = payload.get("namespaces", "")
+        if isinstance(ns_claim, list):
+            ns_claim = ",".join(str(entry) for entry in ns_claim)
         has_all_namespaces = ns_claim.strip() == "*" if ns_claim else False
         namespaces = [] if has_all_namespaces else (_parse_namespaces_header(ns_claim) if ns_claim else [])
 

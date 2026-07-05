@@ -147,7 +147,7 @@ async def test_list_cves_pagination(sec_team_client: httpx.AsyncClient, patch_cv
 
 async def test_get_cve_detail_404(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
     """Non-existent CVE should return 404."""
-    patch_sx.get_all_cves.return_value = []
+    patch_sx.get_cve_detail.return_value = None
     patch_sx.list_namespaces.return_value = []
     resp = await sec_team_client.get("/api/cves/CVE-9999-0001")
     assert resp.status_code == 404
@@ -156,7 +156,7 @@ async def test_get_cve_detail_404(sec_team_client: httpx.AsyncClient, patch_sx, 
 async def test_get_cve_detail_returns_data(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
     """Existing CVE should return 200 with detail fields."""
     cve_row = _make_cve_detail_row("CVE-2024-0001")
-    patch_sx.get_all_cves.return_value = [cve_row]
+    patch_sx.get_cve_detail.return_value = cve_row
     patch_sx.list_namespaces.return_value = [{"namespace": "default", "cluster_name": "cluster-a"}]
     patch_sx.get_affected_deployments.return_value = []
     patch_sx.get_affected_components.return_value = []

@@ -33,7 +33,7 @@ from ..schemas.cve import (
     SeverityLevel,
 )
 from ..services.cve_filter_service import fetch_filtered_cves
-from ..services.escalation_rules import level_deadlines, rule_matches
+from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.risk_acceptance_service import deployment_covered_by_scope
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
@@ -318,8 +318,7 @@ async def get_cve(
     if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
-        cve_data = await sx.get_all_cves(sx_db)
-        cve_data = next((c for c in cve_data if c["cve_id"] == cve_id), None)
+        cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
         if cve_data:
             first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
     else:
@@ -339,9 +338,9 @@ async def get_cve(
         if settings and settings.escalation_rules:
             severity = cve_data.get("severity", 0)
             epss = float(cve_data.get("epss_probability", 0))
-            for rule in settings.escalation_rules:
-                if not rule_matches(rule, severity, epss):
-                    continue
+            # Strictest matching rule only — must mirror the scheduler's escalation check.
+            rule = pick_matching_rule(settings.escalation_rules, severity, epss)
+            if rule is not None:
                 deadlines = level_deadlines(
                     rule,
                     first_seen=first_seen,
@@ -349,7 +348,6 @@ async def get_cve(
                 )
                 for lvl, dt in deadlines.items():
                     esc_expected[lvl] = dt
-                break  # first matching rule only
 
     # Fetch protobuf data for summary, references, and advisory
     if current_user.can_see_all_namespaces:
