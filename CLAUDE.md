@@ -97,6 +97,7 @@ These rules are easy to break and cause silent data errors.
 - Do not use `image_components` — its IDs are incompatible with `image_cves_v2.componentid` and joins silently return 0 rows.
 - Join `image_component_v2.id` to `image_cves_v2.componentid`.
 - Group CVE list and detail aggregations by `ic.cvebaseinfo_cve`, not by `ic.id`.
+- `ic.severity` and `ic.cvss` are vendor/scanner values (Red Hat classification and Red Hat CVSS for Red Hat content), not NVD data. NVD's score lives in `ic.nvdcvss` and is not used by the app. Never describe severity or the displayed CVSS as NVD-based.
 
 Correct pattern:
 

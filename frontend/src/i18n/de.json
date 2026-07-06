@@ -93,7 +93,7 @@
     "MODERATE": "Mittel",
     "IMPORTANT": "Hoch",
     "CRITICAL": "Kritisch",
-    "tooltip": "CVSS-basierte Schweregradeinstufung vom NVD."
+    "tooltip": "Schweregradeinstufung der Scanner-Datenquelle (bei Red-Hat-Inhalten die Red Hat Security-Klassifizierung). Unabhängig vom NVD-CVSS-Score."
   },
   "status": {
     "requested": "Beantragt",
@@ -184,13 +184,13 @@
       "180+": ">180 Tage"
     },
     "help": {
-      "epssMatrix": "Die EPSS-Risikomatrix zeigt jede CVE als Punkt, positioniert nach CVSS-Schweregrad (Y-Achse) und EPSS-Ausnutzungswahrscheinlichkeit (X-Achse). CVEs oben rechts haben sowohl hohen Schweregrad als auch hohe Ausnutzungswahrscheinlichkeit und sollten zuerst bearbeitet werden.",
+      "epssMatrix": "Die EPSS-Risikomatrix zeigt jede CVE als Punkt, positioniert nach CVSS-Score (Y-Achse) und EPSS-Ausnutzungswahrscheinlichkeit (X-Achse). CVEs oben rechts haben sowohl hohen Schweregrad als auch hohe Ausnutzungswahrscheinlichkeit und sollten zuerst bearbeitet werden.",
       "pipeline": "Zeigt die aktuelle Verteilung aller Risikoakzeptanzen nach Status. So erkennen Sie auf einen Blick, wie viele Anträge offen, genehmigt, abgelehnt oder abgelaufen sind.",
       "severityDistribution": "Zeigt die Verteilung Ihrer sichtbaren CVEs nach Schweregrad. Klicken Sie auf ein Segment, um die entsprechenden CVEs gefiltert anzuzeigen.",
       "fixabilityBreakdown": "Zeigt, wie viele Ihrer CVEs durch ein Update behoben werden können und wie viele derzeit keinen Fix haben. Hilft bei der Priorisierung von Update-Maßnahmen.",
       "clusterHeatmap": "Zeigt die Verteilung von CVEs nach Cluster und Schweregrad. Cluster mit vielen kritischen CVEs sollten zuerst überprüft werden.",
       "mttr": "Audit-Kennzahl des Sicherheitsteams: die durchschnittliche Zeit in Tagen vom ersten Auftreten eines CVE bis zur Behebung, gruppiert nach Schweregrad. Erfasst das gesamte Expositionsfenster. Nur abgeschlossene, manuell erfasste Remediations werden berücksichtigt.",
-      "aging": "Zeigt, wie lange CVEs bereits bekannt sind. Alte, unbehandelte CVEs stellen ein erhöhtes Risiko dar und sollten priorisiert werden.",
+      "aging": "Zeigt, wie lange CVEs bereits in Ihrer Umgebung erkannt sind (seit dem ersten Auftreten in Ihren Images). Alte, unbehandelte CVEs stellen ein erhöhtes Risiko dar und sollten priorisiert werden.",
       "trend": "Zeigt die Anzahl neu entdeckter CVEs pro Tag in den letzten 90 Tagen, aufgeschlüsselt nach Schweregrad. Es werden nur CVEs berücksichtigt, die erstmals innerhalb dieses Zeitraums aufgetreten sind. Bereits länger bekannte CVEs erscheinen hier nicht, sind aber in der CVE-Liste weiterhin sichtbar.",
       "cveHistory": "Zeigt die tatsächliche Anzahl sichtbarer CVEs pro Tag, aufgeschlüsselt nach Schweregrad. Sinkende Linien bedeuten echten Fortschritt. Hinweis: Bei Teams mit mehreren Namespaces kann dieselbe CVE mehrfach gezählt werden (einmal pro Namespace).",
       "fixFirst": "Die wichtigsten CVEs für Ihr Team, sortiert nach Priorität des Sicherheitsteams, Ausnutzungswahrscheinlichkeit (EPSS) und Schweregrad. CVEs mit verfügbarem Fix stehen weiter oben - ein Image-Update behebt sie direkt.",
@@ -214,6 +214,7 @@
     "cveId": "CVE-ID",
     "severity": "Schweregrad",
     "cvss": "CVSS",
+    "cvssTooltip": "CVSS-Score der primären Datenquelle (bei Red-Hat-Inhalten der Red-Hat-Score). Kann vom NVD-Score abweichen.",
     "epss": "EPSS",
     "epssTooltip": "Wahrscheinlichkeit der Ausnutzung in den nächsten 30 Tagen (EPSS-Score von FIRST.org)",
     "affectedImages": "Betr. Images",
@@ -558,17 +559,17 @@
   },
   "remediations": {
     "title": "Behebungen",
-    "description": "CVE-Behebungsfortschritt pro Namespace von der Erstellung bis zur Verifizierung verfolgen.",
+    "description": "CVE-Behebungsfortschritt pro Namespace von der Erstellung bis zur Behebung verfolgen.",
     "whatAre": "Was sind Behebungen?",
-    "helpBody1": "Behebungen verfolgen die aktive Beseitigung von CVEs. Ein Team-Mitglied erstellt eine Behebung für eine CVE in seinem Namespace und verfolgt den Fortschritt bis zur Verifizierung durch das Security-Team.",
+    "helpBody1": "Behebungen verfolgen die aktive Beseitigung von CVEs. Ein Team-Mitglied erstellt eine Behebung für eine CVE in seinem Namespace und verfolgt den Fortschritt bis zur Behebung. Das Security-Team auditiert über das Audit-Log und den Wochenbericht.",
     "helpBody2Open": "Offen",
     "helpBody2OpenDesc": " - Behebung angelegt",
     "helpBody2InProgress": "In Bearbeitung",
     "helpBody2InProgressDesc": " - Aktiv daran gearbeitet",
     "helpBody2Resolved": "Behoben",
-    "helpBody2ResolvedDesc": " - CVE wurde beseitigt, wartet auf Verifizierung",
+    "helpBody2ResolvedDesc": " - CVE wurde beseitigt (Endstatus)",
     "helpBody2Verified": "Verifiziert",
-    "helpBody2VerifiedDesc": " - Vom Security-Team bestätigt",
+    "helpBody2VerifiedDesc": " - Veralteter Status aus früheren Versionen",
     "helpBody3": "Behebungen können automatisch als behoben markiert werden, wenn die CVE nicht mehr in den Deployments des Namespaces gefunden wird.",
     "helpLabel": "Hilfe zu Behebungen",
     "statusOpen": "Offen",
@@ -802,7 +803,7 @@
   "epssMatrix": {
     "lowRisk": "Niedriges Risiko",
     "severe": "Schwerwiegend",
-    "activelyExploited": "Aktiv ausgenutzt",
+    "highLikelihood": "Hohe Ausnutzungswahrscheinlichkeit",
     "criticalRisk": "Kritisches Risiko"
   },
   "suppressionRules": {

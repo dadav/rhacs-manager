@@ -752,7 +752,7 @@ export function CveList() {
                     <Tr>
                       <Th sort={makeCveSort('cve_id')}>{t('cves.cveId')}</Th>
                       <Th sort={makeCveSort('severity')}>{t('cves.severity')}</Th>
-                      <Th sort={makeCveSort('cvss')}>{t('cves.cvss')}</Th>
+                      <Th sort={makeCveSort('cvss')} info={{ tooltip: t('cves.cvssTooltip') }}>{t('cves.cvss')}</Th>
                       <Th sort={makeCveSort('epss_probability')}>{t('cves.epss')}</Th>
                       <Th sort={makeCveSort('affected_images')}>{t('cves.affectedImages')}</Th>
                       <Th sort={makeCveSort('affected_deployments')}>{t('cves.affectedDeployments')}</Th>

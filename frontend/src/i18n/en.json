@@ -93,7 +93,7 @@
     "MODERATE": "Medium",
     "IMPORTANT": "High",
     "CRITICAL": "Critical",
-    "tooltip": "CVSS-based severity classification from NVD."
+    "tooltip": "Severity rating assigned by the scanner data source (the Red Hat security classification for Red Hat content). Independent of the NVD CVSS score."
   },
   "status": {
     "requested": "Requested",
@@ -184,13 +184,13 @@
       "180+": ">180 days"
     },
     "help": {
-      "epssMatrix": "The EPSS Risk Matrix plots each CVE by CVSS severity (Y-axis) and EPSS exploitation probability (X-axis). CVEs in the top-right have both high severity and high exploitation likelihood and should be addressed first.",
+      "epssMatrix": "The EPSS Risk Matrix plots each CVE by CVSS score (Y-axis) and EPSS exploitation probability (X-axis). CVEs in the top-right have both high severity and high exploitation likelihood and should be addressed first.",
       "pipeline": "Shows the current distribution of all risk acceptances by status. Quickly see how many requests are pending, approved, rejected, or expired.",
       "severityDistribution": "Shows the distribution of your visible CVEs by severity level. Click a segment to filter the vulnerability list accordingly.",
       "fixabilityBreakdown": "Shows how many of your CVEs can be fixed by an update vs. those with no fix available yet. Helps prioritize update efforts.",
       "clusterHeatmap": "Shows CVE distribution across clusters by severity. Clusters with many critical CVEs should be reviewed first.",
       "mttr": "Security-team audit metric: the average time in days from when a CVE was first seen to resolution, grouped by severity. Captures the full exposure window. Only completed, manually tracked remediations are included.",
-      "aging": "Shows how long CVEs have been known. Old, unaddressed CVEs represent increased risk and should be prioritized.",
+      "aging": "Shows how long CVEs have been present in your environment (since first seen in your images). Old, unaddressed CVEs represent increased risk and should be prioritized.",
       "trend": "Shows the number of newly discovered CVEs per day over the last 90 days, broken down by severity. Only CVEs first seen within this period are included. CVEs known for longer still appear in the CVE list but not in this chart.",
       "cveHistory": "Shows the actual number of visible CVEs per day, broken down by severity. Falling lines mean real progress. Note: for teams with multiple namespaces the same CVE may be counted once per namespace.",
       "fixFirst": "The most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher - an image update resolves them directly.",
@@ -214,6 +214,7 @@
     "cveId": "CVE ID",
     "severity": "Severity",
     "cvss": "CVSS",
+    "cvssTooltip": "CVSS score from the primary data source (the Red Hat score for Red Hat content). May differ from the NVD score.",
     "epss": "EPSS",
     "epssTooltip": "Probability of exploitation in the next 30 days (EPSS score from FIRST.org)",
     "affectedImages": "Affected Images",
@@ -558,17 +559,17 @@
   },
   "remediations": {
     "title": "Remediations",
-    "description": "Track CVE fix progress per namespace from creation to verification.",
+    "description": "Track CVE fix progress per namespace from creation to resolution.",
     "whatAre": "What are remediations?",
-    "helpBody1": "Remediations track active CVE resolution. A team member creates a remediation for a CVE in their namespace and tracks progress until verification by the security team.",
+    "helpBody1": "Remediations track active CVE resolution. A team member creates a remediation for a CVE in their namespace and tracks progress until resolution. The security team audits via the audit log and the weekly digest.",
     "helpBody2Open": "Open",
     "helpBody2OpenDesc": " - Remediation created",
     "helpBody2InProgress": "In Progress",
     "helpBody2InProgressDesc": " - Actively being worked on",
     "helpBody2Resolved": "Resolved",
-    "helpBody2ResolvedDesc": " - CVE has been fixed, awaiting verification",
+    "helpBody2ResolvedDesc": " - CVE has been fixed (terminal state)",
     "helpBody2Verified": "Verified",
-    "helpBody2VerifiedDesc": " - Confirmed by the security team",
+    "helpBody2VerifiedDesc": " - Legacy status from earlier versions",
     "helpBody3": "Remediations can be automatically marked as resolved when the CVE is no longer found in the namespace's deployments.",
     "helpLabel": "Help for remediations",
     "statusOpen": "Open",
@@ -802,7 +803,7 @@
   "epssMatrix": {
     "lowRisk": "Low risk",
     "severe": "Severe",
-    "activelyExploited": "Actively exploited",
+    "highLikelihood": "Likely to be exploited",
     "criticalRisk": "Critical risk"
   },
   "suppressionRules": {

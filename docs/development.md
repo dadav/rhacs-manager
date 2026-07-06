@@ -209,8 +209,8 @@ LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 Key fields on `image_cves_v2`:
 
 - `ic.cvebaseinfo_cve` -- CVE ID
-- `ic.severity` -- severity level (1-4)
-- `ic.cvss` -- CVSS score
+- `ic.severity` -- scanner-assigned severity (1-4, Red Hat classification for Red Hat content; independent of CVSS)
+- `ic.cvss` -- CVSS score from the primary data source (Red Hat for Red Hat content); NVD's score is in `ic.nvdcvss` and often differs
 - `ic.cvebaseinfo_epss_epssprobability` -- EPSS probability
 - `ic.impactscore` -- impact score
 - `ic.firstimageoccurrence` -- first seen date

@@ -154,7 +154,7 @@ The **Escalations** page shows both active escalations and upcoming ones.
 
 - Escalation rules are configured in **Settings**.
 - Each rule combines a minimum severity threshold with an EPSS threshold and three deadlines.
-- A CVE is eligible for a rule when either the severity threshold or the EPSS threshold matches that rule.
+- A CVE is eligible for a rule when both the severity threshold and the EPSS threshold are met. A threshold of `0` imposes no constraint.
 - Levels are:
   - Level 1: user notification
   - Level 2: user and security notification

@@ -547,14 +547,16 @@ export function CveDetail() {
                     <DetailRow
                       label="CVSS"
                       value={
-                        <span
-                          style={{
-                            fontWeight: cve.cvss >= 9 ? 700 : 400,
-                            color: cve.cvss >= 9 ? "#c9190b" : "inherit",
-                          }}
-                        >
-                          {formatCvss(cve.cvss)}
-                        </span>
+                        <Tooltip content={t('cves.cvssTooltip')}>
+                          <span
+                            style={{
+                              fontWeight: cve.cvss >= 9 ? 700 : 400,
+                              color: cve.cvss >= 9 ? "#c9190b" : "inherit",
+                            }}
+                          >
+                            {formatCvss(cve.cvss)}
+                          </span>
+                        </Tooltip>
                       }
                     />
                     <DetailRow

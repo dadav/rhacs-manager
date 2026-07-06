@@ -64,7 +64,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
   const zones = [
     { x1: 0,   x2: 0.1, y1: 0, y2: 7,  fill: '#1e8f19', label: t('epssMatrix.lowRisk'),      labelFill: '#1e8f19' },
     { x1: 0,   x2: 0.1, y1: 7, y2: 10, fill: '#ec7a08', label: t('epssMatrix.severe'),        labelFill: '#ec7a08' },
-    { x1: 0.1, x2: 1,   y1: 0, y2: 7,  fill: '#0066cc', label: t('epssMatrix.activelyExploited'), labelFill: '#0066cc' },
+    { x1: 0.1, x2: 1,   y1: 0, y2: 7,  fill: '#0066cc', label: t('epssMatrix.highLikelihood'), labelFill: '#0066cc' },
     { x1: 0.1, x2: 1,   y1: 7, y2: 10, fill: '#c9190b', label: t('epssMatrix.criticalRisk'),  labelFill: '#c9190b' },
   ]
 
