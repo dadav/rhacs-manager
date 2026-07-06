@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -160,7 +160,7 @@ async def export_audit_log(
     ]
 
     xlsx_bytes = generate_audit_excel(rows, lang=lang)
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
     prefix = "audit-log" if lang == "en" else "audit-protokoll"
 
     return Response(

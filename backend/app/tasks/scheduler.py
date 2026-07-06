@@ -1,7 +1,7 @@
 """APScheduler background jobs: escalation checks, expiry checks, weekly digest."""
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, func, select
@@ -479,7 +479,7 @@ async def run_remediation_auto_resolve() -> None:
                 )
                 if not deployments:
                     remediation.status = RemediationStatus.resolved
-                    remediation.resolved_at = datetime.utcnow()
+                    remediation.resolved_at = datetime.now(UTC).replace(tzinfo=None)
                     remediation.notes = (
                         remediation.notes or ""
                     ) + "\n[Automatisch behoben: CVE nicht mehr in Deployments gefunden]"
