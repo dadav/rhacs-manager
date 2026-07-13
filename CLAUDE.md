@@ -98,15 +98,34 @@ These rules are easy to break and cause silent data errors.
 - Join `image_component_v2.id` to `image_cves_v2.componentid`.
 - Group CVE list and detail aggregations by `ic.cvebaseinfo_cve`, not by `ic.id`.
 - `ic.severity` and `ic.cvss` are vendor/scanner values (Red Hat classification and Red Hat CVSS for Red Hat content), not NVD data. NVD's score lives in `ic.nvdcvss` and is not used by the app. Never describe severity or the displayed CVSS as NVD-based.
+- `image_cves_v2` has no `operatingsystem` column (dropped in ACS 4.11). OS lives on `image_component_v2.operatingsystem`.
 
-Correct pattern:
+#### The ACS 4.11 dual image model
+
+Since the 4.11 upgrade, image-keyed rows exist in one of two shapes, never both:
+
+- **v2 model**: `image_cves_v2.imageidv2` / `image_component_v2.imageidv2` -> `images_v2.id` (a UUID), reached from `deployments_containers.image_idv2`.
+- **legacy model**: `image_cves_v2.imageid` = sha256 digest, reached from `deployments_containers.image_id`.
+
+**All new scan data goes only to the v2 model.** Legacy rows and the whole `images` table are frozen at the upgrade instant. Joining `ic.imageid = dc.image_id` (the pre-4.11 pattern) reads only that frozen side: it surfaces CVEs that no longer exist and misses everything found since the upgrade.
+
+Correct pattern — build on `CVE_ROWS_CTE` from `backend/app/stackrox/queries/_common.py`, which prefers v2 rows and falls back to legacy rows only for images with no v2 scan data. Alias it as `ic` so `VISIBILITY_HAVING` and existing `ic.*` references keep working:
 
 ```sql
+WITH cve_rows AS (...)   -- CVE_ROWS_CTE
 FROM deployments d
-JOIN deployments_containers dc ON dc.deployments_id = d.id
-JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+JOIN cve_rows ic ON ic.deployments_id = d.id
 LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 ```
+
+The CTE carries `deployments_id`, `image_id`, and `image_name_fullname`, so queries take those from `ic` rather than joining `deployments_containers` themselves. It excludes the bytea `serialized` column; the protobuf queries in `core.py` read that straight from `image_cves_v2`.
+
+Other 4.11 rules:
+
+- `images_v2.scanstats_componentcount > 0` is the canonical probe for "this image has v2 scan data".
+- `images_v2.digest` is **not unique** (same digest, different pull specs). Any lookup by digest must pick one row: `ORDER BY (scanstats_componentcount > 0) DESC, lastupdated DESC LIMIT 1`.
+- `image_detail.py` queries `images_v2` first and falls back to `images`; `images_v2_layers` mirrors `images_layers`.
+- Unused-but-present 4.11 features (currently empty in our cluster): `base_images*` (base-image awareness), `virtual_machine_*`, `image_component_v2.layertype`, `deployments_containers.type`.
 
 ### Auth and visibility model
 

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import VISIBILITY_HAVING, _namespace_filter
+from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
 
 
 async def get_fixability_stats(
@@ -17,12 +17,12 @@ async def get_fixability_stats(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable,
             COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve
     """)
@@ -56,11 +56,11 @@ async def get_fixability_breakdown(
         where_clause = ""
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             BOOL_OR(COALESCE(ic.isfixable, false)) AS any_fixable
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
         {VISIBILITY_HAVING}
@@ -103,11 +103,11 @@ async def get_top_affected_deployments(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT ic.cvebaseinfo_cve AS cve_id
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
             HAVING (
@@ -124,10 +124,9 @@ async def get_top_affected_deployments(
             d.clustername AS cluster_name,
             COUNT(DISTINCT vc.cve_id) AS cve_count
         FROM visible_cves vc
-        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
-        JOIN deployments_containers dc ON dc.image_id = ic.imageid
-        JOIN deployments d ON d.id = dc.deployments_id
-        {("WHERE " + ns_fragment) if namespaces else ""}
+        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN deployments d ON d.id = ic.deployments_id
+        {where_clause}
         GROUP BY d.name, d.namespace, d.clustername
         ORDER BY cve_count DESC
         LIMIT :limit
@@ -157,10 +156,10 @@ async def get_cve_ids_for_deployment(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE d.name = :deployment_name
           AND {ns_fragment}
     """)
@@ -191,11 +190,11 @@ async def get_cve_aging(
         where_clause = ""
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             EXTRACT(EPOCH FROM (NOW() - MIN(ic.firstimageoccurrence))) / 86400 AS age_days
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
         {VISIBILITY_HAVING}
@@ -230,13 +229,24 @@ async def get_cves_last_n_days(
     session: AsyncSession,
     days: int = 7,
 ) -> int:
-    """Count distinct CVEs first seen in the last N days (org-wide)."""
+    """Count distinct CVEs first seen in the last N days (org-wide).
+
+    No deployment join, so the dual-model filter is applied inline: take v2-model
+    rows, plus legacy rows only for images that have no v2 scan data.
+    """
     since = datetime.utcnow() - timedelta(days=days)
     sql = text("""
         SELECT COUNT(DISTINCT ic.cvebaseinfo_cve) AS count
         FROM image_cves_v2 ic
         WHERE ic.firstimageoccurrence >= :since
           AND ic.cvebaseinfo_cve IS NOT NULL
+          AND (
+              ic.imageidv2 IS NOT NULL
+              OR NOT EXISTS (
+                  SELECT 1 FROM images_v2 iv
+                  WHERE iv.digest = ic.imageid AND iv.scanstats_componentcount > 0
+              )
+          )
     """)
     result = await session.execute(sql, {"since": since})
     return result.scalar() or 0

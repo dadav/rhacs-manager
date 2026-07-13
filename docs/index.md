@@ -97,7 +97,7 @@ RHACS Manager reads directly from the StackRox Central database. Schema changes 
 - CVE visibility for non-sec users is namespace-scoped.
 - Threshold filtering is conjunctive (`min_cvss_score` and `min_epss_score`).
 - Prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
-- `image_cves_v2` is the authoritative StackRox source for CVE data.
+- `image_cves_v2` is the authoritative StackRox source for CVE data, reached via the shared `CVE_ROWS_CTE` (ACS 4.11 dual image model).
 
 ## Documentation Map
 

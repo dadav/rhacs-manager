@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import VISIBILITY_HAVING, _namespace_filter
+from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
 
 
 async def get_severity_distribution(
@@ -28,13 +28,13 @@ async def get_severity_distribution(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT
                 ic.cvebaseinfo_cve AS cve_id,
                 MAX(ic.severity) AS severity
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
             {VISIBILITY_HAVING}
@@ -79,15 +79,15 @@ async def get_cves_per_namespace(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_by_ns_cluster AS (
+        WITH {CVE_ROWS_CTE},
+        visible_by_ns_cluster AS (
             SELECT
                 d.namespace AS namespace,
                 d.clustername AS cluster,
                 ic.cvebaseinfo_cve AS cve_id,
                 MAX(ic.severity) AS severity
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {where_clause}
             GROUP BY d.namespace, d.clustername, ic.cvebaseinfo_cve
             {VISIBILITY_HAVING}
@@ -145,6 +145,7 @@ async def get_cves_by_namespace_detail(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
             d.namespace,
@@ -155,8 +156,7 @@ async def get_cves_by_namespace_detail(
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             MAX(COALESCE(ic.cvss, 0))       AS cvss
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve, d.namespace, d.clustername
         HAVING (
@@ -206,14 +206,14 @@ async def get_cve_trend(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT
                 ic.cvebaseinfo_cve AS cve_id,
                 MIN(ic.firstimageoccurrence) AS first_seen,
                 MAX(ic.severity) AS severity
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             WHERE ic.firstimageoccurrence >= :since
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
@@ -275,14 +275,14 @@ async def get_epss_risk_matrix(
         where_clause = ""
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             ic.cvebaseinfo_cve AS cve_id,
             MAX(COALESCE(ic.cvss, 0)) AS cvss,
             MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss,
             MAX(ic.severity) AS severity
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         {where_clause}
         GROUP BY ic.cvebaseinfo_cve
         {VISIBILITY_HAVING}
@@ -324,13 +324,13 @@ async def get_cluster_heatmap(
         where_clause = ""
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT
                 ic.cvebaseinfo_cve AS cve_id,
                 MAX(ic.severity) AS severity
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
             {VISIBILITY_HAVING}
@@ -340,9 +340,8 @@ async def get_cluster_heatmap(
             vc.severity,
             COUNT(DISTINCT vc.cve_id) AS count
         FROM visible_cves vc
-        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
-        JOIN deployments_containers dc ON dc.image_id = ic.imageid
-        JOIN deployments d ON d.id = dc.deployments_id
+        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN deployments d ON d.id = ic.deployments_id
         {where_clause}
         GROUP BY d.clustername, vc.severity
         ORDER BY d.clustername, vc.severity
@@ -403,8 +402,9 @@ async def get_snapshot_counts(
     always_show = list(always_show_cve_ids)
     exclude = list(exclude_cve_ids)
 
-    sql = text("""
-        WITH per_ns_cve AS (
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE},
+        per_ns_cve AS (
             SELECT d.clustername AS cluster_name,
                    d.namespace,
                    ic.cvebaseinfo_cve AS cve_id,
@@ -412,8 +412,7 @@ async def get_snapshot_counts(
                    MAX(COALESCE(ic.cvss, 0)) AS cvss,
                    MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             WHERE NOT (ic.cvebaseinfo_cve = ANY(:exclude))
             GROUP BY d.clustername, d.namespace, ic.cvebaseinfo_cve
         ),

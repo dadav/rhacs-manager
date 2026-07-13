@@ -197,16 +197,24 @@ frontend/src/
 
 ## StackRox Query Pattern
 
-All StackRox queries are centralized in `backend/app/stackrox/queries.py`. Always use the `image_cves_v2` view:
+All StackRox queries are centralized in `backend/app/stackrox/queries/`. CVE data always
+comes from `image_cves_v2`, but since ACS 4.11 it must be reached through the shared
+`CVE_ROWS_CTE` fragment in `_common.py` rather than joined directly on `imageid`:
 
 ```sql
+WITH cve_rows AS (...)   -- CVE_ROWS_CTE from _common.py
 FROM deployments d
-JOIN deployments_containers dc ON dc.deployments_id = d.id
-JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+JOIN cve_rows ic ON ic.deployments_id = d.id
 LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 ```
 
-Key fields on `image_cves_v2`:
+The CTE resolves the ACS 4.11 dual image model: it prefers v2-model rows
+(`imageidv2` -> `images_v2.id`) and falls back to the frozen legacy rows
+(`imageid` = sha digest) only for images with no v2 scan data. Joining
+`ic.imageid = dc.image_id` directly reads stale, pre-upgrade data. See
+[Architecture](architecture.md#the-acs-411-dual-image-model) for the details.
+
+Key fields on `image_cves_v2` (all carried through `cve_rows`):
 
 - `ic.cvebaseinfo_cve` -- CVE ID
 - `ic.severity` -- scanner-assigned severity (1-4, Red Hat classification for Red Hat content; independent of CVSS)

@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import _namespace_filter
+from ._common import CVE_ROWS_CTE, _namespace_filter
 
 
 async def get_cves_for_namespaces(
@@ -22,6 +22,7 @@ async def get_cves_for_namespaces(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
             MAX(ic.severity)                AS severity,
@@ -32,13 +33,12 @@ async def get_cves_for_namespaces(
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
-            COUNT(DISTINCT dc.image_id)     AS affected_images,
-            COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
+            COUNT(DISTINCT ic.image_id)     AS affected_images,
+            COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
             MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve
@@ -75,6 +75,7 @@ async def get_cve_detail(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
             MAX(ic.severity)                AS severity,
@@ -85,13 +86,12 @@ async def get_cve_detail(
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
-            COUNT(DISTINCT dc.image_id)     AS affected_images,
-            COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
+            COUNT(DISTINCT ic.image_id)     AS affected_images,
+            COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
             MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
@@ -114,20 +114,20 @@ async def get_affected_deployments(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             d.id            AS deployment_id,
             d.name          AS deployment_name,
             d.namespace,
             d.clustername   AS cluster_name,
-            dc.image_name_fullname AS image_name,
-            dc.image_id     AS image_id,
+            ic.image_name_fullname AS image_name,
+            ic.image_id     AS image_id,
             MIN(ic.firstimageoccurrence) AS first_seen
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
-        GROUP BY d.id, d.name, d.namespace, d.clustername, dc.image_name_fullname, dc.image_id
+        GROUP BY d.id, d.name, d.namespace, d.clustername, ic.image_name_fullname, ic.image_id
         ORDER BY d.namespace, d.name
     """)
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
@@ -145,14 +145,14 @@ async def get_affected_components(
     ns_fragment, ns_params = _namespace_filter(namespaces)
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT
             comp.name       AS component_name,
             comp.version    AS component_version,
             COALESCE(ic.isfixable, false) AS fixable,
             ic.fixedby      AS fixed_by
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
@@ -172,7 +172,8 @@ async def get_all_cves(
     """All CVEs across all namespaces — for sec team."""
     always_show = list(always_show_cve_ids or [])
 
-    sql = text("""
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT
             ic.cvebaseinfo_cve              AS cve_id,
             MAX(ic.severity)                AS severity,
@@ -183,13 +184,12 @@ async def get_all_cves(
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
-            COUNT(DISTINCT dc.image_id)     AS affected_images,
-            COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
+            COUNT(DISTINCT ic.image_id)     AS affected_images,
+            COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
             MAX(ic.fixedby)                 AS fixed_by
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         GROUP BY ic.cvebaseinfo_cve
         HAVING (
@@ -210,7 +210,13 @@ async def get_cve_protobuf_data(
     cve_id: str,
     namespaces: list[tuple[str, str]],
 ) -> dict | None:
-    """Fetch serialized protobuf + advisory columns for a single CVE."""
+    """Fetch serialized protobuf + advisory columns for a single CVE.
+
+    Not built on CVE_ROWS_CTE because it needs the bytea `serialized` column.
+    The OR join is acceptable here: the query is a single-CVE LIMIT 1 lookup
+    driven by the indexed cvebaseinfo_cve. The ORDER BY prefers a v2-model row,
+    which carries the fresher scan data.
+    """
     if not namespaces:
         return None
 
@@ -220,10 +226,11 @@ async def get_cve_protobuf_data(
         SELECT ic.serialized, ic.advisory_name, ic.advisory_link
         FROM deployments d
         JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN image_cves_v2 ic ON (ic.imageidv2 = dc.image_idv2 OR ic.imageid = dc.image_id)
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
           AND ic.serialized IS NOT NULL
+        ORDER BY (ic.imageidv2 IS NOT NULL) DESC
         LIMIT 1
     """)
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
@@ -241,6 +248,7 @@ async def get_cve_protobuf_data_all(
         FROM image_cves_v2 ic
         WHERE ic.cvebaseinfo_cve = :cve_id
           AND ic.serialized IS NOT NULL
+        ORDER BY (ic.imageidv2 IS NOT NULL) DESC
         LIMIT 1
     """)
     result = await session.execute(sql, {"cve_id": cve_id})

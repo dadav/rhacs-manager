@@ -89,17 +89,48 @@ Owned by RHACS. The application queries it for live CVE data. Key views and tabl
 - **`deployments`** -- active deployments
 - **`deployments_containers`** -- container-to-image mapping
 - **`image_component_v2`** -- software components in images
+- **`images_v2`** -- flattened image model introduced in ACS 4.11
+
+### The ACS 4.11 dual image model
+
+ACS 4.11 introduced a flattened image model. Image-keyed rows now exist in one of
+two shapes, never both:
+
+- **v2 model** -- `image_cves_v2.imageidv2` / `image_component_v2.imageidv2` point at
+  `images_v2.id` (a UUID), reached from `deployments_containers.image_idv2`.
+- **legacy model** -- `image_cves_v2.imageid` holds the sha256 digest, reached from
+  `deployments_containers.image_id`.
+
+Since the 4.11 upgrade, **all new scan data is written only to the v2 model**. The
+legacy rows (and the whole `images` table) are frozen snapshots that grow staler over
+time. Queries must therefore prefer v2 rows and fall back to legacy rows only for
+images that have not been rescanned into the v2 model yet.
+
+That rule is encoded once, in the `CVE_ROWS_CTE` fragment in
+`backend/app/stackrox/queries/_common.py`. Every deployment-joined query builds on it
+and aliases it as `ic`:
 
 ```sql
 -- Standard query pattern:
+WITH cve_rows AS (...)   -- CVE_ROWS_CTE
 FROM deployments d
-JOIN deployments_containers dc ON dc.deployments_id = d.id
-JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+JOIN cve_rows ic ON ic.deployments_id = d.id
 LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
 ```
 
-!!! warning "Always use `image_cves_v2`"
-    The legacy join chain (`image_cve_edges` -> `image_cves` -> `image_component_cve_edges`) is incorrect for this schema. All queries must use the `image_cves_v2` view.
+!!! warning "Never join `image_cves_v2` on `imageid` alone"
+    `JOIN image_cves_v2 ic ON ic.imageid = dc.image_id` was the pre-4.11 pattern. It now
+    reads only the frozen legacy side: it shows CVEs that no longer exist and misses
+    everything found after the upgrade. Use `CVE_ROWS_CTE`.
+
+    The legacy join chain (`image_cve_edges` -> `image_cves` -> `image_component_cve_edges`)
+    remains incorrect for this schema, as does `image_components` (incompatible IDs).
+
+!!! note "`images_v2.digest` is not unique"
+    The same digest can appear under several pull specs. Any lookup by digest must pick a
+    single row (`ORDER BY (scanstats_componentcount > 0) DESC, lastupdated DESC LIMIT 1`).
+    `images_v2.scanstats_componentcount > 0` is the canonical probe for "this image has v2
+    scan data".
 
 ## Authentication Modes
 

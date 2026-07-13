@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import _namespace_filter
+from ._common import CVE_ROWS_CTE, _namespace_filter
 
 
 async def get_threshold_preview(
@@ -14,19 +14,19 @@ async def get_threshold_preview(
     Counts distinct CVEs visible via active deployments, consistent with
     how the dashboard and CVE list queries work.
     """
-    sql_total = text("""
+    sql_total = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT COUNT(DISTINCT ic.cvebaseinfo_cve)
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE ic.cvebaseinfo_cve IS NOT NULL
     """)
-    sql_visible = text("""
+    sql_visible = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT COUNT(*) FROM (
             SELECT ic.cvebaseinfo_cve
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             WHERE ic.cvebaseinfo_cve IS NOT NULL
             GROUP BY ic.cvebaseinfo_cve
             HAVING
@@ -113,18 +113,18 @@ async def get_cves_grouped_by_image(
     if namespaces:
         outer_conditions.append(ns_fragment)
     if image_name:
-        outer_conditions.append("dc.image_name_fullname = :image_name_filter")
+        outer_conditions.append("ic.image_name_fullname = :image_name_filter")
         params["image_name_filter"] = image_name
     outer_where = f"WHERE {' AND '.join(outer_conditions)}" if outer_conditions else ""
 
     sql = text(f"""
-        WITH visible_cves AS (
-            SELECT ic.cvebaseinfo_cve AS cve_id, ic.imageid
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
+            SELECT ic.cvebaseinfo_cve AS cve_id, ic.image_id
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id{cte_extra_joins}
+            JOIN cve_rows ic ON ic.deployments_id = d.id{cte_extra_joins}
             {where_clause}
-            GROUP BY ic.cvebaseinfo_cve, ic.imageid
+            GROUP BY ic.cvebaseinfo_cve, ic.image_id
             HAVING (
                 (
                     MAX(COALESCE(ic.cvss, 0)) >= :min_cvss
@@ -134,8 +134,8 @@ async def get_cves_grouped_by_image(
             ){cte_extra_having}
         )
         SELECT
-            dc.image_name_fullname              AS image_name,
-            dc.image_id                         AS image_id,
+            ic.image_name_fullname              AS image_name,
+            ic.image_id                         AS image_id,
             COUNT(DISTINCT vc.cve_id)           AS total_cves,
             COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity = 4) AS critical_cves,
             COUNT(DISTINCT vc.cve_id) FILTER (WHERE ic.severity = 3) AS high_cves,
@@ -148,12 +148,11 @@ async def get_cves_grouped_by_image(
             ARRAY_AGG(DISTINCT d.namespace)     AS namespaces,
             ARRAY_AGG(DISTINCT d.clustername)    AS clusters
         FROM visible_cves vc
-        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
-            AND ic.imageid = vc.imageid
-        JOIN deployments_containers dc ON dc.image_id = ic.imageid
-        JOIN deployments d ON d.id = dc.deployments_id
+        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
+            AND ic.image_id = vc.image_id
+        JOIN deployments d ON d.id = ic.deployments_id
         {outer_where}
-        GROUP BY dc.image_name_fullname, dc.image_id
+        GROUP BY ic.image_name_fullname, ic.image_id
         ORDER BY total_cves DESC
     """)
     result = await session.execute(sql, params)
@@ -228,11 +227,11 @@ async def get_cves_for_image(
         bind_params["component"] = f"%{component}%"
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT ic.cvebaseinfo_cve AS cve_id
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {("WHERE " + ns_fragment) if namespaces else ""}
             GROUP BY ic.cvebaseinfo_cve
             HAVING (
@@ -252,15 +251,14 @@ async def get_cves_for_image(
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.cvebaseinfo_publishedon) AS published_on,
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
-            COUNT(DISTINCT dc.deployments_id) AS affected_deployments,
+            COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
             MAX(ic.fixedby)                 AS fixed_by
         FROM visible_cves vc
-        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
-            AND ic.imageid = :image_id
+        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
+            AND ic.image_id = :image_id
         {component_join}
-        JOIN deployments_containers dc ON dc.image_id = ic.imageid
-        JOIN deployments d ON d.id = dc.deployments_id
+        JOIN deployments d ON d.id = ic.deployments_id
         WHERE 1=1 {where_clause}
         GROUP BY ic.cvebaseinfo_cve
         HAVING 1=1 {having_extra} {component_having}

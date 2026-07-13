@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import VISIBILITY_HAVING, _namespace_filter
+from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
 
 
 async def list_namespaces(session: AsyncSession) -> list[dict]:
@@ -14,38 +14,16 @@ async def list_namespaces(session: AsyncSession) -> list[dict]:
     return [dict(row._mapping) for row in result]
 
 
-async def get_cves_by_ids(
-    session: AsyncSession,
-    cve_ids: list[str],
-) -> list[dict]:
-    if not cve_ids:
-        return []
-    sql = text("""
-        SELECT
-            ic.cvebaseinfo_cve AS cve_id,
-            MAX(ic.severity) AS severity,
-            MAX(COALESCE(ic.cvss, 0)) AS cvss,
-            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
-            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
-            MAX(ic.operatingsystem) AS operatingsystem
-        FROM image_cves_v2 ic
-        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
-        GROUP BY ic.cvebaseinfo_cve
-    """)
-    result = await session.execute(sql, {"cve_ids": cve_ids})
-    return [dict(row._mapping) for row in result]
-
-
 async def get_namespaces_with_cve(
     session: AsyncSession,
     cve_id: str,
 ) -> list[tuple[str, str]]:
     """All (namespace, cluster) pairs where a CVE is present — for sec team escalation."""
-    sql = text("""
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT d.namespace, d.clustername
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE ic.cvebaseinfo_cve = :cve_id
     """)
     result = await session.execute(sql, {"cve_id": cve_id})
@@ -62,10 +40,10 @@ async def get_cve_namespace_map(
         return {}
     ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, d.namespace
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
     """)
@@ -98,10 +76,10 @@ async def get_cve_namespace_cluster_map(
         ns_filter = ""
 
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, d.clustername, d.namespace
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
           {ns_filter}
     """)
@@ -138,11 +116,11 @@ async def get_top_vulnerable_components(
         ns_filter = ""
 
     sql = text(f"""
-        WITH visible_cves AS (
+        WITH {CVE_ROWS_CTE},
+        visible_cves AS (
             SELECT ic.cvebaseinfo_cve AS cve_id
             FROM deployments d
-            JOIN deployments_containers dc ON dc.deployments_id = d.id
-            JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+            JOIN cve_rows ic ON ic.deployments_id = d.id
             {where_clause}
             GROUP BY ic.cvebaseinfo_cve
             {VISIBILITY_HAVING}
@@ -157,10 +135,9 @@ async def get_top_vulnerable_components(
                 WHERE ic.isfixable IS DISTINCT FROM true
             ) AS unfixable_count
         FROM visible_cves vc
-        JOIN image_cves_v2 ic ON ic.cvebaseinfo_cve = vc.cve_id
+        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
         JOIN image_component_v2 comp ON comp.id = ic.componentid
-        JOIN deployments_containers dc ON dc.image_id = ic.imageid
-        JOIN deployments d ON d.id = dc.deployments_id
+        JOIN deployments d ON d.id = ic.deployments_id
         WHERE comp.name IS NOT NULL {ns_filter}
         GROUP BY comp.name
         ORDER BY cve_count DESC
@@ -190,10 +167,10 @@ async def get_cve_component_map(
         return {}
     ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id, comp.name AS component_name
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
@@ -216,13 +193,13 @@ async def get_cve_component_version_map(
         return {}
     ns_fragment, ns_params = _namespace_filter(namespaces)
     sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT
             ic.cvebaseinfo_cve AS cve_id,
             comp.name AS component_name,
             comp.version AS component_version
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
@@ -237,11 +214,11 @@ async def get_cve_component_version_map(
 
 async def get_all_deployed_cve_ids(session: AsyncSession) -> list[str]:
     """Return all distinct CVE IDs currently present in deployed images (global, no namespace filter)."""
-    sql = text("""
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
     """)
     result = await session.execute(sql)
     return [row.cve_id for row in result]
@@ -251,14 +228,14 @@ async def get_global_component_version_map(
     session: AsyncSession,
 ) -> dict[str, list[tuple[str, str]]]:
     """Return {cve_id: [(component_name, version), ...]} for all deployed CVEs (global, no namespace filter)."""
-    sql = text("""
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
         SELECT DISTINCT
             ic.cvebaseinfo_cve AS cve_id,
             comp.name AS component_name,
             comp.version AS component_version
         FROM deployments d
-        JOIN deployments_containers dc ON dc.deployments_id = d.id
-        JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
+        JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE comp.name IS NOT NULL
     """)
