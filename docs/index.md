@@ -89,6 +89,7 @@ graph TB
 | RHACS Version | Status |
 | --- | --- |
 | 4.10.x | Tested |
+| 4.11.x | Tested |
 
 RHACS Manager reads directly from the StackRox Central database. Schema changes in future RHACS versions may require updates to the queries in this project. If you encounter issues with a newer RHACS version, please open an issue.
 
