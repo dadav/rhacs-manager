@@ -55,13 +55,6 @@ class MttrSeverity(BaseModel):
     count: int
 
 
-class ComponentCveCount(BaseModel):
-    component_name: str
-    cve_count: int
-    fixable_count: int = 0
-    unfixable_count: int = 0
-
-
 class RiskAcceptancePipeline(BaseModel):
     requested: int
     approved: int
@@ -97,7 +90,6 @@ class DashboardData(BaseModel):
     stat_open_risk_acceptances: int
     stat_fix_overdue_cves: int
     stat_in_remediation: int
-    stat_remediated: int
     fix_overdue_threshold_days: int
     severity_distribution: list[SeverityCount]
     cves_per_namespace: list[NamespaceCveCount]
@@ -107,7 +99,6 @@ class DashboardData(BaseModel):
     epss_matrix: list[EpssMatrixPoint]
     cluster_heatmap: list[ClusterHeatmapRow]
     aging_distribution: list[AgingBucket]
-    top_vulnerable_components: list[ComponentCveCount]
     risk_acceptance_pipeline: RiskAcceptancePipeline
     fixability_breakdown: FixabilityCount
     cve_history: list[CveHistoryPoint]

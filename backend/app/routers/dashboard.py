@@ -18,7 +18,6 @@ from ..schemas.cve import CveListItem, SeverityLevel
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
-    ComponentCveCount,
     CveHistoryPoint,
     CveTrendPoint,
     DashboardData,
@@ -194,24 +193,6 @@ async def _sx_cve_aging(
 ) -> list[dict]:
     async with _stackrox_semaphore, StackRoxSessionLocal() as db:
         return await sx.get_cve_aging(
-            db,
-            ns,
-            min_cvss=min_cvss,
-            min_epss=min_epss,
-            always_show_cve_ids=always_show,
-            exclude_cve_ids=exclude,
-        )
-
-
-async def _sx_top_vulnerable_components(
-    ns: list[tuple[str, str]] | None,
-    min_cvss: float,
-    min_epss: float,
-    always_show: set[str],
-    exclude: set[str],
-) -> list[dict]:
-    async with _stackrox_semaphore, StackRoxSessionLocal() as db:
-        return await sx.get_top_vulnerable_components(
             db,
             ns,
             min_cvss=min_cvss,
@@ -416,7 +397,6 @@ async def dashboard(
                 stat_open_risk_acceptances=0,
                 stat_fix_overdue_cves=0,
                 stat_in_remediation=0,
-                stat_remediated=0,
                 fix_overdue_threshold_days=settings.fix_overdue_threshold_days if settings else 30,
                 severity_distribution=[],
                 cves_per_namespace=[],
@@ -426,7 +406,6 @@ async def dashboard(
                 epss_matrix=[],
                 cluster_heatmap=[],
                 aging_distribution=[],
-                top_vulnerable_components=[],
                 risk_acceptance_pipeline=RiskAcceptancePipeline(requested=0, approved=0, rejected=0, expired=0),
                 fixability_breakdown=FixabilityCount(fixable=0, unfixable=0),
                 cve_history=[],
@@ -480,7 +459,6 @@ async def dashboard(
     # Stat cards
     total = len(cves)
     stat_in_remediation = sum(1 for v in rem_status.values() if v == "in_progress")
-    stat_remediated = sum(1 for v in rem_status.values() if v == "remediated")
     fixable_critical = sum(1 for c in cves if c.get("severity") == 4 and c.get("fixable"))
 
     fix_overdue_threshold_days = settings.fix_overdue_threshold_days if settings else 30
@@ -521,7 +499,6 @@ async def dashboard(
         matrix_rows,
         heatmap_rows,
         aging_rows,
-        top_components_rows,
         fixability_data,
         cve_history_data,
         upcoming_escalations,
@@ -534,7 +511,6 @@ async def dashboard(
         _sx_epss_risk_matrix(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
-        _sx_top_vulnerable_components(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _cve_history(ns_list_for_queries, use_visible_counts=not current_user.is_sec_team),
         _upcoming_escalations(upcoming_ns, settings),
@@ -553,15 +529,6 @@ async def dashboard(
     ]
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
     aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
-    top_vulnerable_components = [
-        ComponentCveCount(
-            component_name=r["component_name"],
-            cve_count=r["cve_count"],
-            fixable_count=r.get("fixable_count", 0),
-            unfixable_count=r.get("unfixable_count", 0),
-        )
-        for r in top_components_rows
-    ]
 
     # Deduplicate by cve_id (same CVE can appear across multiple images).
     # Keep the entry with the highest epss_probability for each unique CVE.
@@ -602,7 +569,6 @@ async def dashboard(
         stat_open_risk_acceptances=open_ra,
         stat_fix_overdue_cves=fix_overdue,
         stat_in_remediation=stat_in_remediation,
-        stat_remediated=stat_remediated,
         fix_overdue_threshold_days=fix_overdue_threshold_days,
         severity_distribution=[
             SeverityCount(severity=SeverityLevel(r["severity"]), count=r["count"]) for r in sev_dist
@@ -635,7 +601,6 @@ async def dashboard(
         epss_matrix=epss_matrix,
         cluster_heatmap=cluster_heatmap,
         aging_distribution=aging_distribution,
-        top_vulnerable_components=top_vulnerable_components,
         risk_acceptance_pipeline=risk_acceptance_pipeline,
         fixability_breakdown=FixabilityCount(**fixability_data),
         cve_history=cve_history_data,

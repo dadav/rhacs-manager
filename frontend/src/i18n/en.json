@@ -141,7 +141,6 @@
     "openRiskAcceptances": "Open risk acceptances",
     "fixOverdue": "Fix available > {{days}} days",
     "inRemediation": "In remediation",
-    "remediated": "Remediated",
     "overduDeadlines": "Overdue deadlines",
     "severityDistribution": "CVEs by severity",
     "cvesPerNamespace": "Top 10 affected namespaces",
@@ -170,7 +169,6 @@
     "mttrDays": "Days",
     "mttrCount": "Remediations",
     "pipeline": "Risk Acceptance Pipeline",
-    "topVulnerableComponents": "Top 10 vulnerable components",
     "fixabilityBreakdown": "Fixability Breakdown",
     "upcoming": "upcoming",
     "viewAll": "View all",
@@ -194,8 +192,7 @@
       "trend": "Shows the number of newly discovered CVEs per day over the last 90 days, broken down by severity. Only CVEs first seen within this period are included. CVEs known for longer still appear in the CVE list but not in this chart.",
       "cveHistory": "Shows the actual number of visible CVEs per day, broken down by severity. Falling lines mean real progress. Note: for teams with multiple namespaces the same CVE may be counted once per namespace.",
       "fixFirst": "The most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher - an image update resolves them directly.",
-      "cvesPerNamespace": "Shows the top 10 namespaces with the most CVEs, broken down by severity. Helps identify which namespaces need the most attention.",
-      "topVulnerableComponents": "Shows the 10 components with the most CVEs, split into fixable and unfixable. Updating these components can resolve many CVEs at once."
+      "cvesPerNamespace": "Shows the top 10 namespaces with the most CVEs, broken down by severity. Helps identify which namespaces need the most attention."
     }
   },
   "cves": {

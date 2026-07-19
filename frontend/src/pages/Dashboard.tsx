@@ -29,7 +29,6 @@ import { ClusterHeatmap } from "../components/dashboard/ClusterHeatmap";
 import { MttrChart } from "../components/dashboard/MttrChart";
 import { AgingDistribution } from "../components/dashboard/AgingDistribution";
 import { NamespaceBreakdown } from "../components/dashboard/NamespaceBreakdown";
-import { TopComponents } from "../components/dashboard/TopComponents";
 import { FixabilityDonut } from "../components/dashboard/FixabilityDonut";
 import { FixFirstList } from "../components/dashboard/FixFirstList";
 import { PriorityCveAlert } from "../components/dashboard/PriorityCveAlert";
@@ -130,7 +129,7 @@ export function Dashboard() {
           )}
 
           {/* Stat cards */}
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link to={scopedLink("/vulnerabilities")} style={statLinkStyle}>
               <StatCard
                 label={t("dashboard.totalCves")}
@@ -139,7 +138,7 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link
               to={scopedLink("/vulnerabilities?severity=4&fixable=true")}
               style={statLinkStyle}
@@ -152,7 +151,7 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link to={scopedLink("/escalations")} style={statLinkStyle}>
               <StatCard
                 label={t("dashboard.escalations")}
@@ -167,7 +166,7 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link
               to={scopedLink("/risk-acceptances?status=requested")}
               style={statLinkStyle}
@@ -182,7 +181,7 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link
               to={scopedLink("/vulnerabilities?fix_overdue=true")}
               style={statLinkStyle}
@@ -197,7 +196,7 @@ export function Dashboard() {
               />
             </Link>
           </GridItem>
-          <GridItem span={3} md={6} sm={12}>
+          <GridItem span={4} md={6} sm={12}>
             <Link
               to={scopedLink("/vulnerabilities?remediation_status=in_progress")}
               style={statLinkStyle}
@@ -207,19 +206,6 @@ export function Dashboard() {
                 value={data.stat_in_remediation}
                 color={data.stat_in_remediation > 0 ? "#0066cc" : undefined}
                 accentClass="stat-card--info"
-              />
-            </Link>
-          </GridItem>
-          <GridItem span={3} md={6} sm={12}>
-            <Link
-              to={scopedLink("/vulnerabilities?remediation_status=remediated")}
-              style={statLinkStyle}
-            >
-              <StatCard
-                label={t("dashboard.remediated")}
-                value={data.stat_remediated}
-                color={data.stat_remediated > 0 ? "#3e8635" : undefined}
-                accentClass="stat-card--success"
               />
             </Link>
           </GridItem>
@@ -332,20 +318,6 @@ export function Dashboard() {
                 data={data.fixability_breakdown}
                 onSegmentClick={(fixable) =>
                   navigate(`/vulnerabilities?fixable=${fixable}`)
-                }
-              />
-            </GridItem>
-          )}
-
-          {/* Top Vulnerable Components (most actionable chart for ops) */}
-          {data.top_vulnerable_components.length > 0 && (
-            <GridItem span={12}>
-              <TopComponents
-                data={data.top_vulnerable_components}
-                onBarClick={(componentName, fixable) =>
-                  navigate(
-                    `/vulnerabilities?component=${encodeURIComponent(componentName)}&fixable=${fixable}&advanced=1`,
-                  )
                 }
               />
             </GridItem>

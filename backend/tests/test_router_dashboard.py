@@ -12,7 +12,6 @@ DASHBOARD_EXPECTED_KEYS = {
     "stat_fixable_critical_cves",
     "stat_open_risk_acceptances",
     "stat_in_remediation",
-    "stat_remediated",
     "severity_distribution",
     "cves_per_namespace",
     "priority_cves",
@@ -21,7 +20,6 @@ DASHBOARD_EXPECTED_KEYS = {
     "epss_matrix",
     "cluster_heatmap",
     "aging_distribution",
-    "top_vulnerable_components",
     "risk_acceptance_pipeline",
     "fixability_breakdown",
     "cve_history",
@@ -55,7 +53,6 @@ def _patch_sx_queries():
     mock_sx.get_epss_risk_matrix.return_value = []
     mock_sx.get_cluster_heatmap.return_value = []
     mock_sx.get_cve_aging.return_value = []
-    mock_sx.get_top_vulnerable_components.return_value = []
     mock_sx.get_fixability_breakdown.return_value = {"fixable": 1, "unfixable": 0}
     mock_sx.get_snapshot_counts.return_value = []
     mock_sx.list_namespaces.return_value = []
@@ -92,7 +89,6 @@ def sx_mock():
             patch("app.routers.dashboard._sx_epss_risk_matrix", return_value=[]),
             patch("app.routers.dashboard._sx_cluster_heatmap", return_value=[]),
             patch("app.routers.dashboard._sx_cve_aging", return_value=[]),
-            patch("app.routers.dashboard._sx_top_vulnerable_components", return_value=[]),
             patch("app.routers.dashboard._sx_fixability_breakdown", return_value={"fixable": 1, "unfixable": 0}),
             patch("app.routers.dashboard._cve_history", return_value=[]),
             patch("app.routers.dashboard._upcoming_escalations", return_value=[]),
@@ -172,7 +168,6 @@ async def test_dashboard_remediation_stats_default_zero(sec_team_client: httpx.A
     resp = await sec_team_client.get("/api/dashboard")
     data = resp.json()
     assert data["stat_in_remediation"] == 0
-    assert data["stat_remediated"] == 0
     assert data["stat_total_cves"] == 1
 
 
@@ -185,7 +180,6 @@ async def test_dashboard_remediation_stats_counts(sec_team_client: httpx.AsyncCl
         resp = await sec_team_client.get("/api/dashboard")
     data = resp.json()
     assert data["stat_in_remediation"] == 1
-    assert data["stat_remediated"] == 1
     # Remediated CVEs are NOT removed from the total; the list hides them, the
     # dashboard tells the whole story via the progress cards.
     assert data["stat_total_cves"] == 1

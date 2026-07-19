@@ -316,7 +316,6 @@ export interface DashboardData {
   stat_open_risk_acceptances: number
   stat_fix_overdue_cves: number
   stat_in_remediation: number
-  stat_remediated: number
   fix_overdue_threshold_days: number
   severity_distribution: SeverityCount[]
   cves_per_namespace: NamespaceCveCount[]
@@ -326,7 +325,6 @@ export interface DashboardData {
   epss_matrix: EpssMatrixPoint[]
   cluster_heatmap: ClusterHeatmapRow[]
   aging_distribution: AgingBucket[]
-  top_vulnerable_components: ComponentCveCount[]
   risk_acceptance_pipeline: RiskAcceptancePipeline
   fixability_breakdown: FixabilityCount
   cve_history: CveHistoryPoint[]
@@ -360,13 +358,6 @@ export interface MttrSeverity {
   severity: Severity
   avg_days: number
   count: number
-}
-
-export interface ComponentCveCount {
-  component_name: string
-  cve_count: number
-  fixable_count: number
-  unfixable_count: number
 }
 
 export interface RiskAcceptancePipeline {

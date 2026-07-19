@@ -141,7 +141,6 @@
     "openRiskAcceptances": "Offene Risikoakzeptanzen",
     "fixOverdue": "Fix verfügbar seit > {{days}} Tagen",
     "inRemediation": "In Behebung",
-    "remediated": "Behoben",
     "overduDeadlines": "Überfällige Fristen",
     "severityDistribution": "CVEs nach Schweregrad",
     "cvesPerNamespace": "Top 10 betroffene Namespaces",
@@ -170,7 +169,6 @@
     "mttrDays": "Tage",
     "mttrCount": "Behebungen",
     "pipeline": "Risikoakzeptanz-Pipeline",
-    "topVulnerableComponents": "Top 10 anfälligste Komponenten",
     "fixabilityBreakdown": "Behebbarkeitsanalyse",
     "upcoming": "bevorstehend",
     "viewAll": "Alle anzeigen",
@@ -194,8 +192,7 @@
       "trend": "Zeigt die Anzahl neu entdeckter CVEs pro Tag in den letzten 90 Tagen, aufgeschlüsselt nach Schweregrad. Es werden nur CVEs berücksichtigt, die erstmals innerhalb dieses Zeitraums aufgetreten sind. Bereits länger bekannte CVEs erscheinen hier nicht, sind aber in der CVE-Liste weiterhin sichtbar.",
       "cveHistory": "Zeigt die tatsächliche Anzahl sichtbarer CVEs pro Tag, aufgeschlüsselt nach Schweregrad. Sinkende Linien bedeuten echten Fortschritt. Hinweis: Bei Teams mit mehreren Namespaces kann dieselbe CVE mehrfach gezählt werden (einmal pro Namespace).",
       "fixFirst": "Die wichtigsten CVEs für Ihr Team, sortiert nach Priorität des Sicherheitsteams, Ausnutzungswahrscheinlichkeit (EPSS) und Schweregrad. CVEs mit verfügbarem Fix stehen weiter oben - ein Image-Update behebt sie direkt.",
-      "cvesPerNamespace": "Zeigt die Top 10 Namespaces mit den meisten CVEs, aufgeschlüsselt nach Schweregrad. Hilft zu erkennen, welche Namespaces die meiste Aufmerksamkeit benötigen.",
-      "topVulnerableComponents": "Zeigt die 10 Komponenten mit den meisten CVEs, aufgeteilt in behebbar und nicht behebbar. Ein Update dieser Komponenten kann viele CVEs auf einmal beheben."
+      "cvesPerNamespace": "Zeigt die Top 10 Namespaces mit den meisten CVEs, aufgeschlüsselt nach Schweregrad. Hilft zu erkennen, welche Namespaces die meiste Aufmerksamkeit benötigen."
     }
   },
   "cves": {

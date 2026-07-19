@@ -96,7 +96,7 @@ async def get_security_overview(ctx: Context) -> str:
 
     Returns headline counts (``stat_*``), severity distribution, top priority and
     high-EPSS CVEs, CVEs per namespace, fixability breakdown, aging buckets,
-    top vulnerable components, risk-acceptance pipeline counts, and the configured
+    risk-acceptance pipeline counts, and the configured
     ``fix_overdue_threshold_days``. Chart-only series (CVE trend, EPSS scatter,
     cluster heatmap, fixability trend, MTTR breakdown) are omitted to keep the
     payload compact — fetch them via the UI if needed.

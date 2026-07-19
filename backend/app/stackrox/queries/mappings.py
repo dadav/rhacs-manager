@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
+from ._common import CVE_ROWS_CTE, _namespace_filter
 
 
 async def list_namespaces(session: AsyncSession) -> list[dict]:
@@ -88,73 +88,6 @@ async def get_cve_namespace_cluster_map(
     for row in result:
         mapping.setdefault(row.cve_id, set()).add((row.clustername, row.namespace))
     return mapping
-
-
-async def get_top_vulnerable_components(
-    session: AsyncSession,
-    namespaces: list[tuple[str, str]] | None = None,
-    min_cvss: float = 0.0,
-    min_epss: float = 0.0,
-    always_show_cve_ids: set[str] | None = None,
-    exclude_cve_ids: set[str] | None = None,
-    limit: int = 10,
-) -> list[dict]:
-    """Top N components by CVE count, respecting visibility filters."""
-    if namespaces is not None and len(namespaces) == 0:
-        return []
-
-    always_show = list(always_show_cve_ids or [])
-    exclude = list(exclude_cve_ids or [])
-
-    ns_params: dict = {}
-    if namespaces:
-        ns_fragment, ns_params = _namespace_filter(namespaces)
-        where_clause = f"WHERE {ns_fragment}"
-        ns_filter = f"AND {ns_fragment}"
-    else:
-        where_clause = ""
-        ns_filter = ""
-
-    sql = text(f"""
-        WITH {CVE_ROWS_CTE},
-        visible_cves AS (
-            SELECT ic.cvebaseinfo_cve AS cve_id
-            FROM deployments d
-            JOIN cve_rows ic ON ic.deployments_id = d.id
-            {where_clause}
-            GROUP BY ic.cvebaseinfo_cve
-            {VISIBILITY_HAVING}
-        )
-        SELECT
-            comp.name AS component_name,
-            COUNT(DISTINCT vc.cve_id) AS cve_count,
-            COUNT(DISTINCT vc.cve_id) FILTER (
-                WHERE ic.isfixable = true
-            ) AS fixable_count,
-            COUNT(DISTINCT vc.cve_id) FILTER (
-                WHERE ic.isfixable IS DISTINCT FROM true
-            ) AS unfixable_count
-        FROM visible_cves vc
-        JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
-        JOIN image_component_v2 comp ON comp.id = ic.componentid
-        JOIN deployments d ON d.id = ic.deployments_id
-        WHERE comp.name IS NOT NULL {ns_filter}
-        GROUP BY comp.name
-        ORDER BY cve_count DESC
-        LIMIT :limit
-    """)
-    result = await session.execute(
-        sql,
-        {
-            "min_cvss": min_cvss,
-            "min_epss": min_epss,
-            "always_show": always_show,
-            "exclude_cve_ids": exclude,
-            "limit": limit,
-            **ns_params,
-        },
-    )
-    return [dict(row._mapping) for row in result]
 
 
 async def get_cve_component_map(
