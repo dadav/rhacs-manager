@@ -10,7 +10,6 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..database import AppSessionLocal, StackRoxSessionLocal
 from ..deps import get_app_db
 from ..models.cve_priority import CvePriority
-from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
@@ -33,6 +32,7 @@ from ..services.cve_filter_service import (
     compute_suppression_sets,
 )
 from ..services.escalation_preview import compute_upcoming_escalations
+from ..services.escalation_workspace import count_active_workspace
 from ..services.risk_acceptance_service import user_can_access_ra
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
@@ -465,19 +465,15 @@ async def dashboard(
     fix_overdue_cutoff = datetime.now(UTC) - timedelta(days=fix_overdue_threshold_days)
     fix_overdue = sum(1 for c in cves if _is_fix_overdue(c.get("fix_available_since"), fix_overdue_cutoff))
 
-    # Escalation count: filter by scope-narrowed namespaces
-    if current_user.can_see_all_namespaces and not has_scope:
-        escalations_result = await app_db.execute(select(func.count(Escalation.id)))
-    else:
-        esc_ns = namespaces if has_scope or not current_user.can_see_all_namespaces else []
-        if esc_ns:
-            esc_query = select(func.count(Escalation.id)).where(
-                tuple_(Escalation.namespace, Escalation.cluster_name).in_(esc_ns)
-            )
-            escalations_result = await app_db.execute(esc_query)
-        else:
-            escalations_result = await app_db.execute(select(func.count(Escalation.id)))
-    escalations = escalations_result.scalar() or 0
+    # Escalation count: current highest-level cases per (cve_id, cluster, namespace),
+    # scope-narrowed. Matches the /escalations/active/search workspace semantics.
+    escalations = await count_active_workspace(
+        app_db,
+        can_see_all=current_user.can_see_all_namespaces,
+        namespaces=namespaces,
+        cluster=cluster,
+        namespace=namespace,
+    )
 
     # Open risk acceptances: sec team sees the global count; regular users only
     # count RAs they can actually see in the /risk-acceptances list.

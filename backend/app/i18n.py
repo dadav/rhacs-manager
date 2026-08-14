@@ -64,6 +64,15 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Kommentar eines anderen Benutzers kann nicht gelöscht werden",
         "en": "Cannot delete another user's comment",
     },
+    "escalation_not_found": {"de": "Eskalation nicht gefunden", "en": "Escalation not found"},
+    "escalation_not_active": {
+        "de": "Diese Eskalation ist nicht mehr die aktuelle Eskalationsstufe",
+        "en": "This escalation is no longer the current escalation level",
+    },
+    "escalation_comment_forbidden": {
+        "de": "Nur das Security-Team darf Eskalationskommentare erstellen",
+        "en": "Only the security team can add escalation comments",
+    },
     "invalid_status": {"de": "Ungültiger Status: {status}", "en": "Invalid status: {status}"},
     "invalid_type": {"de": "Ungültiger Typ: {type}", "en": "Invalid type: {type}"},
     "invalid_date": {"de": "Ungültiges Datum (Format: JJJJ-MM-TT)", "en": "Invalid date (format: YYYY-MM-DD)"},

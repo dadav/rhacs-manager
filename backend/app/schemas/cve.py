@@ -185,6 +185,17 @@ class CveCommentUpdate(BaseModel):
     message: str = Field(min_length=1, max_length=5000)
 
 
+class EscalationContext(BaseModel):
+    """Cluster/namespace/level of the escalation a comment is scoped to.
+
+    Only returned to sec-team users; regular users always see null context.
+    """
+
+    cluster_name: str
+    namespace: str
+    level: int
+
+
 class CveCommentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -196,3 +207,4 @@ class CveCommentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime | None = None
     is_sec_team: bool = False
+    escalation_context: EscalationContext | None = None

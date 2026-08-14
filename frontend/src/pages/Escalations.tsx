@@ -13,65 +13,50 @@ import {
   Title,
   Toolbar,
   ToolbarContent,
+  ToolbarFilter,
   ToolbarItem,
 } from '@patternfly/react-core'
-import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { CheckCircleIcon, OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
+import { ExpandableRowContent, Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
+import {
+  AngleDownIcon,
+  AngleRightIcon,
+  CheckCircleIcon,
+  OutlinedQuestionCircleIcon,
+} from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatEpssPercent } from '../utils/format'
 import { TableSkeleton } from '../components/TableSkeleton'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { MentionTextArea } from '../components/MentionTextArea'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useDebounce } from '../hooks/useDebounce'
-import { useEscalations, useUpcomingEscalations } from '../api/escalations'
+import {
+  useActiveEscalationSearch,
+  useAddEscalationComment,
+  useUpcomingEscalationSearch,
+} from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'
 import { useScope } from '../hooks/useScope'
-import { LEVEL_COLORS, BRAND_BLUE } from '../tokens'
-import type { Escalation, UpcomingEscalation } from '../types'
+import { useToast } from '../components/ToastContext'
+import { BRAND_BLUE } from '../tokens'
+import type { ActiveEscalationRow } from '../types'
 
 const PER_PAGE = 20
-
-const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 180 }
-
-function filterUpcoming(
-  items: UpcomingEscalation[],
-  levelFilter: string,
-  severityFilter: string,
-): UpcomingEscalation[] {
-  let result = items
-  if (levelFilter) result = result.filter(u => u.next_level === Number(levelFilter))
-  if (severityFilter) result = result.filter(u => u.severity === Number(severityFilter))
-  return result
-}
-
-function filterActive(
-  items: Escalation[],
-  levelFilter: string,
-  searchCve: string,
-): Escalation[] {
-  let result = items
-  if (levelFilter) result = result.filter(e => e.level === Number(levelFilter))
-  if (searchCve) {
-    const q = searchCve.toUpperCase()
-    result = result.filter(e => e.cve_id.toUpperCase().includes(q))
-  }
-  return result
-}
+const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
 
 export function Escalations() {
   const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
-  const { data, isLoading, error } = useEscalations(scopeParams)
-  const upcoming = useUpcomingEscalations(scopeParams)
+  const { addToast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const LEVEL_LABELS: Record<number, string> = {
     1: t('escalations.level1'),
     2: t('escalations.level2'),
     3: t('escalations.levelCritical'),
   }
-
   const SEVERITY_LABELS: Record<number, string> = {
     0: t('severity.0'),
     1: t('severity.1'),
@@ -79,7 +64,6 @@ export function Escalations() {
     3: t('severity.3'),
     4: t('severity.4'),
   }
-
   const LEVEL_LABEL_COLORS: Record<number, 'orange' | 'red' | 'purple'> = {
     1: 'orange',
     2: 'red',
@@ -87,129 +71,283 @@ export function Escalations() {
   }
 
   function LevelBadge({ level }: { level: number }) {
-    return (
-      <Label color={LEVEL_LABEL_COLORS[level] ?? 'grey'}>
-        {LEVEL_LABELS[level] ?? `Level ${level}`}
-      </Label>
+    return <Label color={LEVEL_LABEL_COLORS[level] ?? 'grey'}>{LEVEL_LABELS[level] ?? `Level ${level}`}</Label>
+  }
+
+  // --- URL param helpers ---
+  function updateParams(changes: Record<string, string | null>, pageKeyToReset?: string) {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev)
+        if (pageKeyToReset) next.delete(pageKeyToReset)
+        for (const [key, val] of Object.entries(changes)) {
+          next.delete(key)
+          if (val !== null && val !== '') next.set(key, val)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  }
+  function setPageParam(key: string, p: number) {
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev)
+        if (p === 1) next.delete(key)
+        else next.set(key, String(p))
+        return next
+      },
+      { replace: true },
     )
   }
 
-  // --- Filter state from URL (prefixed so the two sections don't collide) ---
-  const [searchParams, setSearchParams] = useSearchParams()
-  const upLevelFilter = searchParams.get('up_level') || ''
-  const upSeverityFilter = searchParams.get('up_severity') || ''
+  const scopeKey = `${scopeParams.cluster ?? ''}\u0000${scopeParams.namespace ?? ''}`
+  const previousScopeKey = useRef(scopeKey)
+  useEffect(() => {
+    if (previousScopeKey.current === scopeKey) return
+    previousScopeKey.current = scopeKey
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev)
+        next.delete('page')
+        next.delete('up_page')
+        return next
+      },
+      { replace: true },
+    )
+  }, [scopeKey, setSearchParams])
+
+  // =========================================================================
+  // Upcoming section
+  // =========================================================================
+  const upLevel = searchParams.get('up_level') || ''
+  const upSeverity = searchParams.get('up_severity') || ''
+  const upDays = searchParams.get('up_days') || ''
   const upPage = Math.max(1, Number(searchParams.get('up_page')) || 1)
+  const urlUpSearch = searchParams.get('up_search') || ''
+  const [upSearchInput, setUpSearchInput] = useState(urlUpSearch)
+  const debouncedUpSearch = useDebounce(upSearchInput, 300)
+  useEffect(() => {
+    setUpSearchInput(urlUpSearch)
+  }, [urlUpSearch])
+  useEffect(() => {
+    updateParams({ up_search: debouncedUpSearch || null }, 'up_page')
+  }, [debouncedUpSearch])
 
-  const activeLevelFilter = searchParams.get('level') || ''
-  const urlActiveSearch = searchParams.get('search') || ''
+  const upcoming = useUpcomingEscalationSearch({
+    page: upPage,
+    page_size: PER_PAGE,
+    search: debouncedUpSearch || undefined,
+    next_level: upLevel || undefined,
+    severity: upSeverity || undefined,
+    days_max: upDays || undefined,
+    cluster: scopeParams.cluster,
+    namespace: scopeParams.namespace,
+  })
+  const upItems = upcoming.data?.items ?? []
+  const upTotal = upcoming.data?.total ?? 0
+
+  const upLabels: string[] = []
+  if (upLevel) upLabels.push(`${t('escalations.nextLevel')}: ${LEVEL_LABELS[Number(upLevel)]}`)
+  if (upSeverity) upLabels.push(`${t('cves.severity')}: ${SEVERITY_LABELS[Number(upSeverity)]}`)
+  if (upDays) upLabels.push(`${t('escalations.within', { count: Number(upDays) })}`)
+
+  function clearUpcomingFilters() {
+    setUpSearchInput('')
+    updateParams({ up_search: null, up_level: null, up_severity: null, up_days: null }, 'up_page')
+  }
+
+  // =========================================================================
+  // Active section
+  // =========================================================================
+  const activeLevel = searchParams.get('level') || ''
+  const emailStatus = searchParams.get('email_status') || ''
+  const rawContact = searchParams.get('contact')
+  // Sec-team default is "needs action"; regular users always see all rows.
+  const contactFilter = isSecTeam ? (rawContact ?? 'needs_action') : 'all'
   const activePage = Math.max(1, Number(searchParams.get('page')) || 1)
-
+  const urlActiveSearch = searchParams.get('search') || ''
   const [activeSearchInput, setActiveSearchInput] = useState(urlActiveSearch)
   const debouncedActiveSearch = useDebounce(activeSearchInput, 300)
-  const mountedRef = useRef(false)
   useEffect(() => {
-    if (!mountedRef.current) return
+    setActiveSearchInput(urlActiveSearch)
+  }, [urlActiveSearch])
+  useEffect(() => {
     updateParams({ search: debouncedActiveSearch || null }, 'page')
   }, [debouncedActiveSearch])
-  useEffect(() => { mountedRef.current = true }, [])
 
-  function updateParams(changes: Record<string, string | null>, pageKeyToReset?: string) {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      if (pageKeyToReset) next.delete(pageKeyToReset)
-      for (const [key, val] of Object.entries(changes)) {
-        next.delete(key)
-        if (val !== null) next.set(key, val)
+  const active = useActiveEscalationSearch({
+    page: activePage,
+    page_size: PER_PAGE,
+    search: debouncedActiveSearch || undefined,
+    level: activeLevel || undefined,
+    email_status: isSecTeam ? emailStatus || undefined : undefined,
+    contact_status: contactFilter === 'all' ? undefined : contactFilter,
+    cluster: scopeParams.cluster,
+    namespace: scopeParams.namespace,
+  })
+
+  // Rows contacted this session are hidden immediately from the default queue,
+  // before the invalidated query refetches.
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    setRemovedIds(new Set())
+  }, [activeLevel, emailStatus, rawContact, debouncedActiveSearch, activePage, scopeParams.cluster, scopeParams.namespace])
+
+  const activeItems = (active.data?.items ?? []).filter(r => !removedIds.has(r.id))
+  const activeTotal = active.data?.total ?? 0
+  const counts = active.data?.contact_counts
+  const hiddenByContact =
+    contactFilter === 'needs_action'
+      ? counts?.contacted ?? 0
+      : contactFilter === 'contacted'
+        ? counts?.needs_action ?? 0
+        : 0
+  const hasElectiveActiveFilters = Boolean(
+    debouncedActiveSearch || activeLevel || emailStatus || contactFilter !== 'needs_action',
+  )
+
+  const activeLabels: string[] = []
+  if (activeLevel) activeLabels.push(`${t('escalations.level')}: ${LEVEL_LABELS[Number(activeLevel)]}`)
+  if (isSecTeam && emailStatus)
+    activeLabels.push(
+      `${t('escalations.emailStatus')}: ${emailStatus === 'notified' ? t('escalations.emailSent') : t('escalations.emailPending')}`,
+    )
+  if (isSecTeam && contactFilter !== 'needs_action')
+    activeLabels.push(
+      `${t('escalations.contactStatus')}: ${contactFilter === 'contacted' ? t('escalations.contacted') : t('escalations.allContactStates')}`,
+    )
+
+  function clearActiveFilters() {
+    setActiveSearchInput('')
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev)
+        next.delete('search')
+        next.delete('level')
+        next.delete('email_status')
+        next.delete('page')
+        // Clear-all explicitly selects all contact states for sec users.
+        if (isSecTeam) next.set('contact', 'all')
+        else next.delete('contact')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  // --- Inline composer state ---
+  const addComment = useAddEscalationComment()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [rowError, setRowError] = useState<Record<string, string>>({})
+
+  function setDraft(id: string, value: string) {
+    setDrafts(prev => ({ ...prev, [id]: value }))
+  }
+
+  async function submitComment(row: ActiveEscalationRow) {
+    const message = (drafts[row.id] ?? '').trim()
+    if (!message) return
+    try {
+      await addComment.mutateAsync({ escalationId: row.id, message })
+      // Success: drop the draft, collapse, hide from the default queue, toast.
+      setDrafts(prev => {
+        const next = { ...prev }
+        delete next[row.id]
+        return next
+      })
+      setRowError(prev => {
+        const next = { ...prev }
+        delete next[row.id]
+        return next
+      })
+      setExpandedId(null)
+      if (contactFilter === 'needs_action') {
+        setRemovedIds(prev => new Set(prev).add(row.id))
       }
-      return next
-    }, { replace: true })
+      addToast(t('escalations.contactRecorded', { cve: row.cve_id }))
+    } catch (e) {
+      // Preserve the draft; surface an explicit error on the row.
+      setRowError(prev => ({ ...prev, [row.id]: getErrorMessage(e) }))
+    }
   }
 
-  function setPageParam(key: string, p: number) {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev)
-      if (p === 1) next.delete(key); else next.set(key, String(p))
-      return next
-    }, { replace: true })
-  }
-  const setUpPage = (p: number) => setPageParam('up_page', p)
-  const setActivePage = (p: number) => setPageParam('page', p)
-
-  const filteredUpcoming = useMemo(
-    () => filterUpcoming(upcoming.data ?? [], upLevelFilter, upSeverityFilter),
-    [upcoming.data, upLevelFilter, upSeverityFilter],
-  )
-  const upTotal = filteredUpcoming.length
-  const upPaged = filteredUpcoming.slice((upPage - 1) * PER_PAGE, upPage * PER_PAGE)
-
-  const filteredActive = useMemo(
-    () => filterActive(data ?? [], activeLevelFilter, debouncedActiveSearch),
-    [data, activeLevelFilter, debouncedActiveSearch],
-  )
-  const activeTotal = filteredActive.length
-  const activePaged = filteredActive.slice((activePage - 1) * PER_PAGE, activePage * PER_PAGE)
+  const activeColSpan = isSecTeam ? 7 : 4
 
   return (
     <>
       <PageSection variant="default">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Title headingLevel="h1" size="xl">{t('escalations.title')}</Title>
+          <Title headingLevel="h1" size="xl">
+            {t('escalations.title')}
+          </Title>
           <Popover
             headerContent={t('escalations.whatAre')}
             bodyContent={
               <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>{t('escalations.helpBody1')}</p>
                 <p style={{ margin: '0 0 8px' }}>
-                  {t('escalations.helpBody1')}
-                </p>
-                <p style={{ margin: '0 0 8px' }}>
-                  <strong>{t('escalations.helpBody2Level1')}</strong> - {t('escalations.helpBody2Level1Desc')}<br />
-                  <strong>{t('escalations.helpBody2Level2')}</strong> - {t('escalations.helpBody2Level2Desc')}<br />
+                  <strong>{t('escalations.helpBody2Level1')}</strong> - {t('escalations.helpBody2Level1Desc')}
+                  <br />
+                  <strong>{t('escalations.helpBody2Level2')}</strong> - {t('escalations.helpBody2Level2Desc')}
+                  <br />
                   <strong>{t('escalations.helpBody2Level3')}</strong> - {t('escalations.helpBody2Level3Desc')}
                 </p>
-                <p style={{ margin: 0 }}>
-                  {t('escalations.helpBody3')}
-                </p>
+                <p style={{ margin: 0 }}>{t('escalations.helpBody3')}</p>
               </div>
             }
             position="right"
           >
-            <Button
-              variant="plain"
-              aria-label={t('escalations.helpLabel')}
-              style={{ padding: '4px 6px' }}
-            >
+            <Button variant="plain" aria-label={t('escalations.helpLabel')} style={{ padding: '4px 6px' }}>
               <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
             </Button>
           </Popover>
         </div>
       </PageSection>
 
-      {/* Upcoming escalations section */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Upcoming escalations                                             */}
+      {/* ---------------------------------------------------------------- */}
       <PageSection>
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.upcoming')}</Title>
+        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>
+          {t('escalations.upcoming')}
+        </Title>
         {upcoming.isLoading ? (
           <TableSkeleton columns={6} />
         ) : upcoming.error ? (
           <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(upcoming.error)}`} />
-        ) : !upcoming.data?.length ? (
-          <EmptyState>
-            <EmptyStateBody>{t('escalations.noUpcoming')}</EmptyStateBody>
-          </EmptyState>
         ) : (
           <>
-            {upTotal > 0 && (
-              <Alert
-                variant="info"
-                isInline
-                title={t('escalations.upcomingCount', { count: upTotal })}
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            <Toolbar style={{ padding: 0, marginBottom: 8 }}>
+            <Alert
+              variant="info"
+              isInline
+              title={t('escalations.upcomingCount', { count: upTotal })}
+              style={{ marginBottom: 16 }}
+            />
+            <Toolbar
+              clearAllFilters={clearUpcomingFilters}
+              clearFiltersButtonText={t('common.clearAll')}
+              style={{ padding: 0, marginBottom: 8 }}
+            >
               <ToolbarContent>
                 <ToolbarItem>
+                  <SearchInput
+                    placeholder={t('escalations.searchPlaceholder')}
+                    value={upSearchInput}
+                    onChange={(_e, v) => setUpSearchInput(v)}
+                    onClear={() => setUpSearchInput('')}
+                    aria-label={t('escalations.searchLabel')}
+                    style={{ width: 220 }}
+                  />
+                </ToolbarItem>
+                <ToolbarFilter
+                  labels={upLevel ? [upLabels[0]] : []}
+                  deleteLabel={() => updateParams({ up_level: null }, 'up_page')}
+                  categoryName={t('escalations.nextLevel')}
+                >
                   <FormSelect
-                    value={upLevelFilter}
+                    value={upLevel}
                     onChange={(_e, v) => updateParams({ up_level: v || null }, 'up_page')}
                     aria-label={t('escalations.filterLevel')}
                     style={FORM_SELECT_STYLE}
@@ -219,10 +357,14 @@ export function Escalations() {
                     <FormSelectOption value="2" label={t('escalations.level2')} />
                     <FormSelectOption value="3" label={t('escalations.levelCritical')} />
                   </FormSelect>
-                </ToolbarItem>
-                <ToolbarItem>
+                </ToolbarFilter>
+                <ToolbarFilter
+                  labels={upSeverity ? [`${t('cves.severity')}: ${SEVERITY_LABELS[Number(upSeverity)]}`] : []}
+                  deleteLabel={() => updateParams({ up_severity: null }, 'up_page')}
+                  categoryName={t('cves.severity')}
+                >
                   <FormSelect
-                    value={upSeverityFilter}
+                    value={upSeverity}
                     onChange={(_e, v) => updateParams({ up_severity: v || null }, 'up_page')}
                     aria-label={t('escalations.filterSeverity')}
                     style={FORM_SELECT_STYLE}
@@ -233,12 +375,34 @@ export function Escalations() {
                     <FormSelectOption value="2" label={t('severity.2')} />
                     <FormSelectOption value="1" label={t('severity.1')} />
                   </FormSelect>
-                </ToolbarItem>
+                </ToolbarFilter>
+                <ToolbarFilter
+                  labels={upDays ? [t('escalations.within', { count: Number(upDays) })] : []}
+                  deleteLabel={() => updateParams({ up_days: null }, 'up_page')}
+                  categoryName={t('escalations.urgency')}
+                >
+                  <FormSelect
+                    value={upDays}
+                    onChange={(_e, v) => updateParams({ up_days: v || null }, 'up_page')}
+                    aria-label={t('escalations.filterUrgency')}
+                    style={FORM_SELECT_STYLE}
+                  >
+                    <FormSelectOption value="" label={t('escalations.anyUrgency')} />
+                    <FormSelectOption value="1" label={t('escalations.within', { count: 1 })} />
+                    <FormSelectOption value="3" label={t('escalations.within', { count: 3 })} />
+                    <FormSelectOption value="7" label={t('escalations.within', { count: 7 })} />
+                    <FormSelectOption value="14" label={t('escalations.within', { count: 14 })} />
+                  </FormSelect>
+                </ToolbarFilter>
               </ToolbarContent>
             </Toolbar>
-            {upPaged.length === 0 ? (
+            {upItems.length === 0 ? (
               <EmptyState>
-                <EmptyStateBody>{t('common.noFilterResults')}</EmptyStateBody>
+                <EmptyStateBody>
+                  {upTotal === 0 && !upLabels.length && !debouncedUpSearch
+                    ? t('escalations.noUpcoming')
+                    : t('common.noFilterResults')}
+                </EmptyStateBody>
               </EmptyState>
             ) : (
               <>
@@ -254,27 +418,30 @@ export function Escalations() {
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {upPaged.map(u => (
+                    {upItems.map(u => (
                       <Tr
                         key={`${u.cve_id}-${u.next_level}`}
-                        isClickable
                         style={{
-                          background: u.days_until_escalation <= 1
-                            ? 'rgba(201, 25, 11, 0.1)'
-                            : undefined,
+                          background: u.days_until_escalation <= 1 ? 'rgba(201, 25, 11, 0.1)' : undefined,
                         }}
                       >
                         <Td>
-                          <Link to={`/vulnerabilities/${u.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
+                          <Link
+                            to={`/vulnerabilities/${u.cve_id}`}
+                            style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
+                          >
                             {u.cve_id}
                           </Link>
                         </Td>
                         <Td>{SEVERITY_LABELS[u.severity] ?? `${u.severity}`}</Td>
                         <Td>{formatEpssPercent(u.epss_probability)}</Td>
                         <Td>{u.current_age_days}</Td>
-                        <Td><LevelBadge level={u.next_level} /></Td>
+                        <Td>
+                          <LevelBadge level={u.next_level} />
+                        </Td>
                         <Td style={{ fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
-                          {u.days_until_escalation} {u.days_until_escalation === 1 ? t('common.day') : t('common.day_plural')}
+                          {u.days_until_escalation}{' '}
+                          {u.days_until_escalation === 1 ? t('common.day') : t('common.day_plural')}
                         </Td>
                       </Tr>
                     ))}
@@ -286,7 +453,7 @@ export function Escalations() {
                       itemCount={upTotal}
                       perPage={PER_PAGE}
                       page={upPage}
-                      onSetPage={(_, p) => setUpPage(p)}
+                      onSetPage={(_, p) => setPageParam('up_page', p)}
                       variant="bottom"
                     />
                   </div>
@@ -297,27 +464,34 @@ export function Escalations() {
         )}
       </PageSection>
 
-      {/* Active escalations section */}
+      {/* ---------------------------------------------------------------- */}
+      {/* Active escalations                                               */}
+      {/* ---------------------------------------------------------------- */}
       <PageSection variant="default" isFilled>
-        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>{t('escalations.active')}</Title>
-        {isLoading ? (
-          <TableSkeleton columns={isSecTeam ? 5 : 4} />
-        ) : error ? (
-          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
-        ) : !data?.length ? (
-          <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
-            <CheckCircleIcon style={{ fontSize: 32, color: '#1e8f19', display: 'block', margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 14, margin: 0 }}>{t('escalations.noActive')}</p>
-          </div>
+        <Title headingLevel="h2" size="lg" style={{ marginBottom: 12 }}>
+          {t('escalations.active')}
+        </Title>
+        {active.isLoading ? (
+          <TableSkeleton columns={activeColSpan} />
+        ) : active.error ? (
+          <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(active.error)}`} />
         ) : (
           <>
             <Alert
-              variant="warning"
+              variant={activeTotal > 0 ? 'warning' : 'success'}
               isInline
-              title={t('escalations.activeCount', { count: activeTotal })}
+              title={t('escalations.activeVisibleCount', { count: activeTotal })}
               style={{ marginBottom: 16 }}
-            />
-            <Toolbar style={{ padding: 0, marginBottom: 8 }}>
+            >
+              {hiddenByContact > 0 && (
+                <span>{t('escalations.hiddenByContact', { count: hiddenByContact })}</span>
+              )}
+            </Alert>
+            <Toolbar
+              clearAllFilters={clearActiveFilters}
+              clearFiltersButtonText={t('common.clearAll')}
+              style={{ padding: 0, marginBottom: 8 }}
+            >
               <ToolbarContent>
                 <ToolbarItem>
                   <SearchInput
@@ -329,9 +503,13 @@ export function Escalations() {
                     style={{ width: 220 }}
                   />
                 </ToolbarItem>
-                <ToolbarItem>
+                <ToolbarFilter
+                  labels={activeLevel ? [activeLabels[0]] : []}
+                  deleteLabel={() => updateParams({ level: null }, 'page')}
+                  categoryName={t('escalations.level')}
+                >
                   <FormSelect
-                    value={activeLevelFilter}
+                    value={activeLevel}
                     onChange={(_e, v) => updateParams({ level: v || null }, 'page')}
                     aria-label={t('escalations.filterLevelLabel')}
                     style={FORM_SELECT_STYLE}
@@ -341,47 +519,187 @@ export function Escalations() {
                     <FormSelectOption value="2" label={t('escalations.level2')} />
                     <FormSelectOption value="3" label={t('escalations.levelCritical')} />
                   </FormSelect>
-                </ToolbarItem>
+                </ToolbarFilter>
+                {isSecTeam && (
+                  <ToolbarFilter
+                    labels={
+                      emailStatus
+                        ? [emailStatus === 'notified' ? t('escalations.emailSent') : t('escalations.emailPending')]
+                        : []
+                    }
+                    deleteLabel={() => updateParams({ email_status: null }, 'page')}
+                    categoryName={t('escalations.emailStatus')}
+                  >
+                    <FormSelect
+                      value={emailStatus}
+                      onChange={(_e, v) => updateParams({ email_status: v || null }, 'page')}
+                      aria-label={t('escalations.emailStatus')}
+                      style={FORM_SELECT_STYLE}
+                    >
+                      <FormSelectOption value="" label={t('escalations.emailStatusAll')} />
+                      <FormSelectOption value="notified" label={t('escalations.emailSent')} />
+                      <FormSelectOption value="pending" label={t('escalations.emailPending')} />
+                    </FormSelect>
+                  </ToolbarFilter>
+                )}
+                {isSecTeam && (
+                  <ToolbarFilter
+                    labels={
+                      contactFilter !== 'all'
+                        ? [contactFilter === 'contacted' ? t('escalations.contacted') : t('escalations.needsAction')]
+                        : []
+                    }
+                    deleteLabel={() => updateParams({ contact: 'all' }, 'page')}
+                    categoryName={t('escalations.contactStatus')}
+                  >
+                    <FormSelect
+                      value={contactFilter}
+                      onChange={(_e, v) => updateParams({ contact: v === 'needs_action' ? null : v }, 'page')}
+                      aria-label={t('escalations.contactStatus')}
+                      style={FORM_SELECT_STYLE}
+                    >
+                      <FormSelectOption value="needs_action" label={t('escalations.needsAction')} />
+                      <FormSelectOption value="contacted" label={t('escalations.contacted')} />
+                      <FormSelectOption value="all" label={t('escalations.allContactStates')} />
+                    </FormSelect>
+                  </ToolbarFilter>
+                )}
               </ToolbarContent>
             </Toolbar>
-            {activePaged.length === 0 ? (
-              <EmptyState>
-                <EmptyStateBody>{t('common.noFilterResults')}</EmptyStateBody>
-              </EmptyState>
+            {activeItems.length === 0 ? (
+              activeTotal === 0 && contactFilter === 'needs_action' && hiddenByContact > 0 ? (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <CheckCircleIcon style={{ fontSize: 32, color: '#1e8f19', display: 'block', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 14, margin: 0 }}>{t('escalations.allContacted', { count: hiddenByContact })}</p>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--pf-t--global--text--color--subtle)' }}>
+                  <CheckCircleIcon style={{ fontSize: 32, color: '#1e8f19', display: 'block', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: 14, margin: 0 }}>
+                    {hasElectiveActiveFilters ? t('common.noFilterResults') : t('escalations.noActive')}
+                  </p>
+                </div>
+              )
             ) : (
               <>
-                <Table variant="compact" isStickyHeader>
+                <Table variant="compact" isStickyHeader isExpandable>
                   <Thead>
                     <Tr>
+                      {isSecTeam && <Th screenReaderText={t('escalations.expandRow')} />}
                       <Th>{t('cves.cveId')}</Th>
                       <Th>{t('cves.namespace')}</Th>
                       <Th>{t('escalations.level')}</Th>
                       <Th>{t('escalations.triggeredAt')}</Th>
-                      {isSecTeam && <Th>{t('escalations.notified')}</Th>}
+                      {isSecTeam && <Th>{t('escalations.emailStatus')}</Th>}
+                      {isSecTeam && <Th>{t('escalations.contactStatus')}</Th>}
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {activePaged.map(e => (
-                      <Tr key={e.id}>
-                        <Td>
-                          <Link to={`/vulnerabilities/${e.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
-                            {e.cve_id}
-                          </Link>
-                        </Td>
-                        <Td>{e.cluster_name}/{e.namespace}</Td>
-                        <Td><LevelBadge level={e.level} /></Td>
-                        <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
-                          {formatDate(e.triggered_at, i18n.language)}
-                        </Td>
-                        {isSecTeam && (
-                          <Td style={{ fontSize: 12 }}>
-                            {e.notified
-                              ? <span style={{ color: '#1e8f19' }}>{t('escalations.yesNotified')}</span>
-                              : <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>{t('common.pending')}</span>}
-                          </Td>
-                        )}
-                      </Tr>
-                    ))}
+                    {activeItems.map(e => {
+                      const isExpanded = expandedId === e.id
+                      return (
+                        <Fragment key={e.id}>
+                          <Tr>
+                            {isSecTeam && (
+                              <Td style={{ width: 32 }}>
+                                <Button
+                                  variant="plain"
+                                  aria-label={isExpanded ? t('escalations.collapseRow') : t('escalations.expandRow')}
+                                  onClick={() => setExpandedId(isExpanded ? null : e.id)}
+                                  style={{ padding: 4 }}
+                                >
+                                  {isExpanded ? <AngleDownIcon /> : <AngleRightIcon />}
+                                </Button>
+                              </Td>
+                            )}
+                            <Td>
+                              <Link
+                                to={`/vulnerabilities/${e.cve_id}`}
+                                style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
+                              >
+                                {e.cve_id}
+                              </Link>
+                            </Td>
+                            <Td>
+                              {e.cluster_name}/{e.namespace}
+                            </Td>
+                            <Td>
+                              <LevelBadge level={e.level} />
+                            </Td>
+                            <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                              {formatDate(e.triggered_at, i18n.language)}
+                            </Td>
+                            {isSecTeam && (
+                              <Td style={{ fontSize: 12 }}>
+                                {e.notified ? (
+                                  <span style={{ color: '#1e8f19' }}>{t('escalations.emailSent')}</span>
+                                ) : (
+                                  <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+                                    {t('escalations.emailPending')}
+                                  </span>
+                                )}
+                              </Td>
+                            )}
+                            {isSecTeam && (
+                              <Td>
+                                {e.contacted ? (
+                                  <Label color="green">{t('escalations.contacted')}</Label>
+                                ) : (
+                                  <Label color="orange">{t('escalations.needsAction')}</Label>
+                                )}
+                              </Td>
+                            )}
+                          </Tr>
+                          {isSecTeam && isExpanded && (
+                            <Tr isExpanded>
+                              <Td colSpan={activeColSpan}>
+                                <ExpandableRowContent>
+                                  <div style={{ padding: '8px 4px 4px 36px' }}>
+                                  <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                                    {t('escalations.composerHint', {
+                                      cve: e.cve_id,
+                                      cluster: e.cluster_name,
+                                      namespace: e.namespace,
+                                      level: e.level,
+                                    })}
+                                  </div>
+                                  {rowError[e.id] && (
+                                    <Alert
+                                      variant="danger"
+                                      isInline
+                                      isPlain
+                                      title={`${t('common.error')}: ${rowError[e.id]}`}
+                                      style={{ marginBottom: 8 }}
+                                    />
+                                  )}
+                                  <MentionTextArea
+                                    value={drafts[e.id] ?? ''}
+                                    onChange={v => setDraft(e.id, v)}
+                                    placeholder={t('escalations.composerPlaceholder')}
+                                    rows={3}
+                                  />
+                                  <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      isLoading={addComment.isPending}
+                                      isDisabled={!(drafts[e.id] ?? '').trim() || addComment.isPending}
+                                      onClick={() => submitComment(e)}
+                                    >
+                                      {t('escalations.recordContact')}
+                                    </Button>
+                                    <Button variant="link" size="sm" onClick={() => setExpandedId(null)}>
+                                      {t('common.cancel')}
+                                    </Button>
+                                  </div>
+                                  </div>
+                                </ExpandableRowContent>
+                              </Td>
+                            </Tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
                   </Tbody>
                 </Table>
                 {activeTotal > PER_PAGE && (
@@ -390,7 +708,7 @@ export function Escalations() {
                       itemCount={activeTotal}
                       perPage={PER_PAGE}
                       page={activePage}
-                      onSetPage={(_, p) => setActivePage(p)}
+                      onSetPage={(_, p) => setPageParam('page', p)}
                       variant="bottom"
                     />
                   </div>

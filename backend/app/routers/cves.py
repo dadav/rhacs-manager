@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -28,10 +28,12 @@ from ..schemas.cve import (
     CveCommentUpdate,
     CveDetail,
     CveListItem,
+    EscalationContext,
     ImageCveDetail,
     ImageCveGroup,
     SeverityLevel,
 )
+from ..services.audit_service import log_action
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.risk_acceptance_service import deployment_covered_by_scope
@@ -44,6 +46,12 @@ router = APIRouter(prefix="/cves", tags=["cves"])
 async def _get_settings(db: AsyncSession) -> GlobalSettings | None:
     r = await db.execute(select(GlobalSettings).limit(1))
     return r.scalar_one_or_none()
+
+
+def _escalation_context(esc: Escalation | None) -> EscalationContext | None:
+    if esc is None:
+        return None
+    return EscalationContext(cluster_name=esc.cluster_name, namespace=esc.namespace, level=esc.level)
 
 
 @router.get("", response_model=PaginatedResponse[CveListItem])
@@ -494,6 +502,15 @@ async def list_cve_comments(
     result = await app_db.execute(select(CveComment).where(CveComment.cve_id == cve_id).order_by(CveComment.created_at))
     comments = result.scalars().all()
 
+    # Sec-team users see the escalation context label on scoped comments.
+    # Regular users always get null context.
+    esc_map: dict[UUID, Escalation] = {}
+    if current_user.is_sec_team:
+        esc_ids = {c.escalation_id for c in comments if c.escalation_id is not None}
+        if esc_ids:
+            esc_result = await app_db.execute(select(Escalation).where(Escalation.id.in_(esc_ids)))
+            esc_map = {e.id: e for e in esc_result.scalars().all()}
+
     out = []
     for c in comments:
         user_result = await app_db.execute(select(User).where(User.id == c.user_id))
@@ -508,6 +525,7 @@ async def list_cve_comments(
                 created_at=c.created_at,
                 updated_at=c.updated_at,
                 is_sec_team=user.role.value == "sec_team" if user else False,
+                escalation_context=_escalation_context(esc_map.get(c.escalation_id)) if c.escalation_id else None,
             )
         )
     return out
@@ -565,12 +583,17 @@ async def update_cve_comment(
         raise ApiError(403, "comment_edit_forbidden")
 
     comment.message = body.message
-    comment.updated_at = datetime.utcnow()
+    comment.updated_at = datetime.now(UTC).replace(tzinfo=None)
     await app_db.commit()
     await app_db.refresh(comment)
 
     user_result = await app_db.execute(select(User).where(User.id == current_user.id))
     user = user_result.scalar_one_or_none()
+
+    escalation = None
+    if current_user.is_sec_team and comment.escalation_id is not None:
+        escalation_result = await app_db.execute(select(Escalation).where(Escalation.id == comment.escalation_id))
+        escalation = escalation_result.scalar_one_or_none()
 
     return CveCommentResponse(
         id=comment.id,
@@ -581,6 +604,7 @@ async def update_cve_comment(
         created_at=comment.created_at,
         updated_at=comment.updated_at,
         is_sec_team=current_user.is_sec_team,
+        escalation_context=_escalation_context(escalation),
     )
 
 
@@ -597,6 +621,26 @@ async def delete_cve_comment(
         raise ApiError(404, "comment_not_found")
     if comment.user_id != current_user.id:
         raise ApiError(403, "comment_delete_forbidden")
+
+    # Deleting the last comment linked to an escalation returns its workspace row
+    # to "needs action". Record a text-free audit entry for the removal.
+    if comment.escalation_id is not None:
+        esc_result = await app_db.execute(select(Escalation).where(Escalation.id == comment.escalation_id))
+        esc = esc_result.scalar_one_or_none()
+        await log_action(
+            app_db,
+            current_user.id,
+            "escalation_comment_deleted",
+            "escalation",
+            str(comment.escalation_id),
+            details={
+                "cve_id": comment.cve_id,
+                "comment_id": str(comment.id),
+                "cluster_name": esc.cluster_name if esc else None,
+                "namespace": esc.namespace if esc else None,
+                "level": esc.level if esc else None,
+            },
+        )
 
     await app_db.delete(comment)
     await app_db.commit()

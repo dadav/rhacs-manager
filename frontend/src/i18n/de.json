@@ -80,7 +80,8 @@
     "removeFilter": "Filter entfernen",
     "day": "Tag",
     "day_plural": "Tage",
-    "noFilterResults": "Keine Treffer für die gewählten Filter."
+    "noFilterResults": "Keine Treffer für die gewählten Filter.",
+    "clearAll": "Alle zurücksetzen"
   },
   "severity": {
     "0": "Unbekannt",
@@ -393,7 +394,8 @@
       "tooltipAll": "Risikoakzeptanz ({{status}}) gilt für alle betroffenen Deployments.",
       "tooltipPartial": "Risikoakzeptanz ({{status}}) gilt nur für {{covered}} von {{total}} betroffenen Deployments. Die übrigen bleiben offen.",
       "tooltipGeneric": "Für diese CVE existiert eine Risikoakzeptanz ({{status}})."
-    }
+    },
+    "escalationContext": "Eskalation {{cluster}}/{{namespace}} · Stufe {{level}}"
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",
@@ -435,7 +437,7 @@
     "teamLabel": "Nutzer",
     "noAcceptances": "Keine Risikoakzeptanzen",
     "reviewedBy": "Bewertet von",
-    "reviewedAt": "Bewertet am",
+    "reviewedAt": "Geprüft am",
     "createdBy": "Erstellt von",
     "new": "Neu",
     "edit": "Ändern",
@@ -448,7 +450,6 @@
     "assignReviewer": "Reviewer zuweisen",
     "currentlyAssigned": "Aktuell zugewiesen",
     "searchUser": "Benutzer suchen...",
-    "reviewedAt": "Geprüft am",
     "expiresOn": "Läuft ab",
     "justificationRequired": "Begründung erforderlich.",
     "cveIdMissing": "CVE-ID fehlt.",
@@ -552,7 +553,28 @@
     "filterLevelLabel": "Nach Level filtern",
     "allLevelsLabel": "Alle Level",
     "levelCritical": "Kritisch",
-    "yesNotified": "✓ Ja"
+    "yesNotified": "✓ Ja",
+    "within": "innerhalb {{count}} Tagen",
+    "urgency": "Dringlichkeit",
+    "filterUrgency": "Nach Dringlichkeit filtern",
+    "anyUrgency": "Beliebige Dringlichkeit",
+    "activeVisibleCount": "{{count}} sichtbare Eskalation(en)",
+    "hiddenByContact": "{{count}} durch Kontaktfilter ausgeblendet",
+    "emailStatus": "Eskalations-E-Mail",
+    "emailStatusAll": "Alle E-Mail-Status",
+    "emailSent": "✓ Gesendet",
+    "emailPending": "Ausstehend",
+    "contactStatus": "Kontaktstatus",
+    "needsAction": "Handlungsbedarf",
+    "contacted": "Kontaktiert",
+    "allContactStates": "Alle Status",
+    "allContacted": "Alles erledigt - {{count}} kontaktierte ausgeblendet",
+    "expandRow": "Zeile ausklappen",
+    "collapseRow": "Zeile einklappen",
+    "composerHint": "{{cve}} in {{cluster}}/{{namespace}} (Stufe {{level}}) als kontaktiert markieren. @-Erwähnungen benachrichtigen Nutzer.",
+    "composerPlaceholder": "Kontaktnotiz schreiben... @ zum Erwähnen",
+    "recordContact": "Kontakt erfassen",
+    "contactRecorded": "Kontakt für {{cve}} erfasst"
   },
   "remediations": {
     "title": "Behebungen",
@@ -838,7 +860,7 @@
     "approveConfirm": "Unterdrückungsregel genehmigen?",
     "rejectConfirm": "Unterdrückungsregel ablehnen?",
     "review": "Überprüfen",
-    "reviewComment": "Kommentar (optional)",
+    "reviewComment": "Prüfkommentar",
     "deleteConfirm": "Regel wirklich löschen?",
     "deleteFinal": "Endgültig löschen",
     "noRules": "Keine Unterdrückungsregeln vorhanden.",
@@ -853,7 +875,6 @@
     "detailTitle": "Regeldetails",
     "reviewedBy": "Geprüft von",
     "reviewedAt": "Geprüft am",
-    "reviewComment": "Prüfkommentar",
     "matchedCves": "Unterdrückte CVEs",
     "noReviewComment": "Kein Kommentar",
     "filterByStatus": "Nach Status filtern"

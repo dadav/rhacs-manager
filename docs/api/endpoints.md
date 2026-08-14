@@ -53,7 +53,7 @@ Wildcard all-namespace users can query all namespaces through these endpoints, b
 
 Response includes stat cards and chart data:
 
-- `stat_total_cves`, `stat_escalations`, `stat_upcoming_escalations`
+- `stat_total_cves`, `stat_escalations` (current highest-level cases, matching `/api/escalations/active/search`), `stat_upcoming_escalations`
 - `stat_fixable_critical_cves`, `stat_open_risk_acceptances`
 - `severity_distribution`, `cves_per_namespace`, `cve_trend`
 - `priority_cves`, `high_epss_cves`
@@ -149,10 +149,63 @@ Or for a single CVE:
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| GET | `/api/escalations` | Any | Triggered escalations |
-| GET | `/api/escalations/upcoming` | Any | Upcoming escalations from current rules |
+| GET | `/api/escalations` | Any | Triggered escalations (full history, array) |
+| GET | `/api/escalations/upcoming` | Any | Upcoming escalations from current rules (array) |
+| GET | `/api/escalations/active/search` | Any | Paginated active-escalation workspace (current highest level per case) |
+| GET | `/api/escalations/upcoming/search` | Any | Paginated upcoming escalations with filters |
+| POST | `/api/escalations/{escalation_id}/comments` | `sec_team` | Record contact: add a CVE comment linked to the escalation |
 
-Both endpoints accept optional `cluster` and `namespace` filters.
+`GET /api/escalations` and `GET /api/escalations/upcoming` are unchanged and still
+return plain arrays (kept for MCP compatibility). All four GET endpoints accept
+optional `cluster` and `namespace` filters.
+
+### `GET /api/escalations/active/search`
+
+Returns one row per **current** case: the highest escalation level per
+`(cve_id, cluster_name, namespace)`, ties broken by newest trigger. A row is
+`contacted` once at least one CVE comment is linked to that highest-level
+escalation; a newly triggered higher level starts back at "needs action".
+
+Query params: `page` (default 1), `page_size` (default 20, max 100), `search`
+(CVE substring), `level` (1-3), `email_status` (`notified` | `pending`),
+`contact_status` (`needs_action` | `contacted`), `cluster`, `namespace`.
+
+Response:
+
+```json
+{
+  "items": [{ "id": "...", "cve_id": "CVE-...", "namespace": "...", "cluster_name": "...",
+              "level": 2, "triggered_at": "...", "notified": true, "contacted": false }],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "contact_counts": { "needs_action": 1, "contacted": 0 }
+}
+```
+
+`contact_counts` is computed after every filter except `contact_status`, so the
+UI can show how many rows are hidden by the current contact filter.
+For non-security-team callers, `contact_status` is ignored, each item's
+`contacted` field is `null`, and `contact_counts` is `null` so the internal
+security workflow is not exposed.
+
+### `GET /api/escalations/upcoming/search`
+
+Query params: `page`, `page_size`, `search`, `next_level` (1-3), `severity`
+(0-4), `days_max` (only cases escalating within N days), `cluster`, `namespace`.
+Returns `{ items, total, page, page_size }`.
+
+### `POST /api/escalations/{escalation_id}/comments`
+
+Sec-team only. Body is the standard comment body (`{ "message": "..." }`). Creates
+a normal CVE comment linked to the escalation, preserves `@mention`
+notifications, and writes a text-free audit entry (`escalation_comment_created`).
+The target must still be the current highest-level row for its CVE, cluster, and
+namespace; otherwise the endpoint returns `409`.
+Deleting the comment writes `escalation_comment_deleted` and returns the row to
+"needs action" once the last linked comment is gone. The escalation context
+(cluster, namespace, level) is returned on comment responses to sec-team users
+only.
 
 Wildcard all-namespace users can list escalations across the full fleet, but this does not grant sec-team review privileges elsewhere in the API.
 

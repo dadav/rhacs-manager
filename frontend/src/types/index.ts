@@ -158,6 +158,12 @@ export interface CveDetail extends CveListItem {
   escalation_level3_expected: string | null
 }
 
+export interface EscalationContext {
+  cluster_name: string
+  namespace: string
+  level: number
+}
+
 export interface CveComment {
   id: string
   cve_id: string
@@ -167,6 +173,8 @@ export interface CveComment {
   created_at: string
   updated_at: string | null
   is_sec_team: boolean
+  // Only populated for sec-team users on comments scoped to an active escalation.
+  escalation_context?: EscalationContext | null
 }
 
 export interface RiskAcceptance {
@@ -410,6 +418,37 @@ export interface UpcomingEscalation {
   current_age_days: number
   next_level: number
   days_until_escalation: number
+}
+
+export interface ActiveEscalationRow {
+  id: string
+  cve_id: string
+  namespace: string
+  cluster_name: string
+  level: number
+  triggered_at: string
+  notified: boolean
+  contacted: boolean | null
+}
+
+export interface ContactCounts {
+  needs_action: number
+  contacted: number
+}
+
+export interface ActiveSearchResponse {
+  items: ActiveEscalationRow[]
+  total: number
+  page: number
+  page_size: number
+  contact_counts: ContactCounts | null
+}
+
+export interface UpcomingSearchResponse {
+  items: UpcomingEscalation[]
+  total: number
+  page: number
+  page_size: number
 }
 
 export interface AuditEntry {

@@ -23,6 +23,33 @@ class UpcomingEscalation(BaseModel):
     days_until_escalation: int
 
 
+def filter_upcoming_escalations(
+    items: list[UpcomingEscalation],
+    *,
+    search: str | None,
+    next_level: int | None,
+    severity: int | None,
+    days_max: int | None,
+    page: int,
+    page_size: int,
+) -> tuple[list[UpcomingEscalation], int]:
+    """Filter and paginate an already computed upcoming-escalation preview."""
+    filtered = items
+    if search:
+        normalized_search = search.casefold()
+        filtered = [item for item in filtered if normalized_search in item.cve_id.casefold()]
+    if next_level is not None:
+        filtered = [item for item in filtered if item.next_level == next_level]
+    if severity is not None:
+        filtered = [item for item in filtered if item.severity == severity]
+    if days_max is not None:
+        filtered = [item for item in filtered if item.days_until_escalation <= days_max]
+
+    total = len(filtered)
+    start = (page - 1) * page_size
+    return filtered[start : start + page_size], total
+
+
 async def compute_upcoming_escalations(
     sx_db: AsyncSession,
     app_db: AsyncSession,

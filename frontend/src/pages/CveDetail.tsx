@@ -1063,6 +1063,25 @@ export function CveDetail() {
                                   {t('cveDetail.secLabel')}
                                 </span>
                               )}
+                              {c.escalation_context && (
+                                <span
+                                  style={{
+                                    marginLeft: 6,
+                                    fontSize: 10,
+                                    border: "1px solid var(--pf-t--global--color--nonstatus--purple--default)",
+                                    color: "var(--pf-t--global--color--nonstatus--purple--default)",
+                                    padding: "1px 5px",
+                                    borderRadius: 3,
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {t('cveDetail.escalationContext', {
+                                    cluster: c.escalation_context.cluster_name,
+                                    namespace: c.escalation_context.namespace,
+                                    level: c.escalation_context.level,
+                                  })}
+                                </span>
+                              )}
                             </span>
                             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span

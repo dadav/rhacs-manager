@@ -80,7 +80,8 @@
     "removeFilter": "Remove filter",
     "day": "day",
     "day_plural": "days",
-    "noFilterResults": "No results for the selected filters."
+    "noFilterResults": "No results for the selected filters.",
+    "clearAll": "Clear all"
   },
   "severity": {
     "0": "Unknown",
@@ -393,7 +394,8 @@
       "tooltipAll": "Risk acceptance ({{status}}) applies to all affected deployments.",
       "tooltipPartial": "Risk acceptance ({{status}}) applies to only {{covered}} of {{total}} affected deployments. The rest remain open.",
       "tooltipGeneric": "A risk acceptance ({{status}}) exists for this CVE."
-    }
+    },
+    "escalationContext": "Escalation {{cluster}}/{{namespace}} · level {{level}}"
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",
@@ -448,7 +450,6 @@
     "assignReviewer": "Assign reviewer",
     "currentlyAssigned": "Currently assigned",
     "searchUser": "Search user...",
-    "reviewedAt": "Reviewed at",
     "expiresOn": "Expires on",
     "justificationRequired": "Justification required.",
     "cveIdMissing": "CVE ID is missing.",
@@ -552,7 +553,28 @@
     "filterLevelLabel": "Filter by level",
     "allLevelsLabel": "All levels",
     "levelCritical": "Critical",
-    "yesNotified": "✓ Yes"
+    "yesNotified": "✓ Yes",
+    "within": "within {{count}} days",
+    "urgency": "Urgency",
+    "filterUrgency": "Filter by urgency",
+    "anyUrgency": "Any urgency",
+    "activeVisibleCount": "{{count}} visible escalation(s)",
+    "hiddenByContact": "{{count}} hidden by contact filter",
+    "emailStatus": "Escalation email",
+    "emailStatusAll": "All email statuses",
+    "emailSent": "✓ Sent",
+    "emailPending": "Pending",
+    "contactStatus": "Contact status",
+    "needsAction": "Needs action",
+    "contacted": "Contacted",
+    "allContactStates": "All states",
+    "allContacted": "All caught up - {{count}} contacted hidden",
+    "expandRow": "Expand row",
+    "collapseRow": "Collapse row",
+    "composerHint": "Mark {{cve}} in {{cluster}}/{{namespace}} (level {{level}}) as contacted. @-mentions notify users.",
+    "composerPlaceholder": "Write a contact note... @ to mention",
+    "recordContact": "Record contact",
+    "contactRecorded": "Contact recorded for {{cve}}"
   },
   "remediations": {
     "title": "Remediations",
@@ -838,7 +860,7 @@
     "approveConfirm": "Approve suppression rule?",
     "rejectConfirm": "Reject suppression rule?",
     "review": "Review",
-    "reviewComment": "Comment (optional)",
+    "reviewComment": "Review comment",
     "deleteConfirm": "Really delete this rule?",
     "deleteFinal": "Delete permanently",
     "noRules": "No suppression rules found.",
@@ -853,7 +875,6 @@
     "detailTitle": "Rule Details",
     "reviewedBy": "Reviewed by",
     "reviewedAt": "Reviewed at",
-    "reviewComment": "Review comment",
     "matchedCves": "Suppressed CVEs",
     "noReviewComment": "No comment",
     "filterByStatus": "Filter by status"

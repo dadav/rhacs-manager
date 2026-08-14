@@ -164,6 +164,33 @@ The **Escalations** page shows both active escalations and upcoming ones.
 !!! note
     CVEs with approved risk acceptances are skipped during escalation checks.
 
+### The active escalation queue
+
+The **active** list is an action queue. It shows one row per current case, that is
+the **highest level reached** per CVE, cluster, and namespace. Lower levels stay in
+the history but are collapsed away here so the list is not repetitive.
+
+- Filter by CVE, level, escalation-email status, and (security team) contact status.
+  Upcoming escalations filter by CVE, level, severity, and how soon they escalate
+  (within 1, 3, 7, or 14 days). Filters and the page are stored in the URL.
+- The cluster/namespace scope from the sidebar applies to both lists.
+
+**Contact tracking (security team only).** Each active row is either **Needs action**
+or **Contacted**. The queue defaults to **Needs action**. Expand a row to write a note
+and record contact; `@mentions` notify those users. Recording contact:
+
+- marks the case **Contacted** and removes it from the default queue;
+- adds a normal comment to the CVE discussion (visible to everyone), with an
+  escalation context label shown only to the security team;
+- writes an audit entry that never copies the note text.
+
+If a **higher** level later triggers for the same case, it appears as a fresh
+**Needs action** row: an earlier level's contact note does not count for it.
+Deleting the last note on a case returns it to **Needs action**. When nothing needs
+action but contacted cases are hidden, the queue shows an all-caught-up summary with
+the hidden count. Regular users see the same current rows without the contact
+controls or status column.
+
 ## Badges
 
 The **SVG Badges** page creates public badge URLs that render without authentication.
