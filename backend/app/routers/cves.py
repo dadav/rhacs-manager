@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
+from ..mail import service as mail_svc
 from ..models.cve_comment import CveComment
 from ..models.cve_priority import CvePriority
 from ..models.escalation import Escalation
@@ -18,7 +19,6 @@ from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.suppression_rule import SuppressionRule, SuppressionStatus, SuppressionType
 from ..models.user import User
-from ..notifications import service as notif_svc
 from ..schemas.common import PaginatedResponse
 from ..schemas.cve import (
     AffectedComponent,
@@ -33,6 +33,7 @@ from ..schemas.cve import (
     ImageCveGroup,
     SeverityLevel,
 )
+from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
@@ -535,36 +536,16 @@ async def list_cve_comments(
 async def add_cve_comment(
     cve_id: str,
     body: CveCommentCreate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
 ) -> CveCommentResponse:
-    comment = CveComment(
-        cve_id=cve_id,
-        user_id=current_user.id,
-        message=body.message,
+    response, email_jobs = await comment_service.add_cve_comment(
+        app_db, cve_id=cve_id, message=body.message, current_user=current_user
     )
-    app_db.add(comment)
-    await app_db.flush()
-
-    user_result = await app_db.execute(select(User).where(User.id == current_user.id))
-    user = user_result.scalar_one_or_none()
-
-    await notif_svc.notify_mentions(
-        app_db, body.message, current_user, f"/vulnerabilities/{cve_id}#comment-{comment.id}"
-    )
-
-    await app_db.commit()
-    await app_db.refresh(comment)
-    return CveCommentResponse(
-        id=comment.id,
-        cve_id=comment.cve_id,
-        user_id=comment.user_id,
-        username=user.username if user else current_user.id,
-        message=comment.message,
-        created_at=comment.created_at,
-        updated_at=comment.updated_at,
-        is_sec_team=current_user.is_sec_team,
-    )
+    if email_jobs:
+        background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
+    return response
 
 
 @router.patch("/{cve_id}/comments/{comment_id}", response_model=CveCommentResponse)
@@ -572,40 +553,20 @@ async def update_cve_comment(
     cve_id: str,
     comment_id: UUID,
     body: CveCommentUpdate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
 ) -> CveCommentResponse:
-    result = await app_db.execute(select(CveComment).where(CveComment.id == comment_id, CveComment.cve_id == cve_id))
-    comment = result.scalar_one_or_none()
-    if not comment:
-        raise ApiError(404, "comment_not_found")
-    if comment.user_id != current_user.id:
-        raise ApiError(403, "comment_edit_forbidden")
-
-    comment.message = body.message
-    comment.updated_at = datetime.now(UTC).replace(tzinfo=None)
-    await app_db.commit()
-    await app_db.refresh(comment)
-
-    user_result = await app_db.execute(select(User).where(User.id == current_user.id))
-    user = user_result.scalar_one_or_none()
-
-    escalation = None
-    if current_user.is_sec_team and comment.escalation_id is not None:
-        escalation_result = await app_db.execute(select(Escalation).where(Escalation.id == comment.escalation_id))
-        escalation = escalation_result.scalar_one_or_none()
-
-    return CveCommentResponse(
-        id=comment.id,
-        cve_id=comment.cve_id,
-        user_id=comment.user_id,
-        username=user.username if user else current_user.id,
-        message=comment.message,
-        created_at=comment.created_at,
-        updated_at=comment.updated_at,
-        is_sec_team=current_user.is_sec_team,
-        escalation_context=_escalation_context(escalation),
+    response, email_jobs = await comment_service.update_cve_comment(
+        app_db,
+        cve_id=cve_id,
+        comment_id=comment_id,
+        message=body.message,
+        current_user=current_user,
     )
+    if email_jobs:
+        background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
+    return response
 
 
 @router.delete("/{cve_id}/comments/{comment_id}", status_code=204)

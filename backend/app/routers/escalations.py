@@ -1,13 +1,14 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
+from ..mail import service as mail_svc
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..schemas.cve import CveCommentCreate, CveCommentResponse
@@ -232,12 +233,16 @@ async def search_upcoming_escalations(
 async def add_escalation_comment(
     escalation_id: UUID,
     body: CveCommentCreate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
 ) -> CveCommentResponse:
-    return await add_current_escalation_comment(
+    response, email_jobs = await add_current_escalation_comment(
         app_db,
         current_user=current_user,
         escalation_id=escalation_id,
         message=body.message,
     )
+    if email_jobs:
+        background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
+    return response

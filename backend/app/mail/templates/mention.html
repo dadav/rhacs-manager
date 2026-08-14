@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Sie wurden erwähnt{% endblock %}
+{% block preheader %}{{ author_name }} hat Sie in einem Kommentar erwähnt.{% endblock %}
+
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#0f62fe">Erwähnung</div>
+  <h1 style="margin:8px 0 0;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">Sie wurden erwähnt</h1>
+
+  <p style="margin:14px 0 22px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    <strong style="color:#16161a">{{ author_name }}</strong> hat Sie in einem Kommentar zu
+    <strong style="color:#16161a;font-family:{{ ui.mono() }};font-weight:600">{{ context_label }}</strong> erwähnt.
+  </p>
+
+  <p style="margin:0 0 22px;font-family:{{ ui.font() }};font-size:13px;line-height:1.6;color:#71717a">
+    Der Kommentartext wird aus Datenschutzgründen nicht in dieser E-Mail wiedergegeben.
+    Öffnen Sie den Kommentar in der Anwendung, um ihn zu lesen.
+  </p>
+
+  {{ ui.button(link, "Zum Kommentar") }}
+{% endblock %}

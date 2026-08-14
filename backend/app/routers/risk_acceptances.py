@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +23,7 @@ from ..schemas.risk_acceptance import (
     RiskAcceptanceReview,
     RiskAcceptanceUpdate,
 )
+from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.risk_acceptance_service import (
     get_scope_namespaces as _get_scope_namespaces,
@@ -426,6 +427,7 @@ async def cancel_risk_acceptance(
 async def add_comment(
     ra_id: UUID,
     body: CommentCreate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
 ) -> CommentResponse:
@@ -438,38 +440,12 @@ async def add_comment(
     if not _user_can_access_ra(current_user, ra):
         raise ApiError(403, "forbidden")
 
-    comment = RiskAcceptanceComment(
-        risk_acceptance_id=ra_id,
-        user_id=current_user.id,
-        message=body.message,
+    response, email_jobs = await comment_service.add_risk_acceptance_comment(
+        db, acceptance=ra, message=body.message, current_user=current_user
     )
-    db.add(comment)
-    await db.flush()
-
-    await notif_svc.notify_risk_comment(db, ra, comment, current_user)
-    await notif_svc.notify_mentions(db, body.message, current_user, f"/risk-acceptances/{ra_id}#comment-{comment.id}")
-
-    # Email to RA creator if sec team comments — use pre-loaded creator
-    if current_user.is_sec_team and ra.creator and ra.creator.email:
-        try:
-            await mail_svc.send_risk_comment_email(
-                ra.creator.email, ra.cve_id, str(ra.id), current_user.username, body.message
-            )
-        except Exception:
-            logger.exception("Failed to send risk comment email for RA %s", ra.id)
-
-    await db.commit()
-    await db.refresh(comment)
-
-    return CommentResponse(
-        id=comment.id,
-        risk_acceptance_id=comment.risk_acceptance_id,
-        user_id=comment.user_id,
-        username=current_user.username,
-        message=comment.message,
-        created_at=comment.created_at,
-        is_sec_team=current_user.is_sec_team,
-    )
+    if email_jobs:
+        background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
+    return response
 
 
 @router.get("/{ra_id}/comments", response_model=list[CommentResponse])

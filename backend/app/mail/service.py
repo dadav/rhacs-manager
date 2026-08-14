@@ -1,17 +1,26 @@
 import logging
+from collections.abc import Sequence
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import aiosmtplib
 from jinja2 import Environment, FileSystemLoader
 
 from ..config import settings
 
+if TYPE_CHECKING:
+    from ..notifications.service import MentionEmailJob
+
 logger = logging.getLogger(__name__)
 
 _template_dir = Path(__file__).parent / "templates"
 _jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)), autoescape=True)
+
+
+def _app_link(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
 async def send_email(to: str, subject: str, html_body: str) -> None:
@@ -50,7 +59,7 @@ async def send_risk_comment_email(
         cve_id=cve_id,
         author_name=author_name,
         comment_text=comment_text,
-        link=f"{base_url}/risikoakzeptanzen/{acceptance_id}",
+        link=_app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
     )
     await send_email(to_email, f"Neuer Kommentar zur Risikoakzeptanz: {cve_id}", html)
 
@@ -72,7 +81,7 @@ async def send_risk_status_email(
         status=status_de,
         reviewer_name=reviewer_name,
         comment=comment,
-        link=f"{base_url}/risikoakzeptanzen/{acceptance_id}",
+        link=_app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
     )
     await send_email(to_email, f"Risikoakzeptanz {status_de}: {cve_id}", html)
 
@@ -100,7 +109,7 @@ async def send_escalation_email(
         cvss=cvss,
         epss_probability=epss_probability,
         deployments=deployments or [],
-        link=f"{base_url}/eskalationen",
+        link=_app_link(base_url, "/escalations"),
     )
     await send_email(to_email, f"CVE-Eskalation Stufe {level}: {cve_id}", html)
 
@@ -130,9 +139,47 @@ async def send_escalation_warning_email(
         cvss=cvss,
         epss_probability=epss_probability,
         deployments=deployments or [],
-        link=f"{base_url}/eskalationen",
+        link=_app_link(base_url, "/escalations"),
     )
     await send_email(to_email, f"CVE-Eskalation in {days_until} Tagen: {cve_id}", html)
+
+
+async def send_mention_email(
+    to_email: str,
+    author_name: str,
+    context_label: str,
+    link: str,
+) -> None:
+    """Send one @mention notification email.
+
+    The template intentionally omits the comment text: recipient namespace
+    access cannot be verified at send time, so only author, context, and the
+    anchored link are included.
+    """
+    tmpl = _jinja_env.get_template("mention.html")
+    html = tmpl.render(author_name=author_name, context_label=context_label, link=link)
+    await send_email(to_email, f"Erwähnung von {author_name}", html)
+
+
+async def send_mention_emails(jobs: "Sequence[MentionEmailJob]") -> None:
+    """Best-effort delivery of all mention emails for one comment.
+
+    Runs as a single post-commit background task. Each recipient is isolated:
+    an SMTP failure for one address is logged and never blocks the others, and
+    never affects the already-committed comment response.
+    """
+    for job in jobs:
+        try:
+            await send_mention_email(job.to_email, job.author_name, job.context_label, job.link)
+        except Exception:
+            logger.exception(
+                "Mention email delivery failed",
+                extra={
+                    "recipient_id": job.recipient_id,
+                    "context_label": job.context_label,
+                    "link": job.link,
+                },
+            )
 
 
 async def send_weekly_digest(

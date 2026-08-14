@@ -191,6 +191,33 @@ action but contacted cases are hidden, the queue shows an all-caught-up summary 
 the hidden count. Regular users see the same current rows without the contact
 controls or status column.
 
+## Comments and @mentions
+
+CVE, escalation-contact, and risk-acceptance comments support `@[username]`
+mentions. Each newly-mentioned user gets an in-app notification and, best-effort,
+an email.
+
+- **Case-insensitive.** `@[Alice]` and `@[alice]` resolve to the same account.
+  Usernames are globally unique regardless of case, so a mention maps to exactly
+  one user.
+- **Who is notified.** The comment author, unknown usernames, and duplicate
+  mentions are ignored. A single comment may mention at most **20** distinct
+  recipients; beyond that the comment is rejected.
+- **Edits.** Editing a comment notifies only mentions that were **not** already
+  present in the previous text. Case-only changes and unrelated edits notify
+  nobody. Removing and later re-adding a mention notifies again.
+- **Email content.** Mention emails name the author, the workflow context, and a
+  direct link to the comment. They intentionally **omit the comment text**,
+  because the recipient's namespace access cannot be verified when the mail is
+  sent.
+- **Best-effort delivery.** Emails are sent after the comment is saved. There is
+  no retry, delivery log, or opt-out: a syntactically invalid stored address (or
+  an SMTP failure) leaves the in-app notification intact but silently skips that
+  one email. A successful comment is never blocked by mail problems.
+- **Risk-acceptance overlap.** If a sec-team comment on a risk acceptance
+  explicitly mentions the acceptance's creator, the creator receives only the
+  mention notification and email, not a second general "new comment" notice.
+
 ## Badges
 
 The **SVG Badges** page creates public badge URLs that render without authentication.

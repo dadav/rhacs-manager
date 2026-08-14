@@ -214,8 +214,12 @@ async def add_current_escalation_comment(
     current_user: CurrentUser,
     escalation_id: UUID,
     message: str,
-) -> CveCommentResponse:
-    """Add a contact comment only when the target is the current workspace row."""
+) -> tuple[CveCommentResponse, tuple[notif_svc.MentionEmailJob, ...]]:
+    """Add a contact comment only when the target is the current workspace row.
+
+    Returns the comment response plus the mention email jobs so the router can
+    schedule best-effort delivery after this function has committed.
+    """
     if not current_user.is_sec_team:
         raise ApiError(403, "escalation_comment_forbidden")
 
@@ -246,11 +250,12 @@ async def add_current_escalation_comment(
     db.add(comment)
     await db.flush()
 
-    await notif_svc.notify_mentions(
+    mention_result = await notif_svc.notify_mentions(
         db,
         message,
         current_user,
         f"/vulnerabilities/{escalation.cve_id}#comment-{comment.id}",
+        context_label=f"Eskalation {escalation.cve_id}",
     )
     await log_action(
         db,
@@ -280,7 +285,7 @@ async def add_current_escalation_comment(
             "user_id": current_user.id,
         },
     )
-    return CveCommentResponse(
+    response = CveCommentResponse(
         id=comment.id,
         cve_id=comment.cve_id,
         user_id=comment.user_id,
@@ -295,3 +300,4 @@ async def add_current_escalation_comment(
             level=escalation.level,
         ),
     )
+    return response, mention_result.email_jobs

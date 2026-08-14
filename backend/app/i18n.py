@@ -73,6 +73,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Nur das Security-Team darf Eskalationskommentare erstellen",
         "en": "Only the security team can add escalation comments",
     },
+    "too_many_mentions": {
+        "de": "Zu viele Erwähnungen (maximal {max} Empfänger)",
+        "en": "Too many mentions (maximum {max} recipients)",
+    },
+    "username_conflict": {
+        "de": "Benutzername '{username}' kollidiert (Groß-/Kleinschreibung) mit einem bestehenden Konto",
+        "en": "Username '{username}' conflicts (case-insensitively) with an existing account",
+    },
     "invalid_status": {"de": "Ungültiger Status: {status}", "en": "Invalid status: {status}"},
     "invalid_type": {"de": "Ungültiger Typ: {type}", "en": "Invalid type: {type}"},
     "invalid_date": {"de": "Ungültiges Datum (Format: JJJJ-MM-TT)", "en": "Invalid date (format: YYYY-MM-DD)"},

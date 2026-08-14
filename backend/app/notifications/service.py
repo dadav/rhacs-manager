@@ -1,16 +1,51 @@
 import logging
 import re
+from dataclasses import dataclass
 
-from sqlalchemy import select
+from email_validator import EmailNotValidError, validate_email
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
 
 _MENTION_RE = re.compile(r"@\[([^\]]+)\]")
 
+# Hard cap on distinct, non-self recipients per comment. Guards against a single
+# comment fanning out to the whole org.
+MAX_MENTION_RECIPIENTS = 20
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class MentionEmailJob:
+    """Plain, session-free email input scheduled after the comment commits.
+
+    Holds only primitive values: it must survive past the request DB session,
+    so it never references ORM objects or the session itself.
+    """
+
+    to_email: str
+    recipient_id: str
+    author_name: str
+    context_label: str
+    link: str  # absolute, anchored URL under APP_BASE_URL
+
+
+@dataclass(frozen=True)
+class MentionResult:
+    """Outcome of processing mentions for one comment create/edit.
+
+    ``recipient_ids`` are the users who received the in-app notification (the
+    newly-mentioned set on edits). ``email_jobs`` are the subset with a valid
+    email address, ready to be sent by a post-commit background task.
+    """
+
+    recipient_ids: tuple[str, ...]
+    email_jobs: tuple[MentionEmailJob, ...]
 
 
 async def create_notification(
@@ -44,7 +79,15 @@ async def notify_risk_comment(
     acceptance: RiskAcceptance,
     comment: RiskAcceptanceComment,
     author: User,
+    exclude_user_ids: set[str] | None = None,
 ) -> None:
+    """Notify the RA counterpart about a new comment.
+
+    ``exclude_user_ids`` suppresses the general comment notification for users
+    who were already reached by an explicit @mention on the same comment, so a
+    mentioned recipient does not receive two overlapping notifications.
+    """
+    excluded = exclude_user_ids or set()
     link = f"/risk-acceptances/{acceptance.id}"
     title = f"Neuer Kommentar: {acceptance.cve_id}"
     msg = f"{author.username} hat einen Kommentar hinterlassen."
@@ -52,10 +95,12 @@ async def notify_risk_comment(
     if author.role == UserRole.team_member:
         # Notify sec team
         for user in await _get_sec_team_users(session):
+            if user.id in excluded:
+                continue
             await create_notification(session, user.id, NotificationType.risk_comment, title, msg, link)
     else:
         # Notify the RA creator
-        if acceptance.created_by != author.id:
+        if acceptance.created_by != author.id and acceptance.created_by not in excluded:
             await create_notification(
                 session,
                 acceptance.created_by,
@@ -261,22 +306,86 @@ async def notify_suppression_status_change(
         await create_notification(session, rule.created_by, ntype, title, msg, link)
 
 
+def _mention_names(message: str) -> set[str]:
+    """Return the distinct, lower-cased usernames mentioned as ``@[name]``."""
+    return {name.lower() for name in _MENTION_RE.findall(message)}
+
+
 async def notify_mentions(
     session: AsyncSession,
     message: str,
     author: User,
     link: str,
-) -> None:
-    """Parse @username mentions from a comment and notify each mentioned user."""
-    mentioned_names = set(_MENTION_RE.findall(message))
-    if not mentioned_names:
-        return
+    *,
+    context_label: str,
+    previous_message: str | None = None,
+) -> MentionResult:
+    """Create in-app mention notifications and return post-commit email jobs.
 
-    result = await session.execute(select(User).where(User.username.in_(mentioned_names)))
-    mentioned_users = result.scalars().all()
+    Resolution is case-insensitive on ``@[username]`` tokens. The author,
+    unknown usernames, and duplicates are excluded. When more than
+    ``MAX_MENTION_RECIPIENTS`` distinct non-self recipients resolve, the whole
+    comment is rejected with ``too_many_mentions`` (checked against the full
+    current message, not the edit delta).
+
+    On edits (``previous_message`` provided) only users who were *not* already
+    mentioned in the previous text are notified again; case-only or unrelated
+    edits therefore notify nobody.
+
+    In-app notification rows are added to ``session`` inside the caller's
+    comment transaction. Email delivery is deferred: the returned
+    ``MentionEmailJob`` values carry only primitives and are sent by a
+    background task after the caller commits.
+    """
+    from ..i18n import ApiError
+
+    current_names = _mention_names(message)
+    if not current_names:
+        return MentionResult(recipient_ids=(), email_jobs=())
+
+    result = await session.execute(
+        select(User).where(func.lower(User.username).in_(current_names)).order_by(func.lower(User.username), User.id)
+    )
+    # Distinct, non-self resolved recipients (case-insensitive uniqueness is
+    # enforced at the DB level, so one row per lower(username)).
+    resolved = [u for u in result.scalars().all() if u.id != author.id]
+
+    if len(resolved) > MAX_MENTION_RECIPIENTS:
+        raise ApiError(400, "too_many_mentions", max=MAX_MENTION_RECIPIENTS)
+
+    previous_names = _mention_names(previous_message) if previous_message is not None else set()
+    to_notify = [u for u in resolved if u.username.lower() not in previous_names]
+    if not to_notify:
+        return MentionResult(recipient_ids=(), email_jobs=())
 
     title = f"Erwähnung von {author.username}"
     msg = f"{author.username} hat Sie in einem Kommentar erwähnt."
+    absolute_link = f"{settings.app_base_url.rstrip('/')}/{link.lstrip('/')}"
 
-    for user in mentioned_users:
+    recipient_ids: list[str] = []
+    email_jobs: list[MentionEmailJob] = []
+    for user in to_notify:
         await create_notification(session, user.id, NotificationType.mention, title, msg, link)
+        recipient_ids.append(user.id)
+
+        # Invalid/placeholder addresses get the in-app notification only; syntax
+        # validation without DNS keeps this cheap and offline-safe.
+        try:
+            validated_email = validate_email(user.email or "", check_deliverability=False).normalized
+        except EmailNotValidError as exc:
+            logger.warning(
+                "Skipping mention email: invalid recipient address",
+                extra={"user_id": user.id, "reason": str(exc)},
+            )
+            continue
+        email_jobs.append(
+            MentionEmailJob(
+                to_email=validated_email,
+                recipient_id=user.id,
+                author_name=author.username,
+                context_label=context_label,
+                link=absolute_link,
+            )
+        )
+
+    return MentionResult(recipient_ids=tuple(recipient_ids), email_jobs=tuple(email_jobs))

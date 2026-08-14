@@ -4,7 +4,8 @@ import time
 
 import httpx
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -117,10 +118,45 @@ class CurrentUser:
         return len(self.namespaces) > 0 or self.has_all_namespaces
 
 
+async def _assert_username_available(session: AsyncSession, username: str, exclude_id: str) -> None:
+    """Reject a username that collides case-insensitively with another account.
+
+    Enforces the same invariant as the ``lower(username)`` unique index, but at
+    auth-sync time so the caller gets a localized error instead of a raw DB
+    IntegrityError.
+    """
+    result = await session.execute(
+        select(User.id).where(func.lower(User.username) == username.lower(), User.id != exclude_id).limit(1)
+    )
+    if result.scalar_one_or_none() is not None:
+        raise ApiError(409, "username_conflict", username=username)
+
+
+def _is_username_conflict(exc: IntegrityError) -> bool:
+    """Return whether an integrity failure came from the username index."""
+    current: BaseException | None = exc
+    while current is not None:
+        if getattr(current, "constraint_name", None) == "uq_users_username_lower":
+            return True
+        current = current.__cause__
+    return "uq_users_username_lower" in str(exc)
+
+
+async def _commit_user_sync(session: AsyncSession, username: str) -> None:
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        if _is_username_conflict(exc):
+            raise ApiError(409, "username_conflict", username=username) from None
+        raise
+
+
 async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
     result = await session.execute(select(User).where(User.id == user_data["id"]))
     user = result.scalar_one_or_none()
     if user is None:
+        await _assert_username_available(session, user_data["username"], user_data["id"])
         user = User(
             id=user_data["id"],
             username=user_data["username"],
@@ -128,7 +164,7 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
             role=UserRole(user_data["role"]),
         )
         session.add(user)
-        await session.commit()
+        await _commit_user_sync(session, user_data["username"])
         await session.refresh(user)
         logger.info("Auto-created user %s", user.id)
     return user
@@ -138,6 +174,7 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     """Update user fields if they differ from provided data."""
     updated = False
     if user.username != user_data["username"]:
+        await _assert_username_available(session, user_data["username"], user.id)
         user.username = user_data["username"]
         updated = True
     if user.email != user_data["email"]:
@@ -148,7 +185,7 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
         user.role = desired_role
         updated = True
     if updated:
-        await session.commit()
+        await _commit_user_sync(session, user_data["username"])
         await session.refresh(user)
     return user
 

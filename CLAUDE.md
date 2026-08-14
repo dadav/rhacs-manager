@@ -171,6 +171,19 @@ Access control rules:
 - CVE detail includes Red Hat and NVD links for each CVE ID.
 - `contact_emails` in CVE detail should be deduplicated and include `DEFAULT_ESCALATION_EMAIL` as fallback when the user can see all namespaces.
 
+### Comment mention rules
+
+- CVE, escalation-contact, and risk-acceptance comments resolve `@[username]` mentions case-insensitively via `notify_mentions` in `backend/app/notifications/service.py`.
+- `notify_mentions` excludes the author, unknown usernames, and duplicates; it returns a `MentionResult` (`recipient_ids` + immutable `MentionEmailJob`s). It creates in-app notification rows inside the caller's comment transaction and must not commit.
+- More than `MAX_MENTION_RECIPIENTS` (20) distinct non-self recipients in a single comment raises `ApiError(400, "too_many_mentions")` (checked against the full current message, not the edit delta).
+- On edits, pass `previous_message`; only mentions absent from the previous text are notified. Case-only or unrelated edits notify nobody; remove-then-re-add notifies again.
+- Mention emails are best-effort and mandatory (no opt-out). The comment endpoint commits first, then schedules **one** FastAPI `BackgroundTasks` job (`mail_svc.send_mention_emails`) that isolates per-recipient SMTP failures. Jobs carry only primitives, never the session or ORM objects.
+- Addresses are validated with `email-validator` (syntax only, no DNS). Invalid/placeholder addresses get the in-app notification only, with a structured warning.
+- The `mention.html` template contains author, workflow context, and the anchored `APP_BASE_URL` link, but **never the comment text** (recipient namespace access is unverifiable at send time).
+- Risk-acceptance overlap: when a sec-team comment mentions the RA creator, pass the mentioned IDs as `exclude_user_ids` to `notify_risk_comment` and suppress the creator's `send_risk_comment_email`, so the creator is not notified twice.
+- Usernames are globally unique regardless of case, enforced by the `uq_users_username_lower` unique index on `lower(username)` (migration `021`). Auth sync (`_assert_username_available` in `auth/middleware.py`) raises `ApiError(409, "username_conflict")` on collision; the migration aborts if pre-existing duplicates exist.
+- Transactional email links use canonical frontend routes under `APP_BASE_URL`: `/risk-acceptances/...` and `/escalations` (not the old German `/risikoakzeptanzen`/`/eskalationen`).
+
 ### Risk acceptance rules
 
 - Risk acceptance creation is CVE-contextual only.

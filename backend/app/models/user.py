@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, Index, String, text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,6 +15,10 @@ class UserRole(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
+
+    # Usernames are globally unique regardless of case: mentions resolve
+    # @[username] case-insensitively and must map to exactly one account.
+    __table_args__ = (Index("uq_users_username_lower", text("lower(username)"), unique=True),)
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)  # OIDC subject
     username: Mapped[str] = mapped_column(String(255), nullable=False)
