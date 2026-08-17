@@ -145,8 +145,8 @@ async def test_add_escalation_comment_success_audits_without_text(
     mock_app_db.add = MagicMock(side_effect=_add)
 
     with patch(
-        "app.services.escalation_workspace.notif_svc.notify_mentions",
-        new_callable=AsyncMock,
+        "app.services.escalation_workspace.notif_svc.notify_mention_users",
+        new=AsyncMock(return_value=MagicMock(recipient_ids=(), email_jobs=())),
     ) as notify_mentions:
         resp = await sec_team_client.post(f"/api/escalations/{esc.id}/comments", json={"message": secret_text})
     assert resp.status_code == 201
@@ -167,6 +167,52 @@ async def test_add_escalation_comment_success_audits_without_text(
     assert audit.details["cve_id"] == "CVE-2024-1"
     assert audit.details["level"] == 2
     notify_mentions.assert_awaited_once()
+
+
+async def test_structured_escalation_comment_notifies_by_user_id(
+    sec_team_client: httpx.AsyncClient, mock_app_db: AsyncMock
+):
+    escalation = Escalation(
+        id=uuid4(),
+        cve_id="CVE-2026-1",
+        cluster_name="c1",
+        namespace="ns1",
+        level=2,
+        triggered_at=datetime(2026, 1, 1),
+        notified=True,
+    )
+    mentioned = User(
+        id="user-1",
+        username="alice",
+        full_name="Alice Example",
+        email="alice@example.com",
+        role=UserRole.team_member,
+    )
+    mock_app_db.execute.side_effect = [
+        _result(scalar_one=escalation),
+        _result(scalar_one=escalation.id),
+        _result(rows=[mentioned]),
+    ]
+
+    def assign_comment_defaults(obj):
+        if isinstance(obj, CveComment):
+            obj.id = uuid4()
+            obj.created_at = datetime(2026, 1, 2)
+
+    mock_app_db.add = MagicMock(side_effect=assign_comment_defaults)
+
+    with patch(
+        "app.services.escalation_workspace.notif_svc.notify_mention_users",
+        new=AsyncMock(return_value=MagicMock(recipient_ids=(), email_jobs=())),
+    ) as notify_mentions:
+        response = await sec_team_client.post(
+            f"/api/escalations/{escalation.id}/comments",
+            json={"content": [{"type": "mention", "user_id": mentioned.id}]},
+        )
+
+    assert response.status_code == 201
+    assert response.json()["content"][0]["display_name"] == "Alice Example"
+    assert notify_mentions.await_args.args[1] == [mentioned]
 
 
 async def test_add_escalation_comment_rejects_historical_row(
@@ -310,10 +356,10 @@ async def test_edit_scoped_comment_preserves_context_for_sec_team(
         escalation_id=esc.id,
         created_at=datetime(2026, 1, 2),
     )
-    author = User(id="sec-user-1", username="secadmin", email="s@x", role=UserRole.sec_team)
+    # update_cve_comment no longer re-queries the author (it uses the current
+    # user's display_name), so the sequence is: load comment, then escalation.
     mock_app_db.execute.side_effect = [
         _result(scalar_one=comment),
-        _result(scalar_one=author),
         _result(scalar_one=esc),
     ]
 

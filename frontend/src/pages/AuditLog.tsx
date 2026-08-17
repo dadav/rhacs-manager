@@ -286,7 +286,7 @@ export function AuditLog() {
                       <Td style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)', whiteSpace: 'nowrap' }}>
                         {formatDateTime(entry.created_at, i18n.language)}
                       </Td>
-                      <Td style={{ fontSize: 12 }}>{entry.username ?? '–'}</Td>
+                      <Td style={{ fontSize: 12 }}>{entry.display_name ?? entry.username ?? '–'}</Td>
                       <Td style={{ fontSize: 12 }}>
                         {actionLabel(entry.action)}
                       </Td>

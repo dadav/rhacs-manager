@@ -143,6 +143,14 @@ Other 4.11 rules:
 - `has_all_namespaces` comes from wildcard namespace visibility.
 - `can_see_all_namespaces` means `is_sec_team or has_all_namespaces`.
 
+### Identity vs. display name (project-wide convention)
+
+- `username` is the stable identity: globally unique (case-insensitive, `uq_users_username_lower`), the key for `@mention` resolution and audit records. Never render it as the primary name.
+- `full_name` (migration `022`, nullable, mutable, non-unique) is synced from the IdP on each sign-in: OIDC `name` then `given_name`+`family_name`; spoke reads the OpenShift User `fullName` via `X-Forwarded-Full-Name` (server-resolved, spoof-stripped); dev uses `DEV_USER_FULL_NAME`. A later login lacking a name never wipes an existing `full_name`.
+- `display_name` = trimmed `full_name` or `username` fallback. It exists as a property on both `User` and `CurrentUser`, and as the SQL `_DISPLAY_NAME` expression in `routers/auth.py` for search/order.
+- All user-facing output (masthead, comment/audit/presence authors, `*_by_name` fields, notifications, mail, PDF/Excel) uses `display_name`. Keep the raw `username` in responses too, but only pickers show it (as `@username` secondary text).
+- Audit `details` store stable user ids under `*_id` keys (e.g. `assigned_to_id`, `triggered_by_id`); the audit router resolves them to current display names on read. Never store username strings in new audit details.
+
 Access control rules:
 
 - Sec team sees org-wide CVEs, escalations, risk acceptances, and sec-team-only actions.
@@ -173,6 +181,7 @@ Access control rules:
 
 ### Comment mention rules
 
+- Comments store both a legacy `message` (`@[username]` text) and a nullable JSONB `content_segments` (ordered text/mention segments; mentions carry `user_id` + a username snapshot). Create/update accept exactly one of `message` (legacy, case-insensitive resolution via `notify_mentions`) or structured `content` (resolved by `user_id` via `notify_mention_users`, unknown ids rejected). Migration `022` backfills existing messages. Responses add enriched `content` (mention segments include current `display_name`) alongside `message`.
 - CVE, escalation-contact, and risk-acceptance comments resolve `@[username]` mentions case-insensitively via `notify_mentions` in `backend/app/notifications/service.py`.
 - `notify_mentions` excludes the author, unknown usernames, and duplicates; it returns a `MentionResult` (`recipient_ids` + immutable `MentionEmailJob`s). It creates in-app notification rows inside the caller's comment transaction and must not commit.
 - More than `MAX_MENTION_RECIPIENTS` (20) distinct non-self recipients in a single comment raises `ApiError(400, "too_many_mentions")` (checked against the full current message, not the edit delta).

@@ -26,7 +26,7 @@ import {
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatEpssPercent } from '../utils/format'
 import { TableSkeleton } from '../components/TableSkeleton'
-import { MentionTextArea } from '../components/MentionTextArea'
+import { MentionTextArea, contentToApi, contentIsEmpty, type ComposerSegment } from '../components/MentionTextArea'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -239,18 +239,18 @@ export function Escalations() {
   // --- Inline composer state ---
   const addComment = useAddEscalationComment()
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [drafts, setDrafts] = useState<Record<string, ComposerSegment[]>>({})
   const [rowError, setRowError] = useState<Record<string, string>>({})
 
-  function setDraft(id: string, value: string) {
+  function setDraft(id: string, value: ComposerSegment[]) {
     setDrafts(prev => ({ ...prev, [id]: value }))
   }
 
   async function submitComment(row: ActiveEscalationRow) {
-    const message = (drafts[row.id] ?? '').trim()
-    if (!message) return
+    const draft = drafts[row.id] ?? []
+    if (contentIsEmpty(draft)) return
     try {
-      await addComment.mutateAsync({ escalationId: row.id, message })
+      await addComment.mutateAsync({ escalationId: row.id, payload: { content: contentToApi(draft) } })
       // Success: drop the draft, collapse, hide from the default queue, toast.
       setDrafts(prev => {
         const next = { ...prev }
@@ -673,7 +673,7 @@ export function Escalations() {
                                     />
                                   )}
                                   <MentionTextArea
-                                    value={drafts[e.id] ?? ''}
+                                    value={drafts[e.id] ?? []}
                                     onChange={v => setDraft(e.id, v)}
                                     placeholder={t('escalations.composerPlaceholder')}
                                     rows={3}
@@ -683,7 +683,7 @@ export function Escalations() {
                                       variant="primary"
                                       size="sm"
                                       isLoading={addComment.isPending}
-                                      isDisabled={!(drafts[e.id] ?? '').trim() || addComment.isPending}
+                                      isDisabled={contentIsEmpty(drafts[e.id] ?? []) || addComment.isPending}
                                       onClick={() => submitComment(e)}
                                     >
                                       {t('escalations.recordContact')}

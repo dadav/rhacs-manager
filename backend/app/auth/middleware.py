@@ -96,14 +96,21 @@ class CurrentUser:
         namespaces: list[tuple[str, str]],
         onboarding_completed: bool = False,
         has_all_namespaces: bool = False,
+        full_name: str | None = None,
     ):
         self.id = id
         self.username = username
+        self.full_name = full_name
         self.email = email
         self.role = role
         self.namespaces = namespaces
         self.onboarding_completed = onboarding_completed
         self.has_all_namespaces = has_all_namespaces
+
+    @property
+    def display_name(self) -> str:
+        """Human-facing name: trimmed full_name, falling back to username."""
+        return (self.full_name or "").strip() or self.username
 
     @property
     def is_sec_team(self) -> bool:
@@ -160,6 +167,7 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
         user = User(
             id=user_data["id"],
             username=user_data["username"],
+            full_name=user_data.get("full_name"),
             email=user_data["email"],
             role=UserRole(user_data["role"]),
         )
@@ -176,6 +184,12 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     if user.username != user_data["username"]:
         await _assert_username_available(session, user_data["username"], user.id)
         user.username = user_data["username"]
+        updated = True
+    # Lazy full-name refresh: adopt a newly-provided name, but never wipe an
+    # existing name back to null when a later login lacks the claim/header.
+    desired_full_name = user_data.get("full_name")
+    if desired_full_name and user.full_name != desired_full_name:
+        user.full_name = desired_full_name
         updated = True
     if user.email != user_data["email"]:
         user.email = user_data["email"]
@@ -194,6 +208,7 @@ def _to_current_user(user: User, namespaces: list[tuple[str, str]], has_all_name
     return CurrentUser(
         id=user.id,
         username=user.username,
+        full_name=user.full_name,
         email=user.email,
         role=user.role,
         namespaces=namespaces,
@@ -214,6 +229,7 @@ async def _handle_dev_mode(session: AsyncSession) -> CurrentUser:
     user_data = {
         "id": settings.dev_user_id,
         "username": settings.dev_user_name,
+        "full_name": settings.dev_user_full_name.strip() or None,
         "email": settings.dev_user_email,
         "role": settings.dev_user_role,
     }
@@ -226,6 +242,7 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     """Authenticate requests from spoke proxy via X-Api-Key + X-Forwarded-* headers."""
     forwarded_user = request.headers.get("X-Forwarded-User", "")
     forwarded_email = request.headers.get("X-Forwarded-Email", "")
+    forwarded_full_name = request.headers.get("X-Forwarded-Full-Name", "").strip()
     forwarded_groups_raw = request.headers.get("X-Forwarded-Groups", "")
     forwarded_namespaces_raw = request.headers.get("X-Forwarded-Namespaces", "")
 
@@ -245,6 +262,7 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     user_data = {
         "id": user_id,
         "username": forwarded_user,
+        "full_name": forwarded_full_name or None,
         "email": forwarded_email or f"{forwarded_user}@spoke.local",
         "role": role.value,
     }
@@ -310,6 +328,17 @@ async def _get_oidc_signing_key(token: str) -> object:
     raise ApiError(401, "oidc_key_not_found")
 
 
+def _resolve_oidc_full_name(payload: dict) -> str | None:
+    """Standard OIDC displayable-name resolution: ``name``, then combined
+    ``given_name``/``family_name``. Returns None when no name claim is present;
+    display falls back to the username via ``display_name``."""
+    name = (payload.get("name") or "").strip()
+    if name:
+        return name
+    combined = f"{payload.get('given_name', '') or ''} {payload.get('family_name', '') or ''}".strip()
+    return combined or None
+
+
 async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUser:
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
@@ -359,6 +388,7 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
         user_data = {
             "id": user_id,
             "username": username,
+            "full_name": _resolve_oidc_full_name(payload),
             "email": email,
             "role": role.value,
         }

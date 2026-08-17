@@ -24,6 +24,7 @@ from ..models.cve_comment import CveComment
 from ..models.escalation import Escalation
 from ..notifications import service as notif_svc
 from ..schemas.cve import CveCommentResponse, EscalationContext
+from . import comment_service
 from .audit_service import log_action
 
 logger = logging.getLogger(__name__)
@@ -213,7 +214,8 @@ async def add_current_escalation_comment(
     *,
     current_user: CurrentUser,
     escalation_id: UUID,
-    message: str,
+    message: str | None = None,
+    content: list | None = None,
 ) -> tuple[CveCommentResponse, tuple[notif_svc.MentionEmailJob, ...]]:
     """Add a contact comment only when the target is the current workspace row.
 
@@ -241,18 +243,20 @@ async def add_current_escalation_comment(
     if current_id_result.scalar_one_or_none() != escalation.id:
         raise ApiError(409, "escalation_not_active")
 
+    prepared = await comment_service.prepare_comment(db, message=message, content=content)
     comment = CveComment(
         cve_id=escalation.cve_id,
         user_id=current_user.id,
-        message=message,
+        message=prepared.message,
+        content_segments=prepared.segments,
         escalation_id=escalation.id,
     )
     db.add(comment)
     await db.flush()
 
-    mention_result = await notif_svc.notify_mentions(
+    mention_result = await notif_svc.notify_mention_users(
         db,
-        message,
+        prepared.recipients,
         current_user,
         f"/vulnerabilities/{escalation.cve_id}#comment-{comment.id}",
         context_label=f"Eskalation {escalation.cve_id}",
@@ -290,7 +294,9 @@ async def add_current_escalation_comment(
         cve_id=comment.cve_id,
         user_id=comment.user_id,
         username=current_user.username,
+        display_name=current_user.display_name,
         message=comment.message,
+        content=prepared.content_for_response(),
         created_at=comment.created_at,
         updated_at=comment.updated_at,
         is_sec_team=True,

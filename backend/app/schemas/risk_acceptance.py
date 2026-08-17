@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..i18n import translate
+from .comment import CommentInput, ContentSegment
 
 
 class RiskScopeTarget(BaseModel):
@@ -49,8 +50,8 @@ class RiskAcceptanceAssign(BaseModel):
     user_id: str = Field(min_length=1)
 
 
-class CommentCreate(BaseModel):
-    message: str = Field(min_length=1, max_length=5000)
+class CommentCreate(CommentInput):
+    pass
 
 
 class CommentResponse(BaseModel):
@@ -60,7 +61,9 @@ class CommentResponse(BaseModel):
     risk_acceptance_id: UUID
     user_id: str
     username: str
+    display_name: str
     message: str
+    content: list[ContentSegment] | None = None
     created_at: datetime
     is_sec_team: bool = False
 

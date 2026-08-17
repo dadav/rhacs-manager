@@ -544,6 +544,7 @@ backend:
       DEV_MODE: "false"
       DEV_USER_ID: ""
       DEV_USER_NAME: ""
+      DEV_USER_FULL_NAME: ""
       DEV_USER_EMAIL: ""
       DEV_USER_ROLE: "team_member"
       DEV_USER_NAMESPACES: ""

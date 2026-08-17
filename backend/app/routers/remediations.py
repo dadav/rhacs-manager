@@ -55,11 +55,11 @@ def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
 def _build_response(r: Remediation) -> RemediationResponse:
     assignee_name = None
     if r.assigned_to:
-        assignee_name = r.assignee.username if r.assignee else r.assigned_to
+        assignee_name = r.assignee.display_name if r.assignee else r.assigned_to
 
     resolver_name = None
     if r.resolved_by:
-        resolver_name = r.resolver.username if r.resolver else r.resolved_by
+        resolver_name = r.resolver.display_name if r.resolver else r.resolved_by
 
     is_overdue = (
         r.target_date is not None
@@ -76,7 +76,7 @@ def _build_response(r: Remediation) -> RemediationResponse:
         assigned_to=r.assigned_to,
         assigned_to_name=assignee_name,
         created_by=r.created_by,
-        created_by_name=r.creator.username if r.creator else r.created_by,
+        created_by_name=r.creator.display_name if r.creator else r.created_by,
         resolved_by=r.resolved_by,
         resolved_by_name=resolver_name,
         target_date=r.target_date,

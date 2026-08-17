@@ -107,6 +107,7 @@ async def test_list_suppression_rules_with_results(
     creator_result = MagicMock()
     creator_mock = MagicMock()
     creator_mock.username = "secadmin"
+    creator_mock.display_name = "Sec Admin"
     creator_result.scalar_one_or_none.return_value = creator_mock
     mock_app_db.execute.side_effect = [result_mock, creator_result]
 

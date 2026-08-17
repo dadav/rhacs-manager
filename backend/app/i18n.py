@@ -77,6 +77,18 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Zu viele Erwähnungen (maximal {max} Empfänger)",
         "en": "Too many mentions (maximum {max} recipients)",
     },
+    "comment_content_required": {
+        "de": "Es muss genau eine Kommentardarstellung angegeben werden: 'message' oder 'content'",
+        "en": "Exactly one comment representation must be provided: 'message' or 'content'",
+    },
+    "comment_too_long": {
+        "de": "Kommentar ist zu lang (maximal 5000 Zeichen)",
+        "en": "Comment is too long (maximum 5000 characters)",
+    },
+    "unknown_mention_user": {
+        "de": "Erwähnter Benutzer existiert nicht: {user_id}",
+        "en": "Mentioned user does not exist: {user_id}",
+    },
     "username_conflict": {
         "de": "Benutzername '{username}' kollidiert (Groß-/Kleinschreibung) mit einem bestehenden Konto",
         "en": "Username '{username}' conflicts (case-insensitively) with an existing account",

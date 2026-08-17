@@ -21,6 +21,7 @@ class HeartbeatRequest(BaseModel):
 class Viewer(BaseModel):
     user_id: str
     username: str
+    display_name: str
 
 
 def _clean_stale(entity_key: str) -> None:
@@ -45,6 +46,7 @@ async def heartbeat(
         _viewers[key] = {}
     _viewers[key][current_user.id] = {
         "username": current_user.username,
+        "display_name": current_user.display_name,
         "last_seen": time.monotonic(),
     }
     _clean_stale(key)
@@ -60,4 +62,8 @@ async def get_viewers(
     key = f"{entity_type}:{entity_id}"
     _clean_stale(key)
     bucket = _viewers.get(key, {})
-    return [Viewer(user_id=uid, username=v["username"]) for uid, v in bucket.items() if uid != current_user.id]
+    return [
+        Viewer(user_id=uid, username=v["username"], display_name=v.get("display_name", v["username"]))
+        for uid, v in bucket.items()
+        if uid != current_user.id
+    ]

@@ -20,6 +20,7 @@ The spoke frontend deployment contains three containers:
 - Writes `X-Forwarded-Namespaces` as `namespace:cluster` pairs or `*` for wildcard access
 - Writes `X-Forwarded-Namespace-Emails` as `namespace:cluster=email@company.com` pairs
 - Writes `X-Forwarded-Groups` from the resolved OpenShift user groups
+- Writes `X-Forwarded-Full-Name` from the OpenShift User `fullName` (display only); any inbound value is stripped so it cannot be spoofed
 - If the user belongs to a configured `ALL_NAMESPACES_GROUPS` group, the injector emits `X-Forwarded-Namespaces: *` instead of enumerating namespaces
 
 !!! warning "Trust model"

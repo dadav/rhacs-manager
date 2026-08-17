@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { RiskAcceptance, RiskComment, RiskScope } from '../types'
+import type { CommentInput, RiskAcceptance, RiskComment, RiskScope } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const raKeys = {
@@ -103,8 +103,8 @@ export function useAssignReviewer(id: string) {
 export function useAddComment(raId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (message: string) =>
-      api.post<RiskComment>(`/risk-acceptances/${raId}/comments`, { message }),
+    mutationFn: (payload: CommentInput) =>
+      api.post<RiskComment>(`/risk-acceptances/${raId}/comments`, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: raKeys.comments(raId) })
       qc.invalidateQueries({ queryKey: raKeys.detail(raId) })

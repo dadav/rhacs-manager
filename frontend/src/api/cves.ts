@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, ImageCveGroup, ImageCveDetail } from '../types'
+import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, CommentInput, ImageCveGroup, ImageCveDetail } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
@@ -122,8 +122,8 @@ export function useCvesForImage(imageId: string, scope: ScopeParams = {}, filter
 export function useAddCveComment(cveId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (message: string) =>
-      api.post<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments`, { message }),
+    mutationFn: (payload: CommentInput) =>
+      api.post<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments`, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
   })
 }
@@ -131,8 +131,8 @@ export function useAddCveComment(cveId: string) {
 export function useEditCveComment(cveId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ commentId, message }: { commentId: string; message: string }) =>
-      api.patch<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`, { message }),
+    mutationFn: ({ commentId, payload }: { commentId: string; payload: CommentInput }) =>
+      api.patch<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
   })
 }

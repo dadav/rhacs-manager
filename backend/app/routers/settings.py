@@ -103,7 +103,7 @@ async def send_digest(
         "digest_manual_send",
         "settings",
         "",
-        {"triggered_by": current_user.username},
+        {"triggered_by_id": current_user.id},
     )
     await db.commit()
     return {"status": "sent"}

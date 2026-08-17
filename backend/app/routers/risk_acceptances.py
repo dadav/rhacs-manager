@@ -25,6 +25,7 @@ from ..schemas.risk_acceptance import (
 )
 from ..services import comment_service
 from ..services.audit_service import log_action
+from ..services.comment_content import enrich_segments
 from ..services.risk_acceptance_service import (
     get_scope_namespaces as _get_scope_namespaces,
 )
@@ -72,12 +73,12 @@ def _build_response(ra: RiskAcceptance, comment_count: int) -> RiskAcceptanceRes
         expires_at=ra.expires_at,
         created_at=ra.created_at,
         created_by=ra.created_by,
-        created_by_name=ra.creator.username if ra.creator else ra.created_by,
+        created_by_name=ra.creator.display_name if ra.creator else ra.created_by,
         reviewed_by=ra.reviewed_by,
-        reviewed_by_name=ra.reviewer.username if ra.reviewer else None,
+        reviewed_by_name=ra.reviewer.display_name if ra.reviewer else None,
         reviewed_at=ra.reviewed_at,
         assigned_to=ra.assigned_to,
-        assigned_to_name=ra.assignee.username if ra.assignee else None,
+        assigned_to_name=ra.assignee.display_name if ra.assignee else None,
         comment_count=comment_count,
     )
 
@@ -344,7 +345,7 @@ async def review_risk_acceptance(
                 ra.cve_id,
                 str(ra.id),
                 ra.status.value,
-                current_user.username,
+                current_user.display_name,
                 body.comment,
             )
         except Exception:
@@ -387,7 +388,7 @@ async def assign_reviewer(
         "risk_acceptance_assigned",
         "risk_acceptance",
         str(ra.id),
-        {"assigned_to": target_user.username},
+        {"assigned_to_id": target_user.id},
     )
 
     # Notify the assigned reviewer
@@ -396,7 +397,7 @@ async def assign_reviewer(
         body.user_id,
         notif_svc.NotificationType.risk_comment,
         f"Risikoakzeptanz zugewiesen: {ra.cve_id}",
-        f"{current_user.username} hat Ihnen die Prüfung der Risikoakzeptanz für {ra.cve_id} zugewiesen.",
+        f"{current_user.display_name} hat Ihnen die Prüfung der Risikoakzeptanz für {ra.cve_id} zugewiesen.",
         f"/risk-acceptances/{ra.id}",
     )
 
@@ -441,7 +442,7 @@ async def add_comment(
         raise ApiError(403, "forbidden")
 
     response, email_jobs = await comment_service.add_risk_acceptance_comment(
-        db, acceptance=ra, message=body.message, current_user=current_user
+        db, acceptance=ra, message=body.message, content=body.content, current_user=current_user
     )
     if email_jobs:
         background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
@@ -468,9 +469,8 @@ async def list_comments(
     )
     comments = comments_result.scalars().all()
 
-    user_ids = list({c.user_id for c in comments})
-    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    users = {u.id: u for u in users_result.scalars().all()}
+    users = await comment_service.load_comment_users(db, comments)
+    display_by_id = comment_service.display_map(users)
 
     from ..models.user import UserRole
 
@@ -480,7 +480,9 @@ async def list_comments(
             risk_acceptance_id=c.risk_acceptance_id,
             user_id=c.user_id,
             username=users[c.user_id].username if c.user_id in users else c.user_id,
+            display_name=users[c.user_id].display_name if c.user_id in users else c.user_id,
             message=c.message,
+            content=enrich_segments(c.content_segments, display_by_id),
             created_at=c.created_at,
             is_sec_team=users[c.user_id].role == UserRole.sec_team if c.user_id in users else False,
         )

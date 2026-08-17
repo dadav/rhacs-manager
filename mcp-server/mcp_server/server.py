@@ -72,6 +72,7 @@ def _extract_auth(ctx: Context) -> AuthContext:
         )
     auth = AuthContext(
         forwarded_user=user,
+        forwarded_full_name=headers.get("x-forwarded-full-name", ""),
         forwarded_groups=headers.get("x-forwarded-groups", ""),
         forwarded_namespaces=headers.get("x-forwarded-namespaces", ""),
         forwarded_namespace_emails=headers.get("x-forwarded-namespace-emails", ""),

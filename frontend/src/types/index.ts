@@ -164,12 +164,26 @@ export interface EscalationContext {
   level: number
 }
 
+export type CommentContentSegment =
+  | { type: 'text'; text: string }
+  | { type: 'mention'; user_id: string; username: string; display_name: string }
+
+// Wire form sent when creating/editing a comment (no derived display_name).
+export type CommentInputSegment =
+  | { type: 'text'; text: string }
+  | { type: 'mention'; user_id: string; username: string }
+
+export type CommentInput = { content: CommentInputSegment[] }
+
 export interface CveComment {
   id: string
   cve_id: string
   user_id: string
   username: string
+  display_name: string
   message: string
+  // Enriched structured content; null for legacy rows never backfilled.
+  content?: CommentContentSegment[] | null
   created_at: string
   updated_at: string | null
   is_sec_team: boolean
@@ -214,7 +228,9 @@ export interface RiskComment {
   risk_acceptance_id: string
   user_id: string
   username: string
+  display_name: string
   message: string
+  content?: CommentContentSegment[] | null
   created_at: string
   is_sec_team: boolean
 }
@@ -249,6 +265,8 @@ export interface UserNamespace {
 export interface User {
   id: string
   username: string
+  full_name: string | null
+  display_name: string
   email: string
   role: UserRole
   is_sec_team: boolean
@@ -455,6 +473,7 @@ export interface AuditEntry {
   id: string
   user_id: string | null
   username: string | null
+  display_name: string | null
   action: string
   entity_type: string
   entity_id: string | null

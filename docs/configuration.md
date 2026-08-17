@@ -29,7 +29,8 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 |----------|---------|-------------|
 | `DEV_MODE` | `true` | Enable local auth bypass |
 | `DEV_USER_ID` | `dev-user-1` | Dev user ID |
-| `DEV_USER_NAME` | `Dev User` | Dev display name |
+| `DEV_USER_NAME` | `Dev User` | Dev **username** (stable identity, used for `@mention` fallback) |
+| `DEV_USER_FULL_NAME` | `""` | Optional dev **full name** shown in the UI. Empty falls back to the username |
 | `DEV_USER_EMAIL` | `dev@example.com` | Dev email |
 | `DEV_USER_ROLE` | `sec_team` | `sec_team` or `team_member` |
 | `DEV_USER_NAMESPACES` | `""` | `ns1:cluster1,ns2:cluster2` or `*` for all namespaces |

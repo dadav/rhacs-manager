@@ -37,7 +37,14 @@ import { usePresence } from "../api/presence";
 import { ViewerIndicator } from "../components/ViewerIndicator";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
-import { MentionTextArea, renderMentions } from "../components/MentionTextArea";
+import {
+  MentionTextArea,
+  renderContent,
+  contentToApi,
+  contentIsEmpty,
+  apiToContent,
+  type ComposerSegment,
+} from "../components/MentionTextArea";
 import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { CveLifecycleTimeline } from "../components/CveLifecycleTimeline";
 import { CveRemediationSection } from "../components/CveRemediation";
@@ -190,9 +197,9 @@ export function CveDetail() {
   const addComment = useAddCveComment(cveId ?? "");
   const editComment = useEditCveComment(cveId ?? "");
   const deleteComment = useDeleteCveComment(cveId ?? "");
-  const [newComment, setNewComment] = useState("");
+  const [newComment, setNewComment] = useState<ComposerSegment[]>([]);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editingMessage, setEditingMessage] = useState("");
+  const [editingContent, setEditingContent] = useState<ComposerSegment[]>([]);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deploymentFilter, setDeploymentFilter] = useState("");
@@ -273,9 +280,9 @@ export function CveDetail() {
 
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
-    if (!newComment.trim()) return;
-    await addComment.mutateAsync(newComment);
-    setNewComment("");
+    if (contentIsEmpty(newComment)) return;
+    await addComment.mutateAsync({ content: contentToApi(newComment) });
+    setNewComment([]);
   }
 
   if (isLoading)
@@ -1048,7 +1055,7 @@ export function CveDetail() {
                                   : "var(--pf-t--global--text--color--regular)",
                               }}
                             >
-                              {c.username}
+                              {c.display_name}
                               {c.is_sec_team && (
                                 <span
                                   style={{
@@ -1128,7 +1135,11 @@ export function CveDetail() {
                                       icon={<PencilAltIcon />}
                                       onClick={() => {
                                         setEditingCommentId(c.id);
-                                        setEditingMessage(c.message);
+                                        setEditingContent(
+                                          c.content
+                                            ? apiToContent(c.content)
+                                            : [{ type: "text", text: c.message }],
+                                        );
                                       }}
                                     >
                                       {t('cveDetail.editComment')}
@@ -1150,8 +1161,8 @@ export function CveDetail() {
                           {isEditing ? (
                             <div>
                               <MentionTextArea
-                                value={editingMessage}
-                                onChange={setEditingMessage}
+                                value={editingContent}
+                                onChange={setEditingContent}
                                 rows={3}
                                 style={{ marginBottom: 8 }}
                               />
@@ -1160,11 +1171,14 @@ export function CveDetail() {
                                   variant="primary"
                                   size="sm"
                                   isLoading={editComment.isPending}
-                                  isDisabled={!editingMessage.trim() || editingMessage === c.message}
+                                  isDisabled={contentIsEmpty(editingContent)}
                                   onClick={async () => {
-                                    await editComment.mutateAsync({ commentId: c.id, message: editingMessage });
+                                    await editComment.mutateAsync({
+                                      commentId: c.id,
+                                      payload: { content: contentToApi(editingContent) },
+                                    });
                                     setEditingCommentId(null);
-                                    setEditingMessage("");
+                                    setEditingContent([]);
                                   }}
                                 >
                                   {t('cveDetail.saveComment')}
@@ -1172,7 +1186,7 @@ export function CveDetail() {
                                 <Button
                                   variant="link"
                                   size="sm"
-                                  onClick={() => { setEditingCommentId(null); setEditingMessage(""); }}
+                                  onClick={() => { setEditingCommentId(null); setEditingContent([]); }}
                                 >
                                   {t('cveDetail.cancelEdit')}
                                 </Button>
@@ -1220,7 +1234,7 @@ export function CveDetail() {
                                 lineHeight: 1.5,
                               }}
                             >
-                              {renderMentions(c.message)}
+                              {renderContent(c.content, c.message)}
                             </p>
                           )}
                         </div>
@@ -1250,7 +1264,7 @@ export function CveDetail() {
                     type="submit"
                     variant="secondary"
                     isLoading={addComment.isPending}
-                    isDisabled={!newComment.trim()}
+                    isDisabled={contentIsEmpty(newComment)}
                   >
                     {t('cveDetail.sendComment')}
                   </Button>

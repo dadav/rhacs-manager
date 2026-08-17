@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .comment import CommentInput, ContentSegment
+
 
 class SeverityLevel(int, enum.Enum):
     UNKNOWN = 0
@@ -177,12 +179,12 @@ class CveListParams(BaseModel):
     sort_desc: bool = True
 
 
-class CveCommentCreate(BaseModel):
-    message: str = Field(min_length=1, max_length=5000)
+class CveCommentCreate(CommentInput):
+    pass
 
 
-class CveCommentUpdate(BaseModel):
-    message: str = Field(min_length=1, max_length=5000)
+class CveCommentUpdate(CommentInput):
+    pass
 
 
 class EscalationContext(BaseModel):
@@ -203,7 +205,12 @@ class CveCommentResponse(BaseModel):
     cve_id: str
     user_id: str
     username: str
+    # Current display name of the comment author (full_name or username fallback).
+    display_name: str
     message: str
+    # Enriched, ordered content segments; mention segments carry the current
+    # display_name. Null for legacy rows that were never backfilled.
+    content: list[ContentSegment] | None = None
     created_at: datetime
     updated_at: datetime | None = None
     is_sec_team: bool = False

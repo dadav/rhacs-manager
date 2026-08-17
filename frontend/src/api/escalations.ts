@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api } from './client'
 import type {
   ActiveSearchResponse,
+  CommentInput,
   CveComment,
   Escalation,
   UpcomingEscalation,
@@ -87,8 +88,8 @@ export function useUpcomingEscalationSearch(params: UpcomingSearchParams) {
 export function useAddEscalationComment() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ escalationId, message }: { escalationId: string; message: string }) =>
-      api.post<CveComment>(`/escalations/${escalationId}/comments`, { message }),
+    mutationFn: ({ escalationId, payload }: { escalationId: string; payload: CommentInput }) =>
+      api.post<CveComment>(`/escalations/${escalationId}/comments`, payload),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['escalations'] }),

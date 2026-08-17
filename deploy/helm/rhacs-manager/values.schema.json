@@ -425,6 +425,11 @@
                   "title": "DEV_USER_EMAIL",
                   "type": "string"
                 },
+                "DEV_USER_FULL_NAME": {
+                  "default": "",
+                  "title": "DEV_USER_FULL_NAME",
+                  "type": "string"
+                },
                 "DEV_USER_ID": {
                   "default": "",
                   "title": "DEV_USER_ID",
@@ -518,6 +523,7 @@
                 "DEV_MODE",
                 "DEV_USER_ID",
                 "DEV_USER_NAME",
+                "DEV_USER_FULL_NAME",
                 "DEV_USER_EMAIL",
                 "DEV_USER_ROLE",
                 "DEV_USER_NAMESPACES",

@@ -5,6 +5,7 @@ import { api } from "./client";
 interface Viewer {
   user_id: string;
   username: string;
+  display_name: string;
 }
 
 const HEARTBEAT_INTERVAL = 15_000; // 15s

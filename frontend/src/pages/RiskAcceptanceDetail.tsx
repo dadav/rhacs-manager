@@ -15,7 +15,13 @@ import {
   TextInput,
   Title,
 } from '@patternfly/react-core'
-import { MentionTextArea, renderMentions } from '../components/MentionTextArea'
+import {
+  MentionTextArea,
+  renderContent,
+  contentToApi,
+  contentIsEmpty,
+  type ComposerSegment,
+} from '../components/MentionTextArea'
 import { ViewerIndicator } from '../components/ViewerIndicator'
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatDateTime } from '../utils/format'
@@ -529,7 +535,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const review = useReviewRiskAcceptance(id)
   const assignReviewer = useAssignReviewer(id)
   const cancelRA = useCancelRiskAcceptance(id)
-  const [newComment, setNewComment] = useState('')
+  const [newComment, setNewComment] = useState<ComposerSegment[]>([])
   const [reviewError, setReviewError] = useState('')
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelError, setCancelError] = useState('')
@@ -582,9 +588,9 @@ function RiskAcceptanceView({ id }: { id: string }) {
 
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault()
-    if (!newComment.trim()) return
-    await addComment.mutateAsync(newComment)
-    setNewComment('')
+    if (contentIsEmpty(newComment)) return
+    await addComment.mutateAsync({ content: contentToApi(newComment) })
+    setNewComment([])
     addToast(t('toast.commentPosted'))
   }
 
@@ -757,12 +763,14 @@ function RiskAcceptanceView({ id }: { id: string }) {
                               style={{
                                 padding: '6px 12px',
                                 cursor: 'pointer',
-                                fontSize: 13,
+                                display: 'flex',
+                                flexDirection: 'column',
                               }}
                               onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--pf-t--global--background--color--secondary--default)' }}
                               onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                             >
-                              {user.username}
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>{user.display_name || user.username}</span>
+                              <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>@{user.username}</span>
                             </div>
                           ))}
                         </div>
@@ -813,7 +821,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: c.is_sec_team ? 'var(--pf-t--global--color--blue--default)' : 'var(--pf-t--global--text--color--regular)' }}>
-                            {c.username}
+                            {c.display_name}
                             {c.is_sec_team && (
                               <span style={{ marginLeft: 6, fontSize: 10, background: '#0066cc', color: '#fff', padding: '1px 5px', borderRadius: 3 }}>
                                 {t('cveDetail.secLabel')}
@@ -824,7 +832,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                             {formatDateTime(c.created_at, i18n.language)}
                           </span>
                         </div>
-                        <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{renderMentions(c.message)}</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{renderContent(c.content, c.message)}</p>
                       </div>
                     ))}
                   </div>
@@ -841,7 +849,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     placeholder={t('riskAcceptance.commentPlaceholder')}
                     style={{ marginBottom: 8 }}
                   />
-                  <Button type="submit" variant="secondary" isLoading={addComment.isPending} isDisabled={!newComment.trim()}>
+                  <Button type="submit" variant="secondary" isLoading={addComment.isPending} isDisabled={contentIsEmpty(newComment)}>
                     {t('riskAcceptance.addComment')}
                   </Button>
                 </form>

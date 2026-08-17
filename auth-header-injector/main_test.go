@@ -29,11 +29,11 @@ func newTestCache(userToNS, groupToNS map[string][]string) *nsCache {
 
 // serve runs one request through newProxyHandler and returns the headers the
 // upstream observed. fetchGroups stubs the OpenShift group lookup.
-func serve(t *testing.T, cfg config, cache *nsCache, fetchGroups func(string) ([]string, error), reqHeaders map[string]string) http.Header {
+func serve(t *testing.T, cfg config, cache *nsCache, fetchInfo func(string) ([]string, string, error), reqHeaders map[string]string) http.Header {
 	t.Helper()
 	cfg.ClusterName = "cluster-a"
 	rec := &recordingHandler{}
-	handler := newProxyHandler(rec, cache, newTokenGroupsCache(time.Minute), cfg, fetchGroups)
+	handler := newProxyHandler(rec, cache, newTokenGroupsCache(time.Minute), cfg, fetchInfo)
 
 	req := httptest.NewRequest(http.MethodGet, "/cves", nil)
 	for k, v := range reqHeaders {
@@ -47,7 +47,7 @@ func serve(t *testing.T, cfg config, cache *nsCache, fetchGroups func(string) ([
 	return rec.got
 }
 
-func noGroups(string) ([]string, error) { return nil, nil }
+func noGroups(string) ([]string, string, error) { return nil, "", nil }
 
 func TestSpoofedForwardedGroupsIgnoredWhenUntrusted(t *testing.T) {
 	cfg := config{TrustForwardedGroups: false, AllNamespacesGroups: []string{"sec-team"}}
@@ -85,9 +85,9 @@ func TestTrustedFallbackNotUsedWhenTokenGroupsPresent(t *testing.T) {
 	cache := newTestCache(nil, map[string][]string{"dev-team": {"payments"}})
 
 	// Token lookup returns real groups; the spoofed sec-team header must be ignored.
-	fetchGroups := func(string) ([]string, error) { return []string{"dev-team"}, nil }
+	fetchInfo := func(string) ([]string, string, error) { return []string{"dev-team"}, "", nil }
 
-	got := serve(t, cfg, cache, fetchGroups, map[string]string{
+	got := serve(t, cfg, cache, fetchInfo, map[string]string{
 		"X-Forwarded-User":         "alice",
 		"X-Forwarded-Access-Token": "tok",
 		"X-Forwarded-Groups":       "sec-team",
@@ -118,6 +118,51 @@ func TestNoUserForcesEmptyHeaders(t *testing.T) {
 		if v := got.Get(h); v != "" {
 			t.Errorf("%s should be forced empty for no-user requests, got %q", h, v)
 		}
+	}
+}
+
+func TestFullNameForwardedFromUserAPI(t *testing.T) {
+	cfg := config{TrustForwardedGroups: false}
+	cache := newTestCache(map[string][]string{"alice": {"payments"}}, nil)
+
+	fetchInfo := func(string) ([]string, string, error) { return nil, "Alice Example", nil }
+
+	got := serve(t, cfg, cache, fetchInfo, map[string]string{
+		"X-Forwarded-User":         "alice",
+		"X-Forwarded-Access-Token": "tok",
+	})
+
+	if fn := got.Get("X-Forwarded-Full-Name"); fn != "Alice Example" {
+		t.Errorf("expected resolved full name, got %q", fn)
+	}
+}
+
+func TestSpoofedFullNameStripped(t *testing.T) {
+	cfg := config{TrustForwardedGroups: false}
+	cache := newTestCache(map[string][]string{"alice": {"payments"}}, nil)
+
+	// No token lookup -> no server-resolved name; the spoofed inbound value must
+	// never reach the upstream.
+	got := serve(t, cfg, cache, noGroups, map[string]string{
+		"X-Forwarded-User":      "alice",
+		"X-Forwarded-Full-Name": "Administrator",
+	})
+
+	if fn := got.Get("X-Forwarded-Full-Name"); fn != "" {
+		t.Errorf("spoofed full name was not stripped: got %q", fn)
+	}
+}
+
+func TestFullNameClearedForNoUser(t *testing.T) {
+	cfg := config{TrustForwardedGroups: true}
+	cache := newTestCache(nil, nil)
+
+	got := serve(t, cfg, cache, noGroups, map[string]string{
+		"X-Forwarded-Full-Name": "Administrator",
+	})
+
+	if fn := got.Get("X-Forwarded-Full-Name"); fn != "" {
+		t.Errorf("full name should be stripped for no-user requests, got %q", fn)
 	}
 }
 

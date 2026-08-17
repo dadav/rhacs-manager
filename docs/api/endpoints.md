@@ -7,8 +7,20 @@ All endpoints are prefixed with `/api`.
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/api/auth/me` | Any authenticated user | Current user profile |
+| GET | `/api/auth/users/search` | Any authenticated user | Type-ahead user search for mention/assignee pickers |
 
-`GET /api/auth/me` includes `has_all_namespaces` so the frontend can distinguish wildcard visibility from `sec_team`.
+`GET /api/auth/me` includes `has_all_namespaces` so the frontend can distinguish wildcard visibility from `sec_team`. It also returns `full_name` (nullable, from the identity provider) and `display_name` (the trimmed `full_name`, falling back to `username`).
+
+`GET /api/auth/users/search?q=...` matches both `full_name` and `username` case-insensitively and ranks full-name prefix matches first, then username prefixes, then other matches. Each result carries `id`, `username`, `full_name`, and `display_name`; pickers show the `display_name` as the primary label and `@username` as a secondary disambiguator.
+
+### Identity and comment content
+
+Every attribution field in the API keeps the stable `username` and adds/uses a `display_name` (the current `full_name`, or `username` when unset). Comment responses expose both the legacy `message` (`@[username]` text) and an enriched, ordered `content` array whose mention segments carry `user_id`, `username`, and the current `display_name`.
+
+Comment create/update requests accept **exactly one** representation:
+
+- Legacy: `{ "message": "hi @[alice]" }`, with usernames resolved case-insensitively.
+- Structured: `{ "content": [ { "type": "text", "text": "hi " }, { "type": "mention", "user_id": "..." } ] }`, with mentions resolved by stable `user_id`; an unknown id is rejected.
 
 ## CVEs
 
@@ -197,7 +209,8 @@ Returns `{ items, total, page, page_size }`.
 
 ### `POST /api/escalations/{escalation_id}/comments`
 
-Sec-team only. Body is the standard comment body (`{ "message": "..." }`). Creates
+Sec-team only. Body is the standard comment body (`{ "message": "..." }` or the
+structured `{ "content": [...] }` form). Creates
 a normal CVE comment linked to the escalation, preserves `@mention`
 notifications, and writes a text-free audit entry (`escalation_comment_created`).
 The target must still be the current highest-level row for its CVE, cluster, and

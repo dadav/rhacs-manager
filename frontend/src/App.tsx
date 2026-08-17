@@ -192,7 +192,7 @@ export function App() {
           }}
         >
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-            {user.username}
+            {user.display_name}
             {isSecTeam && (
               <Tooltip content={t("app.secTeamRole")} position="bottom">
                 <span

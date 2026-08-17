@@ -18,6 +18,7 @@ def client():
 def auth():
     return AuthContext(
         forwarded_user="testuser",
+        forwarded_full_name="Test User",
         forwarded_groups="group-a,group-b",
         forwarded_namespaces="payments:cluster-a,frontend:cluster-a",
         forwarded_namespace_emails="payments:cluster-a=team@example.com",
@@ -46,6 +47,7 @@ class TestAuthContext:
     def test_to_headers_includes_forwarded_headers(self, auth):
         headers = auth.to_headers()
         assert headers["X-Forwarded-User"] == "testuser"
+        assert headers["X-Forwarded-Full-Name"] == "Test User"
         assert headers["X-Forwarded-Groups"] == "group-a,group-b"
         assert headers["X-Forwarded-Namespaces"] == "payments:cluster-a,frontend:cluster-a"
         assert headers["X-Forwarded-Namespace-Emails"] == "payments:cluster-a=team@example.com"

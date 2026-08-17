@@ -1,5 +1,4 @@
 import logging
-import re
 from dataclasses import dataclass
 
 from email_validator import EmailNotValidError, validate_email
@@ -10,8 +9,7 @@ from ..config import settings
 from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
-
-_MENTION_RE = re.compile(r"@\[([^\]]+)\]")
+from ..services.comment_content import legacy_mention_names
 
 # Hard cap on distinct, non-self recipients per comment. Guards against a single
 # comment fanning out to the whole org.
@@ -90,7 +88,7 @@ async def notify_risk_comment(
     excluded = exclude_user_ids or set()
     link = f"/risk-acceptances/{acceptance.id}"
     title = f"Neuer Kommentar: {acceptance.cve_id}"
-    msg = f"{author.username} hat einen Kommentar hinterlassen."
+    msg = f"{author.display_name} hat einen Kommentar hinterlassen."
 
     if author.role == UserRole.team_member:
         # Notify sec team
@@ -197,7 +195,7 @@ async def notify_remediation_created(
     link = "/remediations"
     title = f"Neue Behebung: {remediation.cve_id}"
     msg = (
-        f"{creator.username} hat eine Behebung für {remediation.cve_id}"
+        f"{creator.display_name} hat eine Behebung für {remediation.cve_id}"
         f" in {remediation.namespace}/{remediation.cluster_name} erstellt."
     )
 
@@ -271,7 +269,7 @@ async def notify_suppression_requested(
     target = rule.cve_id if rule.cve_id else rule.component_name
     link = "/suppression-rules"
     title = f"Neue Unterdrückungsanfrage: {target}"
-    msg = f"{creator.username} hat eine Unterdrückungsregel für {target} beantragt."
+    msg = f"{creator.display_name} hat eine Unterdrückungsregel für {target} beantragt."
 
     for user in await _get_sec_team_users(session):
         if user.id != creator.id:
@@ -308,7 +306,89 @@ async def notify_suppression_status_change(
 
 def _mention_names(message: str) -> set[str]:
     """Return the distinct, lower-cased usernames mentioned as ``@[name]``."""
-    return {name.lower() for name in _MENTION_RE.findall(message)}
+    return legacy_mention_names(message)
+
+
+async def _emit_mentions(
+    session: AsyncSession,
+    to_notify: list[User],
+    author: User,
+    link: str,
+    context_label: str,
+) -> MentionResult:
+    """Create in-app rows and build post-commit email jobs for ``to_notify``.
+
+    Shared tail of the username- and user-id-based mention entry points. The
+    author's current ``display_name`` is what recipients see.
+    """
+    title = f"Erwähnung von {author.display_name}"
+    msg = f"{author.display_name} hat Sie in einem Kommentar erwähnt."
+    absolute_link = f"{settings.app_base_url.rstrip('/')}/{link.lstrip('/')}"
+
+    recipient_ids: list[str] = []
+    email_jobs: list[MentionEmailJob] = []
+    for user in to_notify:
+        await create_notification(session, user.id, NotificationType.mention, title, msg, link)
+        recipient_ids.append(user.id)
+
+        # Invalid/placeholder addresses get the in-app notification only; syntax
+        # validation without DNS keeps this cheap and offline-safe.
+        try:
+            validated_email = validate_email(user.email or "", check_deliverability=False).normalized
+        except EmailNotValidError as exc:
+            logger.warning(
+                "Skipping mention email: invalid recipient address",
+                extra={"user_id": user.id, "reason": str(exc)},
+            )
+            continue
+        email_jobs.append(
+            MentionEmailJob(
+                to_email=validated_email,
+                recipient_id=user.id,
+                author_name=author.display_name,
+                context_label=context_label,
+                link=absolute_link,
+            )
+        )
+
+    return MentionResult(recipient_ids=tuple(recipient_ids), email_jobs=tuple(email_jobs))
+
+
+async def notify_mention_users(
+    session: AsyncSession,
+    recipients: list[User],
+    author: User,
+    link: str,
+    *,
+    context_label: str,
+    previously_notified_ids: set[str] | None = None,
+) -> MentionResult:
+    """User-id-based mention notification (structured-content path).
+
+    ``recipients`` are already-resolved ``User`` rows for the mention segments.
+    The author is excluded, recipients are de-duplicated by id, and the same
+    ``MAX_MENTION_RECIPIENTS`` cap and edit-delta semantics apply as the
+    username-based path, here keyed on stable user ids rather than usernames.
+    """
+    from ..i18n import ApiError
+
+    seen: set[str] = set()
+    resolved: list[User] = []
+    for user in recipients:
+        if user.id == author.id or user.id in seen:
+            continue
+        seen.add(user.id)
+        resolved.append(user)
+
+    if len(resolved) > MAX_MENTION_RECIPIENTS:
+        raise ApiError(400, "too_many_mentions", max=MAX_MENTION_RECIPIENTS)
+
+    previous = previously_notified_ids or set()
+    to_notify = [u for u in resolved if u.id not in previous]
+    if not to_notify:
+        return MentionResult(recipient_ids=(), email_jobs=())
+
+    return await _emit_mentions(session, to_notify, author, link, context_label)
 
 
 async def notify_mentions(
@@ -358,34 +438,4 @@ async def notify_mentions(
     if not to_notify:
         return MentionResult(recipient_ids=(), email_jobs=())
 
-    title = f"Erwähnung von {author.username}"
-    msg = f"{author.username} hat Sie in einem Kommentar erwähnt."
-    absolute_link = f"{settings.app_base_url.rstrip('/')}/{link.lstrip('/')}"
-
-    recipient_ids: list[str] = []
-    email_jobs: list[MentionEmailJob] = []
-    for user in to_notify:
-        await create_notification(session, user.id, NotificationType.mention, title, msg, link)
-        recipient_ids.append(user.id)
-
-        # Invalid/placeholder addresses get the in-app notification only; syntax
-        # validation without DNS keeps this cheap and offline-safe.
-        try:
-            validated_email = validate_email(user.email or "", check_deliverability=False).normalized
-        except EmailNotValidError as exc:
-            logger.warning(
-                "Skipping mention email: invalid recipient address",
-                extra={"user_id": user.id, "reason": str(exc)},
-            )
-            continue
-        email_jobs.append(
-            MentionEmailJob(
-                to_email=validated_email,
-                recipient_id=user.id,
-                author_name=author.username,
-                context_label=context_label,
-                link=absolute_link,
-            )
-        )
-
-    return MentionResult(recipient_ids=tuple(recipient_ids), email_jobs=tuple(email_jobs))
+    return await _emit_mentions(session, to_notify, author, link, context_label)

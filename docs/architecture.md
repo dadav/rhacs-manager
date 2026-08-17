@@ -155,8 +155,9 @@ Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE
 
 | Header | Purpose |
 |--------|---------|
-| `X-Forwarded-User` | Username (required) |
+| `X-Forwarded-User` | Username, the stable identity (required) |
 | `X-Forwarded-Email` | Email address |
+| `X-Forwarded-Full-Name` | Display full name from the OpenShift User `fullName`, resolved server-side by auth-header-injector (any inbound value is stripped). Optional; display falls back to the username |
 | `X-Forwarded-Groups` | Comma-separated group list |
 | `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs or `*` (set by auth-header-injector) |
 | `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by auth-header-injector) |
@@ -216,11 +217,23 @@ The auth-header-injector emits:
 
 **`CurrentUser` carries:**
 
-- `id`, `username`, `email`, `role` (persisted in DB)
+- `id`, `username`, `full_name`, `email`, `role` (persisted in DB)
+- `display_name` (derived: trimmed `full_name`, else `username`)
 - `namespaces: list[tuple[str, str]]` (from `X-Forwarded-Namespaces` header, NOT persisted)
 - `is_sec_team` (derived from `sec_team_group` config via `X-Forwarded-Groups`)
 - `has_all_namespaces` (derived from wildcard `*` access)
 - `can_see_all_namespaces` (`is_sec_team or has_all_namespaces`)
+
+### Identity vs. display name
+
+`username` is the **stable identity**: it is globally unique (case-insensitive),
+never changes silently, and is what `@mention` resolution and audit records key
+on. `full_name` is a **mutable, non-unique** human name synced from the identity
+provider (OIDC `name`/`given_name`+`family_name`, or the OpenShift User
+`fullName` in spoke mode). Everything user-facing shows `display_name`
+(`full_name` or the `username` fallback); usernames appear only as a secondary
+disambiguator inside user pickers. Full names are adopted on the user's next
+sign-in and never wiped back to null by a later login that lacks the claim.
 
 `ALL_NAMESPACES_GROUPS` on the spoke injector maps one or more OpenShift groups to wildcard namespace access. This does not grant sec-team-only permissions.
 

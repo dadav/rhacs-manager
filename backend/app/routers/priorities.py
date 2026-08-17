@@ -24,7 +24,7 @@ def _build_response(p: CvePriority) -> PriorityResponse:
         priority=p.priority,
         reason=p.reason,
         set_by=p.set_by,
-        set_by_name=p.setter.username if p.setter else p.set_by,
+        set_by_name=p.setter.display_name if p.setter else p.set_by,
         deadline=p.deadline,
         created_at=p.created_at,
         updated_at=p.updated_at,

@@ -45,23 +45,27 @@ vi.mock('../components/TableSkeleton', () => ({
   TableSkeleton: () => <div data-testid="table-skeleton" />,
 }))
 
+type MockSeg = { type: string; text?: string }
+
 vi.mock('../components/MentionTextArea', () => ({
   MentionTextArea: ({
     value,
     onChange,
     placeholder,
   }: {
-    value: string
-    onChange: (v: string) => void
+    value: MockSeg[]
+    onChange: (v: MockSeg[]) => void
     placeholder?: string
   }) => (
     <textarea
       aria-label="composer"
-      value={value}
+      value={value.map(s => s.text ?? '').join('')}
       placeholder={placeholder}
-      onChange={e => onChange(e.target.value)}
+      onChange={e => onChange([{ type: 'text', text: e.target.value }])}
     />
   ),
+  contentToApi: (segs: MockSeg[]) => segs,
+  contentIsEmpty: (segs: MockSeg[]) => !segs.some(s => (s.text ?? '').trim() !== ''),
 }))
 
 // --- Helpers ---
@@ -209,7 +213,12 @@ describe('Escalations', () => {
     // Submit.
     fireEvent.click(screen.getByText('escalations.recordContact'))
 
-    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledWith({ escalationId: 'esc-1', message: 'contacted the team' }))
+    await waitFor(() =>
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        escalationId: 'esc-1',
+        payload: { content: [{ type: 'text', text: 'contacted the team' }] },
+      }),
+    )
     expect(mockAddToast).toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByText('CVE-2024-0001')).not.toBeInTheDocument())
   })

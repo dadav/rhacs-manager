@@ -53,7 +53,9 @@ def _build_conditions(
                 AuditLog.action.ilike(pattern),
                 AuditLog.entity_type.ilike(pattern),
                 AuditLog.entity_id.ilike(pattern),
-                AuditLog.user_id.in_(select(User.id).where(User.username.ilike(pattern))),
+                AuditLog.user_id.in_(
+                    select(User.id).where(or_(User.username.ilike(pattern), User.full_name.ilike(pattern)))
+                ),
             )
         )
     if date_from:
@@ -63,13 +65,35 @@ def _build_conditions(
     return conditions
 
 
-async def _resolve_usernames(db: AsyncSession, entries: list[AuditLog]) -> dict[str, str]:
-    """Map user_id -> username for the given entries in a single query."""
-    user_ids = list({e.user_id for e in entries if e.user_id})
+# Audit detail keys that hold a stable user id and their user-facing companion.
+_DETAIL_USER_ID_KEYS = {"assigned_to_id": "assigned_to", "triggered_by_id": "triggered_by"}
+
+
+async def _resolve_users(db: AsyncSession, entries: list[AuditLog]) -> dict[str, User]:
+    """Map user_id -> User for the actors and any user ids referenced in details."""
+    user_ids: set[str] = {e.user_id for e in entries if e.user_id}
+    for e in entries:
+        details = e.details or {}
+        for id_key in _DETAIL_USER_ID_KEYS:
+            val = details.get(id_key)
+            if isinstance(val, str):
+                user_ids.add(val)
     if not user_ids:
         return {}
     users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    return {u.id: u.username for u in users_result.scalars().all()}
+    return {u.id: u for u in users_result.scalars().all()}
+
+
+def _augment_details(details: dict | None, users: dict[str, User]) -> dict:
+    """Resolve ``*_id`` detail keys to a current display name under their
+    companion key so exports and the list surface always show live names."""
+    result = dict(details or {})
+    for id_key, name_key in _DETAIL_USER_ID_KEYS.items():
+        uid = result.get(id_key)
+        if isinstance(uid, str):
+            user = users.get(uid)
+            result[name_key] = user.display_name if user else uid
+    return result
 
 
 @router.get("", response_model=PaginatedResponse[dict])
@@ -97,17 +121,18 @@ async def list_audit_log(
         .limit(page_size)
     )
     entries = result.scalars().all()
-    usernames = await _resolve_usernames(db, entries)
+    users = await _resolve_users(db, entries)
 
     items = [
         {
             "id": str(e.id),
             "user_id": e.user_id,
-            "username": usernames.get(e.user_id) if e.user_id else None,
+            "username": users[e.user_id].username if e.user_id in users else None,
+            "display_name": users[e.user_id].display_name if e.user_id in users else None,
             "action": e.action,
             "entity_type": e.entity_type,
             "entity_id": e.entity_id,
-            "details": e.details,
+            "details": _augment_details(e.details, users),
             "created_at": e.created_at.isoformat(),
         }
         for e in entries
@@ -145,16 +170,16 @@ async def export_audit_log(
 
     result = await db.execute(select(AuditLog).where(*conditions).order_by(AuditLog.created_at.desc()))
     entries = result.scalars().all()
-    usernames = await _resolve_usernames(db, entries)
+    users = await _resolve_users(db, entries)
 
     rows = [
         {
             "created_at": e.created_at,
-            "username": usernames.get(e.user_id) if e.user_id else None,
+            "username": users[e.user_id].display_name if e.user_id in users else None,
             "action": e.action,
             "entity_type": e.entity_type,
             "entity_id": e.entity_id,
-            "details": e.details,
+            "details": _augment_details(e.details, users),
         }
         for e in entries
     ]

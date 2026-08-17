@@ -242,6 +242,7 @@ async def add_escalation_comment(
         current_user=current_user,
         escalation_id=escalation_id,
         message=body.message,
+        content=body.content,
     )
     if email_jobs:
         background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)

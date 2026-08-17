@@ -17,8 +17,8 @@ sequenceDiagram
     User->>OAuth: Open route
     OAuth->>OAuth: OpenShift OAuth login
     OAuth->>Injector: Forward request<br/>X-Forwarded-User / Email / Groups / Access-Token
-    Injector->>Injector: Resolve namespace annotations<br/>and OpenShift groups
-    Injector->>Nginx: Forward request<br/>X-Forwarded-Namespaces / Namespace-Emails / Groups
+    Injector->>Injector: Resolve namespace annotations,<br/>OpenShift groups, and fullName
+    Injector->>Nginx: Forward request<br/>X-Forwarded-Namespaces / Namespace-Emails / Groups / Full-Name
     Nginx->>Hub: Proxy /api/*<br/>X-Api-Key + X-Forwarded-*
     Hub->>Hub: Validate API key
     Hub->>Hub: Auto-provision spoke user
@@ -56,6 +56,8 @@ It reads the returned `groups` array and merges:
 - group-based namespaces from `rhacs-manager.io/groups`
 
 If no groups were resolved from the OpenShift user API, the injector can reuse `X-Forwarded-Groups` from oauth-proxy as a fallback — but only when `TRUST_FORWARDED_GROUPS=true`. That header is client-controllable, so the fallback is **disabled by default**: a client could otherwise spoof sec-team / all-namespaces group membership whenever the API lookup fails. With the flag off, the inbound `X-Forwarded-Groups` header is stripped before the request reaches the upstream. Enable the fallback only when the injector exclusively receives traffic from oauth-proxy.
+
+The injector also reads the caller's `fullName` from the same OpenShift user API lookup and emits it as `X-Forwarded-Full-Name` (used only for display). This value is **always server-resolved**: any inbound `X-Forwarded-Full-Name` is stripped before processing, so a client cannot spoof another person's display name. When the lookup yields no name, the header is omitted and the backend falls back to the username.
 
 ## Role Hierarchy
 

@@ -50,6 +50,7 @@ def _extract_detail(resp: httpx.Response) -> str:
 
 FORWARDED_HEADER_NAMES = (
     "X-Forwarded-User",
+    "X-Forwarded-Full-Name",
     "X-Forwarded-Groups",
     "X-Forwarded-Namespaces",
     "X-Forwarded-Namespace-Emails",
@@ -83,11 +84,13 @@ class AuthContext:
     forwarded_groups: str
     forwarded_namespaces: str
     forwarded_namespace_emails: str
+    forwarded_full_name: str = ""
 
     def to_headers(self) -> dict[str, str]:
         """Build the header dict to forward to the backend API."""
         headers: dict[str, str] = {
             "X-Forwarded-User": self.forwarded_user,
+            "X-Forwarded-Full-Name": self.forwarded_full_name,
             "X-Forwarded-Groups": self.forwarded_groups,
             "X-Forwarded-Namespaces": self.forwarded_namespaces,
             "X-Forwarded-Namespace-Emails": self.forwarded_namespace_emails,

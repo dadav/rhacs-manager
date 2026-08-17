@@ -46,7 +46,8 @@ class Settings(BaseSettings):
     # Auth — set dev_mode=true to skip OIDC and use mock user
     dev_mode: bool = Field(default=False)
     dev_user_id: str = Field(default="dev-user-1")
-    dev_user_name: str = Field(default="Dev User")
+    dev_user_name: str = Field(default="Dev User")  # stable username
+    dev_user_full_name: str = Field(default="")  # optional display full name; empty = fall back to username
     dev_user_email: str = Field(default="dev@example.com")
     dev_user_role: str = Field(default="sec_team")  # "sec_team" or "team_member"
     dev_user_namespaces: str = Field(default="")  # format: ns1:cluster1,ns2:cluster2

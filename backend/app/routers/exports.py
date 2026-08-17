@@ -162,7 +162,7 @@ async def export_pdf(
 
     now = datetime.utcnow()
     pdf_metadata = {
-        "username": current_user.username or current_user.email or current_user.id,
+        "username": current_user.display_name or current_user.email or current_user.id,
         "created_at": now,
         "filters": {
             "search": search,

@@ -5,6 +5,8 @@ import type { User } from '../types'
 export interface UserSearchResult {
   id: string
   username: string
+  full_name: string | null
+  display_name: string
 }
 
 export const authKeys = {

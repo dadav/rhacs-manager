@@ -41,14 +41,14 @@ type config struct {
 
 func loadConfig() config {
 	c := config{
-		ListenAddr:          envOrDefault("LISTEN_ADDR", ":8081"),
-		UpstreamAddr:        envOrDefault("UPSTREAM_ADDR", "http://localhost:8080"),
-		ClusterName:         os.Getenv("CLUSTER_NAME"),
-		NamespaceAnnotation: envOrDefault("NAMESPACE_ANNOTATION", "rhacs-manager.io/users"),
-		GroupAnnotation:     envOrDefault("GROUP_ANNOTATION", "rhacs-manager.io/groups"),
-		EmailAnnotation:     envOrDefault("EMAIL_ANNOTATION", "rhacs-manager.io/escalation-email"),
-		CacheTTLSeconds:     300,
-		KubeAPIURL:          envOrDefault("KUBE_API_URL", "https://kubernetes.default.svc"),
+		ListenAddr:           envOrDefault("LISTEN_ADDR", ":8081"),
+		UpstreamAddr:         envOrDefault("UPSTREAM_ADDR", "http://localhost:8080"),
+		ClusterName:          os.Getenv("CLUSTER_NAME"),
+		NamespaceAnnotation:  envOrDefault("NAMESPACE_ANNOTATION", "rhacs-manager.io/users"),
+		GroupAnnotation:      envOrDefault("GROUP_ANNOTATION", "rhacs-manager.io/groups"),
+		EmailAnnotation:      envOrDefault("EMAIL_ANNOTATION", "rhacs-manager.io/escalation-email"),
+		CacheTTLSeconds:      300,
+		KubeAPIURL:           envOrDefault("KUBE_API_URL", "https://kubernetes.default.svc"),
 		GroupCacheTTLSeconds: 60,
 	}
 	if c.ClusterName == "" {
@@ -145,6 +145,7 @@ type tokenGroupsCache struct {
 
 type tokenGroupsEntry struct {
 	groups    []string
+	fullName  string
 	fetchedAt time.Time
 	ttl       time.Duration
 }
@@ -156,24 +157,24 @@ func newTokenGroupsCache(ttl time.Duration) *tokenGroupsCache {
 	}
 }
 
-func (c *tokenGroupsCache) get(token string) ([]string, bool) {
+func (c *tokenGroupsCache) get(token string) ([]string, string, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	entry, ok := c.entries[token]
 	if !ok || time.Since(entry.fetchedAt) > entry.ttl {
-		return nil, false
+		return nil, "", false
 	}
-	return entry.groups, true
+	return entry.groups, entry.fullName, true
 }
 
-func (c *tokenGroupsCache) set(token string, groups []string) {
-	c.setWithTTL(token, groups, c.ttl)
+func (c *tokenGroupsCache) set(token string, groups []string, fullName string) {
+	c.setWithTTL(token, groups, fullName, c.ttl)
 }
 
-func (c *tokenGroupsCache) setWithTTL(token string, groups []string, ttl time.Duration) {
+func (c *tokenGroupsCache) setWithTTL(token string, groups []string, fullName string, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[token] = tokenGroupsEntry{groups: groups, fetchedAt: time.Now(), ttl: ttl}
+	c.entries[token] = tokenGroupsEntry{groups: groups, fullName: fullName, fetchedAt: time.Now(), ttl: ttl}
 
 	// Evict expired entries periodically (when cache grows large).
 	if len(c.entries) > 1000 {
@@ -188,34 +189,36 @@ func (c *tokenGroupsCache) setWithTTL(token string, groups []string, ttl time.Du
 
 // openShiftUserResponse is the relevant subset of the OpenShift user API response.
 type openShiftUserResponse struct {
-	Groups []string `json:"groups"`
+	FullName string   `json:"fullName"`
+	Groups   []string `json:"groups"`
 }
 
-// fetchUserGroups calls the OpenShift user API to get the groups for a token.
-func fetchUserGroups(kubeAPIURL, token string, httpClient *http.Client) ([]string, error) {
+// fetchUserInfo calls the OpenShift user API to get the groups and full name for
+// a token. The full name is the OpenShift User resource's fullName field.
+func fetchUserInfo(kubeAPIURL, token string, httpClient *http.Client) ([]string, string, error) {
 	reqURL := kubeAPIURL + "/apis/user.openshift.io/v1/users/~"
 	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("call user API: %w", err)
+		return nil, "", fmt.Errorf("call user API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, fmt.Errorf("user API returned %d: %s", resp.StatusCode, string(body))
+		return nil, "", fmt.Errorf("user API returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	var user openShiftUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, fmt.Errorf("decode user response: %w", err)
+		return nil, "", fmt.Errorf("decode user response: %w", err)
 	}
-	return user.Groups, nil
+	return user.Groups, strings.TrimSpace(user.FullName), nil
 }
 
 // refreshLoop periodically fetches namespace annotations and rebuilds the cache.
@@ -293,9 +296,13 @@ func newProxyHandler(
 	cache *nsCache,
 	tokenCache *tokenGroupsCache,
 	cfg config,
-	fetchGroups func(token string) ([]string, error),
+	fetchInfo func(token string) ([]string, string, error),
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// The full name is server-resolved from the OpenShift User API. Strip any
+		// inbound value up front so a client can never spoof it to the upstream.
+		r.Header.Del("X-Forwarded-Full-Name")
+
 		user := r.Header.Get("X-Forwarded-User")
 		if user == "" {
 			// No user header -- forward with empty namespaces/groups so a client
@@ -310,26 +317,35 @@ func newProxyHandler(
 		// Resolve user-based namespaces.
 		userNamespaces := cache.namespacesForUser(user)
 
-		// Resolve group-based namespaces via OpenShift user API.
+		// Resolve group-based namespaces and full name via OpenShift user API.
 		var userGroups []string
+		var fullName string
 		accessToken := r.Header.Get("X-Forwarded-Access-Token")
 		if accessToken != "" {
-			groups, ok := tokenCache.get(accessToken)
+			groups, name, ok := tokenCache.get(accessToken)
 			if !ok {
 				var err error
-				groups, err = fetchGroups(accessToken)
+				groups, name, err = fetchInfo(accessToken)
 				if err != nil {
-					slog.Warn("failed to fetch user groups", "user", user, "error", err)
+					slog.Warn("failed to fetch user info", "user", user, "error", err)
 					// Cache empty result briefly to avoid hammering the API, but expire
 					// quickly so the user gets a retry soon.
 					groups = []string{}
-					tokenCache.setWithTTL(accessToken, groups, 5*time.Second)
+					name = ""
+					tokenCache.setWithTTL(accessToken, groups, name, 5*time.Second)
 				} else {
-					tokenCache.set(accessToken, groups)
-					slog.Debug("fetched user groups from API", "user", user, "groups", groups)
+					tokenCache.set(accessToken, groups, name)
+					slog.Debug("fetched user info from API", "user", user, "groups", groups)
 				}
 			}
 			userGroups = groups
+			fullName = name
+		}
+
+		// Set the resolved full name (empty is fine; the backend falls back to
+		// the username for display).
+		if fullName != "" {
+			r.Header.Set("X-Forwarded-Full-Name", fullName)
 		}
 
 		// The inbound X-Forwarded-Groups header is client-controllable, so it is
@@ -469,8 +485,8 @@ func main() {
 	}
 	proxy := httputil.NewSingleHostReverseProxy(upstream)
 
-	fetchGroups := func(token string) ([]string, error) {
-		return fetchUserGroups(cfg.KubeAPIURL, token, apiHTTPClient)
+	fetchInfo := func(token string) ([]string, string, error) {
+		return fetchUserInfo(cfg.KubeAPIURL, token, apiHTTPClient)
 	}
 
 	mux := http.NewServeMux()
@@ -480,7 +496,7 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/", newProxyHandler(proxy, cache, tokenCache, cfg, fetchGroups))
+	mux.HandleFunc("/", newProxyHandler(proxy, cache, tokenCache, cfg, fetchInfo))
 
 	server := &http.Server{
 		Addr:         cfg.ListenAddr,

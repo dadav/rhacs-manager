@@ -23,6 +23,7 @@ def _make_ctx(headers: dict[str, str] | None = None) -> MagicMock:
 
 FORWARDED_HEADERS = {
     "x-forwarded-user": "testuser",
+    "x-forwarded-full-name": "Test User",
     "x-forwarded-groups": "group-a,group-b",
     "x-forwarded-namespaces": "payments:cluster-a",
     "x-forwarded-namespace-emails": "payments:cluster-a=team@example.com",
@@ -36,6 +37,7 @@ class TestExtractAuth:
         ctx = _make_ctx(FORWARDED_HEADERS)
         auth = _extract_auth(ctx)
         assert auth.forwarded_user == "testuser"
+        assert auth.forwarded_full_name == "Test User"
         assert auth.forwarded_groups == "group-a,group-b"
         assert auth.forwarded_namespaces == "payments:cluster-a"
         assert auth.forwarded_namespace_emails == "payments:cluster-a=team@example.com"

@@ -18,7 +18,6 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..models.suppression_rule import SuppressionRule, SuppressionStatus, SuppressionType
-from ..models.user import User
 from ..schemas.common import PaginatedResponse
 from ..schemas.cve import (
     AffectedComponent,
@@ -35,6 +34,7 @@ from ..schemas.cve import (
 )
 from ..services import comment_service
 from ..services.audit_service import log_action
+from ..services.comment_content import enrich_segments
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.risk_acceptance_service import deployment_covered_by_scope
@@ -452,7 +452,7 @@ async def get_cve(
         has_priority=priority is not None,
         priority_level=priority.priority.value if priority else None,
         priority_reason=priority.reason if priority else None,
-        priority_set_by_name=priority.setter.username if priority else None,
+        priority_set_by_name=priority.setter.display_name if priority else None,
         priority_deadline=priority.deadline if priority else None,
         has_risk_acceptance=acceptance is not None,
         risk_acceptance_status=acceptance.status.value if acceptance else None,
@@ -512,17 +512,21 @@ async def list_cve_comments(
             esc_result = await app_db.execute(select(Escalation).where(Escalation.id.in_(esc_ids)))
             esc_map = {e.id: e for e in esc_result.scalars().all()}
 
+    users = await comment_service.load_comment_users(app_db, comments)
+    display_by_id = comment_service.display_map(users)
+
     out = []
     for c in comments:
-        user_result = await app_db.execute(select(User).where(User.id == c.user_id))
-        user = user_result.scalar_one_or_none()
+        user = users.get(c.user_id)
         out.append(
             CveCommentResponse(
                 id=c.id,
                 cve_id=c.cve_id,
                 user_id=c.user_id,
                 username=user.username if user else c.user_id,
+                display_name=user.display_name if user else c.user_id,
                 message=c.message,
+                content=enrich_segments(c.content_segments, display_by_id),
                 created_at=c.created_at,
                 updated_at=c.updated_at,
                 is_sec_team=user.role.value == "sec_team" if user else False,
@@ -541,7 +545,7 @@ async def add_cve_comment(
     app_db: AsyncSession = Depends(get_app_db),
 ) -> CveCommentResponse:
     response, email_jobs = await comment_service.add_cve_comment(
-        app_db, cve_id=cve_id, message=body.message, current_user=current_user
+        app_db, cve_id=cve_id, message=body.message, content=body.content, current_user=current_user
     )
     if email_jobs:
         background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)
@@ -562,6 +566,7 @@ async def update_cve_comment(
         cve_id=cve_id,
         comment_id=comment_id,
         message=body.message,
+        content=body.content,
         current_user=current_user,
     )
     if email_jobs:
