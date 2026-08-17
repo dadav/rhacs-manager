@@ -27,6 +27,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./hooks/useAuth";
 import { useScope, buildScopedTo } from "./hooks/useScope";
 import { NotificationBell } from "./components/notifications/NotificationBell";
+import { LogoutButton } from "./components/LogoutButton";
 import { ScopeSelector } from "./components/scope/ScopeSelector";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { GuidedTour } from "./components/GuidedTour";
@@ -243,6 +244,7 @@ export function App() {
             </Button>
           </Tooltip>
           <NotificationBell />
+          <LogoutButton />
         </div>
       </MastheadContent>
     </Masthead>
