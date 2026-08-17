@@ -2,8 +2,8 @@ apiVersion: v2
 name: rhacs-manager
 description: Helm chart for deploying RHACS Manager on OpenShift
 type: application
-version: 0.34.0
-appVersion: "0.34.0"
+version: 0.35.0
+appVersion: "0.35.0"
 keywords:
   - rhacs
   - stackrox
