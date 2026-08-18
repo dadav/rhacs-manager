@@ -230,6 +230,8 @@ Wildcard all-namespace users can list escalations across the full fleet, but thi
 | GET | `/api/notifications/unread-count` | Any | Unread count |
 | PATCH | `/api/notifications/{id}/read` | Any | Mark single notification read |
 | POST | `/api/notifications/read-all` | Any | Mark all read (204) |
+| DELETE | `/api/notifications/{id}` | Any | Permanently delete a single own notification (204, idempotent) |
+| DELETE | `/api/notifications` | Any | Permanently delete all own notifications, including those older than the newest 50 (204, idempotent) |
 
 ## Badges
 

@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -71,4 +71,32 @@ async def mark_all_read(
         .where(Notification.user_id == current_user.id, Notification.read == False)  # noqa: E712
         .values(read=True)
     )
+    await db.commit()
+
+
+@router.delete("/{notification_id}", status_code=204)
+async def delete_notification(
+    notification_id: UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> None:
+    # Recipient-scoped: only deletes a row the current user owns. Idempotent:
+    # returns 204 even when nothing matches (already deleted or not owned).
+    await db.execute(
+        delete(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == current_user.id,
+        )
+    )
+    await db.commit()
+
+
+@router.delete("", status_code=204)
+async def clear_notifications(
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+) -> None:
+    # Removes every stored notification for the current user, including rows
+    # older than the 50 the list endpoint returns. Idempotent (204 when empty).
+    await db.execute(delete(Notification).where(Notification.user_id == current_user.id))
     await db.commit()

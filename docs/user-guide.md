@@ -254,6 +254,7 @@ Notifications appear in the bell menu and are stored per user.
 
 - The API returns the latest 50 notifications.
 - Unread counts refresh in the UI every 30 seconds.
+- Each notification has a trash action to permanently delete it, and the drawer header offers **Clear all**. Clear all requires an inline confirmation and permanently removes every stored notification for you, not only the newest 50 shown. Deletion is permanent with no undo; it never touches the underlying business records, sent email, weekly digests, or audit history, and only ever affects your own notifications.
 - The weekly digest is sent to the configured management email on the configured weekday.
 - Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request.
 - Overdue remediations and expiring risk acceptances also create notifications.
