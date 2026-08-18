@@ -810,6 +810,7 @@
   },
   "notifications": {
     "title": "Notifications",
+    "unreadCount": "{{count}} unread",
     "markAllRead": "Mark all as read",
     "clearAll": "Clear all",
     "clearAllConfirm": "Permanently delete all notifications?",

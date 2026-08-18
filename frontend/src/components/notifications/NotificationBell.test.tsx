@@ -104,6 +104,15 @@ describe('NotificationBell', () => {
     expect(deleteButtons).toHaveLength(2)
   })
 
+  it('keeps localized unread status and bulk actions in the responsive drawer body', async () => {
+    renderBell()
+    await openDrawer()
+
+    for (const actionKey of ['notifications.unreadCount', 'notifications.markAllRead', 'notifications.clearAll']) {
+      expect(screen.getByText(actionKey).closest('.pf-v6-c-notification-drawer__body')).not.toBeNull()
+    }
+  })
+
   it('deletes a single notification without navigating or marking read', async () => {
     renderBell()
     await openDrawer()

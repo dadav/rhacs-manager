@@ -810,6 +810,7 @@
   },
   "notifications": {
     "title": "Benachrichtigungen",
+    "unreadCount": "{{count}} ungelesen",
     "markAllRead": "Alle als gelesen markieren",
     "clearAll": "Alle löschen",
     "clearAllConfirm": "Alle Benachrichtigungen dauerhaft löschen?",

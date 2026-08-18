@@ -117,10 +117,21 @@ export function NotificationBell() {
     })
   }
 
-  const headerActions = !confirmClear && (
-    <>
+  const bulkActions = !confirmClear && (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 16px',
+      }}
+    >
+      <span aria-live="polite" style={{ marginRight: 'auto', whiteSpace: 'nowrap' }}>
+        {t('notifications.unreadCount', { count })}
+      </span>
       {count > 0 && (
-        <Button variant="link" isInline onClick={() => markAllRead.mutate()}>
+        <Button variant="link" isInline style={{ whiteSpace: 'nowrap' }} onClick={() => markAllRead.mutate()}>
           {t('notifications.markAllRead')}
         </Button>
       )}
@@ -128,13 +139,14 @@ export function NotificationBell() {
         <Button
           variant="link"
           isInline
+          style={{ whiteSpace: 'nowrap' }}
           isDisabled={deletionPending}
           onClick={() => setConfirmClear(true)}
         >
           {t('notifications.clearAll')}
         </Button>
       )}
-    </>
+    </div>
   )
 
   const menu = (
@@ -142,12 +154,10 @@ export function NotificationBell() {
       <NotificationDrawer>
         <NotificationDrawerHeader
           title={t('notifications.title')}
-          count={count}
           onClose={closeDrawer}
-        >
-          {headerActions}
-        </NotificationDrawerHeader>
+        />
         <NotificationDrawerBody style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+          {bulkActions}
           {confirmClear && (
             <Alert
               variant="warning"
