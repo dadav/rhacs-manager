@@ -375,6 +375,18 @@ backend:
   # type: object
   # additionalProperties: false
   # @schema
+  # -- PodDisruptionBudget configuration for the backend.
+  podDisruptionBudget:
+    # @schema
+    # type: string
+    # enum: [AlwaysAllow, IfHealthyBudget]
+    # @schema
+    # -- Policy for evicting unhealthy backend pods.
+    unhealthyPodEvictionPolicy: AlwaysAllow
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
   # -- Backend container image.
   image:
     # @schema
@@ -973,6 +985,18 @@ frontend:
   # @schema
   # -- Number of frontend replicas.
   replicaCount: 2
+  # @schema
+  # type: object
+  # additionalProperties: false
+  # @schema
+  # -- PodDisruptionBudget configuration for the hub frontend.
+  podDisruptionBudget:
+    # @schema
+    # type: string
+    # enum: [AlwaysAllow, IfHealthyBudget]
+    # @schema
+    # -- Policy for evicting unhealthy hub frontend pods.
+    unhealthyPodEvictionPolicy: AlwaysAllow
   # @schema
   # type: object
   # additionalProperties: false
@@ -1724,6 +1748,18 @@ spoke:
     # @schema
     # -- Number of frontend replicas.
     replicaCount: 2
+    # @schema
+    # type: object
+    # additionalProperties: false
+    # @schema
+    # -- PodDisruptionBudget configuration for the spoke frontend.
+    podDisruptionBudget:
+      # @schema
+      # type: string
+      # enum: [AlwaysAllow, IfHealthyBudget]
+      # @schema
+      # -- Policy for evicting unhealthy spoke frontend pods.
+      unhealthyPodEvictionPolicy: AlwaysAllow
     # @schema
     # type: object
     # additionalProperties: false

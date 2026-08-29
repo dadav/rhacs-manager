@@ -253,6 +253,25 @@
           "title": "podAnnotations",
           "type": "object"
         },
+        "podDisruptionBudget": {
+          "additionalProperties": false,
+          "description": "PodDisruptionBudget configuration for the backend.",
+          "properties": {
+            "unhealthyPodEvictionPolicy": {
+              "default": "AlwaysAllow",
+              "description": "Policy for evicting unhealthy backend pods.",
+              "enum": [
+                "AlwaysAllow",
+                "IfHealthyBudget"
+              ],
+              "title": "unhealthyPodEvictionPolicy",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "podDisruptionBudget",
+          "type": "object"
+        },
         "podSecurityContext": {
           "additionalProperties": true,
           "description": "Pod-level security context for the backend.",
@@ -1496,6 +1515,25 @@
           "title": "podAnnotations",
           "type": "object"
         },
+        "podDisruptionBudget": {
+          "additionalProperties": false,
+          "description": "PodDisruptionBudget configuration for the hub frontend.",
+          "properties": {
+            "unhealthyPodEvictionPolicy": {
+              "default": "AlwaysAllow",
+              "description": "Policy for evicting unhealthy hub frontend pods.",
+              "enum": [
+                "AlwaysAllow",
+                "IfHealthyBudget"
+              ],
+              "title": "unhealthyPodEvictionPolicy",
+              "type": "string"
+            }
+          },
+          "required": [],
+          "title": "podDisruptionBudget",
+          "type": "object"
+        },
         "podSecurityContext": {
           "additionalProperties": true,
           "description": "Pod-level security context for the frontend.",
@@ -2557,6 +2595,25 @@
               "description": "Additional annotations for frontend pods.",
               "required": [],
               "title": "podAnnotations",
+              "type": "object"
+            },
+            "podDisruptionBudget": {
+              "additionalProperties": false,
+              "description": "PodDisruptionBudget configuration for the spoke frontend.",
+              "properties": {
+                "unhealthyPodEvictionPolicy": {
+                  "default": "AlwaysAllow",
+                  "description": "Policy for evicting unhealthy spoke frontend pods.",
+                  "enum": [
+                    "AlwaysAllow",
+                    "IfHealthyBudget"
+                  ],
+                  "title": "unhealthyPodEvictionPolicy",
+                  "type": "string"
+                }
+              },
+              "required": [],
+              "title": "podDisruptionBudget",
               "type": "object"
             },
             "podSecurityContext": {

@@ -10,6 +10,7 @@ metadata:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
+  unhealthyPodEvictionPolicy: {{ .Values.backend.podDisruptionBudget.unhealthyPodEvictionPolicy }}
   selector:
     matchLabels:
       app: {{ .Values.backend.deploymentName }}
@@ -17,6 +18,7 @@ spec:
 ---
 {{- $feEnabled := or (and $isHub .Values.frontend.enabled) $isSpoke -}}
 {{- $feDeploymentName := ternary .Values.frontend.deploymentName .Values.spoke.frontend.deploymentName $isHub -}}
+{{- $feUnhealthyPodEvictionPolicy := ternary .Values.frontend.podDisruptionBudget.unhealthyPodEvictionPolicy .Values.spoke.frontend.podDisruptionBudget.unhealthyPodEvictionPolicy $isHub -}}
 {{- if $feEnabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -27,6 +29,7 @@ metadata:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 spec:
   minAvailable: 1
+  unhealthyPodEvictionPolicy: {{ $feUnhealthyPodEvictionPolicy }}
   selector:
     matchLabels:
       app: {{ $feDeploymentName }}
