@@ -415,6 +415,12 @@ backend:
   # type: object
   # additionalProperties: true
   # @schema
+  # -- Additional annotations for the backend deployment.
+  deploymentAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
   # -- Pod-level security context for the backend.
   podSecurityContext:
     runAsNonRoot: true
@@ -831,6 +837,12 @@ worker:
   # type: object
   # additionalProperties: true
   # @schema
+  # -- Additional annotations for the worker deployment.
+  deploymentAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
   # -- Pod-level security context for the worker.
   podSecurityContext:
     runAsNonRoot: true
@@ -1025,6 +1037,12 @@ frontend:
   # @schema
   # -- Additional annotations for frontend pods.
   podAnnotations: {}
+  # @schema
+  # type: object
+  # additionalProperties: true
+  # @schema
+  # -- Additional annotations for the frontend deployment.
+  deploymentAnnotations: {}
   # @schema
   # type: object
   # additionalProperties: true
@@ -1788,6 +1806,12 @@ spoke:
     # @schema
     # -- Additional annotations for frontend pods.
     podAnnotations: {}
+    # @schema
+    # type: object
+    # additionalProperties: true
+    # @schema
+    # -- Additional annotations for the frontend deployment.
+    deploymentAnnotations: {}
     # @schema
     # type: object
     # additionalProperties: true

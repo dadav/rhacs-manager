@@ -14,6 +14,13 @@
           "title": "affinity",
           "type": "object"
         },
+        "deploymentAnnotations": {
+          "additionalProperties": true,
+          "description": "Additional annotations for the backend deployment.",
+          "required": [],
+          "title": "deploymentAnnotations",
+          "type": "object"
+        },
         "deploymentName": {
           "default": "rhacs-manager-backend",
           "description": "Name of the backend Deployment resource.",
@@ -1293,6 +1300,13 @@
           "title": "authHeaderInjector",
           "type": "object"
         },
+        "deploymentAnnotations": {
+          "additionalProperties": true,
+          "description": "Additional annotations for the frontend deployment.",
+          "required": [],
+          "title": "deploymentAnnotations",
+          "type": "object"
+        },
         "deploymentName": {
           "default": "rhacs-manager-frontend",
           "description": "Name of the frontend Deployment resource.",
@@ -2545,6 +2559,13 @@
               "title": "affinity",
               "type": "object"
             },
+            "deploymentAnnotations": {
+              "additionalProperties": true,
+              "description": "Additional annotations for the frontend deployment.",
+              "required": [],
+              "title": "deploymentAnnotations",
+              "type": "object"
+            },
             "deploymentName": {
               "default": "rhacs-manager-frontend",
               "description": "Name of the frontend Deployment resource.",
@@ -3315,6 +3336,13 @@
           "description": "Affinity rules for worker pods.",
           "required": [],
           "title": "affinity",
+          "type": "object"
+        },
+        "deploymentAnnotations": {
+          "additionalProperties": true,
+          "description": "Additional annotations for the worker deployment.",
+          "required": [],
+          "title": "deploymentAnnotations",
           "type": "object"
         },
         "deploymentName": {

@@ -4,6 +4,10 @@ kind: Deployment
 metadata:
   name: {{ .Values.backend.deploymentName }}
   namespace: {{ include "rhacs-manager.namespace" . }}
+  {{- with .Values.backend.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 spec:

@@ -9,6 +9,7 @@
 {{- $replicaCount := ternary .Values.frontend.replicaCount .Values.spoke.frontend.replicaCount $isHub -}}
 {{- $secretName := ternary .Values.frontend.secret.name .Values.spoke.secret.name $isHub -}}
 {{- $podAnnotations := ternary .Values.frontend.podAnnotations .Values.spoke.frontend.podAnnotations $isHub -}}
+{{- $deploymentAnnotations := ternary .Values.frontend.deploymentAnnotations .Values.spoke.frontend.deploymentAnnotations $isHub -}}
 {{- $podSecurityContext := ternary .Values.frontend.podSecurityContext .Values.spoke.frontend.podSecurityContext $isHub -}}
 {{- $securityContext := ternary .Values.frontend.securityContext .Values.spoke.frontend.securityContext $isHub -}}
 {{- $nodeSelector := ternary .Values.frontend.nodeSelector .Values.spoke.frontend.nodeSelector $isHub -}}
@@ -24,6 +25,10 @@ kind: Deployment
 metadata:
   name: {{ $deploymentName }}
   namespace: {{ include "rhacs-manager.namespace" . }}
+  {{- with $deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}
 spec:
