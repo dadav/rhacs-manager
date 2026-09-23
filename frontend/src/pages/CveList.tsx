@@ -33,7 +33,7 @@ import { formatCvss, formatDate } from '../utils/format'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
-import { useCves, useCvesByImage } from '../api/cves'
+import { useCves, useCvesByImage, useCveFixes } from '../api/cves'
 import { exportPdf, exportExcel } from '../api/exports'
 import { useThresholds } from '../api/settings'
 
@@ -43,6 +43,7 @@ import { useDebounce } from '../hooks/useDebounce'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { ExcelImportModal } from '../components/ExcelImportModal'
 import { ImageRow } from '../components/ImageRow'
+import { COMPONENT_SORT_COLUMNS, ComponentFixTable, type ComponentSortColumn } from '../components/ComponentFixTable'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { TableSkeleton } from '../components/TableSkeleton'
 import { Severity } from '../types'
@@ -107,9 +108,14 @@ export function CveList() {
   const urlAgeMin     = searchParams.get('age_min') || ''
   const urlAgeMax     = searchParams.get('age_max') || ''
   const urlDeployment = searchParams.get('deployment') || ''
+  // deployment_id filters by the unique deployment; deployment_label is display-only.
+  const urlDeploymentId = searchParams.get('deployment_id') || ''
+  const urlDeploymentLabel = searchParams.get('deployment_label') || ''
   const urlAdvanced   = searchParams.get('advanced') === '1'
   const urlImageName  = searchParams.get('image_name') || ''
-  const urlViewMode   = searchParams.get('view') === 'image' ? 'image' : 'cve'
+  const urlView       = searchParams.get('view')
+  const urlViewMode: 'cve' | 'image' | 'component' =
+    urlView === 'image' ? 'image' : urlView === 'component' ? 'component' : 'cve'
 
   // Local state for slider/text inputs that need smooth UI + debounced URL writes
   const [searchInput, setSearchInput]       = useState(urlSearch)
@@ -213,6 +219,7 @@ export function CveList() {
     age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
     age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
     deployment: urlDeployment || undefined,
+    deployment_id: urlDeploymentId || undefined,
     fix_overdue: urlFixOverdue || undefined,
   }
 
@@ -232,6 +239,16 @@ export function CveList() {
     image_name: urlImageName || undefined,
   }
   const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(scopeOverrides, imageFilters)
+  // Component view sorts server-side; fall back to its default column when the URL
+  // carries a sort column from another view.
+  const componentSortBy: ComponentSortColumn = (COMPONENT_SORT_COLUMNS as readonly string[]).includes(urlSortBy)
+    ? urlSortBy as ComponentSortColumn
+    : 'fixable_cves'
+  const { data: fixData, isLoading: fixLoading, error: fixError } = useCveFixes(
+    { ...params, sort_by: componentSortBy },
+    scopeOverrides,
+    urlViewMode === 'component',
+  )
   const { isSecTeam } = useAuth()
   const { data: thresholds } = useThresholds()
 
@@ -317,6 +334,14 @@ export function CveList() {
     return {
       columnIndex: idx,
       sortBy: { index: columnIndex(IMAGE_SORT_COLUMNS, urlSortBy), direction: activeSortDirection },
+      onSort: () => handleSort(col),
+    }
+  }
+
+  function makeComponentSort(col: ComponentSortColumn) {
+    return {
+      columnIndex: COMPONENT_SORT_COLUMNS.indexOf(col),
+      sortBy: { index: COMPONENT_SORT_COLUMNS.indexOf(componentSortBy), direction: activeSortDirection },
       onSort: () => handleSort(col),
     }
   }
@@ -489,6 +514,11 @@ export function CveList() {
                   isSelected={urlViewMode === 'image'}
                   onChange={() => updateParams({ view: 'image' }, false)}
                 />
+                <ToggleGroupItem
+                  text={t('cves.viewByComponent')}
+                  isSelected={urlViewMode === 'component'}
+                  onChange={() => updateParams({ view: 'component' })}
+                />
               </ToggleGroup>
             </ToolbarItem>
             <ToolbarItem>
@@ -533,7 +563,7 @@ export function CveList() {
           </ToolbarContent>
         </Toolbar>
 
-        {(urlCluster || urlNamespace || urlDeployment || urlAgeMin || urlAgeMax) && (
+        {(urlCluster || urlNamespace || urlDeployment || urlDeploymentId || urlAgeMin || urlAgeMax) && (
           <div style={{
             padding: '8px 20px',
             background: `rgba(0,102,204,0.06)`,
@@ -559,6 +589,11 @@ export function CveList() {
                 <strong>{t('common.deployment')}:</strong> {urlDeployment}
               </span>
             )}
+            {urlDeploymentId && (
+              <span title={urlDeploymentId}>
+                <strong>{t('common.deployment')}:</strong> {urlDeploymentLabel || urlDeploymentId}
+              </span>
+            )}
             {(urlAgeMin || urlAgeMax) && (
               <span>
                 <strong>{t('common.age')}:</strong>{' '}
@@ -570,7 +605,7 @@ export function CveList() {
               </span>
             )}
             <button
-              onClick={() => updateParams({ cluster: null, ns: null, deployment: null, age_min: null, age_max: null })}
+              onClick={() => updateParams({ cluster: null, ns: null, deployment: null, deployment_id: null, deployment_label: null, age_min: null, age_max: null })}
               style={{
                 background: 'none', border: 'none', color: BRAND_BLUE,
                 cursor: 'pointer', fontSize: 13, padding: '2px 0', fontFamily: 'inherit',
@@ -687,7 +722,38 @@ export function CveList() {
       </PageSection>
 
       <PageSection variant="default" isFilled>
-        {urlViewMode === 'image' ? (
+        {urlViewMode === 'component' ? (
+          /* ── Component roll-up view ── */
+          fixLoading ? <TableSkeleton columns={10} /> : fixError ? (
+            <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(fixError)}`} />
+          ) : !fixData?.items.length ? (
+            <EmptyState
+              titleText={t('cves.componentNoResults')}
+              headingLevel="h2"
+              icon={SearchIcon}
+              variant="sm"
+            >
+              <EmptyStateBody />
+            </EmptyState>
+          ) : (
+            <>
+              <div style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)', marginBottom: 8 }}>
+                {t('cves.componentSummary', { components: fixData.total, cves: fixData.visible_cves })}
+                {fixData.unmapped_cves > 0 && ` ${t('cves.componentUnmapped', { count: fixData.unmapped_cves })}`}
+              </div>
+              <ComponentFixTable items={fixData.items} sortFor={makeComponentSort} />
+              <div style={{ marginTop: 16 }}>
+                <Pagination
+                  itemCount={fixData.total}
+                  perPage={50}
+                  page={urlPage}
+                  onSetPage={(_, p) => setPage(p)}
+                  variant="bottom"
+                />
+              </div>
+            </>
+          )
+        ) : urlViewMode === 'image' ? (
           /* ── Image-grouped view ── */
           imageLoading ? <TableSkeleton columns={12} /> : imageError ? (
             <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(imageError)}`} />

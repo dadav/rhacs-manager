@@ -58,6 +58,24 @@ The normal workflow starts in **Vulnerabilities**.
 !!! tip
     Prioritized CVEs and CVEs with active risk acceptances stay visible even when they fall below the configured CVSS or EPSS thresholds.
 
+### Views: by CVE, by image, by component
+
+The toggle in the **Vulnerabilities** toolbar switches between three views of the same filtered CVE set:
+
+- **By CVE** lists each CVE once.
+- **By Image** groups CVEs by container image ("update image, fix N CVEs").
+- **By Component** answers "what do I change?". Each row is one installed component version, for example `openssl 3.0.7 (rhel:9)`, with the version to upgrade to and how many of its CVEs that upgrade fixes, across how many images and deployments. Expand a row to see its CVEs with their individual fix versions and the affected images.
+
+In the component view:
+
+- **Upgrade to** is the highest fix version across the component's fixable CVEs. Versions are compared as versions, not as text: `1.10` ranks above `1.9`, a final release ranks above its pre-release (`1.0` above `1.0rc1`), and an RPM epoch such as `1:` outranks any version without one.
+- If a reported fix version cannot be compared as a version, the target is marked with **?** and the expanded row lists every reported fix version. Check those before upgrading.
+- Components holding a prioritized CVE are always listed first, like prioritized CVEs in the CVE view.
+- The component view applies the same filters and visibility rules as the CVE view. The summary line reports how many visible CVEs have no known component in the scanner data; those only appear in the CVE view.
+- To see everything fixable in one deployment, click the deployment name in a CVE's affected-deployments table. It opens the component view filtered to exactly that deployment (by its ID, so same-named deployments in other namespaces are not included).
+
+The image detail page shows the same component table for that image under **Vulnerable components**.
+
 ## Risk Acceptance Lifecycle
 
 Risk acceptances are requested from a specific CVE, not from a blank form on the list page.

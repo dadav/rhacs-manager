@@ -32,11 +32,13 @@ from ..schemas.cve import (
     ImageCveGroup,
     SeverityLevel,
 )
+from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
+from ..services.fix_rollup_service import build_fix_rollup
 from ..services.risk_acceptance_service import deployment_covered_by_scope
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
@@ -78,6 +80,7 @@ async def list_cves(
     remediation_status: str | None = Query(None),
     show_remediated: bool = Query(False),
     fix_overdue: bool = Query(False),
+    deployment_id: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -105,6 +108,7 @@ async def list_cves(
         remediation_status=remediation_status,
         show_remediated=show_remediated,
         fix_overdue=fix_overdue,
+        deployment_id=deployment_id,
     )
 
     total = len(items)
@@ -114,6 +118,73 @@ async def list_cves(
         total=total,
         page=page,
         page_size=page_size,
+    )
+
+
+@router.get("/fixes", response_model=FixRollupResponse)
+async def list_component_fixes(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    sort_by: str = Query("fixable_cves"),
+    sort_desc: bool = Query(True),
+    fixable_only: bool = Query(False),
+    image_id: str | None = Query(None),
+    search: str | None = Query(None),
+    severity: int | None = Query(None),
+    fixable: bool | None = Query(None),
+    prioritized_only: bool = Query(False),
+    cvss_min: float | None = Query(None, ge=0, le=10),
+    epss_min: float | None = Query(None, ge=0, le=1),
+    component: str | None = Query(None),
+    risk_status: str | None = Query(None),
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
+    age_min: int | None = Query(None, ge=0),
+    age_max: int | None = Query(None, ge=0),
+    deployment: str | None = Query(None),
+    show_suppressed: bool = Query(False),
+    remediation_status: str | None = Query(None),
+    show_remediated: bool = Query(False),
+    fix_overdue: bool = Query(False),
+    deployment_id: str | None = Query(None),
+    current_user: CurrentUser = Depends(get_current_user),
+    app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> FixRollupResponse:
+    """CVEs grouped by installed component version, with the version that fixes them.
+
+    Takes the same filters as ``GET /cves`` so both views show the same CVE set.
+    """
+    return await build_fix_rollup(
+        current_user,
+        app_db,
+        sx_db,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_desc=sort_desc,
+        image_id=image_id,
+        fixable_only=fixable_only,
+        filters={
+            "search": search,
+            "severity": severity,
+            "fixable": fixable,
+            "prioritized_only": prioritized_only,
+            "cvss_min": cvss_min,
+            "epss_min": epss_min,
+            "component": component,
+            "risk_status": risk_status,
+            "cluster": cluster,
+            "namespace": namespace,
+            "age_min": age_min,
+            "age_max": age_max,
+            "deployment": deployment,
+            "show_suppressed": show_suppressed,
+            "remediation_status": remediation_status,
+            "show_remediated": show_remediated,
+            "fix_overdue": fix_overdue,
+            "deployment_id": deployment_id,
+        },
     )
 
 

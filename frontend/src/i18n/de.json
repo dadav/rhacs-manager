@@ -290,7 +290,24 @@
     "remediationAll": "Alle",
     "remediationUnremediated": "Nicht behoben",
     "remediationInProgress": "In Bearbeitung",
-    "remediationRemediated": "Behoben"
+    "remediationRemediated": "Behoben",
+    "viewByComponent": "Nach Komponente",
+    "componentInstalled": "Installiert",
+    "componentTarget": "Update auf",
+    "componentTargetTooltip": "Höchste Fix-Version über alle behebbaren CVEs dieser Komponente. Ein Update auf diese Version behebt alle behebbaren CVEs.",
+    "componentFixesCves": "Behebbar / CVEs",
+    "componentNoFix": "kein Fix",
+    "componentPrioTooltip": "{{count}} priorisierte CVE(s)",
+    "componentFixHint": "Update {{component}} {{from}} → {{to}} behebt {{count}} CVE(s) in {{images}} Image(s).",
+    "componentRemainingHint": "{{count}} CVE(s) haben noch keinen Fix.",
+    "componentNoFixHint": "Für diese Komponente ist noch kein Fix verfügbar.",
+    "componentCvesTitle": "Betroffene CVEs",
+    "componentImagesTitle": "Betroffene Images",
+    "componentNoResults": "Keine Komponenten mit CVEs gefunden",
+    "componentSummary": "{{components}} Komponenten-Versionen für {{cves}} sichtbare CVEs.",
+    "componentUnmapped": "{{count}} CVE(s) ohne bekannte Komponente sind hier nicht enthalten.",
+    "componentUncertainTooltip": "Nicht alle Fix-Versionen sind vergleichbar. Gemeldete Versionen: {{versions}}",
+    "componentUncertainHint": "Nicht alle gemeldeten Fix-Versionen lassen sich als Versionen vergleichen. Bitte prüfen: {{versions}}"
   },
   "cveDetail": {
     "published": "Veröffentlicht",
@@ -401,7 +418,8 @@
     "escalationContext": "Eskalation {{cluster}}/{{namespace}} · Stufe {{level}}",
     "assigneeOptional": "Zuständige Person (optional)",
     "assign": "Zuweisen",
-    "reassign": "Neu zuweisen"
+    "reassign": "Neu zuweisen",
+    "deploymentFixesLink": "Alle behebbaren Komponenten dieses Deployments anzeigen"
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",
@@ -948,7 +966,10 @@
     "cveTable": "CVEs ({{count}})",
     "searchCves": "CVE-ID suchen...",
     "imageNotFound": "Image nicht gefunden",
-    "noTimelineData": "Keine Zeitverlaufsdaten"
+    "noTimelineData": "Keine Zeitverlaufsdaten",
+    "components": "Verwundbare Komponenten",
+    "noVulnerableComponents": "Keine sichtbaren CVEs in Komponenten dieses Images.",
+    "componentsTruncated": "{{shown}} von {{total}} Komponenten angezeigt."
   },
   "presence": {
     "viewing_one": "{{user}} sieht sich das gerade an",

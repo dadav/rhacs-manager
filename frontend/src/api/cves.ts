@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, CommentInput, ImageCveGroup, ImageCveDetail } from '../types'
+import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, CommentInput, ImageCveGroup, ImageCveDetail, FixRollupResponse } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
@@ -28,6 +28,7 @@ interface CveListParams {
   age_min?: number
   age_max?: number
   deployment?: string
+  deployment_id?: string
   fix_overdue?: boolean
   remediation_status?: string
   show_suppressed?: boolean
@@ -115,6 +116,26 @@ export function useCvesForImage(imageId: string, scope: ScopeParams = {}, filter
       return api.get<ImageCveDetail[]>(`/cves/by-image/${encodeURIComponent(imageId)}/cves${s ? `?${s}` : ''}`)
     },
     enabled: !!imageId,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export interface CveFixesParams extends CveListParams {
+  fixable_only?: boolean
+  image_id?: string
+}
+
+/**
+ * Component roll-up (GET /cves/fixes). Takes the same filters as useCves so all
+ * views show the same CVE set. `enabled` lets callers skip the request until the
+ * view is visible; the org-wide roll-up is expensive for sec-team users.
+ */
+export function useCveFixes(params: CveFixesParams, scope: ScopeParams = {}, enabled = true) {
+  const merged = { ...params, cluster: scope.cluster, namespace: scope.namespace }
+  return useQuery({
+    queryKey: ['cves', 'fixes', merged],
+    queryFn: () => api.get<FixRollupResponse>(`/cves/fixes${buildQuery(merged)}`),
+    enabled,
     placeholderData: keepPreviousData,
   })
 }

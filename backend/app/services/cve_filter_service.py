@@ -380,11 +380,17 @@ async def fetch_filtered_cves(
     remediation_status: str | None = None,
     show_remediated: bool = False,
     fix_overdue: bool = False,
+    deployment_id: str | None = None,
+    restrict_namespaces: list[tuple[str, str]] | None = None,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
     Returns the complete sorted list of CveListItem matching all filters.
     Used by both the paginated list endpoint and export endpoints.
+
+    ``restrict_namespaces`` narrows the query to those (namespace, cluster) pairs,
+    intersected with what the user may see. Callers that already know the
+    relevant namespaces (e.g. one image) use it to avoid an org-wide scan.
     """
     settings = await _get_settings(app_db)
     if current_user.is_sec_team:
@@ -406,7 +412,19 @@ async def fetch_filtered_cves(
     always_show = set(priorities.keys()) | set(acceptances.keys())
 
     ns_for_components: list[tuple[str, str]] = []
-    if current_user.can_see_all_namespaces:
+    if restrict_namespaces is not None:
+        if current_user.can_see_all_namespaces:
+            allowed = restrict_namespaces
+        else:
+            if not current_user.has_namespaces:
+                return []
+            visible_ns = set(current_user.namespaces)
+            allowed = [ns for ns in restrict_namespaces if ns in visible_ns]
+        ns_for_components = narrow_namespaces(allowed, cluster, namespace)
+        if not ns_for_components:
+            return []
+        cves = await sx.get_cves_for_namespaces(sx_db, ns_for_components, min_cvss, min_epss, always_show)
+    elif current_user.can_see_all_namespaces:
         if has_scope:
             all_ns = await sx.list_namespaces(sx_db)
             scoped_ns = narrow_namespaces(
@@ -533,17 +551,20 @@ async def fetch_filtered_cves(
             filtered.append(i)
         items = filtered
 
-    # Deployment filter
-    if deployment and items:
+    # Deployment filters (by name, or by the unique deployment ID)
+    if (deployment or deployment_id) and items:
         if current_user.can_see_all_namespaces:
             all_ns = await sx.list_namespaces(sx_db)
             dep_ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
         else:
             dep_ns = current_user.namespaces
         dep_ns = narrow_namespaces(dep_ns, cluster, namespace)
-        dep_cve_ids = await sx.get_cve_ids_for_deployment(sx_db, deployment, dep_ns)
-        dep_set = set(dep_cve_ids)
-        items = [i for i in items if i.cve_id in dep_set]
+        if deployment:
+            dep_set = set(await sx.get_cve_ids_for_deployment(sx_db, deployment, dep_ns))
+            items = [i for i in items if i.cve_id in dep_set]
+        if deployment_id:
+            dep_id_set = set(await sx.get_cve_ids_for_deployment_id(sx_db, deployment_id, dep_ns))
+            items = [i for i in items if i.cve_id in dep_id_set]
 
     # Sort
     sort_key_map = {

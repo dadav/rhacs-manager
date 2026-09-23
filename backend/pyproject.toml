@@ -24,6 +24,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "protobuf>=5.0.0",
     "prometheus-fastapi-instrumentator>=7.0.0",
+    "packaging>=26.3",
 ]
 
 [dependency-groups]

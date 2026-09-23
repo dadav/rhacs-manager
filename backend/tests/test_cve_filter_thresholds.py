@@ -55,6 +55,7 @@ def _patch_stackrox(monkeypatch, captured):
 
     async def get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show):
         captured["get_cves_for_namespaces"] = (min_cvss, min_epss, set(always_show))
+        captured["namespaces"] = list(ns)
         return [cve]
 
     async def list_namespaces(sx_db):
@@ -103,3 +104,73 @@ async def test_sec_team_user_bypasses_thresholds(monkeypatch):
     assert min_cvss == 0.0
     assert min_epss == 0.0
     assert always_show == {"CVE-PRIO-1", "CVE-RA-1"}
+
+
+@pytest.mark.asyncio
+async def test_restrict_namespaces_never_widens_team_member_visibility(monkeypatch):
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5, fix_overdue_threshold_days=30)
+    captured: dict = {}
+    _patch_stackrox(monkeypatch, captured)
+    user = make_current_user(is_sec_team=False, namespaces=[("payments", "cluster-a")])
+
+    await svc.fetch_filtered_cves(
+        user,
+        _app_db_with_calls(settings),
+        AsyncMock(),
+        restrict_namespaces=[("payments", "cluster-a"), ("billing", "cluster-a")],
+    )
+
+    assert captured["namespaces"] == [("payments", "cluster-a")]
+    assert captured["get_cves_for_namespaces"][:2] == (7.0, 0.5)
+
+
+@pytest.mark.asyncio
+async def test_restrict_namespaces_outside_visibility_returns_nothing(monkeypatch):
+    settings = SimpleNamespace(min_cvss_score=0.0, min_epss_score=0.0, fix_overdue_threshold_days=30)
+    captured: dict = {}
+    _patch_stackrox(monkeypatch, captured)
+    user = make_current_user(is_sec_team=False, namespaces=[("payments", "cluster-a")])
+
+    items = await svc.fetch_filtered_cves(
+        user,
+        _app_db_with_calls(settings),
+        AsyncMock(),
+        restrict_namespaces=[("billing", "cluster-a")],
+    )
+
+    assert items == []
+    assert "get_cves_for_namespaces" not in captured
+
+
+@pytest.mark.asyncio
+async def test_restrict_namespaces_scopes_sec_team_without_org_wide_scan(monkeypatch):
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5, fix_overdue_threshold_days=30)
+    captured: dict = {}
+    _patch_stackrox(monkeypatch, captured)
+    user = make_current_user(is_sec_team=True, has_all_namespaces=True)
+
+    await svc.fetch_filtered_cves(
+        user, _app_db_with_calls(settings), AsyncMock(), restrict_namespaces=[("billing", "cluster-b")]
+    )
+
+    assert captured["namespaces"] == [("billing", "cluster-b")]
+    assert "get_all_cves" not in captured
+
+
+@pytest.mark.asyncio
+async def test_deployment_id_filter_keeps_only_that_deployments_cves(monkeypatch):
+    settings = SimpleNamespace(min_cvss_score=0.0, min_epss_score=0.0, fix_overdue_threshold_days=30)
+    captured: dict = {}
+    _patch_stackrox(monkeypatch, captured)
+
+    async def get_cve_ids_for_deployment_id(sx_db, deployment_id, ns):
+        captured["deployment_lookup"] = (deployment_id, list(ns))
+        return []
+
+    monkeypatch.setattr(svc.sx, "get_cve_ids_for_deployment_id", get_cve_ids_for_deployment_id)
+    user = make_current_user(is_sec_team=False, namespaces=[("payments", "cluster-a")])
+
+    items = await svc.fetch_filtered_cves(user, _app_db_with_calls(settings), AsyncMock(), deployment_id="dep-x")
+
+    assert items == []
+    assert captured["deployment_lookup"] == ("dep-x", [("payments", "cluster-a")])

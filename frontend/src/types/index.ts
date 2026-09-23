@@ -529,6 +529,56 @@ export interface RemediationStats {
   overdue: number
 }
 
+export interface FixRollupCve {
+  cve_id: string
+  severity: Severity
+  cvss: number
+  epss_probability: number
+  fixable: boolean
+  /** Highest comparable fix version. */
+  fixed_by: string | null
+  /** All reported fix versions, highest first; non-comparable values last. */
+  fix_candidates: string[]
+  has_priority: boolean
+}
+
+export interface FixRollupImage {
+  image_id: string
+  image_name: string
+}
+
+/** One installed component version and what upgrading it fixes (GET /cves/fixes). */
+export interface FixRollupItem {
+  component_name: string
+  component_version: string
+  operating_system: string
+  target_version: string | null
+  fix_versions: string[]
+  /** Some fix version could not be ordered; show fix_versions instead of trusting target_version. */
+  target_uncertain: boolean
+  total_cves: number
+  fixable_cves: number
+  prioritized_cves: number
+  critical_cves: number
+  max_severity: Severity
+  max_cvss: number
+  max_epss: number
+  affected_images: number
+  affected_deployments: number
+  namespaces: string[]
+  images: FixRollupImage[]
+  cves: FixRollupCve[]
+}
+
+export interface FixRollupResponse {
+  items: FixRollupItem[]
+  total: number
+  page: number
+  page_size: number
+  visible_cves: number
+  unmapped_cves: number
+}
+
 export interface ImageCveGroup {
   image_name: string
   image_id: string

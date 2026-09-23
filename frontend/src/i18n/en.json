@@ -290,7 +290,24 @@
     "remediationAll": "All",
     "remediationUnremediated": "Unremediated",
     "remediationInProgress": "In Progress",
-    "remediationRemediated": "Remediated"
+    "remediationRemediated": "Remediated",
+    "viewByComponent": "By Component",
+    "componentInstalled": "Installed",
+    "componentTarget": "Upgrade to",
+    "componentTargetTooltip": "Highest fix version across all fixable CVEs of this component. Upgrading to it fixes every fixable CVE.",
+    "componentFixesCves": "Fixable / CVEs",
+    "componentNoFix": "no fix",
+    "componentPrioTooltip": "{{count}} prioritized CVE(s)",
+    "componentFixHint": "Upgrade {{component}} {{from}} → {{to}} to fix {{count}} CVE(s) in {{images}} image(s).",
+    "componentRemainingHint": "{{count}} CVE(s) have no fix yet.",
+    "componentNoFixHint": "No fix is available for this component yet.",
+    "componentCvesTitle": "Affected CVEs",
+    "componentImagesTitle": "Affected images",
+    "componentNoResults": "No components with CVEs found",
+    "componentSummary": "{{components}} component versions for {{cves}} visible CVEs.",
+    "componentUnmapped": "{{count}} CVE(s) without a known component are not included here.",
+    "componentUncertainTooltip": "Not all fix versions can be compared. Reported versions: {{versions}}",
+    "componentUncertainHint": "Not all reported fix versions can be compared as versions. Please check: {{versions}}"
   },
   "cveDetail": {
     "published": "Published",
@@ -401,7 +418,8 @@
     "escalationContext": "Escalation {{cluster}}/{{namespace}} · level {{level}}",
     "assigneeOptional": "Assignee (optional)",
     "assign": "Assign",
-    "reassign": "Reassign"
+    "reassign": "Reassign",
+    "deploymentFixesLink": "Show all fixable components of this deployment"
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",
@@ -948,7 +966,10 @@
     "cveTable": "CVEs ({{count}})",
     "searchCves": "Search CVE ID...",
     "imageNotFound": "Image not found",
-    "noTimelineData": "No timeline data"
+    "noTimelineData": "No timeline data",
+    "components": "Vulnerable components",
+    "noVulnerableComponents": "No visible CVEs in this image's components.",
+    "componentsTruncated": "Showing {{shown}} of {{total}} components."
   },
   "presence": {
     "viewing_one": "{{user}} is viewing this",

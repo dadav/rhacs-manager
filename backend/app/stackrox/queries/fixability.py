@@ -167,6 +167,29 @@ async def get_cve_ids_for_deployment(
     return [row.cve_id for row in result]
 
 
+async def get_cve_ids_for_deployment_id(
+    session: AsyncSession,
+    deployment_id: str,
+    namespaces: list[tuple[str, str]],
+) -> list[str]:
+    """Return CVE IDs affecting the deployment with this ID, if it is in the given namespaces."""
+    if not namespaces:
+        return []
+
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        WHERE d.id = :deployment_id
+          AND {ns_fragment}
+    """)
+    result = await session.execute(sql, {"deployment_id": deployment_id, **ns_params})
+    return [row.cve_id for row in result]
+
+
 async def get_cve_aging(
     session: AsyncSession,
     namespaces: list[tuple[str, str]] | None = None,

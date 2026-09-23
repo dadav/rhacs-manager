@@ -18,6 +18,9 @@ import { Table, Tbody, Tr, Td } from '@patternfly/react-table'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { useImageDetail } from '../api/images'
+import { useCveFixes } from '../api/cves'
+import { ComponentFixTable } from '../components/ComponentFixTable'
+import { useScope } from '../hooks/useScope'
 import { ImageCveTimeline } from '../components/charts/ImageCveTimeline'
 import { getErrorMessage } from '../utils/errors'
 import { formatCvss, formatDate, formatDateTime } from '../utils/format'
@@ -54,6 +57,49 @@ const INSTRUCTION_COLORS: Record<string, string> = {
   HEALTHCHECK: '#a6e3a1',
   ONBUILD: '#89dceb',
   MAINTAINER: '#89dceb',
+}
+
+// Largest page the /cves/fixes endpoint serves; one image rarely has more
+// vulnerable component versions than this.
+const IMAGE_COMPONENT_PAGE_SIZE = 200
+
+/** Vulnerable components of one image, with the version that fixes them. */
+function ImageComponents({ imageId }: { imageId: string }) {
+  const { t } = useTranslation()
+  const { scopeParams } = useScope()
+  const { data, isLoading, error } = useCveFixes(
+    { image_id: imageId, page_size: IMAGE_COMPONENT_PAGE_SIZE },
+    scopeParams,
+  )
+
+  return (
+    <Card>
+      <CardTitle>
+        {t('imageDetail.components')}
+        {data && data.total > 0 && ` (${data.total})`}
+      </CardTitle>
+      <CardBody>
+        {isLoading ? (
+          <Skeleton height="120px" />
+        ) : error ? (
+          <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(error)}`} />
+        ) : !data?.items.length ? (
+          <div style={{ fontSize: 13, color: 'var(--pf-t--global--text--color--subtle)' }}>
+            {t('imageDetail.noVulnerableComponents')}
+          </div>
+        ) : (
+          <>
+            <ComponentFixTable items={data.items} showImageLinks={false} />
+            {data.total > data.items.length && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
+                {t('imageDetail.componentsTruncated', { shown: data.items.length, total: data.total })}
+              </div>
+            )}
+          </>
+        )}
+      </CardBody>
+    </Card>
+  )
 }
 
 export function ImageDetail() {
@@ -276,6 +322,11 @@ export function ImageDetail() {
             <ImageCveTimeline data={image.cve_timeline} />
           </CardBody>
         </Card>
+      </PageSection>
+
+      {/* Vulnerable components with upgrade targets */}
+      <PageSection variant="default" style={{ paddingTop: 0 }}>
+        <ImageComponents imageId={decodedId} />
       </PageSection>
 
       {/* Dockerfile Layers */}

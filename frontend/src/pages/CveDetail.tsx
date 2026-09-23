@@ -169,6 +169,16 @@ function DeploymentCoverageIcons({ deployment }: { deployment: AffectedDeploymen
   );
 }
 
+/** Component roll-up of everything fixable in one deployment (CveList component view). */
+function deploymentFixesUrl(d: { deployment_id: string; deployment_name: string; namespace: string; cluster_name: string }): string {
+  const q = new URLSearchParams({
+    view: "component",
+    deployment_id: d.deployment_id,
+    deployment_label: `${d.cluster_name}/${d.namespace}/${d.deployment_name}`,
+  });
+  return `/vulnerabilities?${q.toString()}`;
+}
+
 export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>();
   const navigate = useNavigate();
@@ -916,7 +926,9 @@ export function CveDetail() {
                                       minWidth: 0,
                                     }}
                                   >
-                                    <span
+                                    <Link
+                                      to={deploymentFixesUrl(d)}
+                                      title={t("cveDetail.deploymentFixesLink")}
                                       style={{
                                         fontFamily: "monospace",
                                         overflow: "hidden",
@@ -925,7 +937,7 @@ export function CveDetail() {
                                       }}
                                     >
                                       {d.deployment_name}
-                                    </span>
+                                    </Link>
                                     <DeploymentCoverageIcons deployment={d} />
                                   </span>
                                 </Td>
