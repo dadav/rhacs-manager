@@ -12,6 +12,18 @@ switches language together with the rest of the text.
 
 from ..i18n import DEFAULT_LANG
 
+# Reserved params key: [[namespace, cluster], ...] the notification is about.
+# Used on read to hide stale snapshot-targeted notifications and to fill the
+# ``{namespaces}`` placeholder with only the namespaces the reader still sees.
+# Namespace names are never stored as plain params for that reason.
+SCOPE_PARAM = "_scope"
+
+
+def namespace_label(scope: list[list[str]] | list[tuple[str, str]]) -> str:
+    """Render [[namespace, cluster], ...] as 'cluster/namespace, ...' in a stable order."""
+    return ", ".join(f"{cl}/{ns}" for ns, cl in sorted((tuple(p) for p in scope), key=lambda n: (n[1], n[0])))
+
+
 NOTIFICATION_MESSAGES: dict[str, dict[str, dict[str, str]]] = {
     "risk_comment": {
         "de": {"title": "Neuer Kommentar: {cve_id}", "message": "{author} hat einen Kommentar hinterlassen."},
@@ -119,6 +131,46 @@ NOTIFICATION_MESSAGES: dict[str, dict[str, dict[str, str]]] = {
         "en": {
             "title": "Suppression rule {status_label}: {target}",
             "message": "Your suppression rule for {target} was {status_label}.",
+        },
+    },
+    "new_relevant_cve": {
+        "de": {
+            "title": "Neue relevante CVE: {cve_id}",
+            "message": "{cve_id} liegt neu über den Schwellenwerten in: {namespaces}.",
+        },
+        "en": {
+            "title": "New relevant CVE: {cve_id}",
+            "message": "{cve_id} is newly above the thresholds in: {namespaces}.",
+        },
+    },
+    "team_cve_alert_summary": {
+        "de": {
+            "title": "{count} neue relevante CVEs",
+            "message": "In Ihren Namespaces liegen {count} CVEs neu über den Schwellenwerten.",
+        },
+        "en": {
+            "title": "{count} new relevant CVEs",
+            "message": "{count} CVEs are newly above the thresholds in your namespaces.",
+        },
+    },
+    "team_priority_alert_summary": {
+        "de": {
+            "title": "{count} neu priorisierte CVEs",
+            "message": "Das Security-Team hat {count} CVEs in Ihren Namespaces priorisiert.",
+        },
+        "en": {
+            "title": "{count} newly prioritized CVEs",
+            "message": "The security team prioritized {count} CVEs in your namespaces.",
+        },
+    },
+    "cve_prioritized_team": {
+        "de": {
+            "title": "CVE priorisiert: {cve_id}",
+            "message": "Das Security-Team hat {cve_id} priorisiert. Betroffen: {namespaces}.",
+        },
+        "en": {
+            "title": "CVE prioritized: {cve_id}",
+            "message": "The security team prioritized {cve_id}. Affected: {namespaces}.",
         },
     },
     "mention": {

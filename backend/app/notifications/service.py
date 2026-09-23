@@ -11,7 +11,8 @@ from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
 from ..services.comment_content import legacy_mention_names
-from .messages import render_notification
+from .messages import SCOPE_PARAM, render_notification
+from .preferences import category_for_type, wants
 
 # Hard cap on distinct, non-self recipients per comment. Guards against a single
 # comment fanning out to the whole org.
@@ -55,14 +56,29 @@ async def create_notification(
     message_key: str,
     params: dict,
     link: str | None = None,
-) -> Notification:
-    """Persist an in-app notification.
+    scope: list[tuple[str, str]] | None = None,
+) -> Notification | None:
+    """Persist an in-app notification unless the user turned its category off.
 
     ``message_key``/``params`` drive localized rendering on read (see
     ``notifications/messages.py``). The German rendering is stored in
     ``title``/``message`` as the fallback text.
+
+    ``scope`` lists the (namespace, cluster) pairs the notification is about. Set
+    it whenever recipients were picked from namespace snapshots: on read, the
+    notification is only shown if the reader still sees one of those namespaces.
     """
-    rendered = render_notification(message_key, params, DEFAULT_LANG)
+    category = category_for_type(type)
+    if category is not None and not await wants(session, user_id, category, "in_app"):
+        logger.debug("Notification %s for user %s suppressed by preference", type, user_id)
+        return None
+    render_params = params
+    if scope is not None:
+        params = {**params, SCOPE_PARAM: [list(pair) for pair in scope]}
+        # The stored fallback text must not name namespaces either; the router
+        # renders them per reader from the scope.
+        render_params = {**params, "namespaces": "-"}
+    rendered = render_notification(message_key, render_params, DEFAULT_LANG)
     if rendered is None:
         raise ValueError(f"Unknown notification message key: {message_key}")
     title, message = rendered

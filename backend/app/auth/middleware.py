@@ -13,6 +13,7 @@ from ..database import AppSessionLocal
 from ..i18n import ApiError
 from ..models.namespace_contact import NamespaceContact
 from ..models.user import User, UserRole
+from ..services.namespace_snapshot import record_namespace_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -411,18 +412,29 @@ def _validate_api_key(request: Request) -> bool:
     return any(secrets.compare_digest(api_key, allowed_key) for allowed_key in settings.spoke_api_keys)
 
 
+async def _authenticate(session: AsyncSession, request: Request) -> CurrentUser:
+    # 1. Dev mode (local development only)
+    if settings.dev_mode:
+        return await _handle_dev_mode(session)
+
+    # 2. Spoke proxy mode (X-Api-Key + X-Forwarded-* headers)
+    if _validate_api_key(request):
+        return await _handle_spoke_proxy(session, request)
+
+    # 3. Direct OIDC JWT (hub-local access)
+    return await _handle_oidc_jwt(session, request)
+
+
 async def get_current_user(request: Request) -> CurrentUser:
     async with AppSessionLocal() as session:
-        # 1. Dev mode (local development only)
-        if settings.dev_mode:
-            return await _handle_dev_mode(session)
-
-        # 2. Spoke proxy mode (X-Api-Key + X-Forwarded-* headers)
-        if _validate_api_key(request):
-            return await _handle_spoke_proxy(session, request)
-
-        # 3. Direct OIDC JWT (hub-local access)
-        return await _handle_oidc_jwt(session, request)
+        current_user = await _authenticate(session, request)
+        # Notification targeting only; a failure here must never block the request.
+        try:
+            await record_namespace_snapshot(session, current_user)
+        except Exception:
+            await session.rollback()
+            logger.warning("namespace_snapshot_failed", extra={"user_id": current_user.id}, exc_info=True)
+        return current_user
 
 
 def require_sec_team(

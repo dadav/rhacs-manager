@@ -83,6 +83,42 @@ def _is_cve_suppressed_by_rules(
     return visible_locations.issubset(covered)
 
 
+def is_location_suppressed(
+    cve_id: str,
+    namespace: str,
+    cluster_name: str,
+    components: list[tuple[str, str]],
+    cve_rules: list[SuppressionRule],
+    component_rules: list[SuppressionRule],
+) -> bool:
+    """Whether approved rules hide ``cve_id`` in one (namespace, cluster) location.
+
+    Per-location counterpart of ``_compute_suppressed_cves`` (which answers "hidden
+    in the user's whole view"): a global CVE rule, a namespace-scoped CVE rule
+    covering this namespace, or a component rule matching a component present
+    here. A user sees the CVE in /cves iff at least one of their locations is not
+    suppressed, so alerting only about unsuppressed locations stays consistent.
+    """
+    for rule in cve_rules:
+        if rule.cve_id != cve_id:
+            continue
+        scope = rule.scope or {"mode": "all", "targets": []}
+        if scope.get("mode") == "all":
+            return True
+        for target in scope.get("targets", []):
+            if target.get("namespace") == namespace and target.get("cluster_name") == cluster_name:
+                return True
+    return any(_matches_component_rule(rule, components) for rule in component_rules)
+
+
+async def load_approved_suppression_rules(
+    app_db: AsyncSession,
+) -> tuple[list[SuppressionRule], list[SuppressionRule]]:
+    """(approved CVE rules, approved component rules)."""
+    approved_cve_rules, approved_component_rules, _, _ = await _load_suppression_sets(app_db)
+    return approved_cve_rules, approved_component_rules
+
+
 def _compute_suppressed_cves(
     cve_rules: list[SuppressionRule],
     component_rules: list[SuppressionRule],

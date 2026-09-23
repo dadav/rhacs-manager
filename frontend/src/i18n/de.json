@@ -9,7 +9,8 @@
     "switchLanguage": "Sprache wechseln",
     "showHelp": "Hilfe anzeigen",
     "logout": "Abmelden",
-    "skipToContent": "Zum Inhalt springen"
+    "skipToContent": "Zum Inhalt springen",
+    "mySettings": "Persönliche Einstellungen"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -120,7 +121,10 @@
     "suppression_requested": "Unterdrückung beantragt",
     "suppression_approved": "Unterdrückung genehmigt",
     "suppression_rejected": "Unterdrückung abgelehnt",
-    "mention": "Erwähnung"
+    "mention": "Erwähnung",
+    "remediation_created": "Behebung",
+    "remediation_status": "Behebungsstatus",
+    "remediation_overdue": "Behebung überfällig"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -975,5 +979,34 @@
     "viewing_one": "{{user}} sieht sich das gerade an",
     "viewing_many": "{{count}} weitere sehen sich das gerade an",
     "tooltip": "Aktive Betrachter: {{users}}"
+  },
+  "mySettings": {
+    "title": "Persönliche Einstellungen",
+    "notificationsTitle": "Benachrichtigungen",
+    "saved": "Einstellung gespeichert.",
+    "intro": "Legen Sie fest, worüber Sie in der Anwendung und per E-Mail informiert werden.",
+    "categoryColumn": "Kategorie",
+    "in_app": "In der App",
+    "email": "E-Mail",
+    "mentionsMandatory": "Erwähnungen (@Name) werden immer in der App und per E-Mail zugestellt.",
+    "teamInactive": "Team-Benachrichtigungen (Wochenbericht, neue relevante CVEs) starten, sobald Ihre Namespaces nach der nächsten Anmeldung bekannt sind.",
+    "category": {
+      "risk_acceptance": "Risikoakzeptanzen",
+      "remediation": "Behebungen",
+      "suppression": "Unterdrückungsregeln",
+      "priority": "Priorisierungen",
+      "new_critical_cve": "Neue relevante CVEs",
+      "escalation": "Eskalationen",
+      "team_digest": "Wöchentlicher Team-Bericht"
+    },
+    "categoryHelp": {
+      "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen.",
+      "remediation": "Zuweisungen, Statusänderungen und überfällige Behebungen.",
+      "suppression": "Anfragen und Entscheidungen zu Unterdrückungsregeln.",
+      "priority": "CVEs, die das Security-Team in Ihren Namespaces priorisiert hat.",
+      "new_critical_cve": "CVEs, die in Ihren Namespaces neu über den CVSS/EPSS-Schwellenwerten liegen.",
+      "escalation": "Eskalationsstufen (Security-Team).",
+      "team_digest": "Wöchentliche E-Mail mit Kennzahlen und Links für Ihre Namespaces, ohne CVE-Details."
+    }
   }
 }

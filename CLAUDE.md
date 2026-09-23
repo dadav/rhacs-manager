@@ -139,7 +139,7 @@ Other 4.11 rules:
 
 `CurrentUser` behavior:
 
-- `namespaces` is request-scoped data and is not persisted in the DB.
+- `namespaces` is request-scoped data. Each sign-in also writes a `user_namespace_snapshots` row (`services/namespace_snapshot.py`), used **only** to target background notifications (team digest, team CVE alerts), never for access control. Notifications targeted that way must pass `scope=` to `create_notification` so `/notifications` hides them from readers who lost those namespaces; team emails carry counts and links only.
 - `is_sec_team` comes from the configured sec-team group.
 - `has_all_namespaces` comes from wildcard namespace visibility.
 - `can_see_all_namespaces` means `is_sec_team or has_all_namespaces`.
@@ -253,7 +253,7 @@ import { getErrorMessage } from '../utils/errors'
 
 - User-visible API errors must use `ApiError(status, "code")` from `backend/app/i18n.py`, never `HTTPException` with a hardcoded German string. Add the `code` with `de` + `en` text to the `MESSAGES` catalog in `app/i18n.py`. `LanguageMiddleware` resolves the language from the request `Accept-Language` header (sent by `frontend/src/api/client.ts`), defaulting to German. `exports.py` keeps its own `lang`-query bilingual catalog.
 - Keep StackRox SQL centralized in `backend/app/stackrox/queries.py`.
-- In-app notifications are created with `create_notification(session, user_id, type, message_key, params, link)`. Add each `message_key` with `de` + `en` title/message to `NOTIFICATION_MESSAGES` in `backend/app/notifications/messages.py`; never pass finished German strings. `params` must be JSON primitives. `/notifications` renders them in the request language; the stored German `title`/`message` is only the fallback for legacy rows (pre-migration `023`).
+- In-app notifications are created with `create_notification(session, user_id, type, message_key, params, link, scope=None)`; it returns `None` when the user disabled the type's category (`notifications/preferences.py`, the single catalog of categories, channels, and defaults; mentions are mandatory). Emails to users must check `preferences.wants(..., "email")`. Add each `message_key` with `de` + `en` title/message to `NOTIFICATION_MESSAGES` in `backend/app/notifications/messages.py`; never pass finished German strings. `params` must be JSON primitives. `/notifications` renders them in the request language; the stored German `title`/`message` is only the fallback for legacy rows (pre-migration `023`).
 - Keep routers thin; move multi-step business rules into `backend/app/services/` when the logic is not purely request mapping.
 - Scheduler startup and initial escalation check happen in the FastAPI lifespan.
 - Dev-only routes are registered only when `DEV_MODE=true`.

@@ -120,6 +120,18 @@ The backend materializes the authenticated user as `CurrentUser` with:
 - Users need namespace access to read or update them.
 - Deletion is limited to the creator or `sec_team`, and only while the remediation is `open` or `wont_fix`.
 
+### Namespace snapshots (notification targeting)
+
+Namespace visibility is request-scoped and authorizes every request. Background jobs cannot see requests, so each sign-in also stores the user's current namespaces in `user_namespace_snapshots`. This snapshot:
+
+- is used **only** to decide who receives team notifications (weekly team digest, new relevant CVE alerts), never for access control;
+- is ignored once it is older than `TEAM_NOTIFICATION_ACTIVE_DAYS`;
+- may be stale when access was revoked since the last sign-in. To limit what a stale snapshot can reveal:
+    - in-app alerts store the namespaces they are about, not their names in the text. On read (list, unread count, and mark-read), an alert is hidden unless the reader still sees one of those namespaces, and its text names only the namespaces the reader still sees;
+    - the team digest email contains only counts and links, never CVE IDs, component names, or namespace names.
+
+Wildcard and `sec_team` users do not receive team CVE alerts (they would get one per newly visible CVE org-wide).
+
 ## Threshold Bypass Rules
 
 Some CVEs remain visible even if they do not meet the active thresholds.
@@ -133,6 +145,7 @@ Some CVEs remain visible even if they do not meet the active thresholds.
 ## Spoke-to-Hub Trust Boundary
 
 - The hub trusts spoke requests only after constant-time `X-Api-Key` validation.
+- Once the key matches, the hub trusts the `X-Forwarded-User`, `X-Forwarded-Groups`, and `X-Forwarded-Namespaces` values as sent. Anyone holding a spoke API key can therefore act as any user, including `sec_team` or wildcard namespace access. Keep the key inside the proxy chain; never hand it to clients, CI jobs, or scripts.
 - `X-Forwarded-User` is required in spoke mode.
 - `spoke:<username>` is used as the stored user ID to avoid collisions with direct OIDC users.
 - Namespace escalation emails sent from the injector are written into the app DB so the hub can reuse them for notifications and escalations.

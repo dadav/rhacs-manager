@@ -89,6 +89,7 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
 | `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
+| `TEAM_NOTIFICATION_ACTIVE_DAYS` | `30` | Team notifications (weekly team digest, new relevant CVE alerts) only go to users who signed in within this many days |
 | `SCHEDULER_ENABLED` | `true` | Run the background job scheduler in this process. See [Background Scheduler](#background-scheduler). |
 
 ## Background Scheduler
@@ -109,6 +110,9 @@ The scheduled jobs (all times UTC):
 | `escalation_check` | 08:00 | Create and clean up escalations and send escalation emails |
 | `remediation_overdue_check` | 08:30 | Notify owners of overdue remediations |
 | `remediation_auto_resolve` | 09:00 | Auto-resolve remediations when the CVE is no longer reported in the namespace |
+| `cve_snapshot` | 02:00 | Store daily per-namespace CVE counts for the dashboard trend |
+| `team_cve_alerts` | 02:30 | In-app alerts for CVEs newly above the thresholds or prioritized in a team member's namespaces (the first run only records a baseline) |
+| `team_digest` | 07:15 | Weekly opt-in team digest email per user (only on the configured `digest_day`) |
 
 ### Deployment: one worker, never the API
 

@@ -1,0 +1,63 @@
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{#
+  Counts and links only. Never render CVE IDs, component or namespace names here:
+  recipients come from a namespace snapshot that may be stale.
+#}
+
+{% block title %}Ihr wöchentlicher Team-Bericht{% endblock %}
+{% block preheader %}{{ stats.new_fixable_cves }} neue behebbare CVEs, {{ stats.remediations_overdue }} überfällige Behebungen.{% endblock %}
+
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#0f62fe">Team-Bericht</div>
+  <h1 style="margin:8px 0 8px;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">Hallo {{ recipient_name }},</h1>
+  <p style="margin:0 0 22px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    hier ist der Wochenüberblick für Ihre Namespaces.
+  </p>
+
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:separate;border-spacing:8px 0;margin:0 -8px 24px">
+    <tr>
+      {% set cards = [
+        ("Neu behebbar (7T)", stats.new_fixable_cves, "#0f62fe", "#eef4fc"),
+        ("Kritisch & behebbar", stats.critical_fixable_cves, "#c9190b", "#fcf0ef"),
+        ("Komponenten-Updates", stats.component_upgrades, "#3e8635", "#edf6ec")
+      ] %}
+      {% for label, value, color, bg in cards %}
+      <td width="33%" style="background:{{ bg }};border-radius:9px;padding:16px 12px;text-align:center;vertical-align:top">
+        <div style="font-family:{{ ui.mono() }};font-size:26px;font-weight:700;line-height:1;color:{{ color }}">{{ value }}</div>
+        <div style="font-family:{{ ui.font() }};font-size:11px;font-weight:600;color:#71717a;padding-top:7px">{{ label }}</div>
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+
+  {{ ui.card_head("Handlungsbedarf") }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      {% set rows = [
+        ("Überfällige Behebungen", stats.remediations_overdue, links.remediations),
+        ("Behebungen fällig in 7 Tagen", stats.remediations_due_soon, links.remediations),
+        ("Ihnen zugewiesene offene Behebungen", stats.remediations_assigned_open, links.my_remediations),
+        ("Risikoakzeptanzen, die in 14 Tagen ablaufen", stats.risk_acceptances_expiring, links.risk_acceptances),
+        ("Priorisierte CVEs", stats.prioritized_cves, links.components)
+      ] %}
+      {% for label, value, href in rows %}
+      <tr>
+        <td style="padding:11px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.font() }};font-size:13px;color:#3f3f46">
+          <a href="{{ href }}" style="color:#3f3f46;text-decoration:none">{{ label }}</a>
+        </td>
+        <td style="padding:11px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}text-align:right;font-family:{{ ui.mono() }};font-size:14px;font-weight:700;color:{% if value > 0 %}#16161a{% else %}#a1a1aa{% endif %}">{{ value }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {{ ui.card_foot() }}
+
+  <div style="height:24px;line-height:24px;font-size:0">&nbsp;</div>
+  {{ ui.button(links.components, "Behebbare Komponenten ansehen") }}
+
+  <p style="margin:22px 0 0;font-family:{{ ui.font() }};font-size:12px;line-height:1.6;color:#71717a">
+    Details zu CVEs werden aus Datenschutzgründen nur in der Anwendung angezeigt.
+    Diesen Bericht können Sie in den <a href="{{ links.settings }}" style="color:#0f62fe">persönlichen Einstellungen</a> abbestellen.
+  </p>
+{% endblock %}
+{% block footer %}Wöchentlicher Team-Bericht des RHACS CVE Managers. Bitte nicht auf diese E-Mail antworten.{% endblock %}

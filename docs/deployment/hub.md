@@ -26,6 +26,10 @@ The backend expects these core values in `backend.secret.stringData`:
 - `SEC_TEAM_GROUP`
 - `MANAGEMENT_EMAIL`
 
+Optional:
+
+- `TEAM_NOTIFICATION_ACTIVE_DAYS` (default `"30"`): team notifications only go to users who signed in within this many days. Set it as a string, for example `--set-string backend.secret.stringData.TEAM_NOTIFICATION_ACTIVE_DAYS=14`.
+
 See `examples/helm-values-hub-minimal.yaml` for a minimal values override.
 
 ## StackRox DB Password Secret

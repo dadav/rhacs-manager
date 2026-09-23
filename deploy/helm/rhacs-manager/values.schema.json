@@ -542,6 +542,12 @@
                   "description": "REQUIRED: override in production with a list of allowed spoke API keys",
                   "title": "SPOKE_API_KEYS",
                   "type": "string"
+                },
+                "TEAM_NOTIFICATION_ACTIVE_DAYS": {
+                  "default": "30",
+                  "description": "Team notifications (weekly team digest, new relevant CVE alerts) only go to\nusers who signed in within this many days. Read by the worker (scheduler).",
+                  "title": "TEAM_NOTIFICATION_ACTIVE_DAYS",
+                  "type": "string"
                 }
               },
               "required": [
@@ -565,6 +571,7 @@
                 "BADGE_BASE_URL",
                 "MANAGEMENT_EMAIL",
                 "DEFAULT_ESCALATION_EMAIL",
+                "TEAM_NOTIFICATION_ACTIVE_DAYS",
                 "SPOKE_API_KEYS",
                 "SEC_TEAM_GROUP",
                 "SCHEDULER_ENABLED"

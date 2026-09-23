@@ -276,8 +276,18 @@ Notifications appear in the bell menu and are stored per user.
 - Notification titles and messages appear in the current UI language (German or English). Notifications created before this feature keep their original German text.
 - Each notification has a trash action to permanently delete it, and the drawer header offers **Clear all**. Clear all requires an inline confirmation and permanently removes every stored notification for you, not only the newest 50 shown. Deletion is permanent with no undo; it never touches the underlying business records, sent email, weekly digests, or audit history, and only ever affects your own notifications.
 - The weekly digest is sent to the configured management email on the configured weekday.
-- Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request.
+- Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request (can be turned off, see below).
 - Overdue remediations and expiring risk acceptances also create notifications.
+
+### Team notifications
+
+- **New relevant CVEs:** once a day, team members get an in-app notification when a CVE newly becomes visible in one of their namespaces: it crosses the configured CVSS/EPSS thresholds, first appears there, or is prioritized by the security team. CVEs hidden in that namespace by a suppression rule do not alert. Prioritizations and threshold crossings follow their own preference category; more than 10 of one kind at once arrive as one summary. The first run after installation only records the current state and notifies nobody.
+- **Weekly team digest (opt-in):** on the digest weekday, an email with counts for your namespaces: new fixable CVEs, critical fixable CVEs, available component upgrades, overdue and due remediations, remediations assigned to you, and risk acceptances expiring within 14 days. It links into the app and never names CVEs or components. It is only sent when at least one of these counts is not zero.
+- Both go only to users who signed in within the last 30 days (configurable with `TEAM_NOTIFICATION_ACTIVE_DAYS`), based on the namespaces seen at that sign-in. If you have since lost access to a namespace, alerts only about it are hidden, and alerts that also cover other namespaces no longer name it.
+
+### My settings
+
+Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest. Mentions (`@name`) are always delivered and cannot be turned off.
 
 ## Practical Differences Between Roles
 

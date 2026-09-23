@@ -13,6 +13,7 @@ from ..i18n import ApiError
 from ..mail import service as mail_svc
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from ..models.user import User, UserRole
+from ..notifications import preferences as notif_prefs
 from ..notifications import service as notif_svc
 from ..schemas.risk_acceptance import (
     CommentCreate,
@@ -338,7 +339,7 @@ async def review_risk_acceptance(
     await notif_svc.notify_risk_status_change(db, ra, current_user)
 
     # Email to RA creator — use pre-loaded creator relationship
-    if ra.creator and ra.creator.email:
+    if ra.creator and ra.creator.email and await notif_prefs.wants(db, ra.creator.id, "risk_acceptance", "email"):
         try:
             await mail_svc.send_risk_status_email(
                 ra.creator.email,

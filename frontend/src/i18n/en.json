@@ -9,7 +9,8 @@
     "switchLanguage": "Switch language",
     "showHelp": "Show help",
     "logout": "Log out",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "mySettings": "My settings"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -120,7 +121,10 @@
     "suppression_requested": "Suppression requested",
     "suppression_approved": "Suppression approved",
     "suppression_rejected": "Suppression rejected",
-    "mention": "Mention"
+    "mention": "Mention",
+    "remediation_created": "Remediation",
+    "remediation_status": "Remediation status",
+    "remediation_overdue": "Remediation overdue"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -975,5 +979,34 @@
     "viewing_one": "{{user}} is viewing this",
     "viewing_many": "{{count}} others are viewing this",
     "tooltip": "Active viewers: {{users}}"
+  },
+  "mySettings": {
+    "title": "My settings",
+    "notificationsTitle": "Notifications",
+    "saved": "Setting saved.",
+    "intro": "Choose what you are notified about in the app and by email.",
+    "categoryColumn": "Category",
+    "in_app": "In app",
+    "email": "Email",
+    "mentionsMandatory": "Mentions (@name) are always delivered in the app and by email.",
+    "teamInactive": "Team notifications (weekly digest, new relevant CVEs) start once your namespaces are known after your next sign-in.",
+    "category": {
+      "risk_acceptance": "Risk acceptances",
+      "remediation": "Remediations",
+      "suppression": "Suppression rules",
+      "priority": "Prioritizations",
+      "new_critical_cve": "New relevant CVEs",
+      "escalation": "Escalations",
+      "team_digest": "Weekly team digest"
+    },
+    "categoryHelp": {
+      "risk_acceptance": "Comments, review results, and expiry of your risk acceptances.",
+      "remediation": "Assignments, status changes, and overdue remediations.",
+      "suppression": "Requests and decisions on suppression rules.",
+      "priority": "CVEs the security team prioritized in your namespaces.",
+      "new_critical_cve": "CVEs newly above the CVSS/EPSS thresholds in your namespaces.",
+      "escalation": "Escalation levels (security team).",
+      "team_digest": "Weekly email with counts and links for your namespaces, without CVE details."
+    }
   }
 }

@@ -54,6 +54,10 @@ MESSAGES: dict[str, dict[str, str]] = {
     "no_namespaces": {"de": "Keine Namespaces zugeordnet", "en": "No namespaces assigned"},
     "cve_not_found": {"de": "CVE nicht gefunden", "en": "CVE not found"},
     "user_not_found": {"de": "Benutzer nicht gefunden", "en": "User not found"},
+    "notification_category_unknown": {
+        "de": "Unbekannte Benachrichtigungskategorie: {category}",
+        "en": "Unknown notification category: {category}",
+    },
     "image_not_found": {"de": "Image nicht gefunden", "en": "Image not found"},
     "comment_not_found": {"de": "Kommentar nicht gefunden", "en": "Comment not found"},
     "comment_edit_forbidden": {

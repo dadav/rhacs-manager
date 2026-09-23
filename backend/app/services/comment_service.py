@@ -25,6 +25,7 @@ from ..models.cve_comment import CveComment
 from ..models.escalation import Escalation
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User
+from ..notifications import preferences as notif_prefs
 from ..notifications import service as notif_svc
 from ..schemas.comment import MAX_COMMENT_LEN
 from ..schemas.cve import CveCommentResponse, EscalationContext
@@ -302,7 +303,12 @@ async def add_risk_acceptance_comment(
         exclude_user_ids=mentioned_ids,
     )
 
-    if current_user.is_sec_team and acceptance.creator and acceptance.creator.id not in mentioned_ids:
+    if (
+        current_user.is_sec_team
+        and acceptance.creator
+        and acceptance.creator.id not in mentioned_ids
+        and await notif_prefs.wants(db, acceptance.creator.id, "risk_acceptance", "email")
+    ):
         try:
             await mail_svc.send_risk_comment_email(
                 acceptance.creator.email,

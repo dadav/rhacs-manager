@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.auth.middleware import CurrentUser
 from app.deps import get_app_db, get_current_user
 from app.models.notification import Notification, NotificationType
+from app.models.notification_preference import NotificationPreference
 from app.models.user import User, UserRole
 
 _CURRENT_USER_ID = "test-user-1"
@@ -27,6 +28,7 @@ async def notification_store(app: FastAPI, team_member_user: CurrentUser):
     async with engine.begin() as connection:
         await connection.run_sync(User.__table__.create)
         await connection.run_sync(Notification.__table__.create)
+        await connection.run_sync(NotificationPreference.__table__.create)
 
     async with session_factory() as session:
         created_at = datetime.now(UTC).replace(tzinfo=None)

@@ -31,9 +31,13 @@ Current `job` labels:
 - `expiry_check`
 - `expiry_warning`
 - `escalation_check`
+- `escalation_warning`
 - `remediation_overdue_check`
 - `remediation_auto_resolve`
 - `weekly_digest`
+- `team_cve_alerts`
+- `team_digest`
+- `cve_snapshot`
 
 Series for each job are pre-registered at startup so they appear in `/metrics` before the first invocation.
 

@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter
 
-from ..tasks.scheduler import run_escalation_check, run_weekly_digest
+from ..tasks.scheduler import run_escalation_check, run_team_cve_alerts, run_team_digest_now, run_weekly_digest
 
 logger = logging.getLogger(__name__)
 
@@ -26,3 +26,17 @@ async def trigger_weekly_digest() -> dict:
     logger.info("Dev trigger: run_weekly_digest")
     await run_weekly_digest()
     return {"status": "ok", "job": "weekly_digest"}
+
+
+@router.post("/trigger-team-cve-alerts")
+async def trigger_team_cve_alerts() -> dict:
+    logger.info("Dev trigger: run_team_cve_alerts")
+    await run_team_cve_alerts()
+    return {"status": "ok", "job": "team_cve_alerts"}
+
+
+@router.post("/trigger-team-digest")
+async def trigger_team_digest() -> dict:
+    logger.info("Dev trigger: run_team_digest_now")
+    await run_team_digest_now()
+    return {"status": "ok", "job": "team_digest"}

@@ -624,6 +624,36 @@ async def run_digest_now() -> None:
     await _send_digest()
 
 
+@instrument_job("team_cve_alerts")
+async def run_team_cve_alerts() -> None:
+    """Notify team members about CVEs newly critical or prioritized in their namespaces."""
+    from ..services import team_notifications
+
+    logger.info("Running team CVE alerts")
+    async with AppSessionLocal() as app_db, StackRoxSessionLocal() as sx_db:
+        await team_notifications.run_team_cve_alerts(app_db, sx_db)
+
+
+@instrument_job("team_digest")
+async def run_team_digest() -> None:
+    """Weekly opt-in team digest per user (same weekday as the management digest)."""
+
+    async with AppSessionLocal() as app_db:
+        settings = await _get_settings(app_db)
+        if settings and settings.digest_day != datetime.now(UTC).weekday():
+            return
+    await run_team_digest_now()
+
+
+async def run_team_digest_now() -> None:
+    """Send the team digest immediately, skipping the day-of-week check. For manual triggers."""
+    from ..services import team_notifications
+
+    logger.info("Running team digest")
+    async with AppSessionLocal() as app_db, StackRoxSessionLocal() as sx_db:
+        await team_notifications.run_team_digest(app_db, sx_db)
+
+
 @instrument_job("cve_snapshot")
 async def run_cve_snapshot() -> None:
     """Store daily CVE counts per namespace for the dashboard history chart."""
@@ -729,5 +759,19 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=2,
         minute=0,
         id="cve_snapshot",
+    )
+    scheduler.add_job(
+        run_team_cve_alerts,
+        "cron",
+        hour=2,
+        minute=30,
+        id="team_cve_alerts",
+    )
+    scheduler.add_job(
+        run_team_digest,
+        "cron",
+        hour=7,
+        minute=15,
+        id="team_digest",
     )
     return scheduler

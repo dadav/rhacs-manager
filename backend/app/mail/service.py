@@ -12,6 +12,7 @@ from ..config import settings
 
 if TYPE_CHECKING:
     from ..notifications.service import MentionEmailJob
+    from ..services.team_notifications import TeamDigestStats
 
 logger = logging.getLogger(__name__)
 
@@ -191,3 +192,31 @@ async def send_weekly_digest(
     tmpl = _jinja_env.get_template("weekly_digest.html")
     html = tmpl.render(stats=stats, link=base_url)
     await send_email(to_email, "Wöchentlicher CVE-Bericht", html)
+
+
+async def send_team_digest(
+    to_email: str,
+    recipient_name: str,
+    stats: "TeamDigestStats",
+    base_url: str | None = None,
+) -> None:
+    """Weekly per-user team digest: counts and links only.
+
+    Never include CVE IDs, component names, or namespace names: recipients are
+    chosen from a namespace snapshot that may be stale, so their current access
+    cannot be verified at send time.
+    """
+    base_url = base_url or settings.app_base_url
+    tmpl = _jinja_env.get_template("team_digest.html")
+    html = tmpl.render(
+        recipient_name=recipient_name,
+        stats=stats,
+        links={
+            "components": _app_link(base_url, "/vulnerabilities?view=component&fixable=true"),
+            "remediations": _app_link(base_url, "/remediations"),
+            "my_remediations": _app_link(base_url, "/remediations?mine=1"),
+            "risk_acceptances": _app_link(base_url, "/risk-acceptances?status=approved"),
+            "settings": _app_link(base_url, "/my-settings"),
+        },
+    )
+    await send_email(to_email, "Ihr wöchentlicher Team-Bericht", html)

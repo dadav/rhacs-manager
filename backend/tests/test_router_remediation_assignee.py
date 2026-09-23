@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.auth.middleware import CurrentUser
 from app.deps import get_app_db, get_current_user
 from app.models.notification import Notification
+from app.models.notification_preference import NotificationPreference
 from app.models.remediation import Remediation, RemediationStatus
 from app.models.user import User, UserRole
 
@@ -30,6 +31,7 @@ async def remediation_store(app: FastAPI, team_member_user: CurrentUser):
         await connection.run_sync(User.__table__.create)
         await connection.run_sync(Remediation.__table__.create)
         await connection.run_sync(Notification.__table__.create)
+        await connection.run_sync(NotificationPreference.__table__.create)
 
     remediation_id = uuid4()
     async with session_factory() as session:

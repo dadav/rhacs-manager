@@ -20,7 +20,7 @@ import {
   EmptyState,
   EmptyStateBody,
 } from "@patternfly/react-core";
-import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SunIcon } from "@patternfly/react-icons";
+import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SlidersHIcon, SunIcon } from "@patternfly/react-icons";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
@@ -47,6 +47,7 @@ const Badges = lazy(() => import("./pages/Badges").then(m => ({ default: m.Badge
 const Remediations = lazy(() => import("./pages/Remediations").then(m => ({ default: m.Remediations })));
 const SuppressionRules = lazy(() => import("./pages/SuppressionRules").then(m => ({ default: m.SuppressionRules })));
 const ImageDetail = lazy(() => import("./pages/ImageDetail").then(m => ({ default: m.ImageDetail })));
+const MySettings = lazy(() => import("./pages/MySettings").then(m => ({ default: m.MySettings })));
 
 interface NavEntry {
   to: string;
@@ -244,6 +245,11 @@ export function App() {
             </Button>
           </Tooltip>
           <NotificationBell />
+          <Tooltip content={t("app.mySettings")} position="bottom">
+            <Link to="/my-settings" aria-label={t("app.mySettings")} style={{ color: "#e0e0e0", display: "inline-flex", padding: "0 8px" }}>
+              <SlidersHIcon />
+            </Link>
+          </Tooltip>
           <LogoutButton />
         </div>
       </MastheadContent>
@@ -354,6 +360,7 @@ export function App() {
           />
           <Route path="/badges" element={<Badges />} />
           <Route path="/suppression-rules" element={<SuppressionRules />} />
+          <Route path="/my-settings" element={<MySettings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         </Suspense>

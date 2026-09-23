@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="")
     management_email: str = Field(default="")  # org-wide digest recipient
     default_escalation_email: str = Field(default="")  # fallback escalation email for unannotated namespaces
+    # Team notifications target users whose namespace snapshot (last sign-in) is at
+    # most this many days old; older snapshots are considered stale and skipped.
+    team_notification_active_days: int = Field(default=30, ge=1)
 
     # CORS — configurable allowed origins (empty = app_base_url only in production)
     cors_origins: list[str] = Field(default_factory=list)
