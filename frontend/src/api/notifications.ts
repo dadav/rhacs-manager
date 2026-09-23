@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { api } from './client'
 import type { AppNotification } from '../types'
 
@@ -15,8 +16,11 @@ function invalidateNotificationQueries(queryClient: QueryClient) {
 }
 
 export function useNotifications() {
+  // Titles/messages are rendered server-side in the request language, so the
+  // language is part of the key: switching language refetches the list.
+  const { i18n } = useTranslation()
   return useQuery({
-    queryKey: notifKeys.list,
+    queryKey: [...notifKeys.list, i18n.language],
     queryFn: () => api.get<AppNotification[]>('/notifications'),
   })
 }

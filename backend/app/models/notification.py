@@ -2,11 +2,15 @@ import enum
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, ForeignKey, String, Text
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+
+# JSONB on Postgres, plain JSON on SQLite (test engine) so create_all renders.
+_PARAMS_JSON = JSONB().with_variant(JSON(), "sqlite")
 
 
 class NotificationType(str, enum.Enum):
@@ -35,6 +39,10 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     link: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Localization source (notifications/messages.py). Nullable: rows created before
+    # migration 023 only have the stored German title/message.
+    message_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    params: Mapped[dict | None] = mapped_column(_PARAMS_JSON, nullable=True)
     read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, index=True)
 

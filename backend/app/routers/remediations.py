@@ -10,6 +10,7 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
 from ..models.remediation import Remediation, RemediationStatus
+from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.remediation import (
     RemediationCreate,
@@ -50,6 +51,14 @@ def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
     if user.can_see_all_namespaces:
         return True
     return (r.namespace, r.cluster_name) in user.namespaces
+
+
+async def _require_user(db: AsyncSession, user_id: str) -> User:
+    """Load an assignee candidate or fail with a user-visible 404."""
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if not user:
+        raise ApiError(404, "user_not_found")
+    return user
 
 
 def _build_response(r: Remediation) -> RemediationResponse:
@@ -120,6 +129,9 @@ async def create_remediation(
     if existing.scalar_one_or_none():
         raise ApiError(409, "remediation_duplicate")
 
+    if body.assigned_to:
+        await _require_user(db, body.assigned_to)
+
     remediation = Remediation(
         cve_id=body.cve_id,
         namespace=body.namespace,
@@ -143,10 +155,11 @@ async def create_remediation(
             "cve_id": body.cve_id,
             "namespace": body.namespace,
             "cluster_name": body.cluster_name,
+            "assigned_to_id": body.assigned_to or None,
         },
     )
 
-    # Notify sec team about new remediation
+    # Notify the assignee about the new remediation
     await notif_svc.notify_remediation_created(db, remediation, current_user)
 
     await db.commit()
@@ -317,9 +330,13 @@ async def update_remediation(
             r.notes = body.wont_fix_reason
             details["wont_fix_reason"] = body.wont_fix_reason
 
+    newly_assigned: User | None = None
     if body.assigned_to is not None:
-        r.assigned_to = body.assigned_to or None
-        details["assigned_to"] = body.assigned_to
+        new_assignee_id = body.assigned_to or None
+        if new_assignee_id and new_assignee_id != r.assigned_to:
+            newly_assigned = await _require_user(db, new_assignee_id)
+        r.assigned_to = new_assignee_id
+        details["assigned_to_id"] = new_assignee_id
 
     if body.target_date is not None:
         r.target_date = body.target_date
@@ -329,6 +346,9 @@ async def update_remediation(
         r.notes = body.notes
 
     await log_action(db, current_user.id, "remediation_updated", "remediation", str(r.id), details)
+
+    if newly_assigned is not None:
+        await notif_svc.notify_remediation_assigned(db, r, current_user, newly_assigned.id)
 
     # Send notifications for status changes
     if "new_status" in details:

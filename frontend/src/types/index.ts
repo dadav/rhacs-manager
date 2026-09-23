@@ -355,7 +355,17 @@ export interface DashboardData {
   fixability_breakdown: FixabilityCount
   cve_history: CveHistoryPoint[]
   mttr_by_severity: MttrSeverity[]
-  fix_first_cves: CveListItem[]
+  fix_first_cves: FixFirstItem[]
+}
+
+export interface ComponentFix {
+  component_name: string
+  component_version: string
+  fixed_by: string | null
+}
+
+export interface FixFirstItem extends CveListItem {
+  component_fixes: ComponentFix[]
 }
 
 export interface EpssMatrixPoint {

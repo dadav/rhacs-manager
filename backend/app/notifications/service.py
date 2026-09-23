@@ -6,10 +6,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
+from ..i18n import DEFAULT_LANG
 from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
 from ..services.comment_content import legacy_mention_names
+from .messages import render_notification
 
 # Hard cap on distinct, non-self recipients per comment. Guards against a single
 # comment fanning out to the whole org.
@@ -50,16 +52,28 @@ async def create_notification(
     session: AsyncSession,
     user_id: str,
     type: NotificationType,
-    title: str,
-    message: str,
+    message_key: str,
+    params: dict,
     link: str | None = None,
 ) -> Notification:
+    """Persist an in-app notification.
+
+    ``message_key``/``params`` drive localized rendering on read (see
+    ``notifications/messages.py``). The German rendering is stored in
+    ``title``/``message`` as the fallback text.
+    """
+    rendered = render_notification(message_key, params, DEFAULT_LANG)
+    if rendered is None:
+        raise ValueError(f"Unknown notification message key: {message_key}")
+    title, message = rendered
     n = Notification(
         user_id=user_id,
         type=type,
-        title=title,
+        title=title[:255],
         message=message,
         link=link,
+        message_key=message_key,
+        params=params,
     )
     session.add(n)
     await session.flush()
@@ -87,15 +101,14 @@ async def notify_risk_comment(
     """
     excluded = exclude_user_ids or set()
     link = f"/risk-acceptances/{acceptance.id}"
-    title = f"Neuer Kommentar: {acceptance.cve_id}"
-    msg = f"{author.display_name} hat einen Kommentar hinterlassen."
+    params = {"cve_id": acceptance.cve_id, "author": author.display_name}
 
     if author.role == UserRole.team_member:
         # Notify sec team
         for user in await _get_sec_team_users(session):
             if user.id in excluded:
                 continue
-            await create_notification(session, user.id, NotificationType.risk_comment, title, msg, link)
+            await create_notification(session, user.id, NotificationType.risk_comment, "risk_comment", params, link)
     else:
         # Notify the RA creator
         if acceptance.created_by != author.id and acceptance.created_by not in excluded:
@@ -103,8 +116,8 @@ async def notify_risk_comment(
                 session,
                 acceptance.created_by,
                 NotificationType.risk_comment,
-                title,
-                msg,
+                "risk_comment",
+                params,
                 link,
             )
 
@@ -115,15 +128,11 @@ async def notify_risk_status_change(
     reviewer: User,
 ) -> None:
     link = f"/risk-acceptances/{acceptance.id}"
-    status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(
-        acceptance.status.value, acceptance.status.value
-    )
-    title = f"Risikoakzeptanz {status_label}: {acceptance.cve_id}"
-    msg = f"Ihre Risikoakzeptanz für {acceptance.cve_id} wurde {status_label}."
+    params = {"cve_id": acceptance.cve_id, "status": acceptance.status.value}
     ntype = NotificationType.risk_approved if acceptance.status.value == "approved" else NotificationType.risk_rejected
 
     # Notify the RA creator
-    await create_notification(session, acceptance.created_by, ntype, title, msg, link)
+    await create_notification(session, acceptance.created_by, ntype, "risk_status", params, link)
 
 
 async def notify_risk_expiring(
@@ -131,8 +140,6 @@ async def notify_risk_expiring(
     acceptance: RiskAcceptance,
 ) -> None:
     link = f"/risk-acceptances/{acceptance.id}"
-    title = f"Risikoakzeptanz läuft ab: {acceptance.cve_id}"
-    msg = f"Die Risikoakzeptanz für {acceptance.cve_id} läuft in 7 Tagen ab."
 
     # The expiry-warning job runs daily over a 7-day window; dedup so the
     # creator is warned once per acceptance, not once per day.
@@ -149,7 +156,14 @@ async def notify_risk_expiring(
         return
 
     # Notify the RA creator
-    await create_notification(session, acceptance.created_by, NotificationType.risk_expiring, title, msg, link)
+    await create_notification(
+        session,
+        acceptance.created_by,
+        NotificationType.risk_expiring,
+        "risk_expiring",
+        {"cve_id": acceptance.cve_id},
+        link,
+    )
 
 
 async def notify_new_priority(
@@ -159,11 +173,10 @@ async def notify_new_priority(
 ) -> None:
     """Notify sec team about new CVE priority (they set priorities, they get notified)."""
     link = "/priorities"
-    title = f"CVE priorisiert: {cve_id}"
-    msg = f"{cve_id} wurde als '{priority_level}' priorisiert."
+    params = {"cve_id": cve_id, "priority_level": priority_level}
 
     for user in await _get_sec_team_users(session):
-        await create_notification(session, user.id, NotificationType.new_priority, title, msg, link)
+        await create_notification(session, user.id, NotificationType.new_priority, "new_priority", params, link)
 
 
 async def notify_escalation(
@@ -175,11 +188,19 @@ async def notify_escalation(
 ) -> None:
     """Notify sec team about escalation (no persistent user→namespace mapping)."""
     link = f"/vulnerabilities/{cve_id}"
-    title = f"Eskalation Stufe {level}: {cve_id}"
-    msg = f"CVE {cve_id} in {namespace}/{cluster_name} wurde auf Eskalationsstufe {level} hochgestuft."
+    params = {"cve_id": cve_id, "namespace": namespace, "cluster_name": cluster_name, "level": level}
 
     for user in await _get_sec_team_users(session):
-        await create_notification(session, user.id, NotificationType.escalation, title, msg, link)
+        await create_notification(session, user.id, NotificationType.escalation, "escalation", params, link)
+
+
+def _remediation_params(remediation: "Remediation", actor: "User") -> dict:  # type: ignore[name-defined]
+    return {
+        "cve_id": remediation.cve_id,
+        "namespace": remediation.namespace,
+        "cluster_name": remediation.cluster_name,
+        "actor": actor.display_name,
+    }
 
 
 async def notify_remediation_created(
@@ -193,16 +214,32 @@ async def notify_remediation_created(
     them via the audit log and weekly digest rather than per-event notifications.
     """
     link = "/remediations"
-    title = f"Neue Behebung: {remediation.cve_id}"
-    msg = (
-        f"{creator.display_name} hat eine Behebung für {remediation.cve_id}"
-        f" in {remediation.namespace}/{remediation.cluster_name} erstellt."
-    )
+    params = _remediation_params(remediation, creator)
 
     if remediation.assigned_to and remediation.assigned_to != creator.id:
         await create_notification(
-            session, remediation.assigned_to, NotificationType.remediation_created, title, msg, link
+            session, remediation.assigned_to, NotificationType.remediation_created, "remediation_created", params, link
         )
+
+
+async def notify_remediation_assigned(
+    session: AsyncSession,
+    remediation: "Remediation",  # type: ignore[name-defined]
+    actor: "User",  # type: ignore[name-defined]
+    assignee_id: str,
+) -> None:
+    """Notify a user that a remediation was (re)assigned to them. Self-assignment is silent."""
+    if assignee_id == actor.id:
+        return
+    link = "/remediations?mine=1"
+    await create_notification(
+        session,
+        assignee_id,
+        NotificationType.remediation_created,
+        "remediation_assigned",
+        _remediation_params(remediation, actor),
+        link,
+    )
 
 
 async def notify_remediation_status_change(
@@ -213,17 +250,8 @@ async def notify_remediation_status_change(
     new_status: str,
 ) -> None:
     """Notify relevant users about remediation status changes."""
-    status_labels = {
-        "open": "Offen",
-        "in_progress": "In Bearbeitung",
-        "resolved": "Behoben",
-        "verified": "Verifiziert",
-        "wont_fix": "Wird nicht behoben",
-    }
     link = "/remediations"
-    new_label = status_labels.get(new_status, new_status)
-    title = f"Behebung {new_label}: {remediation.cve_id}"
-    msg = f"Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name}: {new_label}"
+    params = {**_remediation_params(remediation, actor), "status": new_status}
 
     # Status changes are single-team daily ops: notify only the creator and assignee,
     # not the sec team (they audit via the audit log and weekly digest).
@@ -235,7 +263,9 @@ async def notify_remediation_status_change(
     recipients.discard(actor.id)
 
     for user_id in recipients:
-        await create_notification(session, user_id, NotificationType.remediation_status, title, msg, link)
+        await create_notification(
+            session, user_id, NotificationType.remediation_status, "remediation_status", params, link
+        )
 
 
 async def notify_remediation_overdue(
@@ -248,8 +278,11 @@ async def notify_remediation_overdue(
     paged per remediation.
     """
     link = "/remediations"
-    title = f"Behebung überfällig: {remediation.cve_id}"
-    msg = f"Die Behebung für {remediation.cve_id} in {remediation.namespace}/{remediation.cluster_name} ist überfällig."
+    params = {
+        "cve_id": remediation.cve_id,
+        "namespace": remediation.namespace,
+        "cluster_name": remediation.cluster_name,
+    }
 
     recipients: set[str] = set()
     recipients.add(remediation.created_by)
@@ -257,7 +290,9 @@ async def notify_remediation_overdue(
         recipients.add(remediation.assigned_to)
 
     for user_id in recipients:
-        await create_notification(session, user_id, NotificationType.remediation_overdue, title, msg, link)
+        await create_notification(
+            session, user_id, NotificationType.remediation_overdue, "remediation_overdue", params, link
+        )
 
 
 async def notify_suppression_requested(
@@ -268,8 +303,7 @@ async def notify_suppression_requested(
     """Notify sec team about a new suppression rule request."""
     target = rule.cve_id if rule.cve_id else rule.component_name
     link = "/suppression-rules"
-    title = f"Neue Unterdrückungsanfrage: {target}"
-    msg = f"{creator.display_name} hat eine Unterdrückungsregel für {target} beantragt."
+    params = {"target": target, "actor": creator.display_name}
 
     for user in await _get_sec_team_users(session):
         if user.id != creator.id:
@@ -277,8 +311,8 @@ async def notify_suppression_requested(
                 session,
                 user.id,
                 NotificationType.suppression_requested,
-                title,
-                msg,
+                "suppression_requested",
+                params,
                 link,
             )
 
@@ -291,9 +325,7 @@ async def notify_suppression_status_change(
     """Notify the suppression rule creator about approval/rejection."""
     target = rule.cve_id if rule.cve_id else rule.component_name
     link = "/suppression-rules"
-    status_label = {"approved": "genehmigt", "rejected": "abgelehnt"}.get(rule.status.value, rule.status.value)
-    title = f"Unterdrückungsregel {status_label}: {target}"
-    msg = f"Ihre Unterdrückungsregel für {target} wurde {status_label}."
+    params = {"target": target, "status": rule.status.value}
     ntype = (
         NotificationType.suppression_approved
         if rule.status.value == "approved"
@@ -301,7 +333,7 @@ async def notify_suppression_status_change(
     )
 
     if rule.created_by != reviewer.id:
-        await create_notification(session, rule.created_by, ntype, title, msg, link)
+        await create_notification(session, rule.created_by, ntype, "suppression_status", params, link)
 
 
 def _mention_names(message: str) -> set[str]:
@@ -321,14 +353,13 @@ async def _emit_mentions(
     Shared tail of the username- and user-id-based mention entry points. The
     author's current ``display_name`` is what recipients see.
     """
-    title = f"Erwähnung von {author.display_name}"
-    msg = f"{author.display_name} hat Sie in einem Kommentar erwähnt."
+    params = {"author": author.display_name}
     absolute_link = f"{settings.app_base_url.rstrip('/')}/{link.lstrip('/')}"
 
     recipient_ids: list[str] = []
     email_jobs: list[MentionEmailJob] = []
     for user in to_notify:
-        await create_notification(session, user.id, NotificationType.mention, title, msg, link)
+        await create_notification(session, user.id, NotificationType.mention, "mention", params, link)
         recipient_ids.append(user.id)
 
         # Invalid/placeholder addresses get the in-app notification only; syntax

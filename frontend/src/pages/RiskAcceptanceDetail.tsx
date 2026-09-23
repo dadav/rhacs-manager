@@ -23,6 +23,8 @@ import {
   type ComposerSegment,
 } from '../components/MentionTextArea'
 import { ViewerIndicator } from '../components/ViewerIndicator'
+import { UserPicker } from '../components/UserPicker'
+import { RiskScopeFields, buildRiskScope, defaultScopeSelection, scopeToSelection } from '../components/RiskScopeFields'
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatDateTime } from '../utils/format'
 import { useToast } from '../components/ToastContext'
@@ -30,7 +32,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { usePresence } from '../api/presence'
 import { useAddComment, useAssignReviewer, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
-import { useCurrentUser, useUserSearch } from '../api/auth'
+import { useCurrentUser } from '../api/auth'
 import { useCveDetail } from '../api/cves'
 import { RiskScope, RiskScopeMode, RiskStatus } from '../types'
 import { useTranslation } from 'react-i18next'
@@ -52,69 +54,23 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
   const [expiresAt, setExpiresAt] = useState('')
   const [scopeMode, setScopeMode] = useState<RiskScopeMode>('all')
   const [selectedTargets, setSelectedTargets] = useState<string[]>([])
+  const [scopeInitialized, setScopeInitialized] = useState(false)
   const [error, setError] = useState('')
 
-  const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
-    all: t('riskAcceptance.scopeAll'),
-    namespace: t('riskAcceptance.scopeNamespace'),
-    image: t('riskAcceptance.scopeImage'),
-    deployment: t('riskAcceptance.scopeDeployment'),
-  }
+  const deployments = useMemo(() => cve?.affected_deployments_list ?? [], [cve])
 
-  const deployments = cve?.affected_deployments_list ?? []
-  const namespaces = useMemo(
-    () => Object.values(Object.fromEntries(
-      deployments.map((d) => [
-        `${d.cluster_name}::${d.namespace}`,
-        { cluster_name: d.cluster_name, namespace: d.namespace },
-      ]),
-    )).sort((a, b) => `${a.cluster_name}/${a.namespace}`.localeCompare(`${b.cluster_name}/${b.namespace}`)),
-    [deployments],
-  )
-  const images = useMemo(
-    () => Object.values(Object.fromEntries(
-      deployments.map((d) => [
-        `${d.cluster_name}::${d.namespace}::${d.image_name}`,
-        { cluster_name: d.cluster_name, namespace: d.namespace, image_name: d.image_name },
-      ]),
-    )).sort((a, b) => `${a.cluster_name}/${a.namespace}/${a.image_name}`.localeCompare(`${b.cluster_name}/${b.namespace}/${b.image_name}`)),
-    [deployments],
-  )
-
-  function toggleTarget(key: string) {
-    setSelectedTargets((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
-    )
-  }
+  // Preselect the single affected namespace once CVE data is loaded (auto-approval path).
+  useEffect(() => {
+    if (cve && !scopeInitialized) {
+      const initial = defaultScopeSelection(cve.affected_deployments_list)
+      setScopeMode(initial.mode)
+      setSelectedTargets(initial.targets)
+      setScopeInitialized(true)
+    }
+  }, [cve, scopeInitialized])
 
   function buildScope(): RiskScope {
-    if (scopeMode === 'all') {
-      return { mode: 'all', targets: [] }
-    }
-
-    if (scopeMode === 'namespace') {
-      const targets = namespaces
-        .filter((ns) => selectedTargets.includes(`${ns.cluster_name}::${ns.namespace}`))
-        .map((ns) => ({ cluster_name: ns.cluster_name, namespace: ns.namespace }))
-      return { mode: 'namespace', targets }
-    }
-
-    if (scopeMode === 'image') {
-      const targets = images
-        .filter((img) => selectedTargets.includes(`${img.cluster_name}::${img.namespace}::${img.image_name}`))
-        .map((img) => ({ cluster_name: img.cluster_name, namespace: img.namespace, image_name: img.image_name }))
-      return { mode: 'image', targets }
-    }
-
-    const targets = deployments
-      .filter((dep) => selectedTargets.includes(dep.deployment_id))
-      .map((dep) => ({
-        cluster_name: dep.cluster_name,
-        namespace: dep.namespace,
-        image_name: dep.image_name,
-        deployment_id: dep.deployment_id,
-      }))
-    return { mode: 'deployment', targets }
+    return buildRiskScope(scopeMode, selectedTargets, deployments)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -170,60 +126,13 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                   placeholder={t('riskAcceptance.whyAcceptable')}
                 />
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scope')} *</label>
-                <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-                  {(Object.keys(SCOPE_MODE_LABELS) as RiskScopeMode[]).map((mode) => (
-                    <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="radio"
-                        name="scope-mode"
-                        checked={scopeMode === mode}
-                        onChange={() => {
-                          setScopeMode(mode)
-                          setSelectedTargets([])
-                        }}
-                      />
-                      <span style={{ fontSize: 13 }}>{SCOPE_MODE_LABELS[mode]}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {scopeMode !== 'all' && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scopeTargets')}</label>
-                  <div style={{ marginTop: 8, maxHeight: 220, overflow: 'auto', border: '1px solid #d2d2d2', borderRadius: 4, padding: 10 }}>
-                    {scopeMode === 'namespace' && namespaces.map((ns) => {
-                      const key = `${ns.cluster_name}::${ns.namespace}`
-                      return (
-                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
-                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
-                          <span style={{ marginLeft: 8, fontSize: 12 }}>{ns.cluster_name}/{ns.namespace}</span>
-                        </label>
-                      )
-                    })}
-                    {scopeMode === 'image' && images.map((img) => {
-                      const key = `${img.cluster_name}::${img.namespace}::${img.image_name}`
-                      return (
-                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
-                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
-                          <span style={{ marginLeft: 8, fontSize: 12 }}>{img.cluster_name}/{img.namespace} - {img.image_name}</span>
-                        </label>
-                      )
-                    })}
-                    {scopeMode === 'deployment' && deployments.map((dep) => (
-                      <label key={dep.deployment_id} style={{ display: 'block', marginBottom: 6 }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTargets.includes(dep.deployment_id)}
-                          onChange={() => toggleTarget(dep.deployment_id)}
-                        />
-                        <span style={{ marginLeft: 8, fontSize: 12 }}>{dep.cluster_name}/{dep.namespace} - {dep.deployment_name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <RiskScopeFields
+                deployments={deployments}
+                mode={scopeMode}
+                selectedTargets={selectedTargets}
+                onModeChange={setScopeMode}
+                onSelectedTargetsChange={setSelectedTargets}
+              />
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.expiryOptional')}</label>
                 <input
@@ -233,7 +142,6 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                   style={{ display: 'block', marginTop: 4, height: 36, padding: '0 8px', border: '1px solid #d2d2d2', borderRadius: 4 }}
                 />
               </div>
-              <Alert variant="info" isInline isPlain title={t('riskAcceptance.approvalHint')} style={{ marginBottom: 12 }} />
               {error && <Alert variant="danger" isInline title={error} style={{ marginBottom: 12 }} />}
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="submit" variant="primary" isLoading={createRA.isPending}>
@@ -266,84 +174,21 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
   const [initialized, setInitialized] = useState(false)
   const [error, setError] = useState('')
 
-  const SCOPE_MODE_LABELS: Record<RiskScopeMode, string> = {
-    all: t('riskAcceptance.scopeAll'),
-    namespace: t('riskAcceptance.scopeNamespace'),
-    image: t('riskAcceptance.scopeImage'),
-    deployment: t('riskAcceptance.scopeDeployment'),
-  }
-
   // Pre-fill form once RA data is loaded
-  useMemo(() => {
+  useEffect(() => {
     if (ra && !initialized) {
       setJustification(ra.justification)
       setScopeMode(ra.scope.mode)
+      setSelectedTargets(scopeToSelection(ra.scope))
       setExpiresAt(ra.expires_at ? ra.expires_at.split('T')[0] : '')
-
-      if (ra.scope.mode === 'namespace') {
-        setSelectedTargets(ra.scope.targets.map(t => `${t.cluster_name}::${t.namespace}`))
-      } else if (ra.scope.mode === 'image') {
-        setSelectedTargets(ra.scope.targets.map(t => `${t.cluster_name}::${t.namespace}::${t.image_name ?? ''}`))
-      } else if (ra.scope.mode === 'deployment') {
-        setSelectedTargets(ra.scope.targets.map(t => t.deployment_id ?? '').filter(Boolean))
-      }
-
       setInitialized(true)
     }
   }, [ra, initialized])
 
-  const deployments = cve?.affected_deployments_list ?? []
-  const namespaces = useMemo(
-    () => Object.values(Object.fromEntries(
-      deployments.map((d) => [
-        `${d.cluster_name}::${d.namespace}`,
-        { cluster_name: d.cluster_name, namespace: d.namespace },
-      ]),
-    )).sort((a, b) => `${a.cluster_name}/${a.namespace}`.localeCompare(`${b.cluster_name}/${b.namespace}`)),
-    [deployments],
-  )
-  const images = useMemo(
-    () => Object.values(Object.fromEntries(
-      deployments.map((d) => [
-        `${d.cluster_name}::${d.namespace}::${d.image_name}`,
-        { cluster_name: d.cluster_name, namespace: d.namespace, image_name: d.image_name },
-      ]),
-    )).sort((a, b) => `${a.cluster_name}/${a.namespace}/${a.image_name}`.localeCompare(`${b.cluster_name}/${b.namespace}/${b.image_name}`)),
-    [deployments],
-  )
-
-  function toggleTarget(key: string) {
-    setSelectedTargets((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
-    )
-  }
+  const deployments = useMemo(() => cve?.affected_deployments_list ?? [], [cve])
 
   function buildScope(): RiskScope {
-    if (scopeMode === 'all') return { mode: 'all', targets: [] }
-
-    if (scopeMode === 'namespace') {
-      const targets = namespaces
-        .filter((ns) => selectedTargets.includes(`${ns.cluster_name}::${ns.namespace}`))
-        .map((ns) => ({ cluster_name: ns.cluster_name, namespace: ns.namespace }))
-      return { mode: 'namespace', targets }
-    }
-
-    if (scopeMode === 'image') {
-      const targets = images
-        .filter((img) => selectedTargets.includes(`${img.cluster_name}::${img.namespace}::${img.image_name}`))
-        .map((img) => ({ cluster_name: img.cluster_name, namespace: img.namespace, image_name: img.image_name }))
-      return { mode: 'image', targets }
-    }
-
-    const targets = deployments
-      .filter((dep) => selectedTargets.includes(dep.deployment_id))
-      .map((dep) => ({
-        cluster_name: dep.cluster_name,
-        namespace: dep.namespace,
-        image_name: dep.image_name,
-        deployment_id: dep.deployment_id,
-      }))
-    return { mode: 'deployment', targets }
+    return buildRiskScope(scopeMode, selectedTargets, deployments)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -388,12 +233,6 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
         <Card style={{ maxWidth: 640 }}>
           <CardBody>
             {cveError && <Alert variant="danger" isInline title={`${t('common.error')}: ${getErrorMessage(cveError)}`} style={{ marginBottom: 12 }} />}
-            <Alert
-              variant="info"
-              isInline
-              title={t('riskAcceptance.editReviewHint')}
-              style={{ marginBottom: 16 }}
-            />
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.cveId')}</label>
@@ -409,60 +248,13 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
                   placeholder={t('riskAcceptance.whyAcceptable')}
                 />
               </div>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scope')} *</label>
-                <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-                  {(Object.keys(SCOPE_MODE_LABELS) as RiskScopeMode[]).map((mode) => (
-                    <label key={mode} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="radio"
-                        name="scope-mode"
-                        checked={scopeMode === mode}
-                        onChange={() => {
-                          setScopeMode(mode)
-                          setSelectedTargets([])
-                        }}
-                      />
-                      <span style={{ fontSize: 13 }}>{SCOPE_MODE_LABELS[mode]}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {scopeMode !== 'all' && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.scopeTargets')}</label>
-                  <div style={{ marginTop: 8, maxHeight: 220, overflow: 'auto', border: '1px solid #d2d2d2', borderRadius: 4, padding: 10 }}>
-                    {scopeMode === 'namespace' && namespaces.map((ns) => {
-                      const key = `${ns.cluster_name}::${ns.namespace}`
-                      return (
-                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
-                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
-                          <span style={{ marginLeft: 8, fontSize: 12 }}>{ns.cluster_name}/{ns.namespace}</span>
-                        </label>
-                      )
-                    })}
-                    {scopeMode === 'image' && images.map((img) => {
-                      const key = `${img.cluster_name}::${img.namespace}::${img.image_name}`
-                      return (
-                        <label key={key} style={{ display: 'block', marginBottom: 6 }}>
-                          <input type="checkbox" checked={selectedTargets.includes(key)} onChange={() => toggleTarget(key)} />
-                          <span style={{ marginLeft: 8, fontSize: 12 }}>{img.cluster_name}/{img.namespace} - {img.image_name}</span>
-                        </label>
-                      )
-                    })}
-                    {scopeMode === 'deployment' && deployments.map((dep) => (
-                      <label key={dep.deployment_id} style={{ display: 'block', marginBottom: 6 }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTargets.includes(dep.deployment_id)}
-                          onChange={() => toggleTarget(dep.deployment_id)}
-                        />
-                        <span style={{ marginLeft: 8, fontSize: 12 }}>{dep.cluster_name}/{dep.namespace} - {dep.deployment_name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <RiskScopeFields
+                deployments={deployments}
+                mode={scopeMode}
+                selectedTargets={selectedTargets}
+                onModeChange={setScopeMode}
+                onSelectedTargetsChange={setSelectedTargets}
+              />
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.expiryOptional')}</label>
                 <input
@@ -539,9 +331,6 @@ function RiskAcceptanceView({ id }: { id: string }) {
   const [reviewError, setReviewError] = useState('')
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelError, setCancelError] = useState('')
-  const [assignQuery, setAssignQuery] = useState('')
-  const [showAssignDropdown, setShowAssignDropdown] = useState(false)
-  const { data: assignCandidates } = useUserSearch(assignQuery, showAssignDropdown, 'sec_team')
 
   const STATUS_LABELS: Record<RiskStatus, string> = {
     [RiskStatus.requested]: t('status.requested'),
@@ -719,63 +508,12 @@ function RiskAcceptanceView({ id }: { id: string }) {
                         {t('riskAcceptance.currentlyAssigned')}: <strong>{ra.assigned_to_name}</strong>
                       </div>
                     )}
-                    <div style={{ position: 'relative' }}>
-                      <TextInput
-                        value={assignQuery}
-                        onChange={(_, v) => {
-                          setAssignQuery(v)
-                          setShowAssignDropdown(true)
-                        }}
-                        onFocus={() => setShowAssignDropdown(true)}
-                        placeholder={t('riskAcceptance.searchUser')}
-                        style={{ fontSize: 13 }}
-                      />
-                      {showAssignDropdown && assignCandidates && assignCandidates.length > 0 && (
-                        <div
-                          role="listbox"
-                          style={{
-                            position: 'absolute',
-                            top: '100%',
-                            left: 0,
-                            right: 0,
-                            zIndex: 1000,
-                            background: 'var(--pf-t--global--background--color--primary--default)',
-                            border: '1px solid var(--pf-t--global--border--color--default)',
-                            borderRadius: 4,
-                            boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
-                            maxHeight: 200,
-                            overflowY: 'auto',
-                            marginTop: 2,
-                          }}
-                        >
-                          {assignCandidates.map(user => (
-                            <div
-                              key={user.id}
-                              role="option"
-                              aria-selected={false}
-                              tabIndex={-1}
-                              onMouseDown={(e) => {
-                                e.preventDefault()
-                                assignReviewer.mutate(user.id)
-                                setAssignQuery('')
-                                setShowAssignDropdown(false)
-                              }}
-                              style={{
-                                padding: '6px 12px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--pf-t--global--background--color--secondary--default)' }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-                            >
-                              <span style={{ fontSize: 13, fontWeight: 600 }}>{user.display_name || user.username}</span>
-                              <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>@{user.username}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <UserPicker
+                      userRole="sec_team"
+                      placeholder={t('riskAcceptance.searchUser')}
+                      ariaLabel={t('riskAcceptance.assignReviewer')}
+                      onSelect={(user) => assignReviewer.mutate(user.id)}
+                    />
                   </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>

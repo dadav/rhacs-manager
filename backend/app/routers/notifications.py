@@ -6,10 +6,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db
+from ..i18n import ApiError, get_language
 from ..models.notification import Notification
+from ..notifications.messages import render_notification
 from ..schemas.notification import NotificationResponse, UnreadCountResponse
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+
+def _to_response(n: Notification) -> NotificationResponse:
+    """Render title/message in the request language; fall back to the stored German text."""
+    response = NotificationResponse.model_validate(n)
+    if n.message_key:
+        rendered = render_notification(n.message_key, n.params or {}, get_language())
+        if rendered is not None:
+            response.title, response.message = rendered
+    return response
 
 
 @router.get("", response_model=list[NotificationResponse])
@@ -23,7 +35,7 @@ async def list_notifications(
         .order_by(Notification.created_at.desc())
         .limit(50)
     )
-    return [NotificationResponse.model_validate(n) for n in result.scalars().all()]
+    return [_to_response(n) for n in result.scalars().all()]
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
@@ -54,11 +66,12 @@ async def mark_read(
         )
     )
     n = result.scalar_one_or_none()
-    if n:
-        n.read = True
-        await db.commit()
-        await db.refresh(n)
-    return NotificationResponse.model_validate(n)
+    if n is None:
+        raise ApiError(404, "not_found")
+    n.read = True
+    await db.commit()
+    await db.refresh(n)
+    return _to_response(n)
 
 
 @router.post("/read-all", status_code=204)

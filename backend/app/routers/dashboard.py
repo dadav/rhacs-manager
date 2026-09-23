@@ -17,11 +17,13 @@ from ..schemas.cve import CveListItem, SeverityLevel
 from ..schemas.dashboard import (
     AgingBucket,
     ClusterHeatmapRow,
+    ComponentFix,
     CveHistoryPoint,
     CveTrendPoint,
     DashboardData,
     EpssMatrixPoint,
     FixabilityCount,
+    FixFirstItem,
     MttrSeverity,
     NamespaceCveCount,
     RiskAcceptancePipeline,
@@ -54,6 +56,24 @@ def _is_fix_overdue(fa: datetime | None, cutoff: datetime) -> bool:
         return False
     fa_aware = fa if fa.tzinfo else fa.replace(tzinfo=UTC)
     return fa_aware <= cutoff
+
+
+async def _attach_component_fixes(
+    items: list[CveListItem],
+    namespaces: list[tuple[str, str]] | None,
+) -> list[FixFirstItem]:
+    """Add the affected component versions and their fix versions to fix-first rows."""
+    if not items:
+        return []
+    async with StackRoxSessionLocal() as sx_db:
+        fixes = await sx.get_cve_component_fixes(sx_db, [i.cve_id for i in items], namespaces)
+    return [
+        FixFirstItem(
+            **item.model_dump(),
+            component_fixes=[ComponentFix(**f) for f in fixes.get(item.cve_id, [])],
+        )
+        for item in items
+    ]
 
 
 def _enrich_cves(
@@ -556,6 +576,7 @@ async def dashboard(
             -x.severity.value,
         ),
     )[:10]
+    fix_first_items = await _attach_component_fixes(fix_first, ns_list_for_queries)
 
     return DashboardData(
         stat_total_cves=total,
@@ -601,5 +622,5 @@ async def dashboard(
         fixability_breakdown=FixabilityCount(**fixability_data),
         cve_history=cve_history_data,
         mttr_by_severity=mttr_data,
-        fix_first_cves=fix_first,
+        fix_first_cves=fix_first_items,
     )

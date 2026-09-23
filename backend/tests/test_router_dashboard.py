@@ -56,6 +56,11 @@ def _patch_sx_queries():
     mock_sx.get_fixability_breakdown.return_value = {"fixable": 1, "unfixable": 0}
     mock_sx.get_snapshot_counts.return_value = []
     mock_sx.list_namespaces.return_value = []
+    mock_sx.get_cve_component_fixes.return_value = {
+        "CVE-2024-0001": [
+            {"component_name": "openssl", "component_version": "3.0.7", "fixed_by": "3.0.9"},
+        ],
+    }
     return mock_sx
 
 
@@ -199,3 +204,13 @@ async def test_dashboard_fix_first_includes_actionable_cve(sec_team_client: http
     data = resp.json()
     assert isinstance(data["fix_first_cves"], list)
     assert [c["cve_id"] for c in data["fix_first_cves"]] == ["CVE-2024-0001"]
+
+
+async def test_dashboard_fix_first_lists_component_upgrades(team_member_client: httpx.AsyncClient, sx_mock):
+    """Fix-first rows name the component version to upgrade, scoped to the user's namespaces."""
+    resp = await team_member_client.get("/api/dashboard")
+    row = resp.json()["fix_first_cves"][0]
+    assert row["component_fixes"] == [{"component_name": "openssl", "component_version": "3.0.7", "fixed_by": "3.0.9"}]
+    _, cve_ids, namespaces = sx_mock.get_cve_component_fixes.await_args.args
+    assert cve_ids == ["CVE-2024-0001"]
+    assert set(namespaces) == {("payments", "cluster-a"), ("frontend", "cluster-b")}

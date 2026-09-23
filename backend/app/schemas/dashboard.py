@@ -82,6 +82,18 @@ class ThresholdPreview(BaseModel):
     hidden_cves: int
 
 
+class ComponentFix(BaseModel):
+    component_name: str
+    component_version: str
+    fixed_by: str | None = None
+
+
+class FixFirstItem(CveListItem):
+    """CVE in the fix-first list plus the concrete component upgrades that fix it."""
+
+    component_fixes: list[ComponentFix] = []
+
+
 class DashboardData(BaseModel):
     stat_total_cves: int
     stat_escalations: int
@@ -103,4 +115,4 @@ class DashboardData(BaseModel):
     fixability_breakdown: FixabilityCount
     cve_history: list[CveHistoryPoint]
     mttr_by_severity: list[MttrSeverity]
-    fix_first_cves: list[CveListItem]
+    fix_first_cves: list[FixFirstItem]

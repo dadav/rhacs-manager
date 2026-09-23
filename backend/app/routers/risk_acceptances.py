@@ -396,8 +396,8 @@ async def assign_reviewer(
         db,
         body.user_id,
         notif_svc.NotificationType.risk_comment,
-        f"Risikoakzeptanz zugewiesen: {ra.cve_id}",
-        f"{current_user.display_name} hat Ihnen die Prüfung der Risikoakzeptanz für {ra.cve_id} zugewiesen.",
+        "risk_reviewer_assigned",
+        {"cve_id": ra.cve_id, "actor": current_user.display_name},
         f"/risk-acceptances/{ra.id}",
     )
 

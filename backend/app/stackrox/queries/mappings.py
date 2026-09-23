@@ -177,3 +177,49 @@ async def get_global_component_version_map(
     for row in result:
         mapping.setdefault(row.cve_id, []).append((row.component_name, row.component_version or ""))
     return mapping
+
+
+async def get_cve_component_fixes(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]] | None,
+) -> dict[str, list[dict]]:
+    """Returns {cve_id: [{component_name, component_version, fixed_by}, ...]}.
+
+    One entry per distinct affected component version, with the scanner's fix version
+    for that component. ``namespaces=None`` means org-wide (no namespace filter).
+    """
+    if not cve_ids or namespaces == []:
+        return {}
+    params: dict = {"cve_ids": cve_ids}
+    ns_clause = ""
+    if namespaces is not None:
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        ns_clause = f"AND {ns_fragment}"
+        params.update(ns_params)
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT DISTINCT
+            ic.cvebaseinfo_cve AS cve_id,
+            comp.name AS component_name,
+            comp.version AS component_version,
+            NULLIF(ic.fixedby, '') AS fixed_by
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
+        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+          AND comp.name IS NOT NULL
+          {ns_clause}
+        ORDER BY cve_id, component_name, component_version
+    """)
+    result = await session.execute(sql, params)
+    mapping: dict[str, list[dict]] = {}
+    for row in result:
+        mapping.setdefault(row.cve_id, []).append(
+            {
+                "component_name": row.component_name,
+                "component_version": row.component_version or "",
+                "fixed_by": row.fixed_by,
+            }
+        )
+    return mapping

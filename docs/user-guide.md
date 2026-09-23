@@ -32,7 +32,7 @@ These action-first sections sit at the top of the dashboard.
 
 - **Prioritized CVEs** shows CVEs manually prioritized by the security team.
 - **High exploitation risk (EPSS)** highlights the CVEs with the highest exploit probability.
-- **What to fix first** is a ranked, plain-language table of the most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher because an image update resolves them directly. Each row shows the affected deployment count and the fix version when known.
+- **What to fix first** is a ranked, plain-language table of the most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher because an image update resolves them directly. Each row shows the affected deployment count, the affected component versions with the version that fixes them (for example `openssl 3.0.7 → 3.0.9`), and the fix version when known.
 
 ### Charts
 
@@ -63,15 +63,15 @@ The normal workflow starts in **Vulnerabilities**.
 Risk acceptances are requested from a specific CVE, not from a blank form on the list page.
 
 1. Start from **Vulnerabilities** or the CVE detail page and choose **Request risk acceptance**.
-2. Select the scope: `all`, `namespace`, `image`, or `deployment`.
+2. Select the scope: `all`, `namespace`, `image`, or `deployment`. When the CVE affects exactly one of your namespaces, that namespace is preselected. Below the scope, the form shows whether the current selection is approved immediately or needs security-team review.
 3. Submit the justification and, optionally, an expiry date.
 4. Track the record on **Risk Acceptances**.
-5. `sec_team` reviews the request and approves or rejects it.
-6. If rejected or previously approved, the original creator can edit and resubmit it, which resets the status to `requested`.
+5. Scopes that stay within a single namespace are approved immediately. Scopes with mode `all` or spanning several namespaces are reviewed by `sec_team`, which approves or rejects them.
+6. If rejected or previously approved, the original creator can edit and resubmit it. The same rule applies on resubmission: a single-namespace scope is approved immediately, any other scope goes back to `requested`.
 7. Approved requests expire automatically when `expires_at` is reached.
 
 !!! warning
-    Only `sec_team` can approve or reject risk acceptances.
+    Only `sec_team` can approve or reject risk acceptances that need review.
 
 ### Scope Rules
 
@@ -85,9 +85,10 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 1. Start from a CVE detail page and choose **Start remediation**.
 2. Pick the affected namespace and optional assignee, target date, or notes.
-3. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
-4. If the work is intentionally not going to happen, use `wont_fix` and provide a reason.
-5. Reopen when needed:
+3. Assign or reassign an `open` or `in_progress` remediation from its card. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
+4. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
+5. If the work is intentionally not going to happen, use `wont_fix` and provide a reason.
+6. Reopen when needed:
    - `in_progress` can move back to `open`
    - `resolved` can move back to `in_progress`
    - `wont_fix` can move back to `open`
@@ -254,6 +255,7 @@ Notifications appear in the bell menu and are stored per user.
 
 - The API returns the latest 50 notifications.
 - Unread counts refresh in the UI every 30 seconds.
+- Notification titles and messages appear in the current UI language (German or English). Notifications created before this feature keep their original German text.
 - Each notification has a trash action to permanently delete it, and the drawer header offers **Clear all**. Clear all requires an inline confirmation and permanently removes every stored notification for you, not only the newest 50 shown. Deletion is permanent with no undo; it never touches the underlying business records, sent email, weekly digests, or audit history, and only ever affects your own notifications.
 - The weekly digest is sent to the configured management email on the configured weekday.
 - Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request.

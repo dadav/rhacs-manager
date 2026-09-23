@@ -224,6 +224,7 @@ Access control rules:
 - Always use `getErrorMessage(error)` from `frontend/src/utils/errors.ts` for user-visible errors.
 - Do not use `(error as Error).message` directly in UI code.
 - Keep route-level components in `frontend/src/pages/`.
+- `bun run lint` runs `tsc -b` (the root `tsconfig.json` only has project references, so a bare `tsc --noEmit` checks nothing).
 - Shared API requests should go through `frontend/src/api/client.ts`.
 - Keep translations aligned in `frontend/src/i18n/de.json` and `frontend/src/i18n/en.json`.
 - The UI is German-first, but English translations also exist.
@@ -250,6 +251,7 @@ import { getErrorMessage } from '../utils/errors'
 
 - User-visible API errors must use `ApiError(status, "code")` from `backend/app/i18n.py`, never `HTTPException` with a hardcoded German string. Add the `code` with `de` + `en` text to the `MESSAGES` catalog in `app/i18n.py`. `LanguageMiddleware` resolves the language from the request `Accept-Language` header (sent by `frontend/src/api/client.ts`), defaulting to German. `exports.py` keeps its own `lang`-query bilingual catalog.
 - Keep StackRox SQL centralized in `backend/app/stackrox/queries.py`.
+- In-app notifications are created with `create_notification(session, user_id, type, message_key, params, link)`. Add each `message_key` with `de` + `en` title/message to `NOTIFICATION_MESSAGES` in `backend/app/notifications/messages.py`; never pass finished German strings. `params` must be JSON primitives. `/notifications` renders them in the request language; the stored German `title`/`message` is only the fallback for legacy rows (pre-migration `023`).
 - Keep routers thin; move multi-step business rules into `backend/app/services/` when the logic is not purely request mapping.
 - Scheduler startup and initial escalation check happen in the FastAPI lifespan.
 - Dev-only routes are registered only when `DEV_MODE=true`.

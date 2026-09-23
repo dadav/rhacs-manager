@@ -195,7 +195,9 @@
       "cveHistory": "Shows the actual number of visible CVEs per day, broken down by severity. Falling lines mean real progress. Note: for teams with multiple namespaces the same CVE may be counted once per namespace.",
       "fixFirst": "The most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher - an image update resolves them directly.",
       "cvesPerNamespace": "Shows the top 10 namespaces with the most CVEs, broken down by severity. Helps identify which namespaces need the most attention."
-    }
+    },
+    "fixFirstComponent": "Component",
+    "fixFirstMoreComponents": "+{{count}} more"
   },
   "cves": {
     "title": "Vulnerabilities",
@@ -396,7 +398,10 @@
       "tooltipPartial": "Risk acceptance ({{status}}) applies to only {{covered}} of {{total}} affected deployments. The rest remain open.",
       "tooltipGeneric": "A risk acceptance ({{status}}) exists for this CVE."
     },
-    "escalationContext": "Escalation {{cluster}}/{{namespace}} · level {{level}}"
+    "escalationContext": "Escalation {{cluster}}/{{namespace}} · level {{level}}",
+    "assigneeOptional": "Assignee (optional)",
+    "assign": "Assign",
+    "reassign": "Reassign"
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",
@@ -443,7 +448,6 @@
     "new": "New",
     "edit": "Edit",
     "editTitle": "Edit risk acceptance",
-    "editReviewHint": "After editing, the security team must review the risk acceptance again.",
     "submitEdit": "Submit changes",
     "requestedBy": "Requested by",
     "requestedAt": "Requested on",
@@ -472,11 +476,13 @@
     "deleteFinal": "Delete permanently",
     "delete": "Delete",
     "whyAcceptable": "Why is this risk acceptable?",
-    "approvalHint": "Risk acceptances limited to a single namespace are approved immediately. Scopes covering 'All' or multiple namespaces require security team review.",
     "noAcceptancesFound": "No risk acceptances found.",
     "noAcceptancesHint": "Risk acceptances are created from the CVE detail page.",
     "commentsCount": "Comments ({{count}})",
-    "filterByStatus": "Filter by status"
+    "filterByStatus": "Filter by status",
+    "scopeAutoApproved": "Approved immediately: the scope covers exactly one namespace.",
+    "scopeNeedsReview": "Requires security team review.",
+    "scopeNeedsReviewHint": "Tip: limit the scope to a single namespace to get immediate approval."
   },
   "priorities": {
     "title": "CVE Priorities",
@@ -614,7 +620,8 @@
     "createdBy": "Created by",
     "start": "Start",
     "markResolved": "Resolved",
-    "reopen": "Reopen"
+    "reopen": "Reopen",
+    "assignedToMe": "Assigned to me"
   },
   "badges": {
     "title": "SVG Badges",

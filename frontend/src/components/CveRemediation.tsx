@@ -22,6 +22,8 @@ import {
   FIXABLE_COLOR,
 } from "../tokens";
 import { formatDate } from "../utils/format";
+import { UserPicker } from "./UserPicker";
+import type { UserSearchResult } from "../api/auth";
 
 export function CveRemediationSection({
   cveId,
@@ -39,6 +41,7 @@ export function CveRemediationSection({
   const [selectedNs, setSelectedNs] = useState('')
   const [targetDate, setTargetDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [assignee, setAssignee] = useState<UserSearchResult | null>(null)
 
   const namespaces = Array.from(
     new Map(
@@ -71,11 +74,13 @@ export function CveRemediationSection({
       cluster_name,
       target_date: targetDate || null,
       notes: notes || null,
+      assigned_to: assignee?.id ?? null,
     })
     setShowForm(false)
     setSelectedNs('')
     setTargetDate('')
     setNotes('')
+    setAssignee(null)
   }
 
   return (
@@ -129,6 +134,26 @@ export function CveRemediationSection({
                 </select>
               </div>
               <div>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.assigneeOptional')}</label>
+                <div style={{ marginTop: 4 }}>
+                  {assignee ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                      <span>{assignee.display_name}</span>
+                      <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>@{assignee.username}</span>
+                      <Button variant="link" size="sm" isInline onClick={() => setAssignee(null)}>
+                        {t('common.remove')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <UserPicker
+                      placeholder={t('riskAcceptance.searchUser')}
+                      ariaLabel={t('cveDetail.assigneeOptional')}
+                      onSelect={setAssignee}
+                    />
+                  )}
+                </div>
+              </div>
+              <div>
                 <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.targetDate')}</label>
                 <TextInput
                   type="date"
@@ -172,6 +197,7 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
+  const [showAssign, setShowAssign] = useState(false)
 
   // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
   useEffect(() => {
@@ -183,6 +209,21 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const canResolve = item.status === RemediationStatus.in_progress
   const canWontFix = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
   const canReopen = item.status === RemediationStatus.wont_fix
+  const canAssign = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
+
+  function handleAssign(user: UserSearchResult) {
+    // Assignment does not change item.status, so the status-keyed reset effect above
+    // never fires for it; reset here or every action button stays disabled.
+    updateMutation.mutate(
+      { assigned_to: user.id },
+      {
+        onSuccess: () => {
+          setShowAssign(false)
+          updateMutation.reset()
+        },
+      },
+    )
+  }
 
   function handleWontFix() {
     if (!wontFixReason.trim()) return
@@ -240,6 +281,11 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
             {t('cveDetail.markResolvedBtn')}
           </Button>
         )}
+        {canAssign && !showAssign && (
+          <Button variant="link" size="sm" isDisabled={mutationBusy} onClick={() => setShowAssign(true)}>
+            {item.assigned_to ? t('cveDetail.reassign') : t('cveDetail.assign')}
+          </Button>
+        )}
         {canWontFix && !showWontFix && (
           <Button variant="link" size="sm" isDanger isDisabled={mutationBusy} onClick={() => setShowWontFix(true)}>
             {t('cveDetail.wontFix')}
@@ -251,6 +297,23 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
           </Button>
         )}
       </div>
+      {showAssign && (
+        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <UserPicker
+              placeholder={t('riskAcceptance.searchUser')}
+              ariaLabel={t('cveDetail.assign')}
+              onSelect={handleAssign}
+            />
+          </div>
+          <Button variant="link" size="sm" onClick={() => setShowAssign(false)}>
+            {t('common.cancel')}
+          </Button>
+        </div>
+      )}
+      {updateMutation.isError && (
+        <Alert variant="danger" isInline title={getErrorMessage(updateMutation.error)} style={{ marginTop: 8 }} />
+      )}
       {showWontFix && (
         <div style={{ marginTop: 8, padding: 10, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
           <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.wontFixReason')}</label>

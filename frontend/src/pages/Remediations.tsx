@@ -1,5 +1,6 @@
 import {
   Alert,
+  Checkbox,
   Button,
   EmptyState,
   EmptyStateBody,
@@ -27,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 import { useDebounce } from '../hooks/useDebounce'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
 import { useScope } from '../hooks/useScope'
+import { useAuth } from '../hooks/useAuth'
 import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
 import { RemediationStatus } from '../types'
@@ -38,6 +40,7 @@ const PER_PAGE = 20
 export function Remediations() {
   const { t, i18n } = useTranslation()
   const { scopeParams } = useScope()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const STATUS_LABELS: Record<string, string> = {
@@ -52,6 +55,7 @@ export function Remediations() {
   const statusFilter = searchParams.get('status') ?? ''
   const urlSearch = searchParams.get('search') || ''
   const overdueFilter = searchParams.get('overdue') === '1'
+  const mineFilter = searchParams.get('mine') === '1'
   const page = Math.max(1, Number(searchParams.get('page')) || 1)
 
   // Local input + debounced URL write for the CVE search box
@@ -88,6 +92,7 @@ export function Remediations() {
     {
       status: statusFilter || undefined,
       overdue: overdueFilter || undefined,
+      assigned_to: mineFilter ? user?.id : undefined,
     },
     scopeParams,
   )
@@ -230,6 +235,14 @@ export function Remediations() {
                 ))}
               </ToggleGroup>
             </ToolbarItem>
+            <ToolbarItem alignSelf="center">
+              <Checkbox
+                id="remediations-mine"
+                label={t('remediations.assignedToMe')}
+                isChecked={mineFilter}
+                onChange={(_e, checked) => updateParams({ mine: checked ? '1' : null })}
+              />
+            </ToolbarItem>
           </ToolbarContent>
         </Toolbar>
 
@@ -240,7 +253,7 @@ export function Remediations() {
         ) : !filtered.length ? (
           <EmptyState>
             <EmptyStateBody>
-              {statusFilter || overdueFilter ? t('remediations.noFilterResults') : t('remediations.noRemediations')}
+              {statusFilter || overdueFilter || mineFilter ? t('remediations.noFilterResults') : t('remediations.noRemediations')}
             </EmptyStateBody>
             <EmptyStateBody>
               <span style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>

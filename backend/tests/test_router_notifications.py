@@ -167,3 +167,47 @@ async def test_clear_notifications_is_idempotent_when_empty(notification_store):
 
     assert first_response.status_code == 204
     assert second_response.status_code == 204
+
+
+async def _create_via_service(session_factory, user_id: str) -> None:
+    from app.notifications.service import create_notification
+
+    async with session_factory() as session:
+        await create_notification(
+            session,
+            user_id,
+            NotificationType.remediation_status,
+            "remediation_status",
+            {"cve_id": "CVE-2024-0001", "namespace": "payments", "cluster_name": "cluster-a", "status": "in_progress"},
+            "/remediations",
+        )
+        await session.commit()
+
+
+async def test_list_renders_keyed_notification_in_request_language(notification_store):
+    client, session_factory = notification_store
+    await _create_via_service(session_factory, _CURRENT_USER_ID)
+
+    english = (await client.get("/api/notifications", headers={"Accept-Language": "en"})).json()
+    german = (await client.get("/api/notifications", headers={"Accept-Language": "de"})).json()
+
+    assert english[0]["title"] == "Remediation in progress: CVE-2024-0001"
+    assert english[0]["message"] == "Remediation for CVE-2024-0001 in payments/cluster-a: in progress"
+    assert german[0]["title"] == "Behebung In Bearbeitung: CVE-2024-0001"
+
+
+async def test_list_keeps_stored_text_for_legacy_rows(notification_store):
+    client, session_factory = notification_store
+    await _seed_notifications(session_factory, [_notification(uuid4(), _CURRENT_USER_ID)])
+
+    rows = (await client.get("/api/notifications", headers={"Accept-Language": "en"})).json()
+
+    assert rows[0]["title"] == "Test notification"
+
+
+async def test_mark_read_unknown_notification_returns_404(notification_store):
+    client, _ = notification_store
+
+    response = await client.patch(f"/api/notifications/{uuid4()}/read")
+
+    assert response.status_code == 404
