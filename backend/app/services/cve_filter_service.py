@@ -1,5 +1,6 @@
 """Shared CVE list fetching and filtering logic used by cves.py and exports.py."""
 
+import logging
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from uuid import UUID
@@ -21,10 +22,35 @@ from ..routers._scope import narrow_namespaces
 from ..schemas.cve import CveListItem, SeverityLevel
 from ..stackrox import queries as sx
 
+logger = logging.getLogger(__name__)
+
 
 async def _get_settings(db: AsyncSession) -> GlobalSettings | None:
     r = await db.execute(select(GlobalSettings).limit(1))
     return r.scalar_one_or_none()
+
+
+def resolve_view_thresholds(
+    current_user: CurrentUser,
+    settings: GlobalSettings | None,
+    ignore_thresholds: bool,
+) -> tuple[float, float]:
+    """(min_cvss, min_epss) floor for an interactive CVE view.
+
+    Sec team never gets a floor. Any other user gets the global thresholds
+    unless they opted out for this request via ``ignore_thresholds``. The
+    opt-out only removes noise filtering; namespace visibility is unaffected.
+    Background jobs (alerts, digests, escalations, snapshots, badges) must not
+    use this and keep reading the global thresholds directly.
+    """
+    if current_user.is_sec_team:
+        return 0.0, 0.0
+    if ignore_thresholds:
+        logger.debug("CVE view thresholds ignored by user_id=%s", current_user.id)
+        return 0.0, 0.0
+    if settings is None:
+        return 0.0, 0.0
+    return float(settings.min_cvss_score), float(settings.min_epss_score)
 
 
 def _matches_component_rule(rule: SuppressionRule, components: list[tuple[str, str]]) -> bool:
@@ -418,6 +444,7 @@ async def fetch_filtered_cves(
     fix_overdue: bool = False,
     deployment_id: str | None = None,
     restrict_namespaces: list[tuple[str, str]] | None = None,
+    ignore_thresholds: bool = False,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -427,14 +454,12 @@ async def fetch_filtered_cves(
     ``restrict_namespaces`` narrows the query to those (namespace, cluster) pairs,
     intersected with what the user may see. Callers that already know the
     relevant namespaces (e.g. one image) use it to avoid an org-wide scan.
+
+    ``ignore_thresholds`` drops the global CVSS/EPSS floor for this request
+    (see ``resolve_view_thresholds``).
     """
     settings = await _get_settings(app_db)
-    if current_user.is_sec_team:
-        min_cvss = 0.0
-        min_epss = 0.0
-    else:
-        min_cvss = float(settings.min_cvss_score) if settings else 0.0
-        min_epss = float(settings.min_epss_score) if settings else 0.0
+    min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
 
     has_scope = cluster is not None or namespace is not None
 

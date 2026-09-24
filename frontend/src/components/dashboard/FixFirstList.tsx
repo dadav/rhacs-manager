@@ -1,6 +1,7 @@
 import { Card, CardBody, Label } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { Link } from "react-router";
+import { useScopedLink } from "../../hooks/useScope";
 import { useTranslation } from "react-i18next";
 import type { ComponentFix, FixFirstItem } from "../../types";
 import { SeverityBadge } from "../common/SeverityBadge";
@@ -40,6 +41,7 @@ function ComponentUpgrades({ fixes }: { fixes: ComponentFix[] }) {
 }
 
 export function FixFirstList({ data }: FixFirstListProps) {
+  const scopedLink = useScopedLink();
   const { t } = useTranslation();
   if (data.length === 0) return null;
 
@@ -69,7 +71,7 @@ export function FixFirstList({ data }: FixFirstListProps) {
                 <Tr key={cve.cve_id}>
                   <Td>
                     <Link
-                      to={`/vulnerabilities/${cve.cve_id}`}
+                      to={scopedLink(`/vulnerabilities/${cve.cve_id}`)}
                       style={{ fontWeight: 700 }}
                     >
                       {cve.cve_id}

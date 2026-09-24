@@ -11,6 +11,7 @@ function scopeQuery(scope: ScopeParams): string {
   const q = new URLSearchParams()
   if (scope.cluster) q.set('cluster', scope.cluster)
   if (scope.namespace) q.set('namespace', scope.namespace)
+  if (scope.ignoreThresholds) q.set('ignore_thresholds', 'true')
   const s = q.toString()
   return s ? `?${s}` : ''
 }

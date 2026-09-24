@@ -16,6 +16,7 @@ import { getErrorMessage } from '../utils/errors'
 import { formatDate } from '../utils/format'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { usePriority, useDeletePriority } from '../api/priorities'
 import { useCurrentUser } from '../api/auth'
 import { PriorityLevel } from '../types'
@@ -50,6 +51,7 @@ function PriorityBadge({ level }: { level: PriorityLevel }) {
 }
 
 export function PriorityDetail() {
+  const scopedLink = useScopedLink()
   const { id } = useParams<{ id: string }>()
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -119,7 +121,7 @@ export function PriorityDetail() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      [t('priorities.cveId'), <Link to={`/vulnerabilities/${priority.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>{priority.cve_id}</Link>],
+                      [t('priorities.cveId'), <Link to={scopedLink(`/vulnerabilities/${priority.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>{priority.cve_id}</Link>],
                       [t('priorities.priority'), <PriorityBadge level={priority.priority} />],
                       [t('priorities.setBy'), priority.set_by_name],
                       [t('priorities.deadline'), formatDate(priority.deadline, i18n.language)],

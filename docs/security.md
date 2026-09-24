@@ -67,7 +67,7 @@ The backend does not infer `sec_team` from namespace visibility. It uses group m
 |-----------|----------------|-----------------------------|------------|
 | Read CVEs in own scope | Yes | Yes | Yes |
 | Read all namespaces | No | Yes | Yes |
-| Thresholds bypassed for normal list visibility | No | No | Yes |
+| Thresholds bypassed for normal list visibility | Opt-in per request | Opt-in per request | Yes |
 | Create risk acceptances (single-namespace, auto-approved) | Yes | Yes | No |
 | Approve/reject multi-team risk acceptances (`all` or multi-namespace) | No | No | Yes |
 | Create and resolve remediations | Yes | Yes | Yes |
@@ -91,6 +91,7 @@ The backend materializes the authenticated user as `CurrentUser` with:
 - `sec_team` queries all CVEs without threshold filtering.
 - Other users are limited to their namespaces and use the configured CVSS and EPSS thresholds.
 - Wildcard users can query the full fleet but still use non-security-team thresholds.
+- Any user can drop the threshold floor for their own view with `ignore_thresholds=true` (the **Show all CVEs** switch). Thresholds are a noise filter, not an access control: the opt-out never widens namespace visibility, and background notifications keep using the global thresholds.
 
 ### Risk acceptances
 
@@ -140,7 +141,7 @@ Some CVEs remain visible even if they do not meet the active thresholds.
 |----------|-------------------------------------------|
 | Manual priority exists | Yes |
 | Active risk acceptance exists (`requested` or `approved`) | Yes |
-| Below thresholds with no priority and no active risk acceptance | No |
+| Below thresholds with no priority and no active risk acceptance | No, unless the user opts out with `ignore_thresholds=true` |
 
 ## Spoke-to-Hub Trust Boundary
 

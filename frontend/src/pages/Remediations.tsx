@@ -27,7 +27,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useDebounce } from '../hooks/useDebounce'
 import { useRemediations, useRemediationStats, useUpdateRemediation, useDeleteRemediation } from '../api/remediations'
-import { useScope } from '../hooks/useScope'
+import { useScope, useScopedLink } from '../hooks/useScope'
 import { useAuth } from '../hooks/useAuth'
 import { REMEDIATION_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import type { RemediationItem } from '../types'
@@ -320,6 +320,7 @@ function RemediationRow({
   StatusBadge: React.ComponentType<{ status: string; isOverdue: boolean }>
   t: (key: string) => string
 }) {
+  const scopedLink = useScopedLink()
   const { addToast } = useToast()
   const updateMutation = useUpdateRemediation(item.id)
 
@@ -348,7 +349,7 @@ function RemediationRow({
     >
       <Td>
         <Link
-          to={`/vulnerabilities/${item.cve_id}`}
+          to={scopedLink(`/vulnerabilities/${item.cve_id}`)}
           style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
         >
           {item.cve_id}

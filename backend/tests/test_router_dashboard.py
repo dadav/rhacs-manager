@@ -214,3 +214,27 @@ async def test_dashboard_fix_first_lists_component_upgrades(team_member_client: 
     _, cve_ids, namespaces = sx_mock.get_cve_component_fixes.await_args.args
     assert cve_ids == ["CVE-2024-0001"]
     assert set(namespaces) == {("payments", "cluster-a"), ("frontend", "cluster-b")}
+
+
+async def test_dashboard_ignore_thresholds_drops_floor_for_team_member(team_member_client: httpx.AsyncClient, sx_mock):
+    """ignore_thresholds=true removes the global floor and uses unfiltered snapshot counts."""
+    with (
+        patch("app.routers.dashboard._sx_severity_distribution", return_value=[]) as severity,
+        patch("app.routers.dashboard._cve_history", return_value=[]) as history,
+    ):
+        resp = await team_member_client.get("/api/dashboard?ignore_thresholds=true")
+
+    assert resp.status_code == 200
+    _, _, min_cvss, min_epss, _ = sx_mock.get_cves_for_namespaces.await_args.args
+    assert (min_cvss, min_epss) == (0.0, 0.0)
+    _, sev_min_cvss, sev_min_epss, _, _ = severity.call_args.args
+    assert (sev_min_cvss, sev_min_epss) == (0.0, 0.0)
+    assert history.call_args.kwargs["use_visible_counts"] is False
+
+
+async def test_dashboard_default_keeps_visible_counts_for_team_member(team_member_client: httpx.AsyncClient, sx_mock):
+    with patch("app.routers.dashboard._cve_history", return_value=[]) as history:
+        resp = await team_member_client.get("/api/dashboard")
+
+    assert resp.status_code == 200
+    assert history.call_args.kwargs["use_visible_counts"] is True

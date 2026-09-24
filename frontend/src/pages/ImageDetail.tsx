@@ -20,7 +20,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useImageDetail } from '../api/images'
 import { useCveFixes } from '../api/cves'
 import { ComponentFixTable } from '../components/ComponentFixTable'
-import { useScope } from '../hooks/useScope'
+import { buildScopedTo, useScope } from '../hooks/useScope'
 import { ImageCveTimeline } from '../components/charts/ImageCveTimeline'
 import { getErrorMessage } from '../utils/errors'
 import { formatCvss, formatDate, formatDateTime } from '../utils/format'
@@ -107,7 +107,9 @@ export function ImageDetail() {
   const decodedId = imageId ? decodeURIComponent(imageId) : ''
   const navigate = useNavigate()
   const { t, i18n } = useTranslation()
-  const { data: image, isLoading, error } = useImageDetail(decodedId)
+  const { ignoreThresholds, scopeSearchString } = useScope()
+  const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString)
+  const { data: image, isLoading, error } = useImageDetail(decodedId, { ignoreThresholds })
 
   if (isLoading) {
     return (
@@ -154,10 +156,10 @@ export function ImageDetail() {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/vulnerabilities')} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink('/vulnerabilities'))} style={{ cursor: 'pointer' }}>
             {t('nav.cves')}
           </BreadcrumbItem>
-          <BreadcrumbItem onClick={() => navigate('/vulnerabilities?tab=by-image')} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink('/vulnerabilities?view=image'))} style={{ cursor: 'pointer' }}>
             {t('imageDetail.breadcrumbByImage')}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>

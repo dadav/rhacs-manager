@@ -28,6 +28,7 @@ vi.mock('../hooks/useAuth', () => ({
 
 vi.mock('../hooks/useScope', () => ({
   useScope: () => ({ scopeParams: {} }),
+  useScopedLink: () => (to: string) => to,
 }))
 
 vi.mock('../hooks/useDebounce', () => ({

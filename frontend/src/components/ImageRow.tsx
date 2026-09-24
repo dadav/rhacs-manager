@@ -3,6 +3,7 @@ import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { useCvesForImage } from '../api/cves'
 import { EpssBadge } from '../components/common/EpssBadge'
 import { SeverityBadge } from '../components/common/SeverityBadge'
@@ -12,6 +13,7 @@ import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
 import { formatCvss, formatDate } from '../utils/format'
 
 export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
@@ -30,7 +32,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
         />
         <Td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.image_name}>
           <Link
-            to={`/images/${encodeURIComponent(group.image_id)}`}
+            to={scopedLink(`/images/${encodeURIComponent(group.image_id)}`)}
             style={{ color: BRAND_BLUE }}
           >
             {group.image_name}
@@ -90,7 +92,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
                     {cves.map(cve => (
                       <Tr key={cve.cve_id}>
                         <Td>
-                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
+                          <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
                             {cve.cve_id}
                           </Link>
                         </Td>

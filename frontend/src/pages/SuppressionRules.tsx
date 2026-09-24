@@ -26,6 +26,7 @@ import { TableSkeletonRows } from '../components/TableSkeleton'
 import { useToast } from '../components/ToastContext'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -64,6 +65,7 @@ function DeleteRuleInline({ ruleId }: { ruleId: string }) {
 }
 
 export function SuppressionRules() {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
   const { addToast } = useToast()
@@ -248,7 +250,7 @@ export function SuppressionRules() {
                             )}
                           </span>
                         ) : (
-                          <Link to={`/vulnerabilities/${rule.cve_id}`} style={{ color: BRAND_BLUE }}>
+                          <Link to={scopedLink(`/vulnerabilities/${rule.cve_id}`)} style={{ color: BRAND_BLUE }}>
                             {rule.cve_id}
                           </Link>
                         )}
@@ -542,7 +544,7 @@ export function SuppressionRules() {
                       )}
                     </span>
                   ) : (
-                    <Link to={`/vulnerabilities/${detailRule.cve_id}`} style={{ color: BRAND_BLUE, fontFamily: 'monospace', fontSize: 13 }}>
+                    <Link to={scopedLink(`/vulnerabilities/${detailRule.cve_id}`)} style={{ color: BRAND_BLUE, fontFamily: 'monospace', fontSize: 13 }}>
                       {detailRule.cve_id}
                     </Link>
                   )}

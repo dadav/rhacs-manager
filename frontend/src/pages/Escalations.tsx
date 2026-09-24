@@ -37,7 +37,7 @@ import {
   useUpcomingEscalationSearch,
 } from '../api/escalations'
 import { useAuth } from '../hooks/useAuth'
-import { useScope } from '../hooks/useScope'
+import { useScope, useScopedLink } from '../hooks/useScope'
 import { useToast } from '../components/ToastContext'
 import { BRAND_BLUE } from '../tokens'
 import type { ActiveEscalationRow } from '../types'
@@ -46,6 +46,7 @@ const PER_PAGE = 20
 const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
 
 export function Escalations() {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
@@ -427,7 +428,7 @@ export function Escalations() {
                       >
                         <Td>
                           <Link
-                            to={`/vulnerabilities/${u.cve_id}`}
+                            to={scopedLink(`/vulnerabilities/${u.cve_id}`)}
                             style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
                           >
                             {u.cve_id}
@@ -614,7 +615,7 @@ export function Escalations() {
                             )}
                             <Td>
                               <Link
-                                to={`/vulnerabilities/${e.cve_id}`}
+                                to={scopedLink(`/vulnerabilities/${e.cve_id}`)}
                                 style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
                               >
                                 {e.cve_id}

@@ -3,20 +3,28 @@ import {
   Select,
   SelectList,
   SelectOption,
+  Switch,
   Tooltip,
 } from '@patternfly/react-core'
 import { FilterIcon } from '@patternfly/react-icons'
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNamespaces } from '../../api/namespaces'
+import { useThresholds } from '../../api/settings'
+import { useAuth } from '../../hooks/useAuth'
 import { useScope } from '../../hooks/useScope'
 
 const ALLE = '__alle__'
 
 export function ScopeSelector() {
   const { t } = useTranslation()
-  const { cluster, namespace, setScope } = useScope()
+  const { cluster, namespace, setScope, ignoreThresholds, setIgnoreThresholds } = useScope()
   const { data: nsList } = useNamespaces()
+  const { isSecTeam } = useAuth()
+  const { data: thresholds } = useThresholds()
+  // Sec team never gets a threshold floor, and without configured thresholds there is nothing to ignore.
+  const showThresholdSwitch = !isSecTeam && !!thresholds &&
+    (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
   const [clusterOpen, setClusterOpen] = useState(false)
   const [nsOpen, setNsOpen] = useState(false)
@@ -111,6 +119,22 @@ export function ScopeSelector() {
           ))}
         </SelectList>
       </Select>
+      {showThresholdSwitch && thresholds && (
+        <Tooltip
+          content={t('scope.ignoreThresholdsTooltip', {
+            cvss: thresholds.min_cvss_score.toFixed(1),
+            epss: (thresholds.min_epss_score * 100).toFixed(0),
+          })}
+        >
+          <Switch
+            id="scope-ignore-thresholds"
+            label={t('scope.ignoreThresholds')}
+            isChecked={ignoreThresholds}
+            onChange={(_event, checked) => setIgnoreThresholds(checked)}
+            style={{ fontSize: 13 }}
+          />
+        </Tooltip>
+      )}
     </div>
   )
 }

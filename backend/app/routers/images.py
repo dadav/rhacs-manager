@@ -15,6 +15,7 @@ from ..schemas.cve import (
     ImageLayer,
     SeverityLevel,
 )
+from ..services.cve_filter_service import resolve_view_thresholds
 from ..stackrox import queries as sx
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -30,6 +31,7 @@ async def get_image_detail(
     image_id: str,
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -44,12 +46,7 @@ async def get_image_detail(
 
     # Resolve thresholds and namespace visibility
     settings = await _get_settings(app_db)
-    if current_user.is_sec_team:
-        min_cvss = 0.0
-        min_epss = 0.0
-    else:
-        min_cvss = float(settings.min_cvss_score) if settings else 0.0
-        min_epss = float(settings.min_epss_score) if settings else 0.0
+    min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
 
     from ._scope import narrow_namespaces
 

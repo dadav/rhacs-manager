@@ -31,6 +31,7 @@ import { useCreatePriority, useDeletePriority, usePriorities, useUpdatePriority 
 import { useCurrentUser } from '../api/auth'
 import { PriorityLevel } from '../types'
 import { Link } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
 import { PRIORITY_LABEL_COLORS, BRAND_BLUE } from '../tokens'
 import { InlineConfirmButton } from '../components/common/InlineConfirmButton'
@@ -70,6 +71,7 @@ function DeletePriorityInline({ priorityId }: { priorityId: string }) {
 }
 
 export function Priorities() {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const { addToast } = useToast()
   const { data: me } = useCurrentUser()
@@ -184,7 +186,7 @@ export function Priorities() {
                 {data!.map(p => (
                   <Tr key={p.id}>
                     <Td>
-                      <Link to={`/vulnerabilities/${p.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
+                      <Link to={scopedLink(`/vulnerabilities/${p.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
                         {p.cve_id}
                       </Link>
                     </Td>

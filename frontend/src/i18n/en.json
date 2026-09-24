@@ -923,7 +923,12 @@
     "title": "Scope",
     "tooltip": "Filter all views to a specific cluster and namespace.",
     "allClusters": "All Clusters",
-    "allNamespaces": "All Namespaces"
+    "allNamespaces": "All Namespaces",
+    "ignoreThresholds": "Show all CVEs",
+    "ignoreThresholdsTooltip": "Ignores the global thresholds (CVSS ≥ {{cvss}}, EPSS ≥ {{epss}}%) for your view only. Your namespaces stay the same; notifications and escalations still follow the global thresholds.",
+    "thresholdsIgnoredNotice": "Global thresholds (CVSS ≥ {{cvss}}, EPSS ≥ {{epss}}%) are turned off for your view. All CVEs in your namespaces are shown.",
+    "reapplyThresholds": "Reapply thresholds",
+    "showAllCves": "Show all CVEs"
   },
   "tour": {
     "sidebarNav": "Use the sidebar to navigate to all sections: Dashboard, Vulnerabilities, Remediations, Risk Acceptances, and more.",

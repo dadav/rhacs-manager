@@ -115,6 +115,23 @@ async def test_list_cves_empty(sec_team_client: httpx.AsyncClient, patch_cve_fil
     assert data["items"] == []
 
 
+async def test_list_cves_forwards_ignore_thresholds(team_member_client: httpx.AsyncClient, patch_cve_filter):
+    patch_cve_filter.return_value = []
+
+    resp = await team_member_client.get("/api/cves?ignore_thresholds=true")
+
+    assert resp.status_code == 200
+    assert patch_cve_filter.call_args.kwargs["ignore_thresholds"] is True
+
+
+async def test_list_cves_ignore_thresholds_defaults_false(team_member_client: httpx.AsyncClient, patch_cve_filter):
+    patch_cve_filter.return_value = []
+
+    await team_member_client.get("/api/cves")
+
+    assert patch_cve_filter.call_args.kwargs["ignore_thresholds"] is False
+
+
 async def test_list_cves_pagination(sec_team_client: httpx.AsyncClient, patch_cve_filter):
     from app.schemas.cve import CveListItem, SeverityLevel
 

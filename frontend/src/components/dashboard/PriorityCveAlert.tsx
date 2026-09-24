@@ -1,5 +1,6 @@
 import { Alert } from "@patternfly/react-core";
 import { Link } from "react-router";
+import { useScopedLink } from "../../hooks/useScope";
 import { useTranslation } from "react-i18next";
 import type { CveListItem } from "../../types";
 import { SeverityBadge } from "../common/SeverityBadge";
@@ -11,6 +12,7 @@ interface PriorityCveAlertProps {
 }
 
 export function PriorityCveAlert({ variant, cves }: PriorityCveAlertProps) {
+  const scopedLink = useScopedLink();
   const { t } = useTranslation();
 
   if (cves.length === 0) return null;
@@ -36,7 +38,7 @@ export function PriorityCveAlert({ variant, cves }: PriorityCveAlertProps) {
         {cves.map((cve) => (
           <Link
             key={cve.cve_id}
-            to={`/vulnerabilities/${cve.cve_id}`}
+            to={scopedLink(`/vulnerabilities/${cve.cve_id}`)}
             style={{
               display: "flex",
               alignItems: "center",

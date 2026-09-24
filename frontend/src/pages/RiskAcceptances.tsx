@@ -21,7 +21,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useRiskAcceptances, useCancelRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser } from '../api/auth'
-import { useScope } from '../hooks/useScope'
+import { useScope, useScopedLink } from '../hooks/useScope'
 import { useTranslation } from 'react-i18next'
 import { STATUS_COLORS, BRAND_BLUE, statusBadge, subtleTextSm, monoText } from '../tokens'
 import { InlineConfirmButton } from '../components/common/InlineConfirmButton'
@@ -49,6 +49,7 @@ function normalizeStatusFilter(raw: string | null): string {
 }
 
 export function RiskAcceptances() {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(() =>
@@ -168,7 +169,7 @@ export function RiskAcceptances() {
               {data.map(ra => (
                 <Tr key={ra.id}>
                   <Td>
-                    <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ ...monoText, color: BRAND_BLUE, fontSize: 12 }}>
+                    <Link to={scopedLink(`/vulnerabilities/${ra.cve_id}`)} style={{ ...monoText, color: BRAND_BLUE, fontSize: 12 }}>
                       {ra.cve_id}
                     </Link>
                   </Td>

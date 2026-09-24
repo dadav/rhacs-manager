@@ -13,7 +13,7 @@ See [Configuration](configuration.md) for threshold and notification settings, a
 | Wildcard all-namespace user | Still a `team_member`, but receives `X-Forwarded-Namespaces: *` from the spoke and can browse all namespaces without gaining `sec_team` actions |
 
 !!! note
-    Wildcard all-namespace access changes visibility scope, not role. These users still follow the non-security-team CVSS/EPSS thresholds and cannot approve multi-team risk acceptances.
+    Wildcard all-namespace access changes visibility scope, not role. These users still follow the non-security-team CVSS/EPSS thresholds by default and cannot approve multi-team risk acceptances.
 
 ## Dashboard
 
@@ -57,6 +57,17 @@ The normal workflow starts in **Vulnerabilities**.
 
 !!! tip
     Prioritized CVEs and CVEs with active risk acceptances stay visible even when they fall below the configured CVSS or EPSS thresholds.
+
+### Showing CVEs below the global thresholds
+
+Non-security-team users only see CVEs that meet the global CVSS and EPSS thresholds. To look at everything in your namespaces, turn on **Show all CVEs** in the sidebar under the scope filter, or use the **Show all CVEs** link in the threshold notice on **Vulnerabilities** or the **Dashboard**.
+
+- The switch is a per-user view setting. It lives in the page URL (`ignore_thresholds=1`) next to the cluster and namespace scope, so it stays on while you navigate and can be shared as a link. Nothing changes for other users.
+- It never widens which namespaces you can see.
+- It applies to the CVE list (all three views), the component roll-up, image details, exports, and the Dashboard, including the **CVE totals over time** chart.
+- To look at a stricter set instead, keep the switch off and use the CVSS and EPSS filters in **Vulnerabilities**. With the switch on, those filters apply to the unfiltered set.
+- Notifications, the weekly digest, escalations, and badges keep following the global thresholds.
+- The security team does not see the switch because thresholds never apply to them. It is also hidden when no thresholds are configured.
 
 ### Views: by CVE, by image, by component
 

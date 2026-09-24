@@ -51,7 +51,7 @@ import { CveRemediationSection } from "../components/CveRemediation";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
 import { useAuth } from "../hooks/useAuth";
-import { useScope } from "../hooks/useScope";
+import { buildScopedTo, useScope } from "../hooks/useScope";
 import { AffectedDeployment, CveDetail as CveDetailType, RiskStatus } from "../types";
 import {
   STATUS_COLORS,
@@ -171,8 +171,12 @@ function DeploymentCoverageIcons({ deployment }: { deployment: AffectedDeploymen
 
 /** Component roll-up of everything fixable in one deployment (CveList component view). */
 function deploymentFixesUrl(d: { deployment_id: string; deployment_name: string; namespace: string; cluster_name: string }): string {
+  // Pin the list scope to the deployment's own namespace so a narrower sidebar
+  // scope cannot hide it; buildScopedTo keeps these and adds ignore_thresholds.
   const q = new URLSearchParams({
     view: "component",
+    cluster: d.cluster_name,
+    ns: d.namespace,
     deployment_id: d.deployment_id,
     deployment_label: `${d.cluster_name}/${d.namespace}/${d.deployment_name}`,
   });
@@ -185,7 +189,8 @@ export function CveDetail() {
   const location = useLocation();
   const { t, i18n } = useTranslation();
   const { isSecTeam, user } = useAuth();
-  const { scopeParams } = useScope();
+  const { scopeParams, scopeSearchString } = useScope();
+  const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString);
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
   const { data: comments } = useCveComments(cveId ?? "");
   const viewers = usePresence("cve", cveId);
@@ -340,7 +345,7 @@ export function CveDetail() {
       <PageSection variant="default">
         <Breadcrumb>
           <BreadcrumbItem>
-            <Link to="/vulnerabilities">{t('nav.cves')}</Link>
+            <Link to={scopedLink("/vulnerabilities")}>{t('nav.cves')}</Link>
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{cve.cve_id}</BreadcrumbItem>
         </Breadcrumb>
@@ -795,7 +800,7 @@ export function CveDetail() {
                   )}
                   <Button
                     variant="link"
-                    onClick={() => navigate("/vulnerabilities")}
+                    onClick={() => navigate(scopedLink("/vulnerabilities"))}
                   >
                     {t('cveDetail.backToList')}
                   </Button>
@@ -927,7 +932,7 @@ export function CveDetail() {
                                     }}
                                   >
                                     <Link
-                                      to={deploymentFixesUrl(d)}
+                                      to={scopedLink(deploymentFixesUrl(d))}
                                       title={t("cveDetail.deploymentFixesLink")}
                                       style={{
                                         fontFamily: "monospace",
@@ -972,7 +977,7 @@ export function CveDetail() {
                                 >
                                   {d.image_id ? (
                                     <Link
-                                      to={`/images/${encodeURIComponent(d.image_id)}`}
+                                      to={scopedLink(`/images/${encodeURIComponent(d.image_id)}`)}
                                       style={{ color: BRAND_BLUE }}
                                     >
                                       {d.image_name}

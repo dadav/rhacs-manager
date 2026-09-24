@@ -923,7 +923,12 @@
     "title": "Scope",
     "tooltip": "Alle Ansichten auf einen bestimmten Cluster und Namespace filtern.",
     "allClusters": "Alle Cluster",
-    "allNamespaces": "Alle Namespaces"
+    "allNamespaces": "Alle Namespaces",
+    "ignoreThresholds": "Alle CVEs anzeigen",
+    "ignoreThresholdsTooltip": "Ignoriert die globalen Schwellenwerte (CVSS ≥ {{cvss}}, EPSS ≥ {{epss}}%) nur für Ihre Ansicht. Ihre Namespaces bleiben unverändert, Benachrichtigungen und Eskalationen folgen weiterhin den globalen Schwellenwerten.",
+    "thresholdsIgnoredNotice": "Globale Schwellenwerte (CVSS ≥ {{cvss}}, EPSS ≥ {{epss}}%) sind für Ihre Ansicht ausgeschaltet. Es werden alle CVEs Ihrer Namespaces angezeigt.",
+    "reapplyThresholds": "Schwellenwerte wieder anwenden",
+    "showAllCves": "Alle CVEs anzeigen"
   },
   "tour": {
     "sidebarNav": "Über die Seitenleiste navigieren Sie zu allen Bereichen: Dashboard, Schwachstellen, Behebungen, Risikoakzeptanzen und mehr.",

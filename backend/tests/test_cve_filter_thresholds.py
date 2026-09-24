@@ -174,3 +174,45 @@ async def test_deployment_id_filter_keeps_only_that_deployments_cves(monkeypatch
 
     assert items == []
     assert captured["deployment_lookup"] == ("dep-x", [("payments", "cluster-a")])
+
+
+@pytest.mark.asyncio
+async def test_non_sec_user_ignore_thresholds_drops_floor_but_keeps_scope(monkeypatch):
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5, fix_overdue_threshold_days=30)
+    captured: dict = {}
+    _patch_stackrox(monkeypatch, captured)
+    user = make_current_user(is_sec_team=False, namespaces=[("payments", "cluster-a")])
+
+    await svc.fetch_filtered_cves(user, _app_db_with_calls(settings), AsyncMock(), ignore_thresholds=True)
+
+    min_cvss, min_epss, always_show = captured["get_cves_for_namespaces"]
+    assert (min_cvss, min_epss) == (0.0, 0.0)
+    assert always_show == {"CVE-PRIO-1", "CVE-RA-1"}
+    # Opting out of thresholds never widens namespace visibility.
+    assert captured["namespaces"] == [("payments", "cluster-a")]
+    assert "get_all_cves" not in captured
+
+
+@pytest.mark.parametrize(
+    ("is_sec_team", "ignore_thresholds", "has_settings", "expected"),
+    [
+        (False, False, True, (7.0, 0.5)),
+        (False, True, True, (0.0, 0.0)),
+        (False, False, False, (0.0, 0.0)),
+        (True, False, True, (0.0, 0.0)),
+        (True, True, True, (0.0, 0.0)),
+    ],
+)
+def test_resolve_view_thresholds(is_sec_team, ignore_thresholds, has_settings, expected):
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5) if has_settings else None
+    user = make_current_user(is_sec_team=is_sec_team, has_all_namespaces=is_sec_team)
+
+    assert svc.resolve_view_thresholds(user, settings, ignore_thresholds) == expected
+
+
+def test_resolve_view_thresholds_applies_to_wildcard_team_member():
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5)
+    user = make_current_user(is_sec_team=False, has_all_namespaces=True)
+
+    assert svc.resolve_view_thresholds(user, settings, False) == (7.0, 0.5)
+    assert svc.resolve_view_thresholds(user, settings, True) == (0.0, 0.0)

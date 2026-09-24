@@ -37,14 +37,18 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }))
 
+let mockScopeParams: { cluster?: string; namespace?: string; ignoreThresholds?: boolean } = {}
 vi.mock('../hooks/useScope', () => ({
   useScope: () => ({
     cluster: undefined,
     namespace: undefined,
-    scopeParams: {},
+    ignoreThresholds: mockScopeParams.ignoreThresholds ?? false,
+    scopeParams: mockScopeParams,
     setScope: vi.fn(),
+    setIgnoreThresholds: vi.fn(),
     scopeSearchString: '',
   }),
+  useScopedLink: () => (to: string) => to,
 }))
 
 vi.mock('../hooks/useDebounce', () => ({
@@ -119,6 +123,7 @@ function createWrapper(initialEntry = '/vulnerabilities') {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockScopeParams = {}
   // Default: image view returns empty to avoid errors
   mockUseCvesByImage.mockReturnValue({ data: [], isLoading: false, error: null })
   mockUseCveFixes.mockReturnValue({ data: undefined, isLoading: false, error: null })
@@ -212,5 +217,16 @@ describe('CveList', () => {
     expect(mockUseCves.mock.calls.at(-1)?.[0]).toMatchObject({ deployment_id: 'dep-1' })
     expect(mockUseCveFixes.mock.calls.at(-1)?.[0]).toMatchObject({ deployment_id: 'dep-1' })
     expect(screen.getByText('cluster-a/payments/api')).toBeInTheDocument()
+  })
+
+  it('forwards the threshold opt-out to every view', () => {
+    mockScopeParams = { ignoreThresholds: true }
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities?ignore_thresholds=1') })
+
+    expect(mockUseCves.mock.calls.at(-1)?.[1]).toMatchObject({ ignoreThresholds: true })
+    expect(mockUseCvesByImage.mock.calls.at(-1)?.[0]).toMatchObject({ ignoreThresholds: true })
+    expect(mockUseCveFixes.mock.calls.at(-1)?.[1]).toMatchObject({ ignoreThresholds: true })
   })
 })

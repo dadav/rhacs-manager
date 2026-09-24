@@ -27,7 +27,7 @@ import {
   Badge,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { ExportIcon, FilterIcon, ImportIcon, InfoCircleIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
+import { ExportIcon, FilterIcon, ImportIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { formatCvss, formatDate } from '../utils/format'
 import { useEffect, useRef, useState } from 'react'
@@ -35,9 +35,9 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { useCves, useCvesByImage, useCveFixes } from '../api/cves'
 import { exportPdf, exportExcel } from '../api/exports'
-import { useThresholds } from '../api/settings'
+import { ThresholdNotice } from '../components/common/ThresholdNotice'
 
-import { useScope, type ScopeParams } from '../hooks/useScope'
+import { useScope, type ScopeParams, useScopedLink } from '../hooks/useScope'
 import { useAuth } from '../hooks/useAuth'
 import { useDebounce } from '../hooks/useDebounce'
 import { EpssBadge } from '../components/common/EpssBadge'
@@ -224,9 +224,11 @@ export function CveList() {
   }
 
   const { scopeParams } = useScope()
+  const scopedLink = useScopedLink()
   const scopeOverrides: ScopeParams = {
     cluster: urlCluster || scopeParams.cluster,
     namespace: urlNamespace || scopeParams.namespace,
+    ignoreThresholds: scopeParams.ignoreThresholds,
   }
   const { data, isLoading, error } = useCves(params, scopeOverrides)
   const imageFilters = {
@@ -250,7 +252,6 @@ export function CveList() {
     urlViewMode === 'component',
   )
   const { isSecTeam } = useAuth()
-  const { data: thresholds } = useThresholds()
 
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -283,9 +284,6 @@ export function CveList() {
       setExporting(false)
     }
   }
-
-  const hasActiveThresholds = thresholds && !isSecTeam &&
-    (thresholds.min_cvss_score > 0 || thresholds.min_epss_score > 0)
 
   // --- Image view sort (client-side) ---
   const IMAGE_SORT_KEYS: Record<string, (g: ImageCveGroup) => string | number> = {
@@ -405,21 +403,7 @@ export function CveList() {
         </div>
       </PageSection>
 
-      {hasActiveThresholds && (
-        <PageSection variant="default" padding={{ default: 'noPadding' }}>
-          <Alert
-            variant="info"
-            isInline
-            isPlain
-            customIcon={<InfoCircleIcon />}
-            title={t('cves.thresholdHint', {
-              cvss: thresholds.min_cvss_score.toFixed(1),
-              epss: (thresholds.min_epss_score * 100).toFixed(0),
-            })}
-            style={{ padding: '8px 20px' }}
-          />
-        </PageSection>
-      )}
+      <ThresholdNotice />
 
       {exportError && (
         <PageSection variant="default" padding={{ default: 'noPadding' }}>
@@ -832,7 +816,7 @@ export function CveList() {
                     {data.items.map(cve => (
                       <Tr key={cve.cve_id} style={getRowStyle(cve.has_priority, cve.remediation_status)}>
                         <Td>
-                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
+                          <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
                             {cve.cve_id}
                           </Link>
                           {cve.has_priority && (

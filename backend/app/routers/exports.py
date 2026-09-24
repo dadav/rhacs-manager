@@ -96,6 +96,7 @@ async def export_pdf(
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
     lang: str = Query("de"),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -116,6 +117,7 @@ async def export_pdf(
         risk_status=risk_status,
         cluster=cluster,
         namespace=namespace,
+        ignore_thresholds=ignore_thresholds,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -203,6 +205,7 @@ async def export_excel(
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
     lang: str = Query("de"),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -223,6 +226,7 @@ async def export_excel(
         risk_status=risk_status,
         cluster=cluster,
         namespace=namespace,
+        ignore_thresholds=ignore_thresholds,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)

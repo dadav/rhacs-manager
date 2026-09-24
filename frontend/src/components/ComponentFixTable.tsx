@@ -3,6 +3,7 @@ import { Tooltip } from '@patternfly/react-core'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { EpssBadge } from './common/EpssBadge'
 import { SeverityBadge } from './common/SeverityBadge'
 import type { FixRollupItem } from '../types'
@@ -14,6 +15,7 @@ import { formatCvss } from '../utils/format'
 export const COMPONENT_TABLE_COLUMNS = 10
 
 export function ComponentFixRow({ item, showImageLinks = true }: { item: FixRollupItem; showImageLinks?: boolean }) {
+  const scopedLink = useScopedLink()
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const rowKey = `${item.component_name}@${item.component_version}@${item.operating_system}`
@@ -113,7 +115,7 @@ export function ComponentFixRow({ item, showImageLinks = true }: { item: FixRoll
                     {item.cves.map(cve => (
                       <Tr key={cve.cve_id}>
                         <Td>
-                          <Link to={`/vulnerabilities/${cve.cve_id}`} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
+                          <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
                             {cve.cve_id}
                           </Link>
                         </Td>
@@ -137,7 +139,7 @@ export function ComponentFixRow({ item, showImageLinks = true }: { item: FixRoll
                       {item.images.map(img => (
                         <Tr key={img.image_id}>
                           <Td style={{ fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>
-                            <Link to={`/images/${encodeURIComponent(img.image_id)}`} style={{ color: BRAND_BLUE }}>
+                            <Link to={scopedLink(`/images/${encodeURIComponent(img.image_id)}`)} style={{ color: BRAND_BLUE }}>
                               {img.image_name}
                             </Link>
                           </Td>

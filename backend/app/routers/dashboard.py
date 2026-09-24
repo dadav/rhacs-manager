@@ -32,6 +32,7 @@ from ..schemas.dashboard import (
 from ..services.cve_filter_service import (
     compute_remediation_status,
     compute_suppression_sets,
+    resolve_view_thresholds,
 )
 from ..services.escalation_preview import compute_upcoming_escalations
 from ..services.escalation_workspace import count_active_workspace
@@ -382,17 +383,12 @@ async def _mttr_by_severity(
 async def dashboard(
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
 ) -> DashboardData:
     settings = await _get_settings(app_db)
-    # Thresholds only apply to non-sec-team users (sec team sees all CVEs)
-    if current_user.is_sec_team:
-        min_cvss = 0.0
-        min_epss = 0.0
-    else:
-        min_cvss = float(settings.min_cvss_score) if settings else 0.0
-        min_epss = float(settings.min_epss_score) if settings else 0.0
+    min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
 
     has_scope = cluster is not None or namespace is not None
 
@@ -528,7 +524,7 @@ async def dashboard(
         _sx_cluster_heatmap(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_cve_aging(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
-        _cve_history(ns_list_for_queries, use_visible_counts=not current_user.is_sec_team),
+        _cve_history(ns_list_for_queries, use_visible_counts=not (current_user.is_sec_team or ignore_thresholds)),
         _upcoming_escalations(upcoming_ns, settings),
         _ra_pipeline(),
         _mttr_by_severity(ns_list_for_queries) if current_user.is_sec_team else _empty_mttr(),

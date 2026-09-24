@@ -40,13 +40,15 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }))
 
-vi.mock('../hooks/useScope', () => ({
+let mockScopeSearchString = ''
+vi.mock('../hooks/useScope', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../hooks/useScope')>()),
   useScope: () => ({
     cluster: undefined,
     namespace: undefined,
     scopeParams: {},
     setScope: vi.fn(),
-    scopeSearchString: '',
+    scopeSearchString: mockScopeSearchString,
   }),
 }))
 
@@ -147,6 +149,7 @@ function createWrapper(cveId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockScopeSearchString = ''
   mockUseCveComments.mockReturnValue({ data: [], isLoading: false })
   mockUseAddCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
   mockUseEditCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
@@ -181,6 +184,23 @@ describe('CveDetail', () => {
     expect(screen.getByText('sec@example.com')).toBeInTheDocument()
     // Deployment name
     expect(screen.getByText('api-server')).toBeInTheDocument()
+  })
+
+  it('keeps scope and the threshold opt-out on return and deployment links', () => {
+    mockScopeSearchString = 'ns=prod&ignore_thresholds=1'
+    const cve = makeCveDetail()
+    mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(screen.getByRole('link', { name: 'nav.cves' })).toHaveAttribute('href', '/vulnerabilities?ns=prod&ignore_thresholds=1')
+    const fixesHref = screen.getByTitle('cveDetail.deploymentFixesLink').getAttribute('href') ?? ''
+    const fixesParams = new URLSearchParams(fixesHref.split('?')[1])
+    expect(fixesParams.get('deployment_id')).toBe('d1')
+    // Pinned to the deployment's own namespace, opt-out carried over.
+    expect(fixesParams.get('cluster')).toBe('cluster-a')
+    expect(fixesParams.get('ns')).toBe('prod')
+    expect(fixesParams.get('ignore_thresholds')).toBe('1')
   })
 
   it('shows error state when CVE not found', () => {

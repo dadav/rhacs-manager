@@ -51,17 +51,26 @@ Comment create/update requests accept **exactly one** representation:
 | `cluster` | string | - | scope filter |
 | `namespace` | string | - | scope filter |
 | `show_suppressed` | bool | `false` | include suppressed (false positive) CVEs |
+| `ignore_thresholds` | bool | `false` | drop the global CVSS/EPSS floor for this request (view only, see below) |
 
 !!! note
     Prioritized CVEs are always placed first, regardless of selected sort column.
 
-Wildcard all-namespace users can query all namespaces through these endpoints, but non-sec-team CVSS/EPSS thresholds still apply to their results.
+Wildcard all-namespace users can query all namespaces through these endpoints, but non-sec-team CVSS/EPSS thresholds still apply to their results unless the request sets `ignore_thresholds=true`.
+
+### `ignore_thresholds`
+
+Any user may pass `ignore_thresholds=true` to see CVEs below the global `min_cvss_score` / `min_epss_score`. It removes only the threshold floor: namespace visibility, suppression, and the `cvss_min` / `epss_min` filters still apply. It has no effect for `sec_team` (no floor applies). Background jobs (notifications, digest, escalations, snapshots) and badges always use the global thresholds.
+
+Accepted by `GET /api/cves`, `/api/cves/fixes`, `/api/cves/by-image`, `/api/cves/by-image/{image_id}/cves`, `/api/images/{image_id}`, `/api/dashboard`, `/api/exports/pdf`, and `/api/exports/excel`.
 
 ## Dashboard
 
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/api/dashboard` | Any | Dashboard dataset (scoped for non-sec users) |
+
+Query parameters: `cluster`, `namespace`, `ignore_thresholds` (see [`ignore_thresholds`](#ignore_thresholds)). With `ignore_thresholds=true`, `cve_history` uses the unfiltered per-day totals.
 
 Response includes stat cards and chart data:
 
@@ -355,6 +364,7 @@ Accepts the same list filters as `/api/cves`:
 - `risk_status`
 - `cluster`
 - `namespace`
+- `ignore_thresholds`
 
 Response:
 

@@ -30,6 +30,7 @@ import { formatDate, formatDateTime } from '../utils/format'
 import { useToast } from '../components/ToastContext'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useScopedLink } from '../hooks/useScope'
 import { usePresence } from '../api/presence'
 import { useAddComment, useAssignReviewer, useCancelRiskAcceptance, useCreateRiskAcceptance, useReviewRiskAcceptance, useRiskAcceptance, useRiskComments, useUpdateRiskAcceptance } from '../api/riskAcceptances'
 import { useCurrentUser } from '../api/auth'
@@ -301,6 +302,7 @@ export function RiskAcceptanceDetail() {
 }
 
 function RiskAcceptanceView({ id }: { id: string }) {
+  const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const { addToast } = useToast()
   const navigate = useNavigate()
@@ -462,7 +464,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      [t('riskAcceptance.cveId'), <Link to={`/vulnerabilities/${ra.cve_id}`} style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</Link>],
+                      [t('riskAcceptance.cveId'), <Link to={scopedLink(`/vulnerabilities/${ra.cve_id}`)} style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</Link>],
                       [t('riskAcceptance.scope'), renderScope(ra.scope)],
                       [t('riskAcceptance.requestedBy'), ra.created_by_name],
                       [t('riskAcceptance.requestedAt'), formatDate(ra.created_at, i18n.language)],

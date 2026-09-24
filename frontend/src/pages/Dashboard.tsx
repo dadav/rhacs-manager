@@ -33,6 +33,7 @@ import { FixabilityDonut } from "../components/dashboard/FixabilityDonut";
 import { FixFirstList } from "../components/dashboard/FixFirstList";
 import { PriorityCveAlert } from "../components/dashboard/PriorityCveAlert";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
+import { ThresholdNotice } from "../components/common/ThresholdNotice";
 
 const statLinkStyle = {
   textDecoration: "none" as const,
@@ -65,36 +66,39 @@ export function Dashboard() {
   if (!data) return null;
 
   const header = (
-    <PageSection variant="default">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Title headingLevel="h1" size="xl">
-          {t("dashboard.title")}
-        </Title>
-        <Popover
-          headerContent={t('dashboard.whatIs')}
-          bodyContent={
-            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-              <p style={{ margin: '0 0 8px' }}>
-                {t('dashboard.helpBody1')}
-              </p>
-              <p style={{ margin: '0 0 8px' }}>
-                <strong>{t('dashboard.helpBody2Charts')}</strong> - {t('dashboard.helpBody2ChartsDesc')}<br />
-                <strong>{t('dashboard.helpBody2Stats')}</strong> - {t('dashboard.helpBody2StatsDesc')}<br />
-                <strong>{t('dashboard.helpBody2Priority')}</strong> - {t('dashboard.helpBody2PriorityDesc')}
-              </p>
-              <p style={{ margin: 0 }}>
-                {t('dashboard.helpBody3')}
-              </p>
-            </div>
-          }
-          position="right"
-        >
-          <Button variant="plain" aria-label={t('dashboard.helpLabel')} style={{ padding: '4px 6px' }}>
-            <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
-          </Button>
-        </Popover>
-      </div>
-    </PageSection>
+    <>
+      <PageSection variant="default">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Title headingLevel="h1" size="xl">
+            {t("dashboard.title")}
+          </Title>
+          <Popover
+            headerContent={t('dashboard.whatIs')}
+            bodyContent={
+              <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <p style={{ margin: '0 0 8px' }}>
+                  {t('dashboard.helpBody1')}
+                </p>
+                <p style={{ margin: '0 0 8px' }}>
+                  <strong>{t('dashboard.helpBody2Charts')}</strong> - {t('dashboard.helpBody2ChartsDesc')}<br />
+                  <strong>{t('dashboard.helpBody2Stats')}</strong> - {t('dashboard.helpBody2StatsDesc')}<br />
+                  <strong>{t('dashboard.helpBody2Priority')}</strong> - {t('dashboard.helpBody2PriorityDesc')}
+                </p>
+                <p style={{ margin: 0 }}>
+                  {t('dashboard.helpBody3')}
+                </p>
+              </div>
+            }
+            position="right"
+          >
+            <Button variant="plain" aria-label={t('dashboard.helpLabel')} style={{ padding: '4px 6px' }}>
+              <OutlinedQuestionCircleIcon style={{ color: 'var(--pf-t--global--text--color--subtle)' }} />
+            </Button>
+          </Popover>
+        </div>
+      </PageSection>
+      <ThresholdNotice />
+    </>
   );
 
   if (data.stat_total_cves === 0) {
@@ -229,7 +233,7 @@ export function Dashboard() {
                   <EpssRiskMatrix
                     data={data.epss_matrix}
                     onDotClick={(cveId) =>
-                      navigate(`/vulnerabilities/${cveId}`)
+                      navigate(scopedLink(`/vulnerabilities/${cveId}`))
                     }
                   />
                 </CardBody>
@@ -245,7 +249,7 @@ export function Dashboard() {
                   title={t("dashboard.pipeline")}
                   helpKey="dashboard.help.pipeline"
                 >
-                  <Link to="/risk-acceptances" style={{ fontSize: 12 }}>
+                  <Link to={scopedLink("/risk-acceptances")} style={{ fontSize: 12 }}>
                     {t("dashboard.viewAll")}
                   </Link>
                 </ChartCardTitle>
@@ -262,7 +266,7 @@ export function Dashboard() {
                     return (
                       <Link
                         key={status}
-                        to={`/risk-acceptances?status=${status}`}
+                        to={scopedLink(`/risk-acceptances?status=${status}`)}
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
@@ -303,7 +307,7 @@ export function Dashboard() {
                 <SeverityDonut
                   data={data.severity_distribution}
                   onSegmentClick={(severity) =>
-                    navigate(`/vulnerabilities?severity=${severity}`)
+                    navigate(scopedLink(`/vulnerabilities?severity=${severity}`))
                   }
                 />
               </CardBody>
@@ -317,7 +321,7 @@ export function Dashboard() {
               <FixabilityDonut
                 data={data.fixability_breakdown}
                 onSegmentClick={(fixable) =>
-                  navigate(`/vulnerabilities?fixable=${fixable}`)
+                  navigate(scopedLink(`/vulnerabilities?fixable=${fixable}`))
                 }
               />
             </GridItem>
@@ -330,7 +334,7 @@ export function Dashboard() {
                 data={data.cves_per_namespace}
                 onBarClick={(namespace, severity) =>
                   navigate(
-                    `/vulnerabilities?namespace=${encodeURIComponent(namespace)}&severity=${severity}`,
+                    scopedLink(`/vulnerabilities?ns=${encodeURIComponent(namespace)}&severity=${severity}`),
                   )
                 }
               />
@@ -344,12 +348,12 @@ export function Dashboard() {
                 data={data.cluster_heatmap}
                 onClusterClick={(cluster) =>
                   navigate(
-                    `/vulnerabilities?cluster=${encodeURIComponent(cluster)}`,
+                    scopedLink(`/vulnerabilities?cluster=${encodeURIComponent(cluster)}`),
                   )
                 }
                 onCellClick={(cluster, severity) =>
                   navigate(
-                    `/vulnerabilities?severity=${severity}&cluster=${encodeURIComponent(cluster)}`,
+                    scopedLink(`/vulnerabilities?severity=${severity}&cluster=${encodeURIComponent(cluster)}`),
                   )
                 }
               />
@@ -366,7 +370,7 @@ export function Dashboard() {
                   params.set("age_min", String(ageMin));
                   if (ageMax !== undefined)
                     params.set("age_max", String(ageMax));
-                  navigate(`/vulnerabilities?${params.toString()}`);
+                  navigate(scopedLink(`/vulnerabilities?${params.toString()}`));
                 }}
               />
             </GridItem>

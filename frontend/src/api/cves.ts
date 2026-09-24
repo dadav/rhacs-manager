@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, CommentInput, ImageCveGroup, ImageCveDetail, FixRollupResponse } from '../types'
-import type { ScopeParams } from '../hooks/useScope'
+import { scopeApiParams, type ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
   list: (params: Record<string, unknown>) => ['cves', 'list', params] as const,
@@ -50,7 +50,7 @@ function buildQuery(params: CveListParams): string {
 }
 
 export function useCves(params: CveListParams = {}, scope: ScopeParams = {}) {
-  const merged = { ...params, cluster: scope.cluster, namespace: scope.namespace }
+  const merged = { ...params, ...scopeApiParams(scope) }
   return useQuery({
     queryKey: cveKeys.list(merged as Record<string, unknown>),
     queryFn: () => api.get<Paginated<CveListItem>>(`/cves${buildQuery(merged)}`),
@@ -94,7 +94,7 @@ interface ImageFilterParams {
 }
 
 export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterParams = {}) {
-  const merged = { ...filters, cluster: scope.cluster, namespace: scope.namespace }
+  const merged = { ...filters, ...scopeApiParams(scope) }
   return useQuery({
     queryKey: ['cves', 'by-image', merged],
     queryFn: () => api.get<ImageCveGroup[]>(`/cves/by-image${buildQuery(merged)}`),
@@ -109,6 +109,7 @@ export function useCvesForImage(imageId: string, scope: ScopeParams = {}, filter
       const q = new URLSearchParams()
       if (scope.cluster) q.set('cluster', scope.cluster)
       if (scope.namespace) q.set('namespace', scope.namespace)
+      if (scope.ignoreThresholds) q.set('ignore_thresholds', 'true')
       for (const [k, v] of Object.entries(filters)) {
         if (v !== undefined && v !== '') q.set(k, String(v))
       }
@@ -131,7 +132,7 @@ export interface CveFixesParams extends CveListParams {
  * view is visible; the org-wide roll-up is expensive for sec-team users.
  */
 export function useCveFixes(params: CveFixesParams, scope: ScopeParams = {}, enabled = true) {
-  const merged = { ...params, cluster: scope.cluster, namespace: scope.namespace }
+  const merged = { ...params, ...scopeApiParams(scope) }
   return useQuery({
     queryKey: ['cves', 'fixes', merged],
     queryFn: () => api.get<FixRollupResponse>(`/cves/fixes${buildQuery(merged)}`),

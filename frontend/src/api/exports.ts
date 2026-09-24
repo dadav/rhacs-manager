@@ -1,6 +1,6 @@
 import i18n from '../i18n'
 import { extractApiError } from '../utils/errors'
-import type { ScopeParams } from '../hooks/useScope'
+import { scopeApiParams, type ScopeParams } from '../hooks/useScope'
 
 const BASE = '/api'
 
@@ -24,7 +24,7 @@ interface ExportFilters {
 
 function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {
   const q = new URLSearchParams()
-  Object.entries({ ...filters, ...scope }).forEach(([k, v]) => {
+  Object.entries({ ...filters, ...scopeApiParams(scope) }).forEach(([k, v]) => {
     if (v === undefined || v === null || v === '') return
     q.set(k, String(v))
   })

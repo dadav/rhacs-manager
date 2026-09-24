@@ -156,7 +156,7 @@ Access control rules:
 
 - Sec team sees org-wide CVEs, escalations, risk acceptances, and sec-team-only actions.
 - Wildcard all-namespace users are still `team_member`; they do not become sec team.
-- Wildcard all-namespace users still obey CVSS and EPSS threshold filtering.
+- Wildcard all-namespace users still obey CVSS and EPSS threshold filtering (unless they opt out per request via `ignore_thresholds`, like any user).
 - Risk acceptances are visible if namespace scope overlaps or the user is the creator.
 - Escalations are namespace-scoped.
 - Badges are scoped by creator plus optional namespace and cluster.
@@ -165,6 +165,7 @@ Access control rules:
 
 - The component roll-up (`GET /cves/fixes`, `services/fix_rollup_service.py`) must take its CVE set from `fetch_filtered_cves` so it never diverges from `/cves` visibility; StackRox is only queried to map those CVEs to components. Components holding prioritized CVEs sort first.
 - CVSS and EPSS thresholds are conjunctive for non-sec-team visibility.
+- Any user can opt out of the global thresholds per request with `ignore_thresholds=true` (frontend: `ignore_thresholds=1` URL param carried in `ScopeParams` by `useScope`). This is a view-only noise filter opt-out; it never widens namespace visibility. Interactive endpoints resolve the floor through `resolve_view_thresholds` in `services/cve_filter_service.py`; background jobs (alerts, digests, escalations, snapshots) and badges keep reading `GlobalSettings` directly.
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
 - Prioritized CVEs must always sort to the top in `/cves`, regardless of selected sort column.
 - Dashboard chart datasets must apply the same visibility logic as `stat_total_cves`.
@@ -228,6 +229,7 @@ Access control rules:
 - Keep route-level components in `frontend/src/pages/`.
 - `bun run lint` runs `tsc -b` (the root `tsconfig.json` only has project references, so a bare `tsc --noEmit` checks nothing).
 - Shared API requests should go through `frontend/src/api/client.ts`.
+- In-app links and `navigate()` targets into CVE, image, dashboard, or list views must go through `useScopedLink()` / `buildScopedTo` from `frontend/src/hooks/useScope.ts`, so the sidebar scope (`cluster`, `ns`) and `ignore_thresholds` survive navigation. Params already in the target win (drilldowns override the sidebar scope). The CVE list reads its namespace filter from `ns`, not `namespace`.
 - Keep translations aligned in `frontend/src/i18n/de.json` and `frontend/src/i18n/en.json`.
 - The UI is German-first, but English translations also exist.
 

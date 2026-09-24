@@ -36,7 +36,7 @@ from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
-from ..services.cve_filter_service import fetch_filtered_cves
+from ..services.cve_filter_service import fetch_filtered_cves, resolve_view_thresholds
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.fix_rollup_service import build_fix_rollup
 from ..services.risk_acceptance_service import deployment_covered_by_scope
@@ -81,6 +81,7 @@ async def list_cves(
     show_remediated: bool = Query(False),
     fix_overdue: bool = Query(False),
     deployment_id: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -109,6 +110,7 @@ async def list_cves(
         show_remediated=show_remediated,
         fix_overdue=fix_overdue,
         deployment_id=deployment_id,
+        ignore_thresholds=ignore_thresholds,
     )
 
     total = len(items)
@@ -147,6 +149,7 @@ async def list_component_fixes(
     show_remediated: bool = Query(False),
     fix_overdue: bool = Query(False),
     deployment_id: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -184,6 +187,7 @@ async def list_component_fixes(
             "show_remediated": show_remediated,
             "fix_overdue": fix_overdue,
             "deployment_id": deployment_id,
+            "ignore_thresholds": ignore_thresholds,
         },
     )
 
@@ -199,18 +203,14 @@ async def list_cves_by_image(
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
     image_name: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[ImageCveGroup]:
     """CVEs grouped by container image — shows which images have the most CVEs."""
     settings = await _get_settings(app_db)
-    if current_user.is_sec_team:
-        min_cvss = 0.0
-        min_epss = 0.0
-    else:
-        min_cvss = float(settings.min_cvss_score) if settings else 0.0
-        min_epss = float(settings.min_epss_score) if settings else 0.0
+    min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
 
     from ._scope import narrow_namespaces
 
@@ -284,18 +284,14 @@ async def list_cves_for_image(
     cvss_min: float | None = Query(None),
     epss_min: float | None = Query(None),
     component: str | None = Query(None),
+    ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[ImageCveDetail]:
     """Get all visible CVEs for a specific image."""
     settings = await _get_settings(app_db)
-    if current_user.is_sec_team:
-        min_cvss = 0.0
-        min_epss = 0.0
-    else:
-        min_cvss = float(settings.min_cvss_score) if settings else 0.0
-        min_epss = float(settings.min_epss_score) if settings else 0.0
+    min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
 
     from ._scope import narrow_namespaces
 
