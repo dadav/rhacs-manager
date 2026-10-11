@@ -30,6 +30,7 @@ def _build_app() -> FastAPI:
         namespaces,
         notifications,
         preferences,
+        presence,
         priorities,
         remediations,
         risk_acceptances,
@@ -62,6 +63,7 @@ def _build_app() -> FastAPI:
         audit,
         exports,
         suppression_rules,
+        presence,
     ]:
         test_app.include_router(router_module.router, prefix="/api")
 

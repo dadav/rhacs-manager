@@ -35,7 +35,7 @@
         },
         "env": {
           "additionalProperties": false,
-          "description": "Database connection environment variables for the backend.",
+          "description": "Environment settings for the backend and worker containers.",
           "properties": {
             "appDbHost": {
               "default": "rhacs-manager-db-rw",
@@ -65,6 +65,16 @@
               "default": "username",
               "description": "Key in the secret for the DB username.",
               "title": "appDbUserKey",
+              "type": "string"
+            },
+            "logFormat": {
+              "default": "json",
+              "description": "Log output format for the backend and worker (LOG_FORMAT). `json` emits one object per line with structured fields under `extra`.",
+              "enum": [
+                "text",
+                "json"
+              ],
+              "title": "logFormat",
               "type": "string"
             },
             "stackroxDbHost": {

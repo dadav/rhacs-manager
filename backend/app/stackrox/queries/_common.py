@@ -3,6 +3,8 @@ Read-only queries against the StackRox central_active PostgreSQL database.
 All functions accept an AsyncSession connected to the StackRox DB.
 """
 
+from ...services.version_compare import pick_fixed_by
+
 # Shared HAVING clause for dashboard CVE visibility. It applies the conjunctive
 # CVSS/EPSS thresholds (bypassed for always-show CVEs) and then removes suppressed
 # CVEs so dashboard panels match the suppression-filtered /cves list. Any query
@@ -70,3 +72,15 @@ def _namespace_filter(namespaces: list[tuple[str, str]], prefix: str = "ns") -> 
         params[cl_key] = cl
     fragment = f"(d.namespace, d.clustername) IN (VALUES {', '.join(placeholders)})"
     return fragment, params
+
+
+# Aggregate every distinct non-empty fix version so Python can pick one with
+# version-aware ordering. SQL MAX(fixedby) compares strings (1.9 > 1.10).
+FIXED_BY_CANDIDATES_SQL = "ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(ic.fixedby, '')), NULL) AS fixed_by_candidates"
+
+
+def _row_with_fixed_by(row) -> dict:
+    """Row mapping as a dict with ``fixed_by_candidates`` collapsed into ``fixed_by``."""
+    data = dict(row._mapping)
+    data["fixed_by"] = pick_fixed_by(data.pop("fixed_by_candidates", None))
+    return data

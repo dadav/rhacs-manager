@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import CVE_ROWS_CTE, _namespace_filter
+from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
 
 async def get_threshold_preview(
@@ -253,7 +253,7 @@ async def get_cves_for_image(
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            MAX(ic.fixedby)                 AS fixed_by
+            {FIXED_BY_CANDIDATES_SQL}
         FROM visible_cves vc
         JOIN cve_rows ic ON ic.cvebaseinfo_cve = vc.cve_id
             AND ic.image_id = :image_id
@@ -265,4 +265,4 @@ async def get_cves_for_image(
         ORDER BY severity DESC, cvss DESC
     """)
     result = await session.execute(sql, bind_params)
-    return [dict(row._mapping) for row in result]
+    return [_row_with_fixed_by(row) for row in result]

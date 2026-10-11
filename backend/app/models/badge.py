@@ -16,7 +16,7 @@ class BadgeToken(Base):
     __tablename__ = "badge_tokens"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     namespace: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cluster_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, default=_generate_token)

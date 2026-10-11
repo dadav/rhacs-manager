@@ -10,6 +10,7 @@ from sqlalchemy import text
 from .config import settings as app_settings
 from .database import app_engine, stackrox_engine
 from .i18n import LanguageMiddleware
+from .logging_setup import configure_logging
 from .metrics import setup_metrics
 from .routers import (
     audit,
@@ -32,7 +33,7 @@ from .routers import (
 )
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
-logging.basicConfig(level=getattr(logging, app_settings.log_level.upper(), logging.INFO))
+configure_logging(app_settings.log_level, app_settings.log_format)
 logger = logging.getLogger(__name__)
 
 _INSECURE_SECRET_KEYS = {

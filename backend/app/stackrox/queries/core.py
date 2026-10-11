@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import CVE_ROWS_CTE, _namespace_filter
+from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
 
 async def get_cves_for_namespaces(
@@ -36,7 +36,7 @@ async def get_cves_for_namespaces(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            MAX(ic.fixedby)                 AS fixed_by
+            {FIXED_BY_CANDIDATES_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
@@ -61,7 +61,7 @@ async def get_cves_for_namespaces(
             **ns_params,
         },
     )
-    return [dict(row._mapping) for row in result]
+    return [_row_with_fixed_by(row) for row in result]
 
 
 async def get_cve_detail(
@@ -89,7 +89,7 @@ async def get_cve_detail(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            MAX(ic.fixedby)                 AS fixed_by
+            {FIXED_BY_CANDIDATES_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
@@ -100,7 +100,7 @@ async def get_cve_detail(
 
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
     row = result.fetchone()
-    return dict(row._mapping) if row else None
+    return _row_with_fixed_by(row) if row else None
 
 
 async def get_affected_deployments(
@@ -187,7 +187,7 @@ async def get_all_cves(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            MAX(ic.fixedby)                 AS fixed_by
+            {FIXED_BY_CANDIDATES_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
@@ -202,7 +202,7 @@ async def get_all_cves(
         ORDER BY severity DESC, cvss DESC
     """)
     result = await session.execute(sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show})
-    return [dict(row._mapping) for row in result]
+    return [_row_with_fixed_by(row) for row in result]
 
 
 async def get_cve_protobuf_data(
@@ -272,3 +272,32 @@ async def get_first_system_occurrence(session: AsyncSession, cve_id: str) -> dat
     result = await session.execute(sql, {"cve_id": cve_id})
     row = result.fetchone()
     return row.first_system_occurrence if row else None
+
+
+async def cve_visible_in_namespaces(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> bool:
+    """True if the CVE affects any deployment in the given namespaces.
+
+    Mirrors the access rule of ``get_cve_detail`` (no thresholds) as a cheap
+    existence probe for access checks.
+    """
+    if not namespaces:
+        return False
+
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT 1
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        WHERE {ns_fragment}
+          AND ic.cvebaseinfo_cve = :cve_id
+        LIMIT 1
+    """)
+
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    return result.first() is not None

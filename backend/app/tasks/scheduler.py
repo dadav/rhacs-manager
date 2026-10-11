@@ -5,13 +5,15 @@ from datetime import UTC, date, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings as app_settings
 from ..database import AppSessionLocal, StackRoxSessionLocal
 from ..mail import service as mail_svc
 from ..metrics import instrument_job
 from ..models.cve_priority import CvePriority
-from ..models.escalation import Escalation, EscalationWarning
+from ..models.escalation import ESCALATION_UNIQUE_CONSTRAINT, Escalation, EscalationWarning
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus
@@ -69,6 +71,47 @@ async def run_expiry_warning() -> None:
         for acceptance in result.scalars().all():
             await notif_svc.notify_risk_expiring(session, acceptance)
         await session.commit()
+
+
+def _is_escalation_duplicate(exc: IntegrityError) -> bool:
+    """True only for a violation of the escalation unique constraint."""
+    cause = getattr(exc.orig, "__cause__", None)
+    constraint_name = getattr(cause, "constraint_name", None)
+    if constraint_name is not None:
+        # asyncpg reports the violated constraint by name.
+        return constraint_name == ESCALATION_UNIQUE_CONSTRAINT
+    # SQLite (tests) reports the column list instead of the constraint name.
+    return (
+        "UNIQUE constraint failed: escalations.cve_id, escalations.level, "
+        "escalations.namespace, escalations.cluster_name" in str(exc.orig)
+    )
+
+
+async def _insert_escalation(app_session: AsyncSession, esc: Escalation) -> bool:
+    """Insert ``esc`` inside a savepoint.
+
+    Returns False when another process already inserted the same
+    (cve_id, level, namespace, cluster_name); the savepoint is rolled back and
+    the outer transaction stays usable. Any other integrity error is re-raised.
+    """
+    try:
+        async with app_session.begin_nested():
+            app_session.add(esc)
+            await app_session.flush()
+    except IntegrityError as exc:
+        if not _is_escalation_duplicate(exc):
+            raise
+        logger.info(
+            "Escalation already exists, skipping",
+            extra={
+                "cve_id": esc.cve_id,
+                "escalation_level": esc.level,
+                "namespace": esc.namespace,
+                "cluster_name": esc.cluster_name,
+            },
+        )
+        return False
+    return True
 
 
 @instrument_job("escalation_check")
@@ -173,8 +216,8 @@ async def run_escalation_check() -> None:
                     level=level,
                     notified=False,
                 )
-                app_session.add(esc)
-                await app_session.flush()
+                if not await _insert_escalation(app_session, esc):
+                    continue
 
                 await notif_svc.notify_escalation(app_session, row["cve_id"], ns_name, cluster, level)
                 esc.notified = True

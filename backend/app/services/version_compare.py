@@ -112,3 +112,16 @@ def rank_versions(candidates: list[str | None]) -> tuple[str | None, list[str], 
 def highest_version(versions: list[str | None]) -> str | None:
     """Highest comparable version, or None when there is none."""
     return rank_versions(versions)[0]
+
+
+def pick_fixed_by(candidates: list[str | None] | None) -> str | None:
+    """Single fix version to display for a CVE aggregated over many rows.
+
+    Prefers the highest comparable version. When no candidate is comparable it
+    falls back to the lexical maximum, matching the former SQL ``MAX(fixedby)``
+    so the field is never emptied by this change.
+    """
+    best, ordered, _ = rank_versions(list(candidates or []))
+    if best is not None:
+        return best
+    return max(ordered) if ordered else None

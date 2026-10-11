@@ -42,7 +42,7 @@ class RiskAcceptance(Base):
     scope_key: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
-    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     reviewed_by: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     assigned_to: Mapped[str | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -62,7 +62,7 @@ class RiskAcceptanceComment(Base):
     risk_acceptance_id: Mapped[UUID] = mapped_column(
         ForeignKey("risk_acceptances.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     # Immutable ordered content segments (text/mention). Null for pre-022 rows
     # not yet backfilled. Mentions carry a stable user_id + a username snapshot.

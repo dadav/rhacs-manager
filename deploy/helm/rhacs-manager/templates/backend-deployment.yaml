@@ -51,6 +51,8 @@ spec:
             # turn it on across the multi-replica backend and cause duplicate cron emails.
             - name: SCHEDULER_ENABLED
               value: "false"
+            - name: LOG_FORMAT
+              value: {{ .Values.backend.env.logFormat | quote }}
             - name: APP_DB_HOST
               value: {{ .Values.backend.env.appDbHost | quote }}
             - name: APP_DB_USER

@@ -2,7 +2,13 @@
 
 import pytest
 
-from app.services.version_compare import compare_versions, highest_version, is_comparable, rank_versions
+from app.services.version_compare import (
+    compare_versions,
+    highest_version,
+    is_comparable,
+    pick_fixed_by,
+    rank_versions,
+)
 
 
 @pytest.mark.parametrize(
@@ -63,3 +69,21 @@ def test_rank_without_any_comparable_candidate():
 
 def test_rank_all_comparable_is_certain():
     assert rank_versions(["3.0.9", "3.0.10"]) == ("3.0.10", ["3.0.10", "3.0.9"], False)
+
+
+def test_pick_fixed_by_orders_numerically():
+    assert pick_fixed_by(["1.9", "1.10"]) == "1.10"
+
+
+def test_pick_fixed_by_falls_back_to_lexical_max_when_nothing_comparable():
+    assert pick_fixed_by(["abc", "xyz"]) == "xyz"
+
+
+def test_pick_fixed_by_prefers_comparable_over_noncomparable():
+    assert pick_fixed_by(["zzz-custom", "2.0.1"]) == "2.0.1"
+
+
+def test_pick_fixed_by_empty_inputs():
+    assert pick_fixed_by(None) is None
+    assert pick_fixed_by([]) is None
+    assert pick_fixed_by([None, "", "  "]) is None

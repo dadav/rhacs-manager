@@ -589,8 +589,14 @@ backend:
   # type: object
   # additionalProperties: false
   # @schema
-  # -- Database connection environment variables for the backend.
+  # -- Environment settings for the backend and worker containers.
   env:
+    # @schema
+    # type: string
+    # enum: [text, json]
+    # @schema
+    # -- Log output format for the backend and worker (LOG_FORMAT). `json` emits one object per line with structured fields under `extra`.
+    logFormat: json
     # @schema
     # type: string
     # @schema

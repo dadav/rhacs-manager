@@ -91,6 +91,8 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
 | `TEAM_NOTIFICATION_ACTIVE_DAYS` | `30` | Team notifications (weekly team digest, new relevant CVE alerts) only go to users who signed in within this many days |
 | `SCHEDULER_ENABLED` | `true` | Run the background job scheduler in this process. See [Background Scheduler](#background-scheduler). |
+| `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `LOG_FORMAT` | `text` | `text` prints `LEVEL:logger:message key=value ...`; `json` prints one JSON object per line with `ts`, `level`, `logger`, `msg`, optional `exc`, and structured fields nested under `extra`. The Helm chart sets `json` via `backend.env.logFormat` for the backend and worker. |
 
 ## Background Scheduler
 

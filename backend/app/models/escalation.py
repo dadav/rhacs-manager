@@ -1,14 +1,21 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
 
+ESCALATION_UNIQUE_CONSTRAINT = "uq_escalations_cve_level_ns_cluster"
+
 
 class Escalation(Base):
     __tablename__ = "escalations"
+    # One escalation per (CVE, level, namespace, cluster). The scheduler relies on
+    # this to skip duplicates when two processes race (see run_escalation_check).
+    __table_args__ = (
+        UniqueConstraint("cve_id", "level", "namespace", "cluster_name", name=ESCALATION_UNIQUE_CONSTRAINT),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     cve_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)

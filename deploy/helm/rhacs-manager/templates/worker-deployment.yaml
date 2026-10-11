@@ -48,6 +48,8 @@ spec:
               value: /tmp/uv-cache
             - name: SCHEDULER_ENABLED
               value: "true"
+            - name: LOG_FORMAT
+              value: {{ .Values.backend.env.logFormat | quote }}
             - name: APP_DB_HOST
               value: {{ .Values.backend.env.appDbHost | quote }}
             - name: APP_DB_USER

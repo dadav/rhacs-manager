@@ -97,7 +97,7 @@ These rules are easy to break and cause silent data errors.
 - Do not use `image_components` — its IDs are incompatible with `image_cves_v2.componentid` and joins silently return 0 rows.
 - Join `image_component_v2.id` to `image_cves_v2.componentid`.
 - Group CVE list and detail aggregations by `ic.cvebaseinfo_cve`, not by `ic.id`.
-- Never pick a fix version with SQL `MAX(ic.fixedby)` for new code: it compares strings (`1.9` > `1.10`). Use `rank_versions` / `compare_versions` in `backend/app/services/version_compare.py` (PEP 440 via `packaging` first, rpmvercmp with epoch as fallback; non-comparable values are kept and flagged, never dropped). Existing `MAX(ic.fixedby)` uses in `core.py` are known-imprecise.
+- Never pick a fix version with SQL `MAX(ic.fixedby)` for new code: it compares strings (`1.9` > `1.10`). Use `rank_versions` / `compare_versions` in `backend/app/services/version_compare.py` (PEP 440 via `packaging` first, rpmvercmp with epoch as fallback; non-comparable values are kept and flagged, never dropped). CVE-level queries aggregate `fixed_by_candidates` (`FIXED_BY_CANDIDATES_SQL`) and collapse them with `pick_fixed_by` via `_row_with_fixed_by` in `stackrox/queries/_common.py`.
 - `ic.severity` and `ic.cvss` are vendor/scanner values (Red Hat classification and Red Hat CVSS for Red Hat content), not NVD data. NVD's score lives in `ic.nvdcvss` and is not used by the app. Never describe severity or the displayed CVSS as NVD-based.
 - `image_cves_v2` has no `operatingsystem` column (dropped in ACS 4.11). OS lives on `image_component_v2.operatingsystem`.
 

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -96,6 +98,8 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = Field(default="INFO")
+    # "text" for local development, "json" for log aggregation (one object per line)
+    log_format: Literal["text", "json"] = Field(default="text")
 
     # Namespace header safety limit
     max_namespace_count: int = Field(default=500)

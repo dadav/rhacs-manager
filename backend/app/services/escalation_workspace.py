@@ -285,7 +285,7 @@ async def add_current_escalation_comment(
             "cve_id": escalation.cve_id,
             "cluster_name": escalation.cluster_name,
             "namespace": escalation.namespace,
-            "level": escalation.level,
+            "escalation_level": escalation.level,
             "user_id": current_user.id,
         },
     )

@@ -118,17 +118,19 @@ async def test_namespace_cluster_isolation(db: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_tie_break_newest_trigger(db: AsyncSession):
-    older = await _add_escalation(
+async def test_highest_level_wins_over_newer_lower_level(db: AsyncSession):
+    # Duplicate (cve, level, ns, cluster) rows are impossible (unique constraint),
+    # so the group pick is decided by level first, even against a newer trigger.
+    higher = await _add_escalation(
         db, cve_id="CVE-1", cluster_name="c1", namespace="ns1", level=2, triggered_at=BASE_TIME
     )
-    newer = await _add_escalation(
-        db, cve_id="CVE-1", cluster_name="c1", namespace="ns1", level=2, triggered_at=BASE_TIME + timedelta(days=5)
+    await _add_escalation(
+        db, cve_id="CVE-1", cluster_name="c1", namespace="ns1", level=1, triggered_at=BASE_TIME + timedelta(days=5)
     )
     rows, total, _ = await _search(db)
     assert total == 1
-    assert str(rows[0].id) == str(newer.id)
-    assert str(rows[0].id) != str(older.id)
+    assert str(rows[0].id) == str(higher.id)
+    assert rows[0].level == 2
 
 
 @pytest.mark.asyncio

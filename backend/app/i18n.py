@@ -53,6 +53,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     "forbidden": {"de": "Kein Zugriff", "en": "Access denied"},
     "no_namespaces": {"de": "Keine Namespaces zugeordnet", "en": "No namespaces assigned"},
     "cve_not_found": {"de": "CVE nicht gefunden", "en": "CVE not found"},
+    "presence_entity_not_found": {"de": "Eintrag nicht gefunden", "en": "Entry not found"},
     "user_not_found": {"de": "Benutzer nicht gefunden", "en": "User not found"},
     "notification_category_unknown": {
         "de": "Unbekannte Benachrichtigungskategorie: {category}",
