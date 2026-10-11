@@ -608,6 +608,10 @@ export function CveDetail() {
                       />
                     )}
                     <DetailRow
+                      label={t('cves.affectedImages')}
+                      value={cve.affected_images}
+                    />
+                    <DetailRow
                       label={t('cves.firstSeen')}
                       value={formatDate(cve.first_seen, i18n.language)}
                     />

@@ -12,6 +12,17 @@ import type { ScopeParams } from '../hooks/useScope'
 import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
 import { formatCvss, formatDate } from '../utils/format'
 
+// Must match the header column count in the image view of pages/CveList.tsx.
+const IMAGE_TABLE_COLUMNS = 8
+
+// Order is Critical / High / Medium / Low, matching the cves.imageGroupSeverityCounts header.
+const SEVERITY_COUNT_FIELDS = [
+  { key: 'critical_cves', color: SEVERITY_COLORS.critical },
+  { key: 'high_cves', color: SEVERITY_COLORS.important },
+  { key: 'medium_cves', color: SEVERITY_COLORS.moderate },
+  { key: 'low_cves', color: SEVERITY_COLORS.unknown },
+] as const
+
 export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scope: ScopeParams; filters: Record<string, string | number | boolean | undefined> }) {
   const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
@@ -39,12 +50,13 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
           </Link>
         </Td>
         <Td style={{ textAlign: 'right', fontWeight: 600 }}>{group.total_cves}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.critical }}>{group.critical_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.important }}>{group.high_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.moderate }}>{group.medium_cves || '–'}</Td>
-        <Td style={{ textAlign: 'right', color: SEVERITY_COLORS.unknown }}>{group.low_cves || '–'}</Td>
-        <Td style={{ fontWeight: group.max_cvss >= 9 ? 700 : 400, color: group.max_cvss >= 9 ? SEVERITY_COLORS.important : 'inherit' }}>
-          {formatCvss(group.max_cvss)}
+        <Td style={{ whiteSpace: 'nowrap' }} data-testid="image-severity-counts">
+          {SEVERITY_COUNT_FIELDS.map(({ key, color }, i) => (
+            <span key={key}>
+              {i > 0 && <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}> / </span>}
+              <span style={{ color }}>{group[key] || '–'}</span>
+            </span>
+          ))}
         </Td>
         <Td><EpssBadge value={group.max_epss} /></Td>
         <Td style={{ textAlign: 'right' }}>
@@ -59,7 +71,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
       </Tr>
       {expanded && (
         <Tr>
-          <Td colSpan={12} style={{ padding: 0 }}>
+          <Td colSpan={IMAGE_TABLE_COLUMNS} style={{ padding: 0 }}>
             <div style={{ padding: '8px 16px 12px 40px', background: 'var(--pf-t--global--background--color--secondary--default)' }}>
               {group.fixable_cves > 0 && (
                 <div style={{

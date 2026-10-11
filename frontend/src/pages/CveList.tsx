@@ -739,7 +739,7 @@ export function CveList() {
           )
         ) : urlViewMode === 'image' ? (
           /* ── Image-grouped view ── */
-          imageLoading ? <TableSkeleton columns={12} /> : imageError ? (
+          imageLoading ? <TableSkeleton columns={8} /> : imageError ? (
             <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(imageError)}`} />
           ) : !imageData?.length ? (
             <EmptyState
@@ -758,11 +758,7 @@ export function CveList() {
                     <Th style={{ width: 28 }}></Th>
                     <Th sort={makeImageSort('image_name')}>{t('cves.imageGroupImage')}</Th>
                     <Th sort={makeImageSort('total_cves')}>{t('cves.imageGroupTotalCves')}</Th>
-                    <Th sort={makeImageSort('critical_cves')}>{t('cves.imageGroupCritical')}</Th>
-                    <Th sort={makeImageSort('high_cves')}>{t('cves.imageGroupHigh')}</Th>
-                    <Th sort={makeImageSort('medium_cves')}>{t('cves.imageGroupMedium')}</Th>
-                    <Th sort={makeImageSort('low_cves')}>{t('cves.imageGroupLow')}</Th>
-                    <Th sort={makeImageSort('max_cvss')}>{t('cves.imageGroupMaxCvss')}</Th>
+                    <Th sort={makeImageSort('critical_cves')} info={{ tooltip: t('cves.imageGroupSeverityCountsTooltip') }}>{t('cves.imageGroupSeverityCounts')}</Th>
                     <Th sort={makeImageSort('max_epss')}>{t('cves.imageGroupMaxEpss')}</Th>
                     <Th sort={makeImageSort('fixable_cves')}>{t('cves.imageGroupFixable')}</Th>
                     <Th sort={makeImageSort('affected_deployments')}>{t('cves.imageGroupDeployments')}</Th>
@@ -779,7 +775,7 @@ export function CveList() {
           )
         ) : (
           /* ── Per-CVE view ── */
-          isLoading ? <TableSkeleton columns={9} /> : error ? (
+          isLoading ? <TableSkeleton columns={7} /> : error ? (
             <Alert variant="danger" title={`${t('common.error')}: ${getErrorMessage(error)}`} />
           ) : !data?.items.length ? (
             <EmptyState
@@ -804,12 +800,9 @@ export function CveList() {
                       <Th sort={makeCveSort('severity')}>{t('cves.severity')}</Th>
                       <Th sort={makeCveSort('cvss')} info={{ tooltip: t('cves.cvssTooltip') }}>{t('cves.cvss')}</Th>
                       <Th sort={makeCveSort('epss_probability')}>{t('cves.epss')}</Th>
-                      <Th sort={makeCveSort('affected_images')}>{t('cves.affectedImages')}</Th>
                       <Th sort={makeCveSort('affected_deployments')}>{t('cves.affectedDeployments')}</Th>
                       <Th>{t('cves.fixable')}</Th>
                       <Th sort={makeCveSort('first_seen')}>{t('cves.firstSeen')}</Th>
-                      <Th sort={makeCveSort('published_on')}>{t('cves.publishedOn')}</Th>
-                      <Th sort={makeCveSort('fix_available_since')}>{t('cves.fixAvailableSince')}</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -861,19 +854,12 @@ export function CveList() {
                           {formatCvss(cve.cvss)}
                         </Td>
                         <Td><EpssBadge value={cve.epss_probability} /></Td>
-                        <Td style={{ textAlign: 'right' }}>{cve.affected_images}</Td>
                         <Td style={{ textAlign: 'right' }}>{cve.affected_deployments}</Td>
                         <Td>
                           {cve.fixable ? <span style={{ color: FIXABLE_COLOR }}>✓</span> : <span style={{ color: SEVERITY_COLORS.unknown }}>✗</span>}
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
                           {formatDate(cve.first_seen, i18n.language)}
-                        </Td>
-                        <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {formatDate(cve.published_on, i18n.language)}
-                        </Td>
-                        <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {formatDate(cve.fix_available_since, i18n.language)}
                         </Td>
                       </Tr>
                     ))}

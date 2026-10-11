@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { CveDetail } from './CveDetail'
@@ -184,6 +184,10 @@ describe('CveDetail', () => {
     expect(screen.getByText('sec@example.com')).toBeInTheDocument()
     // Deployment name
     expect(screen.getByText('api-server')).toBeInTheDocument()
+    // Affected image count (no longer a CVE list column, so it must be shown here)
+    const imagesRow = screen.getByText('cves.affectedImages').closest('tr')
+    expect(imagesRow).not.toBeNull()
+    expect(within(imagesRow!).getByText('2')).toBeInTheDocument()
   })
 
   it('keeps scope and the threshold opt-out on return and deployment links', () => {

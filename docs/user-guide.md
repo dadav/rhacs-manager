@@ -73,8 +73,8 @@ Non-security-team users only see CVEs that meet the global CVSS and EPSS thresho
 
 The toggle in the **Vulnerabilities** toolbar switches between three views of the same filtered CVE set:
 
-- **By CVE** lists each CVE once.
-- **By Image** groups CVEs by container image ("update image, fix N CVEs").
+- **By CVE** lists each CVE once with the key triage columns: severity, CVSS, EPSS, affected deployments, fixability, and first seen. The affected image count, publish date, and fix-available date are on the CVE detail page.
+- **By Image** groups CVEs by container image ("update image, fix N CVEs"). The severity column shows the image's CVE counts as Critical / High / Medium / Low.
 - **By Component** answers "what do I change?". Each row is one installed component version, for example `openssl 3.0.7 (rhel:9)`, with the version to upgrade to and how many of its CVEs that upgrade fixes, across how many images and deployments. Expand a row to see its CVEs with their individual fix versions and the affected images.
 
 In the component view:

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
 import { CveList } from './CveList'
-import type { Paginated, CveListItem, FixRollupItem, FixRollupResponse } from '../types'
+import type { Paginated, CveListItem, FixRollupItem, FixRollupResponse, ImageCveGroup } from '../types'
 import { Severity } from '../types'
 
 // --- Mocks ---
@@ -66,8 +66,11 @@ vi.mock('../components/ExcelImportModal', () => ({
   ExcelImportModal: () => null,
 }))
 
+// Renders only the image name so tests can observe row order in the image view.
 vi.mock('../components/ImageRow', () => ({
-  ImageRow: () => null,
+  ImageRow: ({ group }: { group: ImageCveGroup }) => (
+    <tr data-testid="image-row"><td>{group.image_name}</td></tr>
+  ),
 }))
 
 vi.mock('../components/common/EpssBadge', () => ({
@@ -110,6 +113,36 @@ function makeCve(overrides: Partial<CveListItem> = {}): CveListItem {
   }
 }
 
+function makeImageGroup(overrides: Partial<ImageCveGroup> = {}): ImageCveGroup {
+  return {
+    image_name: 'quay.io/app:1',
+    image_id: 'sha256:1',
+    total_cves: 10,
+    critical_cves: 0,
+    high_cves: 0,
+    medium_cves: 0,
+    low_cves: 0,
+    max_cvss: 5.0,
+    max_epss: 0.1,
+    fixable_cves: 0,
+    affected_deployments: 1,
+    namespaces: ['payments'],
+    clusters: ['cluster-a'],
+    ...overrides,
+  }
+}
+
+// Critical, high, and total orderings deliberately disagree so each sort key is distinguishable.
+const IMAGE_GROUPS: ImageCveGroup[] = [
+  makeImageGroup({ image_name: 'img-most-total', image_id: 'a', total_cves: 90, critical_cves: 1, high_cves: 2 }),
+  makeImageGroup({ image_name: 'img-most-critical', image_id: 'b', total_cves: 20, critical_cves: 9, high_cves: 1 }),
+  makeImageGroup({ image_name: 'img-most-high', image_id: 'c', total_cves: 30, critical_cves: 0, high_cves: 8 }),
+]
+
+function imageRowOrder(): string[] {
+  return screen.getAllByTestId('image-row').map(row => row.textContent ?? '')
+}
+
 function createWrapper(initialEntry = '/vulnerabilities') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return function Wrapper({ children }: { children: React.ReactNode }) {
@@ -149,6 +182,49 @@ describe('CveList', () => {
     render(<CveList />, { wrapper: createWrapper() })
     expect(screen.getByText('CVE-2024-0001')).toBeInTheDocument()
     expect(screen.getByText('CVE-2024-0002')).toBeInTheDocument()
+  })
+
+  it('renders only the key triage columns in the CVE view', () => {
+    const paginated: Paginated<CveListItem> = { items: [makeCve()], total: 1, page: 1, page_size: 50 }
+    mockUseCves.mockReturnValue({ data: paginated, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper() })
+
+    const headers = screen.getAllByRole('columnheader').map(th => th.textContent)
+    expect(headers).toEqual([
+      'cves.cveId',
+      'cves.severity',
+      expect.stringContaining('cves.cvss'),
+      'cves.epss',
+      'cves.affectedDeployments',
+      'cves.fixable',
+      'cves.firstSeen',
+    ])
+    const table = screen.getByRole('grid')
+    expect(within(table).queryByText('cves.affectedImages')).toBeNull()
+    expect(within(table).queryByText('cves.publishedOn')).toBeNull()
+    expect(within(table).queryByText('cves.fixAvailableSince')).toBeNull()
+  })
+
+  it('sorts the image view by critical count when the combined severity header is clicked', () => {
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null })
+    mockUseCvesByImage.mockReturnValue({ data: IMAGE_GROUPS, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities?view=image&sort_by=total_cves') })
+    expect(imageRowOrder()).toEqual(['img-most-total', 'img-most-high', 'img-most-critical'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'cves.imageGroupSeverityCounts' }))
+
+    expect(imageRowOrder()).toEqual(['img-most-critical', 'img-most-total', 'img-most-high'])
+  })
+
+  it('still honors a sort_by=high_cves URL in the image view', () => {
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null })
+    mockUseCvesByImage.mockReturnValue({ data: IMAGE_GROUPS, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities?view=image&sort_by=high_cves') })
+
+    expect(imageRowOrder()).toEqual(['img-most-high', 'img-most-total', 'img-most-critical'])
   })
 
   it('shows empty state when no CVEs', () => {
