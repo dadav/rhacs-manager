@@ -1,10 +1,12 @@
 """Tests for the MCP API client."""
 
 import json
+import logging
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_server.api_client import AuthContext, BackendError, RhacsManagerClient
 
@@ -314,6 +316,43 @@ class TestErrorHandling:
 
             assert exc_info.value.status == 502
             assert "bad gateway" in exc_info.value.detail
+
+    def test_backend_error_is_tool_error(self):
+        # mcp v2 masks the text of non-ToolError exceptions; BackendError must stay visible.
+        assert issubclass(BackendError, ToolError)
+
+    async def test_transport_error_wrapped_and_logged_at_warning(self, client, auth, caplog):
+        caplog.set_level(logging.INFO)
+        instance = _mock_client(_mock_response({}))
+        instance.request = AsyncMock(
+            side_effect=httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
+        )
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            with pytest.raises(ToolError) as exc_info:
+                await client.get_me(auth)
+
+        assert not isinstance(exc_info.value, BackendError)
+        assert "backend request failed (ConnectError)" in str(exc_info.value)
+        assert isinstance(exc_info.value.__cause__, httpx.ConnectError)
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING and r.name == "mcp_server.api_client"]
+        assert len(warnings) == 1
+        message = warnings[0].getMessage()
+        assert "http://test-backend:8000/api/auth/me" in message
+        assert "CERTIFICATE_VERIFY_FAILED" in message
+
+    async def test_timeout_is_wrapped(self, client, auth):
+        instance = _mock_client(_mock_response({}))
+        instance.request = AsyncMock(side_effect=httpx.ReadTimeout("read timed out"))
+
+        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
+            MockClient.return_value = instance
+
+            with pytest.raises(ToolError, match=r"backend request failed \(ReadTimeout\)"):
+                await client.get_me(auth)
 
 
 class TestDashboardTrim:

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from urllib.parse import quote
 
 import httpx
+from mcp.server.mcpserver.exceptions import ToolError
 
 from .config import settings
 
@@ -18,12 +19,13 @@ def _describe_ssl(verify: ssl.SSLContext | bool) -> str:
     return str(verify)
 
 
-class BackendError(Exception):
+class BackendError(ToolError):
     """Raised when the rhacs-manager backend returns a non-2xx response.
 
     Carries the HTTP status, the FastAPI ``detail`` payload (parsed when possible),
-    and the request path. The string form is human-readable so that FastMCP relays
-    a useful message to the LLM.
+    and the request path. The string form is human-readable so that MCPServer relays
+    a useful message to the LLM. Must stay a ToolError subclass: mcp v2 masks the
+    text of any other exception raised from a tool.
     """
 
     def __init__(self, status: int, detail: str, path: str) -> None:
@@ -142,9 +144,21 @@ class RhacsManagerClient:
         client = self._get_client()
         try:
             resp = await client.request(method, path, headers=auth.to_headers(), params=params, json=data)
-        except httpx.ConnectError as exc:
-            logger.debug("Connection failed for %s %s: %s", method.upper(), path, exc)
-            raise
+        except httpx.TransportError as exc:
+            # Connect/DNS/TLS/timeout failures. Log the full cause at WARNING: mcp v2 logs
+            # ToolErrors at INFO without the exception chain, so this is the only place
+            # the diagnostic survives at the default log level.
+            logger.warning(
+                "Backend request failed: %s %s%s: %s: %s",
+                method.upper(),
+                self.base_url,
+                path,
+                type(exc).__name__,
+                exc,
+            )
+            raise ToolError(
+                f"RHACS Manager backend request failed ({type(exc).__name__}); see mcp-server logs"
+            ) from exc
         logger.debug("HTTP %s %s -> %d", method.upper(), path, resp.status_code)
         if resp.is_error:
             detail = _extract_detail(resp)

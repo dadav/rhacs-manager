@@ -5,6 +5,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from mcp.server.mcpserver import Context
+from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_server.api_client import AuthContext
 
@@ -46,22 +48,30 @@ class TestExtractAuth:
         from mcp_server.server import _extract_auth
 
         ctx = _make_ctx({})
-        with pytest.raises(ValueError, match="No X-Forwarded-User"):
+        with pytest.raises(ToolError, match="No X-Forwarded-User"):
             _extract_auth(ctx)
 
     def test_empty_user_raises(self):
         from mcp_server.server import _extract_auth
 
         ctx = _make_ctx({"x-forwarded-user": ""})
-        with pytest.raises(ValueError, match="No X-Forwarded-User"):
+        with pytest.raises(ToolError, match="No X-Forwarded-User"):
             _extract_auth(ctx)
 
     def test_no_request_context_raises(self):
         from mcp_server.server import _extract_auth
 
         ctx = _make_ctx(None)
-        with pytest.raises(ValueError, match="No request context"):
+        with pytest.raises(ToolError, match="No request context"):
             _extract_auth(ctx)
+
+    def test_context_outside_request_raises_tool_error(self):
+        """A real mcp v2 Context with no active request raises ValueError internally;
+        _extract_auth must convert it to a ToolError so the message is not masked."""
+        from mcp_server.server import _extract_auth
+
+        with pytest.raises(ToolError, match="No request context"):
+            _extract_auth(Context())
 
     def test_missing_optional_headers_default_to_empty(self):
         from mcp_server.server import _extract_auth

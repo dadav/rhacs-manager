@@ -11,8 +11,9 @@ Run: uv run python -m mcp_server.server
 import logging
 from typing import Literal
 
-from mcp.server.fastmcp import Context, FastMCP
-from mcp.server.fastmcp.prompts import base
+from mcp.server.mcpserver import Context, MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.prompts import base
 from pydantic import BaseModel
 
 from .api_client import AuthContext, RhacsManagerClient
@@ -36,7 +37,7 @@ class ScopeTarget(BaseModel):
 
 
 def _serialize_targets(targets: list["ScopeTarget | dict"] | None) -> list[dict]:
-    """Normalize targets to plain dicts. Accepts model instances (FastMCP-validated
+    """Normalize targets to plain dicts. Accepts model instances (MCPServer-validated
     calls) and raw dicts (direct .fn invocation in tests)."""
     return [ScopeTarget.model_validate(t).model_dump(exclude_none=True) for t in targets or []]
 
@@ -45,9 +46,15 @@ _log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
 logging.basicConfig(level=_log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+# Passed to mcp.run() and reused by the HTTP integration test.
 # stateless_http is required: the sidecar runs behind a multi-replica frontend
-# Service with no session affinity, so no instance may hold in-memory sessions.
-mcp = FastMCP("rhacs-manager", host="0.0.0.0", port=settings.port, stateless_http=True)
+# Service with no session affinity, so no instance may hold in-memory sessions
+# (2026-07-28 clients are sessionless regardless; the flag covers legacy clients).
+# host must be 0.0.0.0: mcp v2 defaults to 127.0.0.1, which binds loopback only and
+# auto-enables DNS-rebinding protection (421 on the pod's real Host header).
+HTTP_TRANSPORT_OPTIONS = {"host": "0.0.0.0", "stateless_http": True}
+
+mcp = MCPServer("rhacs-manager")
 client = RhacsManagerClient()
 
 
@@ -56,17 +63,25 @@ def _extract_auth(ctx: Context) -> AuthContext:
 
     The oauth-proxy + auth-header-injector sidecar chain resolves the user's
     identity and namespace scope, injecting X-Forwarded-* headers into the request.
+
+    Raises ToolError (not a plain exception) so the message reaches the client:
+    mcp v2 masks the text of any other exception raised from a tool.
     """
-    request = ctx.request_context.request
+    no_request_message = (
+        "No request context available. The MCP server must be deployed behind oauth-proxy + auth-header-injector."
+    )
+    try:
+        request = ctx.request_context.request
+    except ValueError as exc:
+        # mcp v2 raises ValueError when the Context has no active request.
+        raise ToolError(no_request_message) from exc
     if not request or not hasattr(request, "headers"):
-        raise ValueError(
-            "No request context available. The MCP server must be deployed behind oauth-proxy + auth-header-injector."
-        )
+        raise ToolError(no_request_message)
 
     headers = request.headers
     user = headers.get("x-forwarded-user", "")
     if not user:
-        raise ValueError(
+        raise ToolError(
             "No X-Forwarded-User header found. "
             "The MCP server must be deployed behind oauth-proxy + auth-header-injector."
         )
@@ -684,7 +699,7 @@ def main() -> None:
     logger.debug("CA bundle: %s", settings.ca_bundle)
     logger.debug("SSL verify: %s", settings.ssl_verify)
     logger.debug("API key configured: %s", bool(settings.api_key))
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", port=settings.port, **HTTP_TRANSPORT_OPTIONS)
 
 
 if __name__ == "__main__":

@@ -260,7 +260,8 @@ import { getErrorMessage } from '../utils/errors'
 - Scheduler startup and initial escalation check happen in the FastAPI lifespan.
 - Dev-only routes are registered only when `DEV_MODE=true`.
 - Alembic should resolve DB config through `app.config.settings.effective_app_db_url`, not a separate hardcoded fallback.
-- The mcp-server sidecar must stay stateless (`stateless_http=True` in `mcp-server/mcp_server/server.py`): frontend pods run multiple replicas behind a Service without session affinity, so in-memory MCP sessions break when requests switch pods.
+- The mcp-server sidecar must stay stateless (`stateless_http=True` in `HTTP_TRANSPORT_OPTIONS`, passed to `mcp.run()` in `mcp-server/mcp_server/server.py`): frontend pods run multiple replicas behind a Service without session affinity, so in-memory MCP sessions break when requests switch pods.
+- mcp-server uses mcp v2 (`MCPServer`). `HTTP_TRANSPORT_OPTIONS` must keep `host="0.0.0.0"`: v2 defaults to `127.0.0.1`, which binds loopback only and auto-enables DNS-rebinding 421s. Tool errors meant for the LLM must be `ToolError` subclasses (`BackendError` is one); v2 masks the text of any other exception. Backend transport failures are logged at WARNING before being wrapped in a generic `ToolError`. `tests/test_mcp_http_integration.py` is the only check that proves forwarded-header identity end to end (the dev backend runs `DEV_MODE=true` and ignores those headers).
 
 ## Docs Rules
 
