@@ -31,7 +31,7 @@ from .routers import (
     settings,
     suppression_rules,
 )
-from .stackrox.schema_check import missing_stackrox_columns
+from .stackrox.schema_check import SCHEMA_PROBE_TIMEOUT_SECONDS, probe_stackrox_schema
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
 configure_logging(app_settings.log_level, app_settings.log_format)
@@ -61,13 +61,21 @@ def _validate_production_config() -> None:
         logger.warning("DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing")
 
 
+# Shorter than the startup budget: kubelet readiness probes time out quickly.
+READY_DB_TIMEOUT_SECONDS = 3.0
+READY_SCHEMA_PROBE_TIMEOUT_SECONDS = 3.0
+
+
 async def _probe_stackrox_schema() -> list[str]:
     """Startup schema probe. Never raises: the DB may be briefly unreachable at boot, /ready carries the signal."""
     try:
-        async with stackrox_engine.connect() as conn:
-            missing = await missing_stackrox_columns(conn)
+        missing = await probe_stackrox_schema(stackrox_engine, SCHEMA_PROBE_TIMEOUT_SECONDS)
     except Exception:
-        logger.exception("StackRox schema probe failed at startup")
+        # Includes TimeoutError: startup must complete so /health and /ready come up.
+        logger.exception(
+            "StackRox schema probe failed at startup; continuing, /ready reports the schema state",
+            extra={"timeout_seconds": SCHEMA_PROBE_TIMEOUT_SECONDS},
+        )
         return []
     if missing:
         logger.error(
@@ -183,19 +191,20 @@ async def readiness() -> JSONResponse:
     checks: dict[str, str] = {}
     for name, engine in [("app_db", app_engine), ("stackrox_db", stackrox_engine)]:
         try:
-            async with engine.connect() as conn:
-                await asyncio.wait_for(conn.execute(text("SELECT 1")), timeout=3.0)
+            # Bound connection acquisition too, not just the query.
+            async with asyncio.timeout(READY_DB_TIMEOUT_SECONDS):
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
             checks[name] = "ok"
         except Exception as exc:
-            checks[name] = str(exc)
+            checks[name] = str(exc) or type(exc).__name__
 
     if checks["stackrox_db"] == "ok":
         try:
-            async with stackrox_engine.connect() as conn:
-                missing = await asyncio.wait_for(missing_stackrox_columns(conn), timeout=3.0)
+            missing = await probe_stackrox_schema(stackrox_engine, READY_SCHEMA_PROBE_TIMEOUT_SECONDS)
             checks["stackrox_schema"] = "ok" if not missing else "missing: " + ", ".join(missing)
         except Exception as exc:
-            checks["stackrox_schema"] = str(exc)
+            checks["stackrox_schema"] = str(exc) or type(exc).__name__
 
     if all(v == "ok" for v in checks.values()):
         return JSONResponse({"status": "ok", "checks": checks})

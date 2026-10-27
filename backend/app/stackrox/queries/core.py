@@ -136,15 +136,24 @@ async def get_affected_deployments(
     return [dict(row._mapping) for row in result]
 
 
-async def get_affected_components(
+async def _fetch_affected_components(
     session: AsyncSession,
     cve_id: str,
     namespaces: list[tuple[str, str]],
+    *,
+    include_origin: bool,
 ) -> list[dict]:
+    """Single source for both component queries; ``include_origin`` adds ``origin_code``.
+
+    With origin, a component reported by two feeds yields two rows (the DISTINCT then
+    differs by feed); without it they collapse into one.
+    """
     if not namespaces:
         return []
 
     ns_fragment, ns_params = _namespace_filter(namespaces)
+    origin_column = ",\n            ic.origin       AS origin_code" if include_origin else ""
+    origin_order = ", ic.origin" if include_origin else ""
 
     sql = text(f"""
         WITH {CVE_ROWS_CTE}
@@ -152,17 +161,26 @@ async def get_affected_components(
             comp.name       AS component_name,
             comp.version    AS component_version,
             COALESCE(ic.isfixable, false) AS fixable,
-            ic.fixedby      AS fixed_by
+            ic.fixedby      AS fixed_by{origin_column}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
           AND comp.name IS NOT NULL
-        ORDER BY comp.name, comp.version
+        ORDER BY comp.name, comp.version{origin_order}
     """)
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
     return [dict(row._mapping) for row in result]
+
+
+async def get_affected_components(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> list[dict]:
+    """Feed-agnostic component rows (used by PDF/Excel exports so rows stay deduplicated)."""
+    return await _fetch_affected_components(session, cve_id, namespaces, include_origin=False)
 
 
 async def get_affected_components_with_origin(
@@ -170,34 +188,8 @@ async def get_affected_components_with_origin(
     cve_id: str,
     namespaces: list[tuple[str, str]],
 ) -> list[dict]:
-    """Like get_affected_components, plus the feed (``origin``) per row, for CVE detail.
-
-    A component reported by two feeds yields two rows. Exports keep using the
-    feed-agnostic get_affected_components so their component lists stay deduplicated.
-    """
-    if not namespaces:
-        return []
-
-    ns_fragment, ns_params = _namespace_filter(namespaces)
-
-    sql = text(f"""
-        WITH {CVE_ROWS_CTE}
-        SELECT DISTINCT
-            comp.name       AS component_name,
-            comp.version    AS component_version,
-            COALESCE(ic.isfixable, false) AS fixable,
-            ic.fixedby      AS fixed_by,
-            ic.origin       AS origin_code
-        FROM deployments d
-        JOIN cve_rows ic ON ic.deployments_id = d.id
-        JOIN image_component_v2 comp ON comp.id = ic.componentid
-        WHERE {ns_fragment}
-          AND ic.cvebaseinfo_cve = :cve_id
-          AND comp.name IS NOT NULL
-        ORDER BY comp.name, comp.version, ic.origin
-    """)
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
-    return [dict(row._mapping) for row in result]
+    """Like get_affected_components, plus the feed (``origin_code``) per row, for CVE detail."""
+    return await _fetch_affected_components(session, cve_id, namespaces, include_origin=True)
 
 
 async def get_cve_origin_ratings(

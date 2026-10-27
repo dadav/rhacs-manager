@@ -9,7 +9,7 @@ import app.services.cve_filter_service as svc
 from app.schemas.cve import VulnOrigin
 from app.stackrox.queries import core as core_queries
 from app.stackrox.queries import images as image_queries
-from app.stackrox.vuln_origin import ORIGIN_CODES, VULN_ORIGIN_NAMES, origin_name, origin_names
+from app.stackrox.vuln_origin import ORIGIN_CODES, VULN_ORIGIN_NAMES, origin_filter_sql, origin_name, origin_names
 
 from .conftest import make_current_user
 
@@ -35,6 +35,37 @@ def test_origin_names_drops_null_and_sorts_unique():
 def test_unknown_origin_code_maps_to_other():
     assert origin_name(42) == "other"
     assert origin_name(None) is None
+
+
+# --- SQL predicate must match origin_name (list view) semantics ---
+
+
+def test_other_predicate_excludes_named_codes():
+    sql, params = origin_filter_sql("other")
+
+    assert sql == "(ic.origin IS NOT NULL AND ic.origin <> ALL(:origin_named_codes))"
+    assert params == {"origin_named_codes": [1, 2, 3, 4, 5, 6, 7, 8, 9]}
+
+
+def test_named_predicate_is_equality():
+    assert origin_filter_sql("debian") == ("ic.origin = :origin_code", {"origin_code": 4})
+
+
+def _predicate_matches(origin: str, code: int | None) -> bool:
+    """Python mirror of the SQL predicate semantics (NULL comparisons are false)."""
+    _, params = origin_filter_sql(origin)
+    if code is None:
+        return False
+    if "origin_named_codes" in params:
+        return code not in params["origin_named_codes"]
+    return code == params["origin_code"]
+
+
+@pytest.mark.parametrize("origin", sorted(ORIGIN_CODES))
+@pytest.mark.parametrize("code", [0, 42, 4, 7, None])
+def test_sql_predicate_agrees_with_origin_name(origin, code):
+    """Image view (SQL) and list view (origin_name) must classify every code the same way."""
+    assert _predicate_matches(origin, code) == (origin_name(code) == origin)
 
 
 # --- fetch_filtered_cves origin filter ---
@@ -102,6 +133,16 @@ async def test_origin_filter_keeps_cves_with_that_feed(monkeypatch):
     assert [i.cve_id for i in items] == ["CVE-A"]
 
 
+@pytest.mark.asyncio
+async def test_other_filter_includes_unknown_codes_in_list(monkeypatch):
+    _patch_stackrox(monkeypatch, [_cve("CVE-NEW-FEED", [42]), _cve("CVE-ZERO", [0]), _cve("CVE-RH", [7])])
+    user = make_current_user(is_sec_team=True, has_all_namespaces=True)
+
+    items = await svc.fetch_filtered_cves(user, _app_db(), AsyncMock(), origin=VulnOrigin.OTHER)
+
+    assert sorted(i.cve_id for i in items) == ["CVE-NEW-FEED", "CVE-ZERO"]
+
+
 # --- image queries ---
 
 
@@ -133,6 +174,20 @@ async def test_cves_for_image_origin_filter_sql():
     sql, params = session.execute.call_args.args
     assert "BOOL_OR(ic.origin = :origin_code)" in str(sql)
     assert params["origin_code"] == 7
+
+
+@pytest.mark.asyncio
+async def test_image_queries_other_filter_covers_unknown_codes():
+    for call in (
+        lambda session: image_queries.get_cves_grouped_by_image(session, None, origin="other"),
+        lambda session: image_queries.get_cves_for_image(session, "sha256:abc", None, origin="other"),
+    ):
+        session = _capturing_session()
+        await call(session)
+        sql, params = session.execute.call_args.args
+        assert "BOOL_OR((ic.origin IS NOT NULL AND ic.origin <> ALL(:origin_named_codes)))" in str(sql)
+        assert params["origin_named_codes"] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        assert "origin_code" not in params
 
 
 @pytest.mark.asyncio

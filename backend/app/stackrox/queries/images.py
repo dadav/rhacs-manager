@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..vuln_origin import ORIGIN_CODES
+from ..vuln_origin import origin_filter_sql
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
 
@@ -111,8 +111,9 @@ async def get_cves_grouped_by_image(
         params["comp_pat"] = f"%{component}%"
     if origin:
         # Same semantics as the /cves origin filter: at least one finding from that feed.
-        cte_extra_having += "\n                AND BOOL_OR(ic.origin = :origin_code)"
-        params["origin_code"] = ORIGIN_CODES[origin]
+        origin_predicate, origin_params = origin_filter_sql(origin)
+        cte_extra_having += f"\n                AND BOOL_OR({origin_predicate})"
+        params.update(origin_params)
 
     # Build outer WHERE for namespace + image_name filtering
     outer_conditions: list[str] = []
@@ -221,8 +222,9 @@ async def get_cves_for_image(
         having_filters.append("MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :filter_epss_min")
         bind_params["filter_epss_min"] = filter_epss_min
     if origin:
-        having_filters.append("BOOL_OR(ic.origin = :origin_code)")
-        bind_params["origin_code"] = ORIGIN_CODES[origin]
+        origin_predicate, origin_params = origin_filter_sql(origin)
+        having_filters.append(f"BOOL_OR({origin_predicate})")
+        bind_params.update(origin_params)
 
     having_extra = ""
     if having_filters:

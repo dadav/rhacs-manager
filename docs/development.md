@@ -247,6 +247,8 @@ The recipe needs `protoc` and `protoc-gen-go`. If the generated `cve_pb2.py` dem
 
 `app/stackrox/schema_check.py` lists the StackRox columns the queries depend on (`REQUIRED_STACKROX_COLUMNS`). `/ready` reports any that are missing. When a query starts using a column from a newer ACS release, add it there.
 
+The probe resolves each table through the connection's `search_path` with `to_regclass`, the same way the app's unqualified queries do, so a non-default `search_path` does not cause false alarms. Connection acquisition and the query share one time budget (5 s at startup, 3 s in `/ready`). A stalled or unreachable database at startup is logged and startup continues; `/ready` then reports the state.
+
 ## Frontend Error Handling
 
 Always use `getErrorMessage(error)` from `frontend/src/utils/errors.ts` for user-visible errors:

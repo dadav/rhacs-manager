@@ -64,7 +64,7 @@ RHACS gets vulnerability data from several feeds: Red Hat, OSV (language package
 
 - The CVE detail page lists the **Data sources** behind a CVE, and the components table shows the source of each finding. CVEs scanned before ACS 4.11.6 show the source as unknown until RHACS rescans the image.
 - When a CVE has more than one source, the **Rating per data source** card shows each source's severity and CVSS score. The severity and CVSS shown for the CVE are the highest of these.
-- The **Data source** filter under **Advanced filters** limits the list to CVEs with at least one finding from that source. It applies to all three views and to PDF and Excel exports. The PDF lists it with the other active filters.
+- The **Data source** filter under **Advanced filters** limits the list to CVEs with at least one finding from that source. **Other** also includes sources this version of RHACS Manager does not know by name yet. It applies to all three views and to PDF and Excel exports. The PDF lists it with the other active filters.
 
 ### Showing CVEs below the global thresholds
 

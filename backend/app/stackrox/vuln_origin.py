@@ -41,3 +41,19 @@ def origin_names(codes: list[int | None] | None) -> list[str]:
     """Sorted unique names for a list of origin codes, dropping NULLs."""
     names = {origin_name(code) for code in codes or []}
     return sorted(name for name in names if name is not None)
+
+
+def origin_filter_sql(origin: str) -> tuple[str, dict[str, object]]:
+    """Per-row SQL predicate on ``ic.origin`` for one API origin name, plus its bind params.
+
+    Must agree with ``origin_name``: ``other`` covers code 0 *and* any code this module
+    does not know yet (feeds added by newer ACS releases); NULL (pre-4.11.6) never matches.
+    Callers aggregate it per CVE, e.g. ``BOOL_OR(<predicate>)``.
+    """
+    if origin == "other":
+        named_codes = sorted(code for code, name in VULN_ORIGIN_NAMES.items() if name != "other")
+        return (
+            "(ic.origin IS NOT NULL AND ic.origin <> ALL(:origin_named_codes))",
+            {"origin_named_codes": named_codes},
+        )
+    return "ic.origin = :origin_code", {"origin_code": ORIGIN_CODES[origin]}

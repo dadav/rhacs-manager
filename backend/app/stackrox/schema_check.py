@@ -5,8 +5,14 @@ shared ``CVE_ROWS_CTE`` selects, which would make nearly every StackRox query
 fail. ``/ready`` and the startup log surface this explicitly instead.
 """
 
+import asyncio
+
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+
+# Bounds connection acquisition plus the query, so a stalled DB can never block
+# startup or a readiness probe.
+SCHEMA_PROBE_TIMEOUT_SECONDS = 5.0
 
 # (table, column, first ACS release that has it). When a query starts depending
 # on a column introduced by a newer ACS release, add it here.
@@ -29,15 +35,32 @@ def describe_missing(present: set[tuple[str, str]]) -> list[str]:
 
 
 async def missing_stackrox_columns(conn: AsyncConnection) -> list[str]:
-    """Query information_schema once and report required columns that are absent."""
+    """Report required columns that are absent, resolving tables like the app's queries do.
+
+    The app's SQL uses unqualified table names, so each table is resolved through the
+    connection's search_path with ``to_regclass`` rather than assuming a schema. A table
+    that does not resolve contributes no rows, so all of its columns count as missing.
+    """
     tables = sorted({table for table, _, _ in REQUIRED_STACKROX_COLUMNS})
     result = await conn.execute(
         text(
-            "SELECT table_name, column_name FROM information_schema.columns "
-            "WHERE table_schema = current_schema() AND table_name = ANY(:tables)"
+            "SELECT t.name AS table_name, a.attname AS column_name "
+            "FROM unnest(CAST(:tables AS text[])) AS t(name) "
+            "JOIN pg_attribute a ON a.attrelid = to_regclass(t.name) "
+            "WHERE a.attnum > 0 AND NOT a.attisdropped"
         ),
         {"tables": tables},
     )
     present = {(row.table_name, row.column_name) for row in result}
     # No logging here: /ready calls this on every kubelet probe. The startup probe logs.
     return describe_missing(present)
+
+
+async def probe_stackrox_schema(engine: AsyncEngine, timeout_seconds: float) -> list[str]:
+    """Connect and run ``missing_stackrox_columns`` within one time budget.
+
+    Raises ``TimeoutError`` or the DB error; callers decide how to degrade.
+    """
+    async with asyncio.timeout(timeout_seconds):
+        async with engine.connect() as conn:
+            return await missing_stackrox_columns(conn)
