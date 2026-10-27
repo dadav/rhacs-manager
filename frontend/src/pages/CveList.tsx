@@ -46,7 +46,7 @@ import { ImageRow } from '../components/ImageRow'
 import { COMPONENT_SORT_COLUMNS, ComponentFixTable, type ComponentSortColumn } from '../components/ComponentFixTable'
 import { SeverityBadge } from '../components/common/SeverityBadge'
 import { TableSkeleton } from '../components/TableSkeleton'
-import { Severity } from '../types'
+import { Severity, VULN_ORIGINS, type VulnOrigin } from '../types'
 import type { ImageCveGroup } from '../types'
 import { SEVERITY_COLORS, FIXABLE_COLOR, BRAND_BLUE } from '../tokens'
 
@@ -86,6 +86,11 @@ export function CveList() {
     { label: t('cves.remediationRemediated'), value: 'remediated' },
   ]
 
+  const ORIGIN_OPTIONS = [
+    { label: t('cves.originAll'), value: '' },
+    ...VULN_ORIGINS.map(o => ({ label: t(`cves.origin.${o}`), value: o })),
+  ]
+
   const [searchParams, setSearchParams] = useSearchParams()
 
   // --- Read all filter state from URL ---
@@ -100,6 +105,9 @@ export function CveList() {
   const urlEpssMin    = Number(searchParams.get('epss_min')) || 0
   const urlComponent  = searchParams.get('component') || ''
   const urlRiskStatus = searchParams.get('risk_status') || ''
+  // Ignore unknown values so a stale/hand-edited URL never turns into a 422.
+  const rawOrigin     = searchParams.get('origin') || ''
+  const urlOrigin     = (VULN_ORIGINS as string[]).includes(rawOrigin) ? rawOrigin as VulnOrigin : ''
   const urlRemediationStatus = searchParams.get('remediation_status') || ''
   const urlShowRemediated = searchParams.get('show_remediated') === '1'
   const urlFixOverdue = searchParams.get('fix_overdue') === 'true'
@@ -184,18 +192,19 @@ export function CveList() {
     setCvssMin(0); setEpssMin(0); setComponentInput('')
     updateParams({
       cvss_min: null, epss_min: null,
-      component: null, risk_status: null, remediation_status: null,
+      component: null, origin: null, risk_status: null, remediation_status: null,
     })
   }
 
   const hasActiveAdvanced =
     debouncedCvssMin > 0 || debouncedEpssMin > 0 ||
-    debouncedComponent || urlRiskStatus || urlRemediationStatus
+    debouncedComponent || urlOrigin || urlRiskStatus || urlRemediationStatus
 
   const activeFilterCount = [
     debouncedCvssMin > 0,
     debouncedEpssMin > 0,
     Boolean(debouncedComponent),
+    Boolean(urlOrigin),
     Boolean(urlRiskStatus),
     Boolean(urlRemediationStatus),
   ].filter(Boolean).length
@@ -213,6 +222,7 @@ export function CveList() {
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
+    origin: urlOrigin || undefined,
     risk_status: urlRiskStatus || undefined,
     remediation_status: urlRemediationStatus || undefined,
     show_remediated: urlShowRemediated || undefined,
@@ -238,6 +248,7 @@ export function CveList() {
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
+    origin: urlOrigin || undefined,
     image_name: urlImageName || undefined,
   }
   const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(scopeOverrides, imageFilters)
@@ -268,6 +279,7 @@ export function CveList() {
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
     epss_min: debouncedEpssMin > 0 ? debouncedEpssMin : undefined,
     component: debouncedComponent || undefined,
+    origin: urlOrigin || undefined,
     risk_status: urlRiskStatus || undefined,
     remediation_status: urlRemediationStatus || undefined,
   }
@@ -657,6 +669,20 @@ export function CveList() {
                 style={{ width: 160 }}
                 aria-label={t('cves.filterComponent')}
               />
+            </div>
+
+            {/* Vulnerability feed (ACS 4.11.6+) */}
+            <div>
+              <div style={sectionLabelStyle}>{t('cves.filterOrigin')}</div>
+              <FormSelect
+                value={urlOrigin}
+                onChange={(_e, v) => updateParams({ origin: v || null })}
+                aria-label={t('cves.filterOrigin')}
+              >
+                {ORIGIN_OPTIONS.map(o => (
+                  <FormSelectOption key={o.value} value={o.value} label={o.label} />
+                ))}
+              </FormSelect>
             </div>
 
             {/* Risk status */}

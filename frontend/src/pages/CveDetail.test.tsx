@@ -100,6 +100,7 @@ function makeCveDetail(overrides: Partial<CveDetailType> = {}): CveDetailType {
     affected_deployments: 4,
     first_seen: '2024-01-15T00:00:00Z',
     published_on: '2024-01-10T00:00:00Z',
+    origins: ['red_hat'],
     has_priority: false,
     priority_level: null,
     priority_deadline: null,
@@ -113,7 +114,10 @@ function makeCveDetail(overrides: Partial<CveDetailType> = {}): CveDetailType {
       { deployment_id: 'd1', deployment_name: 'api-server', namespace: 'prod', cluster_name: 'cluster-a', image_name: 'registry/api:v1', first_seen: '2025-01-15T10:00:00Z' },
     ],
     components: [
-      { component_name: 'openssl', component_version: '1.1.1', fixable: true, fixed_by: '2.0.0' },
+      { component_name: 'openssl', component_version: '1.1.1', fixable: true, fixed_by: '2.0.0', origin: 'red_hat' },
+    ],
+    origin_ratings: [
+      { origin: 'red_hat', severity: Severity.CRITICAL, cvss: 9.8, components: 1 },
     ],
     contact_emails: ['sec@example.com'],
     cvss_metric_urls: [],
@@ -220,5 +224,57 @@ describe('CveDetail', () => {
     const { container } = render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
     // Component returns null when !isLoading && !error && !cve
     expect(container.innerHTML).toBe('')
+  })
+
+  it('shows data sources and hides the per-source card for a single source', () => {
+    mockUseCveDetail.mockReturnValue({ data: makeCveDetail(), isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    const sourcesRow = screen.getByText('cveDetail.origins').closest('tr')
+    expect(within(sourcesRow!).getByText('cves.origin.red_hat')).toBeInTheDocument()
+    // Components table carries the feed per row.
+    expect(screen.getByText('cves.componentOrigin')).toBeInTheDocument()
+    expect(screen.queryByText('cveDetail.originRatingsTitle')).not.toBeInTheDocument()
+  })
+
+  it('shows the per-source rating card when sources disagree', () => {
+    const cve = makeCveDetail({
+      origins: ['debian', 'red_hat'],
+      origin_ratings: [
+        { origin: 'debian', severity: Severity.CRITICAL, cvss: 9.8, components: 1 },
+        { origin: 'red_hat', severity: Severity.MODERATE, cvss: 5.5, components: 2 },
+        { origin: null, severity: Severity.IMPORTANT, cvss: 7.0, components: 1 },
+        { origin: 'ubuntu', severity: Severity.MODERATE, cvss: 0, components: 1 },
+      ],
+    })
+    mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    const table = screen.getByRole('grid', { name: 'cveDetail.originRatingsTitle' })
+    const rows = within(table).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(4)
+    expect(within(rows[0]).getByText('cves.origin.debian')).toBeInTheDocument()
+    expect(within(rows[0]).getByText(`sev-${Severity.CRITICAL}`)).toBeInTheDocument()
+    expect(within(rows[1]).getByText('cves.origin.red_hat')).toBeInTheDocument()
+    expect(within(rows[1]).getByText(`sev-${Severity.MODERATE}`)).toBeInTheDocument()
+    expect(within(rows[2]).getByText('cves.origin.unknown')).toBeInTheDocument()
+    // A feed without a CVSS score shows a dash, not 0.0.
+    expect(within(rows[3]).getByText('–')).toBeInTheDocument()
+  })
+
+  it('marks the data source unknown for CVEs scanned before ACS 4.11.6', () => {
+    const cve = makeCveDetail({
+      origins: [],
+      origin_ratings: [],
+      components: [{ component_name: 'openssl', component_version: '1.1.1', fixable: true, fixed_by: '2.0.0', origin: null }],
+    })
+    mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(screen.getByText('cveDetail.originsUnknown')).toBeInTheDocument()
+    expect(screen.getByText('cves.origin.unknown')).toBeInTheDocument()
   })
 })

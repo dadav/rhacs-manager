@@ -14,6 +14,7 @@ from ..deps import get_app_db, get_stackrox_db
 from ..exports.excel_generator import generate_cve_excel, parse_import_excel
 from ..exports.pdf_generator import generate_cve_pdf
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
+from ..schemas.cve import VulnOrigin
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import fetch_filtered_cves
@@ -92,6 +93,7 @@ async def export_pdf(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
@@ -118,6 +120,7 @@ async def export_pdf(
         cluster=cluster,
         namespace=namespace,
         ignore_thresholds=ignore_thresholds,
+        origin=origin,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -174,6 +177,7 @@ async def export_pdf(
             "cvss_min": cvss_min,
             "epss_min": epss_min,
             "component": component,
+            "origin": origin.value if origin else None,
             "risk_status": risk_status,
             "cluster": cluster,
             "namespace": namespace,
@@ -201,6 +205,7 @@ async def export_excel(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
@@ -227,6 +232,7 @@ async def export_excel(
         cluster=cluster,
         namespace=namespace,
         ignore_thresholds=ignore_thresholds,
+        origin=origin,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)

@@ -38,6 +38,23 @@ export enum UserRole {
   sec_team = 'sec_team',
 }
 
+// Vulnerability feed that produced a finding (StackRox VulnOrigin, ACS 4.11.6+).
+export type VulnOrigin =
+  | 'other'
+  | 'osv'
+  | 'alpine'
+  | 'amazon'
+  | 'debian'
+  | 'oracle'
+  | 'photon'
+  | 'red_hat'
+  | 'suse'
+  | 'ubuntu'
+
+export const VULN_ORIGINS: VulnOrigin[] = [
+  'red_hat', 'osv', 'debian', 'ubuntu', 'alpine', 'oracle', 'amazon', 'photon', 'suse', 'other',
+]
+
 export interface CveListItem {
   cve_id: string
   severity: Severity
@@ -52,6 +69,7 @@ export interface CveListItem {
   published_on: string | null
   fix_available_since: string | null
   operating_system?: string | null
+  origins: VulnOrigin[]
   has_priority: boolean
   priority_level: PriorityLevel | null
   priority_deadline: string | null
@@ -122,6 +140,16 @@ export interface AffectedComponent {
   component_version: string
   fixable: boolean
   fixed_by: string | null
+  // null for rows scanned before ACS 4.11.6
+  origin?: VulnOrigin | null
+}
+
+// Severity/CVSS one feed assigns; the CVE-level values are the highest across feeds.
+export interface CveOriginRating {
+  origin: VulnOrigin | null
+  severity: Severity
+  cvss: number
+  components: number
 }
 
 export interface CveReference {
@@ -138,6 +166,7 @@ export interface CveDetail extends CveListItem {
   first_system_occurrence: string | null
   affected_deployments_list: AffectedDeployment[]
   components: AffectedComponent[]
+  origin_ratings: CveOriginRating[]
   contact_emails: string[]
   summary: string | null
   link: string | null

@@ -217,8 +217,9 @@ The CTE resolves the ACS 4.11 dual image model: it prefers v2-model rows
 Key fields on `image_cves_v2` (all carried through `cve_rows`):
 
 - `ic.cvebaseinfo_cve` -- CVE ID
-- `ic.severity` -- scanner-assigned severity (1-4, Red Hat classification for Red Hat content; independent of CVSS)
-- `ic.cvss` -- CVSS score from the primary data source (Red Hat for Red Hat content); NVD's score is in `ic.nvdcvss` and often differs
+- `ic.severity` -- severity assigned by the row's vulnerability feed (0-4; Red Hat classification for Red Hat content, OSV/Debian/Ubuntu/... ratings otherwise; independent of CVSS)
+- `ic.cvss` -- CVSS score from the row's vulnerability feed; NVD's score is in `ic.nvdcvss` and often differs
+- `ic.origin` -- vulnerability feed that produced the row (StackRox `VulnOrigin`: 0 other, 1 OSV, 2 Alpine, 3 Amazon, 4 Debian, 5 Oracle, 6 Photon, 7 Red Hat, 8 SUSE, 9 Ubuntu; ACS 4.11.6+, NULL for rows scanned before 4.11.6). Map codes with `app/stackrox/vuln_origin.py`.
 - `ic.cvebaseinfo_epss_epssprobability` -- EPSS probability
 - `ic.impactscore` -- impact score
 - `ic.firstimageoccurrence` -- first seen date
@@ -228,6 +229,23 @@ Key fields on `image_cves_v2` (all carried through `cve_rows`):
 
 !!! warning "Grouping"
     Always group by `ic.cvebaseinfo_cve` (CVE ID), not by `ic.id`. Grouping by `ic.id` creates duplicate rows per CVE.
+
+!!! note "One CVE, several feeds"
+    The same CVE can be reported by several feeds (for example Red Hat and OSV) with different severities and CVSS scores. CVE-level fields take `MAX` across feeds; the CVE detail endpoint also returns the per-feed values (`origin_ratings`).
+
+### Updating the vendored StackRox proto
+
+`backend/app/stackrox/proto/storage/cve.proto` (used to decode `image_cves_v2.serialized`) and its copy in `tools/decode-cve-proto/` are vendored verbatim from a StackRox release tag. To move to a new release:
+
+```bash
+just update-stackrox-proto 4.11.6
+```
+
+The recipe needs `protoc` and `protoc-gen-go`. If the generated `cve_pb2.py` demands a newer protobuf runtime, raise the `protobuf` floor in `backend/pyproject.toml`.
+
+### StackRox schema requirements
+
+`app/stackrox/schema_check.py` lists the StackRox columns the queries depend on (`REQUIRED_STACKROX_COLUMNS`). `/ready` reports any that are missing. When a query starts using a column from a newer ACS release, add it there.
 
 ## Frontend Error Handling
 

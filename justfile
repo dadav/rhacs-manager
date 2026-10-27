@@ -70,6 +70,30 @@ update-deps:
     cd auth-header-injector && go get -u ./... && go mod tidy
     cd random-data-generator && go get -u ./... && go mod tidy
 
+# Re-vendor StackRox storage/cve.proto verbatim from a release tag and regenerate
+# the Python (backend decoder) and Go (tools/decode-cve-proto) bindings.
+# Requires protoc and protoc-gen-go on PATH. Raise the backend protobuf floor if
+# the generated cve_pb2.py demands a newer runtime.
+update-stackrox-proto tag="4.11.6":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="https://raw.githubusercontent.com/stackrox/stackrox/{{ tag }}/proto/storage/cve.proto"
+    echo "==> Fetching ${url}"
+    curl -fsSL "${url}" -o backend/app/stackrox/proto/storage/cve.proto
+    cp backend/app/stackrox/proto/storage/cve.proto tools/decode-cve-proto/proto/storage/cve.proto
+    echo "==> Generating Python bindings"
+    protoc -I backend/app/stackrox/proto \
+      --python_out=backend/app/stackrox/proto \
+      --pyi_out=backend/app/stackrox/proto \
+      storage/cve.proto
+    echo "==> Generating Go bindings"
+    cd tools/decode-cve-proto && protoc -I . \
+      --go_out=. --go_opt=paths=source_relative \
+      --go_opt=Mproto/storage/cve.proto=rhacs-manager/tools/decode-cve-proto/proto/storage \
+      proto/storage/cve.proto
+    echo "==> Vendored storage/cve.proto from stackrox/stackrox@{{ tag }}"
+    grep -n "ValidateProtobufRuntimeVersion" -A6 ../../backend/app/stackrox/proto/storage/cve_pb2.py | head -8
+
 # Build backend container image
 build-backend-image tag="rhacs-manager-backend:latest":
     podman build -t {{ tag }} backend/

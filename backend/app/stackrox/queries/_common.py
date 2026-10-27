@@ -33,12 +33,14 @@ VISIBILITY_HAVING = """HAVING (
 # The CTE is aliased as `ic` by callers so VISIBILITY_HAVING and the existing
 # ic.* column references keep working. `serialized` is intentionally excluded
 # (bytea; the protobuf queries read it directly from image_cves_v2).
+# `origin` (VulnOrigin feed) requires ACS 4.11.6+; see app/stackrox/schema_check.py.
 CVE_ROWS_CTE = """cve_rows AS (
             SELECT dc.deployments_id, dc.image_id, dc.image_name_fullname,
                    ic.cvebaseinfo_cve, ic.severity, ic.cvss,
                    ic.cvebaseinfo_epss_epssprobability, ic.impactscore,
                    ic.firstimageoccurrence, ic.cvebaseinfo_publishedon,
-                   ic.fixavailabletimestamp, ic.isfixable, ic.fixedby, ic.componentid
+                   ic.fixavailabletimestamp, ic.isfixable, ic.fixedby, ic.componentid,
+                   ic.origin
             FROM deployments_containers dc
             JOIN image_cves_v2 ic ON ic.imageidv2 = dc.image_idv2
             UNION ALL
@@ -46,7 +48,8 @@ CVE_ROWS_CTE = """cve_rows AS (
                    ic.cvebaseinfo_cve, ic.severity, ic.cvss,
                    ic.cvebaseinfo_epss_epssprobability, ic.impactscore,
                    ic.firstimageoccurrence, ic.cvebaseinfo_publishedon,
-                   ic.fixavailabletimestamp, ic.isfixable, ic.fixedby, ic.componentid
+                   ic.fixavailabletimestamp, ic.isfixable, ic.fixedby, ic.componentid,
+                   ic.origin
             FROM deployments_containers dc
             JOIN image_cves_v2 ic ON ic.imageid = dc.image_id
             WHERE NOT EXISTS (
@@ -77,6 +80,10 @@ def _namespace_filter(namespaces: list[tuple[str, str]], prefix: str = "ns") -> 
 # Aggregate every distinct non-empty fix version so Python can pick one with
 # version-aware ordering. SQL MAX(fixedby) compares strings (1.9 > 1.10).
 FIXED_BY_CANDIDATES_SQL = "ARRAY_REMOVE(ARRAY_AGG(DISTINCT NULLIF(ic.fixedby, '')), NULL) AS fixed_by_candidates"
+
+# Distinct vulnerability feeds (image_cves_v2.origin, ACS 4.11.6+) behind a CVE.
+# NULL (rows scanned before 4.11.6) is dropped; map codes with app.stackrox.vuln_origin.
+ORIGINS_SQL = "ARRAY_REMOVE(ARRAY_AGG(DISTINCT ic.origin), NULL) AS origin_codes"
 
 
 def _row_with_fixed_by(row) -> dict:

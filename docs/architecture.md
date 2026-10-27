@@ -126,6 +126,20 @@ LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
     The legacy join chain (`image_cve_edges` -> `image_cves` -> `image_component_cve_edges`)
     remains incorrect for this schema, as does `image_components` (incompatible IDs).
 
+Since ACS 4.11.6 Central prunes the legacy side: in our cluster the `images` table shrank
+to a handful of rows and the `image_cve_edges` / `image_component_edges` tables are
+empty. The fallback branch of `CVE_ROWS_CTE` is kept for those few images but almost
+everything comes from the v2 model.
+
+### Vulnerability feed per finding (ACS 4.11.6+)
+
+`image_cves_v2.origin` records which vulnerability feed produced a row (StackRox
+`VulnOrigin`: Red Hat, OSV, Debian, Ubuntu, Alpine, Oracle, Amazon, Photon, SUSE, or
+other). Rows scanned before 4.11.6 have `NULL`. A CVE often comes from several feeds that
+disagree on severity and CVSS; CVE-level values are the `MAX` across feeds, and the CVE
+detail page lists each feed's rating. `CVE_ROWS_CTE` carries the column, which is why
+ACS 4.11.6 is the minimum supported release.
+
 !!! note "`images_v2.digest` is not unique"
     The same digest can appear under several pull specs. Any lookup by digest must pick a
     single row (`ORDER BY (scanstats_componentcount > 0) DESC, lastupdated DESC LIMIT 1`).

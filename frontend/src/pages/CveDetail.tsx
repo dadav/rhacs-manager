@@ -635,6 +635,22 @@ export function CveDetail() {
                         value={cve.operating_system}
                       />
                     )}
+                    <DetailRow
+                      label={t('cveDetail.origins')}
+                      value={
+                        cve.origins.length > 0 ? (
+                          <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 4 }}>
+                            {cve.origins.map((o) => (
+                              <Label key={o} color="grey" isCompact>
+                                {t(`cves.origin.${o}`)}
+                              </Label>
+                            ))}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#8a8d90" }}>{t('cveDetail.originsUnknown')}</span>
+                        )
+                      }
+                    />
                     {cve.priority_deadline && (
                       <DetailRow
                         label={t('cves.deadline')}
@@ -813,6 +829,40 @@ export function CveDetail() {
             </Card>
           </GridItem>
 
+          {cve.origin_ratings.length > 1 && (
+            <GridItem span={12}>
+              <Card>
+                <CardTitle>{t('cveDetail.originRatingsTitle')}</CardTitle>
+                <CardBody style={{ paddingTop: 0 }}>
+                  <p style={{ fontSize: 13, color: "var(--pf-t--global--text--color--subtle)", marginBottom: 8 }}>
+                    {t('cveDetail.originRatingsHint')}
+                  </p>
+                  <Table variant="compact" aria-label={t('cveDetail.originRatingsTitle')}>
+                    <Thead>
+                      <Tr>
+                        <Th>{t('cveDetail.originRatingsSource')}</Th>
+                        <Th>{t('cves.severity')}</Th>
+                        <Th>CVSS</Th>
+                        <Th>{t('cveDetail.originRatingsComponents')}</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {cve.origin_ratings.map((r) => (
+                        <Tr key={r.origin ?? "unknown"}>
+                          <Td>{t(`cves.origin.${r.origin ?? "unknown"}`)}</Td>
+                          <Td><SeverityBadge severity={r.severity} /></Td>
+                          {/* Distro feeds often rate severity only; 0 means "no CVSS from this feed". */}
+                          <Td>{r.cvss > 0 ? formatCvss(r.cvss) : "–"}</Td>
+                          <Td>{r.components}</Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </CardBody>
+              </Card>
+            </GridItem>
+          )}
+
           {cve.components.length > 0 && (
             <GridItem span={12}>
               <Card>
@@ -827,6 +877,7 @@ export function CveDetail() {
                         <Th>{t('cves.componentVersion')}</Th>
                         <Th>{t('cves.fixable')}</Th>
                         <Th>{t('cves.fixVersion')}</Th>
+                        <Th>{t('cves.componentOrigin')}</Th>
                       </Tr>
                     </Thead>
                     <Tbody>
@@ -848,6 +899,7 @@ export function CveDetail() {
                           <Td style={{ fontFamily: "monospace", fontSize: 11 }}>
                             {c.fixed_by ?? "–"}
                           </Td>
+                          <Td>{t(`cves.origin.${c.origin ?? "unknown"}`)}</Td>
                         </Tr>
                       ))}
                     </Tbody>

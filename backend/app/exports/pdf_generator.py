@@ -70,6 +70,17 @@ TRANSLATIONS: dict[str, dict] = {
         "filter_ra_status": "RA-Status",
         "filter_cluster": "Cluster",
         "filter_namespace": "Namespace",
+        "filter_origin": "Datenquelle",
+        "origin_other": "Sonstige",
+        "origin_osv": "OSV",
+        "origin_alpine": "Alpine",
+        "origin_amazon": "Amazon Linux",
+        "origin_debian": "Debian",
+        "origin_oracle": "Oracle Linux",
+        "origin_photon": "Photon OS",
+        "origin_red_hat": "Red Hat",
+        "origin_suse": "SUSE",
+        "origin_ubuntu": "Ubuntu",
     },
     "en": {
         "severity_labels": {0: "UNKNOWN", 1: "LOW", 2: "MEDIUM", 3: "HIGH", 4: "CRITICAL"},
@@ -134,6 +145,17 @@ TRANSLATIONS: dict[str, dict] = {
         "filter_ra_status": "RA Status",
         "filter_cluster": "Cluster",
         "filter_namespace": "Namespace",
+        "filter_origin": "Data source",
+        "origin_other": "Other",
+        "origin_osv": "OSV",
+        "origin_alpine": "Alpine",
+        "origin_amazon": "Amazon Linux",
+        "origin_debian": "Debian",
+        "origin_oracle": "Oracle Linux",
+        "origin_photon": "Photon OS",
+        "origin_red_hat": "Red Hat",
+        "origin_suse": "SUSE",
+        "origin_ubuntu": "Ubuntu",
     },
 }
 
@@ -546,6 +568,9 @@ def _draw_summary_page(pdf: CvePdf, cves: list[dict], metadata: dict):
         active_filters.append(t["filter_prioritized"])
     if filters.get("component"):
         active_filters.append(f"{t['filter_component']}: {filters['component']}")
+    if filters.get("origin"):
+        origin = str(filters["origin"])
+        active_filters.append(f"{t['filter_origin']}: {t.get('origin_' + origin, origin)}")
     if filters.get("risk_status"):
         active_filters.append(f"{t['filter_ra_status']}: {filters['risk_status']}")
     if filters.get("cluster"):

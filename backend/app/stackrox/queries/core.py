@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
+from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, ORIGINS_SQL, _namespace_filter, _row_with_fixed_by
 
 
 async def get_cves_for_namespaces(
@@ -36,7 +36,8 @@ async def get_cves_for_namespaces(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            {FIXED_BY_CANDIDATES_SQL}
+            {FIXED_BY_CANDIDATES_SQL},
+            {ORIGINS_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
@@ -89,7 +90,8 @@ async def get_cve_detail(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            {FIXED_BY_CANDIDATES_SQL}
+            {FIXED_BY_CANDIDATES_SQL},
+            {ORIGINS_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
@@ -163,6 +165,73 @@ async def get_affected_components(
     return [dict(row._mapping) for row in result]
 
 
+async def get_affected_components_with_origin(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> list[dict]:
+    """Like get_affected_components, plus the feed (``origin``) per row, for CVE detail.
+
+    A component reported by two feeds yields two rows. Exports keep using the
+    feed-agnostic get_affected_components so their component lists stay deduplicated.
+    """
+    if not namespaces:
+        return []
+
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT DISTINCT
+            comp.name       AS component_name,
+            comp.version    AS component_version,
+            COALESCE(ic.isfixable, false) AS fixable,
+            ic.fixedby      AS fixed_by,
+            ic.origin       AS origin_code
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        JOIN image_component_v2 comp ON comp.id = ic.componentid
+        WHERE {ns_fragment}
+          AND ic.cvebaseinfo_cve = :cve_id
+          AND comp.name IS NOT NULL
+        ORDER BY comp.name, comp.version, ic.origin
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    return [dict(row._mapping) for row in result]
+
+
+async def get_cve_origin_ratings(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> list[dict]:
+    """Severity/CVSS per vulnerability feed for one CVE in the given namespaces.
+
+    The NULL group (rows scanned before ACS 4.11.6) is kept so older data stays visible.
+    """
+    if not namespaces:
+        return []
+
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT
+            ic.origin                       AS origin_code,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            COUNT(DISTINCT ic.componentid)  AS components
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        WHERE {ns_fragment}
+          AND ic.cvebaseinfo_cve = :cve_id
+        GROUP BY ic.origin
+        ORDER BY severity DESC, cvss DESC, ic.origin NULLS LAST
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    return [dict(row._mapping) for row in result]
+
+
 async def get_all_cves(
     session: AsyncSession,
     min_cvss: float = 0.0,
@@ -187,7 +256,8 @@ async def get_all_cves(
             COUNT(DISTINCT ic.image_id)     AS affected_images,
             COUNT(DISTINCT ic.deployments_id) AS affected_deployments,
             BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
-            {FIXED_BY_CANDIDATES_SQL}
+            {FIXED_BY_CANDIDATES_SQL},
+            {ORIGINS_SQL}
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid

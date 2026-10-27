@@ -19,6 +19,7 @@ interface ExportFilters {
   cvss_min?: number
   epss_min?: number
   component?: string
+  origin?: string
   risk_status?: string
 }
 

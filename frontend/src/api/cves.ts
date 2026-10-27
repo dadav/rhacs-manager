@@ -22,6 +22,7 @@ interface CveListParams {
   cvss_min?: number
   epss_min?: number
   component?: string
+  origin?: string
   risk_status?: string
   cluster?: string
   namespace?: string
@@ -90,6 +91,7 @@ interface ImageFilterParams {
   cvss_min?: number
   epss_min?: number
   component?: string
+  origin?: string
   image_name?: string
 }
 

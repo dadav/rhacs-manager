@@ -27,10 +27,12 @@ from ..schemas.cve import (
     CveCommentUpdate,
     CveDetail,
     CveListItem,
+    CveOriginRating,
     EscalationContext,
     ImageCveDetail,
     ImageCveGroup,
     SeverityLevel,
+    VulnOrigin,
 )
 from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
@@ -42,6 +44,7 @@ from ..services.fix_rollup_service import build_fix_rollup
 from ..services.risk_acceptance_service import deployment_covered_by_scope
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
+from ..stackrox.vuln_origin import origin_name, origin_names
 
 router = APIRouter(prefix="/cves", tags=["cves"])
 
@@ -57,6 +60,11 @@ def _escalation_context(esc: Escalation | None) -> EscalationContext | None:
     return EscalationContext(cluster_name=esc.cluster_name, namespace=esc.namespace, level=esc.level)
 
 
+def _origin_or_none(code: int | None) -> VulnOrigin | None:
+    name = origin_name(code)
+    return VulnOrigin(name) if name else None
+
+
 @router.get("", response_model=PaginatedResponse[CveListItem])
 async def list_cves(
     page: int = Query(1, ge=1),
@@ -70,6 +78,7 @@ async def list_cves(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
@@ -111,6 +120,7 @@ async def list_cves(
         fix_overdue=fix_overdue,
         deployment_id=deployment_id,
         ignore_thresholds=ignore_thresholds,
+        origin=origin,
     )
 
     total = len(items)
@@ -138,6 +148,7 @@ async def list_component_fixes(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     risk_status: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
@@ -188,6 +199,7 @@ async def list_component_fixes(
             "fix_overdue": fix_overdue,
             "deployment_id": deployment_id,
             "ignore_thresholds": ignore_thresholds,
+            "origin": origin,
         },
     )
 
@@ -202,6 +214,7 @@ async def list_cves_by_image(
     cvss_min: float | None = Query(None, ge=0, le=10),
     epss_min: float | None = Query(None, ge=0, le=1),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     image_name: str | None = Query(None),
     ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
@@ -252,6 +265,7 @@ async def list_cves_by_image(
         epss_min=epss_min,
         component=component,
         image_name=image_name,
+        origin=origin.value if origin else None,
     )
     return [
         ImageCveGroup(
@@ -284,6 +298,7 @@ async def list_cves_for_image(
     cvss_min: float | None = Query(None),
     epss_min: float | None = Query(None),
     component: str | None = Query(None),
+    origin: VulnOrigin | None = Query(None),
     ignore_thresholds: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
@@ -333,6 +348,7 @@ async def list_cves_for_image(
         filter_cvss_min=cvss_min,
         filter_epss_min=epss_min,
         component=component,
+        origin=origin.value if origin else None,
     )
     return [
         ImageCveDetail(
@@ -441,7 +457,8 @@ async def get_cve(
         advisory_link = proto_row.get("advisory_link") or None
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
-    components = await sx.get_affected_components(sx_db, cve_id, ns)
+    components = await sx.get_affected_components_with_origin(sx_db, cve_id, ns)
+    origin_ratings = await sx.get_cve_origin_ratings(sx_db, cve_id, ns)
     contact_emails: list[str] = []
     if current_user.can_see_all_namespaces and deployments:
         ns_cluster_pairs = sorted(
@@ -510,6 +527,16 @@ async def get_cve(
         fix_available_since=cve_data.get("fix_available_since"),
         first_system_occurrence=first_system_occurrence,
         operating_system=cve_data.get("operating_system"),
+        origins=[VulnOrigin(name) for name in origin_names(cve_data.get("origin_codes"))],
+        origin_ratings=[
+            CveOriginRating(
+                origin=_origin_or_none(r["origin_code"]),
+                severity=SeverityLevel(r["severity"] or 0),
+                cvss=float(r["cvss"] or 0),
+                components=int(r["components"]),
+            )
+            for r in origin_ratings
+        ],
         summary=proto_data.get("summary"),
         link=proto_data.get("link"),
         references=proto_data.get("references", []),
@@ -555,6 +582,7 @@ async def get_cve(
                 component_version=c["component_version"],
                 fixable=bool(c.get("fixable", False)),
                 fixed_by=c.get("fixed_by"),
+                origin=_origin_or_none(c.get("origin_code")),
             )
             for c in components
         ],

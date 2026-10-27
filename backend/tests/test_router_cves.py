@@ -48,6 +48,10 @@ def patch_sx():
         mock_sx.get_cve_detail = AsyncMock(return_value=None)
         mock_sx.get_affected_deployments = AsyncMock(return_value=[])
         mock_sx.get_affected_components = AsyncMock(return_value=[])
+        mock_sx.get_affected_components_with_origin = AsyncMock(return_value=[])
+        mock_sx.get_cve_origin_ratings = AsyncMock(return_value=[])
+        mock_sx.get_cves_grouped_by_image = AsyncMock(return_value=[])
+        mock_sx.get_cves_for_image = AsyncMock(return_value=[])
         mock_sx.get_cve_protobuf_data = AsyncMock(return_value=None)
         mock_sx.get_cve_protobuf_data_all = AsyncMock(return_value=None)
         mock_sx.get_first_system_occurrence = AsyncMock(return_value=None)
@@ -176,7 +180,7 @@ async def test_get_cve_detail_returns_data(sec_team_client: httpx.AsyncClient, p
     patch_sx.get_cve_detail.return_value = cve_row
     patch_sx.list_namespaces.return_value = [{"namespace": "default", "cluster_name": "cluster-a"}]
     patch_sx.get_affected_deployments.return_value = []
-    patch_sx.get_affected_components.return_value = []
+    patch_sx.get_affected_components_with_origin.return_value = []
 
     resp = await sec_team_client.get("/api/cves/CVE-2024-0001")
     assert resp.status_code == 200
@@ -196,3 +200,87 @@ async def test_get_cve_detail_team_member_no_namespaces(app, patch_sx, mock_app_
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
     resp = await client.get("/api/cves/CVE-2024-0001")
     assert resp.status_code == 404
+
+
+# -- origin (vulnerability feed, ACS 4.11.6+) --
+
+
+async def test_list_cves_forwards_origin(sec_team_client: httpx.AsyncClient, patch_cve_filter):
+    from app.schemas.cve import VulnOrigin
+
+    patch_cve_filter.return_value = []
+
+    resp = await sec_team_client.get("/api/cves?origin=debian")
+
+    assert resp.status_code == 200
+    assert patch_cve_filter.call_args.kwargs["origin"] is VulnOrigin.DEBIAN
+
+
+async def test_list_cves_rejects_unknown_origin(sec_team_client: httpx.AsyncClient, patch_cve_filter):
+    patch_cve_filter.return_value = []
+
+    resp = await sec_team_client.get("/api/cves?origin=bogus")
+
+    assert resp.status_code == 422
+    patch_cve_filter.assert_not_called()
+
+
+async def test_get_cve_detail_includes_origins(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
+    patch_sx.get_cve_detail.return_value = {**_make_cve_detail_row("CVE-2024-0001"), "origin_codes": [7, 4]}
+    patch_sx.list_namespaces.return_value = [{"namespace": "default", "cluster_name": "cluster-a"}]
+    patch_sx.get_affected_components_with_origin.return_value = [
+        {
+            "component_name": "openssl",
+            "component_version": "3.0.1",
+            "fixable": True,
+            "fixed_by": "3.0.2",
+            "origin_code": 4,
+        },
+        {
+            "component_name": "openssl",
+            "component_version": "3.0.1",
+            "fixable": True,
+            "fixed_by": "3.0.2",
+            "origin_code": None,
+        },
+    ]
+    patch_sx.get_cve_origin_ratings.return_value = [
+        {"origin_code": 4, "severity": 4, "cvss": 9.8, "components": 1},
+        {"origin_code": 7, "severity": 2, "cvss": 5.5, "components": 1},
+        {"origin_code": None, "severity": 3, "cvss": 7.0, "components": 2},
+    ]
+
+    resp = await sec_team_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["origins"] == ["debian", "red_hat"]
+    assert [c["origin"] for c in data["components"]] == ["debian", None]
+    assert data["origin_ratings"] == [
+        {"origin": "debian", "severity": 4, "cvss": 9.8, "components": 1},
+        {"origin": "red_hat", "severity": 2, "cvss": 5.5, "components": 1},
+        {"origin": None, "severity": 3, "cvss": 7.0, "components": 2},
+    ]
+    # Detail uses the origin-aware component query; exports keep the deduplicated one.
+    patch_sx.get_affected_components.assert_not_called()
+
+
+async def test_list_cves_by_image_forwards_origin(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
+    resp = await sec_team_client.get("/api/cves/by-image?origin=ubuntu")
+
+    assert resp.status_code == 200
+    assert patch_sx.get_cves_grouped_by_image.call_args.kwargs["origin"] == "ubuntu"
+
+
+async def test_list_cves_for_image_forwards_origin(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
+    resp = await sec_team_client.get("/api/cves/by-image/sha256:abc/cves?origin=osv")
+
+    assert resp.status_code == 200
+    assert patch_sx.get_cves_for_image.call_args.kwargs["origin"] == "osv"
+
+
+async def test_list_cves_by_image_without_origin_passes_none(sec_team_client: httpx.AsyncClient, patch_sx, mock_app_db):
+    resp = await sec_team_client.get("/api/cves/by-image")
+
+    assert resp.status_code == 200
+    assert patch_sx.get_cves_grouped_by_image.call_args.kwargs["origin"] is None

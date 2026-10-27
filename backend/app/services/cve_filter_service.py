@@ -19,8 +19,9 @@ from ..models.suppression_rule import (
     SuppressionType,
 )
 from ..routers._scope import narrow_namespaces
-from ..schemas.cve import CveListItem, SeverityLevel
+from ..schemas.cve import CveListItem, SeverityLevel, VulnOrigin
 from ..stackrox import queries as sx
+from ..stackrox.vuln_origin import origin_names
 
 logger = logging.getLogger(__name__)
 
@@ -227,6 +228,7 @@ def _build_cve_item(
         published_on=c.get("published_on"),
         fix_available_since=c.get("fix_available_since"),
         operating_system=c.get("operating_system"),
+        origins=[VulnOrigin(name) for name in origin_names(c.get("origin_codes"))],
         component_names=sorted(set(component_map.get(c["cve_id"], []))) if component_map else [],
         has_priority=p is not None,
         priority_level=p.priority.value if p else None,
@@ -445,6 +447,7 @@ async def fetch_filtered_cves(
     deployment_id: str | None = None,
     restrict_namespaces: list[tuple[str, str]] | None = None,
     ignore_thresholds: bool = False,
+    origin: VulnOrigin | None = None,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -565,6 +568,8 @@ async def fetch_filtered_cves(
         items = [i for i in items if i.cvss >= cvss_min]
     if epss_min is not None:
         items = [i for i in items if i.epss_probability >= epss_min]
+    if origin is not None:
+        items = [i for i in items if origin in i.origins]
     if risk_status == "any":
         items = [i for i in items if i.has_risk_acceptance]
     elif risk_status in ("requested", "approved"):

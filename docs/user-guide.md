@@ -48,7 +48,7 @@ These action-first sections sit at the top of the dashboard.
 
 The normal workflow starts in **Vulnerabilities**.
 
-1. Open **Vulnerabilities** and apply filters such as severity, fixability, EPSS, namespace, cluster, component, or risk status.
+1. Open **Vulnerabilities** and apply filters such as severity, fixability, EPSS, namespace, cluster, component, data source, or risk status.
 2. Open a CVE detail page to review affected deployments, components, external references, escalation state, comments, and existing remediation or risk-acceptance records.
 3. Decide on the handling path:
    - Fix it now: create a remediation in **Remediations** from the CVE detail page.
@@ -57,6 +57,14 @@ The normal workflow starts in **Vulnerabilities**.
 
 !!! tip
     Prioritized CVEs and CVEs with active risk acceptances stay visible even when they fall below the configured CVSS or EPSS thresholds.
+
+### Data sources
+
+RHACS gets vulnerability data from several feeds: Red Hat, OSV (language packages such as Go, npm, or Python), and the Linux distributions (Debian, Ubuntu, Alpine, Oracle Linux, and others). The same CVE is often reported by more than one feed, and the feeds do not always agree on how severe it is.
+
+- The CVE detail page lists the **Data sources** behind a CVE, and the components table shows the source of each finding. CVEs scanned before ACS 4.11.6 show the source as unknown until RHACS rescans the image.
+- When a CVE has more than one source, the **Rating per data source** card shows each source's severity and CVSS score. The severity and CVSS shown for the CVE are the highest of these.
+- The **Data source** filter under **Advanced filters** limits the list to CVEs with at least one finding from that source. It applies to all three views and to PDF and Excel exports. The PDF lists it with the other active filters.
 
 ### Showing CVEs below the global thresholds
 

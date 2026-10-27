@@ -309,7 +309,23 @@
     "componentSummary": "{{components}} component versions for {{cves}} visible CVEs.",
     "componentUnmapped": "{{count}} CVE(s) without a known component are not included here.",
     "componentUncertainTooltip": "Not all fix versions can be compared. Reported versions: {{versions}}",
-    "componentUncertainHint": "Not all reported fix versions can be compared as versions. Please check: {{versions}}"
+    "componentUncertainHint": "Not all reported fix versions can be compared as versions. Please check: {{versions}}",
+    "filterOrigin": "Data source",
+    "originAll": "All",
+    "componentOrigin": "Source",
+    "origin": {
+      "red_hat": "Red Hat",
+      "osv": "OSV",
+      "debian": "Debian",
+      "ubuntu": "Ubuntu",
+      "alpine": "Alpine",
+      "oracle": "Oracle Linux",
+      "amazon": "Amazon Linux",
+      "photon": "Photon OS",
+      "suse": "SUSE",
+      "other": "Other",
+      "unknown": "Unknown"
+    }
   },
   "cveDetail": {
     "published": "Published",
@@ -421,7 +437,13 @@
     "assigneeOptional": "Assignee (optional)",
     "assign": "Assign",
     "reassign": "Reassign",
-    "deploymentFixesLink": "Show all fixable components of this deployment"
+    "deploymentFixesLink": "Show all fixable components of this deployment",
+    "origins": "Data sources",
+    "originsUnknown": "Unknown (scanned before ACS 4.11.6)",
+    "originRatingsTitle": "Rating per data source",
+    "originRatingsHint": "The data sources rate this CVE differently. The CVE shows the highest severity and CVSS score.",
+    "originRatingsSource": "Data source",
+    "originRatingsComponents": "Components"
   },
   "riskAcceptance": {
     "title": "Risk Acceptances",

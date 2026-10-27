@@ -309,7 +309,23 @@
     "componentSummary": "{{components}} Komponenten-Versionen für {{cves}} sichtbare CVEs.",
     "componentUnmapped": "{{count}} CVE(s) ohne bekannte Komponente sind hier nicht enthalten.",
     "componentUncertainTooltip": "Nicht alle Fix-Versionen sind vergleichbar. Gemeldete Versionen: {{versions}}",
-    "componentUncertainHint": "Nicht alle gemeldeten Fix-Versionen lassen sich als Versionen vergleichen. Bitte prüfen: {{versions}}"
+    "componentUncertainHint": "Nicht alle gemeldeten Fix-Versionen lassen sich als Versionen vergleichen. Bitte prüfen: {{versions}}",
+    "filterOrigin": "Datenquelle",
+    "originAll": "Alle",
+    "componentOrigin": "Quelle",
+    "origin": {
+      "red_hat": "Red Hat",
+      "osv": "OSV",
+      "debian": "Debian",
+      "ubuntu": "Ubuntu",
+      "alpine": "Alpine",
+      "oracle": "Oracle Linux",
+      "amazon": "Amazon Linux",
+      "photon": "Photon OS",
+      "suse": "SUSE",
+      "other": "Sonstige",
+      "unknown": "Unbekannt"
+    }
   },
   "cveDetail": {
     "published": "Veröffentlicht",
@@ -421,7 +437,13 @@
     "assigneeOptional": "Zuständige Person (optional)",
     "assign": "Zuweisen",
     "reassign": "Neu zuweisen",
-    "deploymentFixesLink": "Alle behebbaren Komponenten dieses Deployments anzeigen"
+    "deploymentFixesLink": "Alle behebbaren Komponenten dieses Deployments anzeigen",
+    "origins": "Datenquellen",
+    "originsUnknown": "Unbekannt (Scan vor ACS 4.11.6)",
+    "originRatingsTitle": "Bewertung je Datenquelle",
+    "originRatingsHint": "Die Datenquellen bewerten diese CVE unterschiedlich. Angezeigt wird jeweils der höchste Schweregrad und CVSS-Wert.",
+    "originRatingsSource": "Datenquelle",
+    "originRatingsComponents": "Komponenten"
   },
   "riskAcceptance": {
     "title": "Risikoakzeptanzen",

@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..vuln_origin import ORIGIN_CODES
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
 
@@ -57,6 +58,7 @@ async def get_cves_grouped_by_image(
     epss_min: float | None = None,
     component: str | None = None,
     image_name: str | None = None,
+    origin: str | None = None,
 ) -> list[dict]:
     """Group CVEs by container image. Returns one row per image with CVE counts and severity breakdown.
 
@@ -107,6 +109,10 @@ async def get_cves_grouped_by_image(
         cte_extra_joins = "\n            LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid"
         cte_extra_having += "\n                AND BOOL_OR(comp.name ILIKE :comp_pat)"
         params["comp_pat"] = f"%{component}%"
+    if origin:
+        # Same semantics as the /cves origin filter: at least one finding from that feed.
+        cte_extra_having += "\n                AND BOOL_OR(ic.origin = :origin_code)"
+        params["origin_code"] = ORIGIN_CODES[origin]
 
     # Build outer WHERE for namespace + image_name filtering
     outer_conditions: list[str] = []
@@ -173,6 +179,7 @@ async def get_cves_for_image(
     filter_cvss_min: float | None = None,
     filter_epss_min: float | None = None,
     component: str | None = None,
+    origin: str | None = None,
 ) -> list[dict]:
     """Get all visible CVEs for a specific image."""
     if namespaces is not None and len(namespaces) == 0:
@@ -213,6 +220,9 @@ async def get_cves_for_image(
     if filter_epss_min is not None and filter_epss_min > 0:
         having_filters.append("MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :filter_epss_min")
         bind_params["filter_epss_min"] = filter_epss_min
+    if origin:
+        having_filters.append("BOOL_OR(ic.origin = :origin_code)")
+        bind_params["origin_code"] = ORIGIN_CODES[origin]
 
     having_extra = ""
     if having_filters:

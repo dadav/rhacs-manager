@@ -16,6 +16,15 @@ Symptoms include startup failures when the backend initializes the StackRox asyn
 !!! warning
     The app DB and the StackRox DB are configured independently. A working app database does not prove the StackRox connection is correct.
 
+## Backend Not Ready: `stackrox_schema`
+
+Symptoms: backend pods never become ready, `GET /ready` returns `503` with a `stackrox_schema` check such as `missing: image_cves_v2.origin (ACS >= 4.11.6)`, and the startup log contains `StackRox Central DB schema is too old for RHACS Manager`.
+
+### Checks
+
+- The connected Central runs an RHACS release older than the minimum (**4.11.6**). Upgrade Central, or point `STACKROX_DB_*` at the right database.
+- The initial escalation check is skipped while the schema is incompatible, so no escalations are created against the old database.
+
 ## SMTP Delivery Issues
 
 The mail sender uses `aiosmtplib.send()` with `use_tls`, `start_tls`, and `validate_certs` directly from environment variables.

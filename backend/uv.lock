@@ -1262,7 +1262,7 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "packaging", specifier = ">=26.3" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.0" },
-    { name = "protobuf", specifier = ">=5.0.0" },
+    { name = "protobuf", specifier = ">=7.36.1" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3.0" },

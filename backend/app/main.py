@@ -31,6 +31,7 @@ from .routers import (
     settings,
     suppression_rules,
 )
+from .stackrox.schema_check import missing_stackrox_columns
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
 configure_logging(app_settings.log_level, app_settings.log_format)
@@ -60,21 +61,45 @@ def _validate_production_config() -> None:
         logger.warning("DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing")
 
 
+async def _probe_stackrox_schema() -> list[str]:
+    """Startup schema probe. Never raises: the DB may be briefly unreachable at boot, /ready carries the signal."""
+    try:
+        async with stackrox_engine.connect() as conn:
+            missing = await missing_stackrox_columns(conn)
+    except Exception:
+        logger.exception("StackRox schema probe failed at startup")
+        return []
+    if missing:
+        logger.error(
+            "StackRox Central DB schema is too old for RHACS Manager (requires ACS 4.11.6+)",
+            extra={"missing_columns": missing},
+        )
+    return missing
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if not app_settings.dev_mode:
         _validate_production_config()
+
+    schema_missing = await _probe_stackrox_schema()
 
     active_scheduler = None
     if app_settings.scheduler_enabled:
         active_scheduler = setup_scheduler()
         active_scheduler.start()
         logger.info("APScheduler started")
-        try:
-            await run_escalation_check()
-            logger.info("Initial escalation check complete")
-        except Exception:
-            logger.exception("Initial escalation check failed")
+        if schema_missing:
+            logger.error(
+                "Skipping initial escalation check: StackRox schema incompatible",
+                extra={"missing_columns": schema_missing},
+            )
+        else:
+            try:
+                await run_escalation_check()
+                logger.info("Initial escalation check complete")
+            except Exception:
+                logger.exception("Initial escalation check failed")
     else:
         logger.info("Scheduler disabled (SCHEDULER_ENABLED=false)")
     yield
@@ -163,6 +188,14 @@ async def readiness() -> JSONResponse:
             checks[name] = "ok"
         except Exception as exc:
             checks[name] = str(exc)
+
+    if checks["stackrox_db"] == "ok":
+        try:
+            async with stackrox_engine.connect() as conn:
+                missing = await asyncio.wait_for(missing_stackrox_columns(conn), timeout=3.0)
+            checks["stackrox_schema"] = "ok" if not missing else "missing: " + ", ".join(missing)
+        except Exception as exc:
+            checks["stackrox_schema"] = str(exc)
 
     if all(v == "ok" for v in checks.values()):
         return JSONResponse({"status": "ok", "checks": checks})

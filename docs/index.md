@@ -88,8 +88,11 @@ graph TB
 
 | RHACS Version | Status |
 | --- | --- |
-| 4.10.x | Tested |
-| 4.11.x | Tested |
+| 4.10.x | Not supported |
+| 4.11.0 - 4.11.5 | Not supported |
+| 4.11.6+ | Tested |
+
+The minimum supported release is **ACS 4.11.6**: CVE queries read `image_cves_v2.origin`, which older Central databases do not have. Against an older Central DB, `GET /ready` returns `503` with a `stackrox_schema` check naming the missing columns, and the backend logs an error at startup.
 
 RHACS Manager reads directly from the StackRox Central database. Schema changes in future RHACS versions may require updates to the queries in this project. If you encounter issues with a newer RHACS version, please open an issue.
 

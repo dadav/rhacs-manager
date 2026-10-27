@@ -15,6 +15,24 @@ class SeverityLevel(int, enum.Enum):
     CRITICAL = 4
 
 
+class VulnOrigin(str, enum.Enum):
+    """Vulnerability feed that produced a finding (StackRox ``storage.VulnOrigin``, ACS 4.11.6+).
+
+    Names come from ``app.stackrox.vuln_origin.VULN_ORIGIN_NAMES``.
+    """
+
+    OTHER = "other"
+    OSV = "osv"
+    ALPINE = "alpine"
+    AMAZON = "amazon"
+    DEBIAN = "debian"
+    ORACLE = "oracle"
+    PHOTON = "photon"
+    RED_HAT = "red_hat"
+    SUSE = "suse"
+    UBUNTU = "ubuntu"
+
+
 class AffectedDeployment(BaseModel):
     deployment_id: str
     deployment_name: str
@@ -35,6 +53,17 @@ class AffectedComponent(BaseModel):
     component_version: str
     fixable: bool
     fixed_by: str | None
+    # None for rows scanned before ACS 4.11.6.
+    origin: VulnOrigin | None = None
+
+
+class CveOriginRating(BaseModel):
+    """Severity/CVSS one feed assigns to a CVE. CVE-level values are the MAX across feeds."""
+
+    origin: VulnOrigin | None
+    severity: SeverityLevel
+    cvss: float
+    components: int
 
 
 class CveListItem(BaseModel):
@@ -51,6 +80,7 @@ class CveListItem(BaseModel):
     published_on: datetime | None = None
     fix_available_since: datetime | None = None
     operating_system: str | None = None
+    origins: list[VulnOrigin] = []
     has_priority: bool = False
     priority_level: str | None = None
     priority_deadline: datetime | None = None
@@ -77,6 +107,7 @@ class CveDetail(CveListItem):
     first_system_occurrence: datetime | None = None
     affected_deployments_list: list[AffectedDeployment] = []
     components: list[AffectedComponent] = []
+    origin_ratings: list[CveOriginRating] = []
     contact_emails: list[str] = Field(default_factory=list)
     summary: str | None = None
     link: str | None = None

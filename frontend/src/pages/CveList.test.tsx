@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router'
 import { CveList } from './CveList'
 import type { Paginated, CveListItem, FixRollupItem, FixRollupResponse, ImageCveGroup } from '../types'
 import { Severity } from '../types'
+import { exportPdf } from '../api/exports'
 
 // --- Mocks ---
 
@@ -100,6 +101,7 @@ function makeCve(overrides: Partial<CveListItem> = {}): CveListItem {
     affected_deployments: 5,
     first_seen: '2024-01-01T00:00:00Z',
     published_on: '2024-01-01T00:00:00Z',
+    origins: ['red_hat'],
     has_priority: false,
     priority_level: null,
     priority_deadline: null,
@@ -304,5 +306,53 @@ describe('CveList', () => {
     expect(mockUseCves.mock.calls.at(-1)?.[1]).toMatchObject({ ignoreThresholds: true })
     expect(mockUseCvesByImage.mock.calls.at(-1)?.[0]).toMatchObject({ ignoreThresholds: true })
     expect(mockUseCveFixes.mock.calls.at(-1)?.[1]).toMatchObject({ ignoreThresholds: true })
+  })
+
+  describe('origin (data source) filter', () => {
+    const EMPTY_PAGE = { data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null }
+
+    it('sends the selected origin to the CVE, component, and image queries', () => {
+      mockUseCves.mockReturnValue(EMPTY_PAGE)
+      render(<CveList />, { wrapper: createWrapper('/vulnerabilities?advanced=1') })
+
+      fireEvent.change(screen.getByLabelText('cves.filterOrigin'), { target: { value: 'debian' } })
+
+      expect(mockUseCves.mock.calls.at(-1)?.[0]).toMatchObject({ origin: 'debian' })
+      expect(mockUseCveFixes.mock.calls.at(-1)?.[0]).toMatchObject({ origin: 'debian' })
+      expect(mockUseCvesByImage.mock.calls.at(-1)?.[1]).toMatchObject({ origin: 'debian' })
+    })
+
+    it('counts origin as the only advanced filter and clears it', () => {
+      mockUseCves.mockReturnValue(EMPTY_PAGE)
+      render(<CveList />, { wrapper: createWrapper('/vulnerabilities?advanced=1&origin=debian') })
+
+      const toggle = screen.getByRole('button', { name: /cves.filterAdvanced/ })
+      expect(within(toggle).getByText('1')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'cves.filterClear' }))
+
+      expect(mockUseCves.mock.calls.at(-1)?.[0].origin).toBeUndefined()
+      expect(screen.queryByRole('button', { name: 'cves.filterClear' })).not.toBeInTheDocument()
+    })
+
+    it('keeps applying the origin after switching to the image view, in data and export', async () => {
+      mockUseCves.mockReturnValue(EMPTY_PAGE)
+      vi.mocked(exportPdf).mockResolvedValue(undefined)
+      render(<CveList />, { wrapper: createWrapper('/vulnerabilities?origin=debian') })
+
+      fireEvent.click(screen.getByRole('button', { name: 'cves.viewByImage' }))
+
+      expect(mockUseCvesByImage.mock.calls.at(-1)?.[1]).toMatchObject({ origin: 'debian' })
+      fireEvent.click(screen.getByRole('button', { name: /exports.export/ }))
+      fireEvent.click(await screen.findByText('exports.exportPdf'))
+      expect(vi.mocked(exportPdf).mock.calls.at(-1)?.[0]).toMatchObject({ origin: 'debian' })
+    })
+
+    it('ignores an unknown origin in the URL', () => {
+      mockUseCves.mockReturnValue(EMPTY_PAGE)
+      render(<CveList />, { wrapper: createWrapper('/vulnerabilities?origin=bogus') })
+
+      expect(mockUseCves.mock.calls.at(-1)?.[0].origin).toBeUndefined()
+    })
   })
 })
