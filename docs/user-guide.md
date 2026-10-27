@@ -244,6 +244,9 @@ an email.
   no retry, delivery log, or opt-out: a syntactically invalid stored address (or
   an SMTP failure) leaves the in-app notification intact but silently skips that
   one email. A successful comment is never blocked by mail problems.
+- **Where the address comes from.** In spoke mode the address is the OpenShift
+  Identity `extra.email` set by your identity provider. Users whose provider
+  sends no email keep a placeholder address and receive in-app notifications only.
 - **Risk-acceptance overlap.** If a sec-team comment on a risk acceptance
   explicitly mentions the acceptance's creator, the creator receives only the
   mention notification and email, not a second general "new comment" notice.

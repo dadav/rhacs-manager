@@ -28,6 +28,15 @@ The mail sender uses `aiosmtplib.send()` with `use_tls`, `start_tls`, and `valid
 - If you use internal or self-signed certificates, set `SMTP_VALIDATE_CERTS=false` only as a deliberate exception.
 - Confirm `SMTP_FROM`, `SMTP_USER`, and `SMTP_PASSWORD` match what the relay expects.
 
+### Users receive no mention or risk-acceptance emails
+
+Emails to users are skipped (in-app notification only) when the stored address is invalid. The backend logs `Skipping email: invalid recipient address` with the `user_id` and `purpose`.
+
+- Check `SELECT username, email FROM users;` in the app DB. `<user>@cluster.local` or `<user>@spoke.local` are placeholders, not mailboxes.
+- In spoke mode the real address comes from the OpenShift Identity `extra.email`. Check it with `oc get identity -o custom-columns=NAME:.metadata.name,EMAIL:.extra.email`. If it is empty, map the email claim in the cluster OAuth identity provider.
+- If the identity has an email, look for `failed to resolve identity email` in the auth-header-injector logs. A `forbidden` error means the injector ClusterRole lacks `get` on `identities`.
+- A stored address is updated on the user's next request after the injector resolves it.
+
 ## Spoke Proxy Authentication Failures
 
 If users can reach the spoke route but the hub API responds with authentication errors, check the spoke header path first.
@@ -43,6 +52,7 @@ If users can reach the spoke route but the hub API responds with authentication 
 - Namespace scope comes from `X-Forwarded-Namespaces`.
 - Group-based role mapping depends on `X-Forwarded-Groups`.
 - The auth-header-injector prefers `X-Forwarded-Access-Token` so it can resolve groups via the OpenShift user API; it falls back to existing `X-Forwarded-Groups` only when no groups were resolved from the API.
+- Intermittent `503` responses with `Retry-After: 5` come from the injector when the OpenShift user API call fails. Check the injector logs for `failed to fetch user info`.
 
 ### Namespace annotation format
 

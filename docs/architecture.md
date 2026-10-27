@@ -156,7 +156,7 @@ Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE
 | Header | Purpose |
 |--------|---------|
 | `X-Forwarded-User` | Username, the stable identity (required) |
-| `X-Forwarded-Email` | Email address |
+| `X-Forwarded-Email` | Real email address from the OpenShift Identity `extra.email`, resolved server-side by auth-header-injector (the oauth-proxy placeholder `<user>@cluster.local` and any inbound value are stripped). Omitted when unknown; the backend then keeps the stored address |
 | `X-Forwarded-Full-Name` | Display full name from the OpenShift User `fullName`, resolved server-side by auth-header-injector (any inbound value is stripped). Optional; display falls back to the username |
 | `X-Forwarded-Groups` | Comma-separated group list |
 | `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs or `*` (set by auth-header-injector) |
@@ -234,6 +234,10 @@ provider (OIDC `name`/`given_name`+`family_name`, or the OpenShift User
 (`full_name` or the `username` fallback); usernames appear only as a secondary
 disambiguator inside user pickers. Full names are adopted on the user's next
 sign-in and never wiped back to null by a later login that lacks the claim.
+`email` follows the same rule: a login without an address (missing claim or
+header) never overwrites a stored one. A new user without an address gets a
+placeholder (`<user>@spoke.local`) that mail validation rejects, so that user
+receives in-app notifications only.
 
 `ALL_NAMESPACES_GROUPS` on the spoke injector maps one or more OpenShift groups to wildcard namespace access. This does not grant sec-team-only permissions.
 

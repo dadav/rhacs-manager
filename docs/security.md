@@ -55,9 +55,13 @@ It reads the returned `groups` array and merges:
 - user-based namespaces from `rhacs-manager.io/users`
 - group-based namespaces from `rhacs-manager.io/groups`
 
-If no groups were resolved from the OpenShift user API, the injector can reuse `X-Forwarded-Groups` from oauth-proxy as a fallback — but only when `TRUST_FORWARDED_GROUPS=true`. That header is client-controllable, so the fallback is **disabled by default**: a client could otherwise spoof sec-team / all-namespaces group membership whenever the API lookup fails. With the flag off, the inbound `X-Forwarded-Groups` header is stripped before the request reaches the upstream. Enable the fallback only when the injector exclusively receives traffic from oauth-proxy.
+If no groups were resolved from the OpenShift user API, the injector can reuse `X-Forwarded-Groups` from oauth-proxy as a fallback — but only when `TRUST_FORWARDED_GROUPS=true`. That header is client-controllable, so the fallback is **disabled by default**: a client could otherwise spoof sec-team / all-namespaces group membership whenever the API returns no groups. With the flag off, the inbound `X-Forwarded-Groups` header is stripped before the request reaches the upstream. Enable the fallback only when the injector exclusively receives traffic from oauth-proxy.
+
+If the OpenShift user API call itself fails (error or timeout), the injector **fails closed**: it answers `503` with `Retry-After: 5` and does not forward the request. Forwarding with empty groups would drop group-based namespaces, wildcard access, and sec-team membership, and the backend would persist the downgraded role. Failures are not cached, so the next request retries the lookup. A request whose client disconnects during the lookup is dropped the same way, without caching.
 
 The injector also reads the caller's `fullName` from the same OpenShift user API lookup and emits it as `X-Forwarded-Full-Name` (used only for display). This value is **always server-resolved**: any inbound `X-Forwarded-Full-Name` is stripped before processing, so a client cannot spoof another person's display name. When the lookup yields no name, the header is omitted and the backend falls back to the username.
+
+The caller's email is resolved the same way. oauth-proxy only knows `<user>@cluster.local`, which is not a mailbox, so the injector strips any inbound `X-Forwarded-Email` and reads `extra.email` from each of the user's OpenShift `Identity` objects (`/apis/user.openshift.io/v1/identities/<name>`), using its own service account. This requires the `get` verb on `identities` in the `user.openshift.io` group, which the Helm chart grants to the injector's ClusterRole. The OpenShift identity provider must map an email claim (for OIDC, `claims.email`). The lookup has a single 5 second deadline; on failure the header is omitted, the entry is retried after 5 seconds, and the backend keeps the user's stored address.
 
 ## Role Hierarchy
 

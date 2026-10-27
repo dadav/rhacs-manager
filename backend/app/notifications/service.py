@@ -1,12 +1,12 @@
 import logging
 from dataclasses import dataclass
 
-from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..i18n import DEFAULT_LANG
+from ..mail.service import deliverable_address
 from ..models.notification import Notification, NotificationType
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
@@ -378,15 +378,9 @@ async def _emit_mentions(
         await create_notification(session, user.id, NotificationType.mention, "mention", params, link)
         recipient_ids.append(user.id)
 
-        # Invalid/placeholder addresses get the in-app notification only; syntax
-        # validation without DNS keeps this cheap and offline-safe.
-        try:
-            validated_email = validate_email(user.email or "", check_deliverability=False).normalized
-        except EmailNotValidError as exc:
-            logger.warning(
-                "Skipping mention email: invalid recipient address",
-                extra={"user_id": user.id, "reason": str(exc)},
-            )
+        # Invalid/placeholder addresses get the in-app notification only.
+        validated_email = deliverable_address(user.email, user_id=user.id, purpose="mention")
+        if validated_email is None:
             continue
         email_jobs.append(
             MentionEmailJob(

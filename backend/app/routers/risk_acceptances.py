@@ -339,10 +339,13 @@ async def review_risk_acceptance(
     await notif_svc.notify_risk_status_change(db, ra, current_user)
 
     # Email to RA creator — use pre-loaded creator relationship
-    if ra.creator and ra.creator.email and await notif_prefs.wants(db, ra.creator.id, "risk_acceptance", "email"):
+    creator_email = None
+    if ra.creator and await notif_prefs.wants(db, ra.creator.id, "risk_acceptance", "email"):
+        creator_email = mail_svc.deliverable_address(ra.creator.email, user_id=ra.creator.id, purpose="risk_status")
+    if creator_email is not None:
         try:
             await mail_svc.send_risk_status_email(
-                ra.creator.email,
+                creator_email,
                 ra.cve_id,
                 str(ra.id),
                 ra.status.value,

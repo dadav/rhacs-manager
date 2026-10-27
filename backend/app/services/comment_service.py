@@ -303,15 +303,20 @@ async def add_risk_acceptance_comment(
         exclude_user_ids=mentioned_ids,
     )
 
+    creator_email = None
     if (
         current_user.is_sec_team
         and acceptance.creator
         and acceptance.creator.id not in mentioned_ids
         and await notif_prefs.wants(db, acceptance.creator.id, "risk_acceptance", "email")
     ):
+        creator_email = mail_svc.deliverable_address(
+            acceptance.creator.email, user_id=acceptance.creator.id, purpose="risk_comment"
+        )
+    if creator_email is not None:
         try:
             await mail_svc.send_risk_comment_email(
-                acceptance.creator.email,
+                creator_email,
                 acceptance.cve_id,
                 str(acceptance.id),
                 current_user.display_name,

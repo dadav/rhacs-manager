@@ -160,7 +160,13 @@ async def _commit_user_sync(session: AsyncSession, username: str) -> None:
         raise
 
 
-async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
+async def _get_or_create_user(session: AsyncSession, user_data: dict, placeholder_email: str = "") -> User:
+    """Load the user, creating it on first sign-in.
+
+    ``placeholder_email`` is stored only when a new user arrives without an email
+    (``users.email`` is NOT NULL). Placeholders fail mail validation by design,
+    so such users get in-app notifications only.
+    """
     result = await session.execute(select(User).where(User.id == user_data["id"]))
     user = result.scalar_one_or_none()
     if user is None:
@@ -169,7 +175,7 @@ async def _get_or_create_user(session: AsyncSession, user_data: dict) -> User:
             id=user_data["id"],
             username=user_data["username"],
             full_name=user_data.get("full_name"),
-            email=user_data["email"],
+            email=user_data.get("email") or placeholder_email,
             role=UserRole(user_data["role"]),
         )
         session.add(user)
@@ -192,8 +198,12 @@ async def _sync_user_fields(session: AsyncSession, user: User, user_data: dict) 
     if desired_full_name and user.full_name != desired_full_name:
         user.full_name = desired_full_name
         updated = True
-    if user.email != user_data["email"]:
-        user.email = user_data["email"]
+    # Same rule for email: a login without an address (IdP claim missing, or a
+    # transient identity lookup failure in the proxy) never downgrades a stored
+    # real address to empty or to a placeholder.
+    desired_email = (user_data.get("email") or "").strip()
+    if desired_email and user.email != desired_email:
+        user.email = desired_email
         updated = True
     desired_role = UserRole(user_data["role"])
     if user.role != desired_role:
@@ -264,10 +274,12 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
         "id": user_id,
         "username": forwarded_user,
         "full_name": forwarded_full_name or None,
-        "email": forwarded_email or f"{forwarded_user}@spoke.local",
+        # Server-resolved by auth-header-injector from the OpenShift Identity
+        # extra.email; absent when unknown, so the stored address is kept.
+        "email": forwarded_email.strip() or None,
         "role": role.value,
     }
-    user = await _get_or_create_user(session, user_data)
+    user = await _get_or_create_user(session, user_data, placeholder_email=f"{forwarded_user}@spoke.local")
     user = await _sync_user_fields(session, user, user_data)
 
     # Upsert namespace escalation email contacts from header

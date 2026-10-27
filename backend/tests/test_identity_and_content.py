@@ -248,10 +248,9 @@ async def test_resolve_input_legacy_message_resolves_and_drops_unknown():
     assert [u.id for u in prepared.recipients] == ["u-alice"]
 
 
-@pytest.mark.asyncio
-async def test_risk_comment_email_uses_display_text_for_mentions():
+async def _run_sec_team_risk_comment(creator: User) -> AsyncMock:
+    """Post a sec-team RA comment mentioning someone else; return the email mock."""
     mentioned = _user("u-mentioned", "alice", full_name="Alice Example")
-    creator = _user("u-creator", "creator", full_name="Risk Owner")
     author = CurrentUser(
         id="u-author",
         username="secadmin",
@@ -289,8 +288,21 @@ async def test_risk_comment_email_uses_display_text_for_mentions():
             content=[MentionSegmentIn(type="mention", user_id=mentioned.id)],
             current_user=author,
         )
+    return send_email
 
+
+@pytest.mark.asyncio
+async def test_risk_comment_email_uses_display_text_for_mentions():
+    send_email = await _run_sec_team_risk_comment(_user("u-creator", "creator", full_name="Risk Owner"))
+    assert send_email.await_args.args[0] == "creator@example.com"
     assert send_email.await_args.args[-1] == "@Alice Example"
+
+
+@pytest.mark.asyncio
+async def test_risk_comment_email_skipped_for_placeholder_creator_address():
+    creator = _user("u-creator", "creator", email="creator@cluster.local")
+    send_email = await _run_sec_team_risk_comment(creator)
+    send_email.assert_not_awaited()
 
 
 # --- migration 022 backfill helper --------------------------------------------

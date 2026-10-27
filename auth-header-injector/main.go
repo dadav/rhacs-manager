@@ -137,44 +137,63 @@ func (c *nsCache) update(userToNS, groupToNS map[string][]string, nsEmails map[s
 }
 
 // tokenGroupsCache caches token -> groups lookups to avoid per-request API calls.
-type tokenGroupsCache struct {
+// unresolvedInfoTTL is how long a partial user lookup (email unresolved) is
+// cached, and the Retry-After hint when the user lookup itself fails. It is
+// short so a transient API failure is retried soon.
+const unresolvedInfoTTL = 5 * time.Second
+
+// identityLookupTimeout bounds the whole identity email lookup for one token, so
+// a stalled Identity API never holds a request back for long.
+const identityLookupTimeout = 5 * time.Second
+
+// userInfo is everything resolved server-side for one access token.
+type userInfo struct {
+	Groups   []string
+	FullName string
+	// Email is the first non-empty extra.email of the user's OpenShift identities.
+	Email string
+	// EmailResolved is false when the identity lookup failed or timed out. An
+	// empty Email with EmailResolved=true means the IdP provides no email.
+	EmailResolved bool
+}
+
+type tokenInfoCache struct {
 	mu      sync.RWMutex
-	entries map[string]tokenGroupsEntry
+	entries map[string]tokenInfoEntry
 	ttl     time.Duration
 }
 
-type tokenGroupsEntry struct {
-	groups    []string
-	fullName  string
+type tokenInfoEntry struct {
+	info      userInfo
 	fetchedAt time.Time
 	ttl       time.Duration
 }
 
-func newTokenGroupsCache(ttl time.Duration) *tokenGroupsCache {
-	return &tokenGroupsCache{
-		entries: make(map[string]tokenGroupsEntry),
+func newTokenInfoCache(ttl time.Duration) *tokenInfoCache {
+	return &tokenInfoCache{
+		entries: make(map[string]tokenInfoEntry),
 		ttl:     ttl,
 	}
 }
 
-func (c *tokenGroupsCache) get(token string) ([]string, string, bool) {
+func (c *tokenInfoCache) get(token string) (userInfo, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	entry, ok := c.entries[token]
 	if !ok || time.Since(entry.fetchedAt) > entry.ttl {
-		return nil, "", false
+		return userInfo{}, false
 	}
-	return entry.groups, entry.fullName, true
+	return entry.info, true
 }
 
-func (c *tokenGroupsCache) set(token string, groups []string, fullName string) {
-	c.setWithTTL(token, groups, fullName, c.ttl)
+func (c *tokenInfoCache) set(token string, info userInfo) {
+	c.setWithTTL(token, info, c.ttl)
 }
 
-func (c *tokenGroupsCache) setWithTTL(token string, groups []string, fullName string, ttl time.Duration) {
+func (c *tokenInfoCache) setWithTTL(token string, info userInfo, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.entries[token] = tokenGroupsEntry{groups: groups, fullName: fullName, fetchedAt: time.Now(), ttl: ttl}
+	c.entries[token] = tokenInfoEntry{info: info, fetchedAt: time.Now(), ttl: ttl}
 
 	// Evict expired entries periodically (when cache grows large).
 	if len(c.entries) > 1000 {
@@ -189,36 +208,97 @@ func (c *tokenGroupsCache) setWithTTL(token string, groups []string, fullName st
 
 // openShiftUserResponse is the relevant subset of the OpenShift user API response.
 type openShiftUserResponse struct {
-	FullName string   `json:"fullName"`
-	Groups   []string `json:"groups"`
+	FullName   string   `json:"fullName"`
+	Groups     []string `json:"groups"`
+	Identities []string `json:"identities"`
 }
 
-// fetchUserInfo calls the OpenShift user API to get the groups and full name for
-// a token. The full name is the OpenShift User resource's fullName field.
-func fetchUserInfo(kubeAPIURL, token string, httpClient *http.Client) ([]string, string, error) {
+// openShiftIdentityResponse is the relevant subset of an OpenShift Identity.
+// extra.email is filled by OIDC/LDAP/GitHub/Google identity providers.
+type openShiftIdentityResponse struct {
+	Extra map[string]string `json:"extra"`
+}
+
+// fetchUserInfo calls the OpenShift user API (users/~) with the user's own token.
+func fetchUserInfo(ctx context.Context, kubeAPIURL, token string, httpClient *http.Client) (openShiftUserResponse, error) {
 	reqURL := kubeAPIURL + "/apis/user.openshift.io/v1/users/~"
-	req, err := http.NewRequest("GET", reqURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
-		return nil, "", fmt.Errorf("create request: %w", err)
+		return openShiftUserResponse{}, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("call user API: %w", err)
+		return openShiftUserResponse{}, fmt.Errorf("call user API: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, "", fmt.Errorf("user API returned %d: %s", resp.StatusCode, string(body))
+		return openShiftUserResponse{}, fmt.Errorf("user API returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	var user openShiftUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, "", fmt.Errorf("decode user response: %w", err)
+		return openShiftUserResponse{}, fmt.Errorf("decode user response: %w", err)
 	}
-	return user.Groups, strings.TrimSpace(user.FullName), nil
+	return user, nil
+}
+
+// resolveIdentityEmail returns the first non-empty extra.email across the user's
+// identities, in order. Any fetch or decode error aborts with that error, so a
+// partial lookup is never reported as "no email".
+func resolveIdentityEmail(
+	ctx context.Context,
+	identities []string,
+	getIdentity func(ctx context.Context, name string) ([]byte, error),
+) (string, error) {
+	for _, name := range identities {
+		if err := ctx.Err(); err != nil {
+			return "", fmt.Errorf("identity lookup aborted: %w", err)
+		}
+		raw, err := getIdentity(ctx, name)
+		if err != nil {
+			return "", fmt.Errorf("get identity %q: %w", name, err)
+		}
+		var identity openShiftIdentityResponse
+		if err := json.Unmarshal(raw, &identity); err != nil {
+			return "", fmt.Errorf("decode identity %q: %w", name, err)
+		}
+		if email := strings.TrimSpace(identity.Extra["email"]); email != "" {
+			return email, nil
+		}
+	}
+	return "", nil
+}
+
+// resolveUserInfo fetches groups and full name with the user's token, then the
+// identity email with one bounded deadline. An email failure keeps groups and
+// full name and only marks the email unresolved.
+func resolveUserInfo(
+	ctx context.Context,
+	token string,
+	fetchUser func(ctx context.Context, token string) (openShiftUserResponse, error),
+	getIdentity func(ctx context.Context, name string) ([]byte, error),
+	timeout time.Duration,
+) (userInfo, error) {
+	user, err := fetchUser(ctx, token)
+	if err != nil {
+		return userInfo{}, err
+	}
+	info := userInfo{Groups: user.Groups, FullName: strings.TrimSpace(user.FullName)}
+
+	idCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	email, err := resolveIdentityEmail(idCtx, user.Identities, getIdentity)
+	if err != nil {
+		slog.Warn("failed to resolve identity email", "identities", user.Identities, "error", err)
+		return info, nil
+	}
+	info.Email = email
+	info.EmailResolved = true
+	return info, nil
 }
 
 // refreshLoop periodically fetches namespace annotations and rebuilds the cache.
@@ -289,19 +369,22 @@ func fetchAndUpdate(ctx context.Context, client kubernetes.Interface, cache *nsC
 }
 
 // newProxyHandler builds the request handler that resolves namespaces/groups and
-// proxies upstream. fetchGroups looks up a token's OpenShift groups (injected so
-// tests can stub it without a live API).
+// proxies upstream. fetchInfo resolves a token's groups, full name, and identity
+// email (injected so tests can stub it without a live API).
 func newProxyHandler(
 	proxy http.Handler,
 	cache *nsCache,
-	tokenCache *tokenGroupsCache,
+	tokenCache *tokenInfoCache,
 	cfg config,
-	fetchInfo func(token string) ([]string, string, error),
+	fetchInfo func(ctx context.Context, token string) (userInfo, error),
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// The full name is server-resolved from the OpenShift User API. Strip any
-		// inbound value up front so a client can never spoof it to the upstream.
+		// Full name and email are server-resolved from the OpenShift User and
+		// Identity APIs. Strip any inbound value up front so a client can never
+		// spoof them to the upstream. This also drops oauth-proxy's placeholder
+		// X-Forwarded-Email (<user>@cluster.local), which is not a real mailbox.
 		r.Header.Del("X-Forwarded-Full-Name")
+		r.Header.Del("X-Forwarded-Email")
 
 		user := r.Header.Get("X-Forwarded-User")
 		if user == "" {
@@ -317,35 +400,56 @@ func newProxyHandler(
 		// Resolve user-based namespaces.
 		userNamespaces := cache.namespacesForUser(user)
 
-		// Resolve group-based namespaces and full name via OpenShift user API.
-		var userGroups []string
-		var fullName string
+		// Resolve groups, full name, and email via the OpenShift APIs.
+		var info userInfo
 		accessToken := r.Header.Get("X-Forwarded-Access-Token")
 		if accessToken != "" {
-			groups, name, ok := tokenCache.get(accessToken)
-			if !ok {
-				var err error
-				groups, name, err = fetchInfo(accessToken)
-				if err != nil {
+			cached, ok := tokenCache.get(accessToken)
+			if ok {
+				info = cached
+			} else {
+				fetched, err := fetchInfo(r.Context(), accessToken)
+				if ctxErr := r.Context().Err(); ctxErr != nil {
+					// The client went away mid-lookup. The result says nothing about
+					// the token, so neither cache it nor forward a request built from
+					// it: empty groups would downgrade namespaces and role upstream.
+					slog.Debug("request cancelled during user lookup", "user", user, "error", ctxErr)
+					return
+				}
+				switch {
+				case err != nil:
+					// Fail closed: forwarding with empty groups would drop group-based
+					// namespaces, wildcard access, and sec-team membership, and the
+					// backend would persist the downgraded role. Nothing is cached, so
+					// the next request retries the lookup.
 					slog.Warn("failed to fetch user info", "user", user, "error", err)
-					// Cache empty result briefly to avoid hammering the API, but expire
-					// quickly so the user gets a retry soon.
-					groups = []string{}
-					name = ""
-					tokenCache.setWithTTL(accessToken, groups, name, 5*time.Second)
-				} else {
-					tokenCache.set(accessToken, groups, name)
-					slog.Debug("fetched user info from API", "user", user, "groups", groups)
+					w.Header().Set("Retry-After", strconv.Itoa(int(unresolvedInfoTTL.Seconds())))
+					http.Error(w, "user lookup failed, retry shortly", http.StatusServiceUnavailable)
+					return
+				case !fetched.EmailResolved:
+					// Groups and full name are usable; only the email lookup failed.
+					// Retry it soon instead of caching the gap for the full TTL.
+					info = fetched
+					tokenCache.setWithTTL(accessToken, info, unresolvedInfoTTL)
+				default:
+					info = fetched
+					tokenCache.set(accessToken, info)
+					slog.Debug("fetched user info from API", "user", user, "groups", info.Groups)
 				}
 			}
-			userGroups = groups
-			fullName = name
 		}
+		userGroups := info.Groups
 
 		// Set the resolved full name (empty is fine; the backend falls back to
 		// the username for display).
-		if fullName != "" {
-			r.Header.Set("X-Forwarded-Full-Name", fullName)
+		if info.FullName != "" {
+			r.Header.Set("X-Forwarded-Full-Name", info.FullName)
+		}
+
+		// Set the resolved email only when known. An absent header tells the
+		// backend to keep the stored address.
+		if info.EmailResolved && info.Email != "" {
+			r.Header.Set("X-Forwarded-Email", info.Email)
 		}
 
 		// The inbound X-Forwarded-Groups header is client-controllable, so it is
@@ -451,6 +555,8 @@ func main() {
 		slog.Error("failed to get in-cluster config", "error", err)
 		os.Exit(1)
 	}
+	// Backstop for every clientset call; client-go's zero default means no timeout.
+	restCfg.Timeout = 10 * time.Second
 	clientset, err := kubernetes.NewForConfig(restCfg)
 	if err != nil {
 		slog.Error("failed to create k8s client", "error", err)
@@ -463,7 +569,7 @@ func main() {
 		nsEmails:  make(map[string]string),
 	}
 
-	tokenCache := newTokenGroupsCache(time.Duration(cfg.GroupCacheTTLSeconds) * time.Second)
+	tokenCache := newTokenInfoCache(time.Duration(cfg.GroupCacheTTLSeconds) * time.Second)
 
 	// HTTP client for OpenShift user API calls (skip TLS verification for in-cluster).
 	apiHTTPClient := &http.Client{
@@ -485,8 +591,17 @@ func main() {
 	}
 	proxy := httputil.NewSingleHostReverseProxy(upstream)
 
-	fetchInfo := func(token string) ([]string, string, error) {
-		return fetchUserInfo(cfg.KubeAPIURL, token, apiHTTPClient)
+	fetchUser := func(ctx context.Context, token string) (openShiftUserResponse, error) {
+		return fetchUserInfo(ctx, cfg.KubeAPIURL, token, apiHTTPClient)
+	}
+	// Identities are read with the service account: user tokens cannot get them.
+	getIdentity := func(ctx context.Context, name string) ([]byte, error) {
+		return clientset.CoreV1().RESTClient().Get().
+			AbsPath("/apis/user.openshift.io/v1/identities", name).
+			DoRaw(ctx)
+	}
+	fetchInfo := func(ctx context.Context, token string) (userInfo, error) {
+		return resolveUserInfo(ctx, token, fetchUser, getIdentity, identityLookupTimeout)
 	}
 
 	mux := http.NewServeMux()

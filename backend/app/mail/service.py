@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import aiosmtplib
+from email_validator import EmailNotValidError, validate_email
 from jinja2 import Environment, FileSystemLoader
 
 from ..config import settings
@@ -18,6 +19,24 @@ logger = logging.getLogger(__name__)
 
 _template_dir = Path(__file__).parent / "templates"
 _jinja_env = Environment(loader=FileSystemLoader(str(_template_dir)), autoescape=True)
+
+
+def deliverable_address(raw: str | None, *, user_id: str, purpose: str) -> str | None:
+    """Return the normalized address, or None when it cannot receive mail.
+
+    Single recipient filter for every email addressed to a user row. Syntax-only
+    validation (no DNS) keeps it cheap and offline-safe. Placeholders such as
+    ``<user>@cluster.local`` / ``<user>@spoke.local`` are rejected as special-use
+    domains, so those users get the in-app notification only.
+    """
+    try:
+        return validate_email(raw or "", check_deliverability=False).normalized
+    except EmailNotValidError as exc:
+        logger.warning(
+            "Skipping email: invalid recipient address",
+            extra={"user_id": user_id, "purpose": purpose, "reason": str(exc)},
+        )
+        return None
 
 
 def _app_link(base_url: str, path: str) -> str:

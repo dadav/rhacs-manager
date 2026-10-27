@@ -20,7 +20,6 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from email_validator import EmailNotValidError, validate_email
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -343,10 +342,8 @@ async def run_team_digest(app_db: AsyncSession, sx_db: AsyncSession, now: dateti
         user = recipient.user
         if not await prefs.wants(app_db, user.id, "team_digest", "email"):
             continue
-        try:
-            to_email = validate_email(user.email or "", check_deliverability=False).normalized
-        except EmailNotValidError as exc:
-            logger.warning("team_digest_skipped_invalid_email", extra={"user_id": user.id, "reason": str(exc)})
+        to_email = mail_svc.deliverable_address(user.email, user_id=user.id, purpose="team_digest")
+        if to_email is None:
             continue
         try:
             stats = await build_team_digest_stats(app_db, sx_db, recipient, now, cache)
