@@ -260,6 +260,23 @@ an email.
   explicitly mentions the acceptance's creator, the creator receives only the
   mention notification and email, not a second general "new comment" notice.
 
+### My comments
+
+**My comments** in the sidebar lists every discussion you commented in: CVE
+threads, risk acceptances and (sec team) escalation contacts. Each discussion
+appears once, with your latest comment, how many comments you wrote, and how
+many replies from others arrived since your latest comment. Discussions with the
+newest activity come first; **Only with new replies** narrows the list.
+
+- **Open** jumps to your latest comment on the CVE or risk-acceptance page.
+- **Expand** shows the whole discussion inline. This still works when the CVE no
+  longer affects any deployment in your namespaces (for example after it was
+  fixed): the CVE page then shows "not found", but the discussion stays readable
+  here.
+- If you lost access to a risk acceptance, only your own comment is shown. No
+  replies or reply counts are revealed.
+- Replying to your own comment resets the "new" counter for that discussion.
+
 ## Badges
 
 The **SVG Badges** page creates public badge URLs that render without authentication.

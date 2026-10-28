@@ -252,6 +252,30 @@ export interface RiskScope {
   targets: RiskScopeTarget[]
 }
 
+export type MyCommentKind = 'cve' | 'risk_acceptance' | 'escalation'
+
+// One row per thread the current user commented in (GET /comments/mine).
+// thread_available: the comment thread can be read. detail_available: the
+// CVE/RA detail page will load (a CVE that left the user's namespaces 404s
+// there while its global comment thread stays readable).
+export interface MyCommentThread {
+  kind: MyCommentKind
+  cve_id: string
+  risk_acceptance_id: string | null
+  escalation_context: EscalationContext | null
+  my_comment_count: number
+  my_last_comment_id: string
+  my_last_comment_at: string
+  my_last_message: string
+  my_last_content: CommentContentSegment[] | null
+  replies_since: number
+  last_reply_at: string | null
+  last_reply_by_name: string | null
+  thread_available: boolean
+  detail_available: boolean
+  detail_link: string | null
+}
+
 export interface RiskComment {
   id: string
   risk_acceptance_id: string

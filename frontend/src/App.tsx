@@ -36,6 +36,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const CveList = lazy(() => import("./pages/CveList").then(m => ({ default: m.CveList })));
 const CveDetail = lazy(() => import("./pages/CveDetail").then(m => ({ default: m.CveDetail })));
+const MyComments = lazy(() => import("./pages/MyComments").then(m => ({ default: m.MyComments })));
 const RiskAcceptances = lazy(() => import("./pages/RiskAcceptances").then(m => ({ default: m.RiskAcceptances })));
 const RiskAcceptanceDetail = lazy(() => import("./pages/RiskAcceptanceDetail").then(m => ({ default: m.RiskAcceptanceDetail })));
 const Priorities = lazy(() => import("./pages/Priorities").then(m => ({ default: m.Priorities })));
@@ -63,6 +64,7 @@ const TEAM_NAV_ITEMS: NavEntry[] = [
   { to: "/escalations", labelKey: "nav.escalations" },
   { to: "/badges", labelKey: "nav.badges" },
   { to: "/suppression-rules", labelKey: "nav.suppressionRules" },
+  { to: "/my-comments", labelKey: "nav.myComments" },
 ];
 
 const SEC_NAV_ITEMS: NavEntry[] = [
@@ -360,6 +362,7 @@ export function App() {
           />
           <Route path="/badges" element={<Badges />} />
           <Route path="/suppression-rules" element={<SuppressionRules />} />
+          <Route path="/my-comments" element={<MyComments />} />
           <Route path="/my-settings" element={<MySettings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

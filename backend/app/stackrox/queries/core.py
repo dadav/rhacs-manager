@@ -387,3 +387,38 @@ async def cve_visible_in_namespaces(
 
     result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
     return result.first() is not None
+
+
+async def cves_visible_in_namespaces(
+    session: AsyncSession,
+    cve_ids: list[str],
+    namespaces: list[tuple[str, str]] | None,
+) -> set[str]:
+    """Subset of ``cve_ids`` that affect any deployment in the given namespaces.
+
+    Batched form of ``cve_visible_in_namespaces``. ``namespaces=None`` means no
+    namespace filter (all-namespace users); the CVE must still affect at least
+    one deployment, mirroring ``get_cve`` which 404s otherwise.
+    """
+    if not cve_ids:
+        return set()
+    if namespaces is not None and not namespaces:
+        return set()
+
+    ns_where = ""
+    ns_params: dict[str, str] = {}
+    if namespaces is not None:
+        ns_fragment, ns_params = _namespace_filter(namespaces)
+        ns_where = f"AND {ns_fragment}"
+
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT DISTINCT ic.cvebaseinfo_cve AS cve_id
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+          {ns_where}
+    """)
+
+    result = await session.execute(sql, {"cve_ids": list(cve_ids), **ns_params, **await effective_score_params()})
+    return {row.cve_id for row in result}

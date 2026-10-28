@@ -16,6 +16,7 @@ from .routers import (
     audit,
     auth,
     badges,
+    comments,
     cves,
     dashboard,
     escalations,
@@ -159,6 +160,7 @@ else:
 # Register all routers under /api prefix
 for router_module in [
     auth,
+    comments,
     dashboard,
     cves,
     images,

@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { invalidateMyComments } from './comments'
 import type { Paginated, CveListItem, CveDetail, AffectedDeployment, CveComment, CommentInput, ImageCveGroup, ImageCveDetail, FixRollupResponse } from '../types'
 import { scopeApiParams, type ScopeParams } from '../hooks/useScope'
 
@@ -148,7 +149,8 @@ export function useAddCveComment(cveId: string) {
   return useMutation({
     mutationFn: (payload: CommentInput) =>
       api.post<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments`, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
+    onSuccess: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }), invalidateMyComments(qc)]),
   })
 }
 
@@ -157,7 +159,8 @@ export function useEditCveComment(cveId: string) {
   return useMutation({
     mutationFn: ({ commentId, payload }: { commentId: string; payload: CommentInput }) =>
       api.patch<CveComment>(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
+    onSuccess: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }), invalidateMyComments(qc)]),
   })
 }
 
@@ -166,6 +169,7 @@ export function useDeleteCveComment(cveId: string) {
   return useMutation({
     mutationFn: (commentId: string) =>
       api.delete(`/cves/${encodeURIComponent(cveId)}/comments/${commentId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }),
+    onSuccess: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: cveKeys.comments(cveId) }), invalidateMyComments(qc)]),
   })
 }

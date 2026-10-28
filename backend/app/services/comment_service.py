@@ -42,6 +42,13 @@ from .comment_content import (
 logger = logging.getLogger(__name__)
 
 
+def escalation_context(esc: Escalation | None) -> EscalationContext | None:
+    """Cluster/namespace/level label for an escalation-scoped comment (sec team only)."""
+    if esc is None:
+        return None
+    return EscalationContext(cluster_name=esc.cluster_name, namespace=esc.namespace, level=esc.level)
+
+
 def display_map(users: dict[str, User]) -> dict[str, str]:
     """user_id -> current display_name, for enriching mention segments."""
     return {uid: u.display_name for uid, u in users.items()}
@@ -243,14 +250,6 @@ async def update_cve_comment(
         escalation_result = await db.execute(select(Escalation).where(Escalation.id == comment.escalation_id))
         escalation = escalation_result.scalar_one_or_none()
 
-    escalation_context = None
-    if escalation is not None:
-        escalation_context = EscalationContext(
-            cluster_name=escalation.cluster_name,
-            namespace=escalation.namespace,
-            level=escalation.level,
-        )
-
     return (
         CveCommentResponse(
             id=comment.id,
@@ -263,7 +262,7 @@ async def update_cve_comment(
             created_at=comment.created_at,
             updated_at=comment.updated_at,
             is_sec_team=current_user.is_sec_team,
-            escalation_context=escalation_context,
+            escalation_context=escalation_context(escalation),
         ),
         mention_result.email_jobs,
     )

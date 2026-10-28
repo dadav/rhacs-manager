@@ -21,6 +21,7 @@
     "escalations": "Eskalationen",
     "badges": "SVG-Badges",
     "suppressionRules": "False Positives",
+    "myComments": "Meine Kommentare",
     "settings": "Einstellungen",
     "auditLog": "Audit-Log",
     "general": "Allgemein",
@@ -1033,5 +1034,37 @@
       "escalation": "Eskalationsstufen (Security-Team).",
       "team_digest": "Wöchentliche E-Mail mit Kennzahlen und Links für Ihre Namespaces, ohne CVE-Details."
     }
+  },
+  "myComments": {
+    "title": "Meine Kommentare",
+    "description": "Alle Diskussionen, in denen Sie kommentiert haben. Neue Antworten seit Ihrem letzten Kommentar stehen oben.",
+    "kindAll": "Alle",
+    "kind": {
+      "cve": "Schwachstelle",
+      "risk_acceptance": "Risikoakzeptanz",
+      "escalation": "Eskalation"
+    },
+    "onlyWithReplies": "Nur mit neuen Antworten",
+    "colKind": "Typ",
+    "colContext": "Bezug",
+    "colMyComment": "Mein letzter Kommentar",
+    "colCount": "Meine Kommentare",
+    "colReplies": "Antworten",
+    "newReplies_one": "{{count}} neu",
+    "newReplies_other": "{{count}} neu",
+    "lastReply": "{{name}}, {{date}}",
+    "noNewReplies": "Keine neuen",
+    "open": "Öffnen",
+    "detailUnavailable": "Detailseite nicht mehr verfügbar",
+    "detailUnavailableHint": "Die Schwachstelle betrifft keine Deployments in Ihren Namespaces mehr. Die Diskussion bleibt hier lesbar.",
+    "threadUnavailable": "Kein Zugriff mehr",
+    "threadUnavailableHint": "Sie haben keinen Zugriff mehr auf diese Risikoakzeptanz. Nur Ihr eigener Kommentar wird angezeigt.",
+    "riskAcceptanceLabel": "Risikoakzeptanz zu {{cve}}",
+    "escalationLabel": "{{cve}} · {{cluster}}/{{namespace}} (Stufe {{level}})",
+    "showThread": "Diskussion anzeigen",
+    "threadLoading": "Diskussion wird geladen...",
+    "threadEmpty": "Keine Kommentare vorhanden.",
+    "empty": "Sie haben noch nicht kommentiert.",
+    "emptyFiltered": "Keine Diskussionen für diesen Filter."
   }
 }

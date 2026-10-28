@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { invalidateMyComments } from './comments'
 import type {
   ActiveSearchResponse,
   CommentInput,
@@ -94,6 +95,7 @@ export function useAddEscalationComment() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['escalations'] }),
         qc.invalidateQueries({ queryKey: ['cves', 'comments'] }),
+        invalidateMyComments(qc),
       ])
     },
   })

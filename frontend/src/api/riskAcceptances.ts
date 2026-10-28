@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
+import { invalidateMyComments } from './comments'
 import type { CommentInput, RiskAcceptance, RiskComment, RiskScope } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
 
@@ -108,6 +109,7 @@ export function useAddComment(raId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: raKeys.comments(raId) })
       qc.invalidateQueries({ queryKey: raKeys.detail(raId) })
+      invalidateMyComments(qc)
     },
   })
 }

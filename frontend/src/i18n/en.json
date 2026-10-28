@@ -21,6 +21,7 @@
     "escalations": "Escalations",
     "badges": "Badges",
     "suppressionRules": "False Positives",
+    "myComments": "My comments",
     "settings": "Settings",
     "auditLog": "Audit Log",
     "general": "General",
@@ -1033,5 +1034,37 @@
       "escalation": "Escalation levels (security team).",
       "team_digest": "Weekly email with counts and links for your namespaces, without CVE details."
     }
+  },
+  "myComments": {
+    "title": "My comments",
+    "description": "Every discussion you commented in. Threads with new replies since your last comment come first.",
+    "kindAll": "All",
+    "kind": {
+      "cve": "Vulnerability",
+      "risk_acceptance": "Risk acceptance",
+      "escalation": "Escalation"
+    },
+    "onlyWithReplies": "Only with new replies",
+    "colKind": "Type",
+    "colContext": "Context",
+    "colMyComment": "My last comment",
+    "colCount": "My comments",
+    "colReplies": "Replies",
+    "newReplies_one": "{{count}} new",
+    "newReplies_other": "{{count}} new",
+    "lastReply": "{{name}}, {{date}}",
+    "noNewReplies": "None new",
+    "open": "Open",
+    "detailUnavailable": "Detail page no longer available",
+    "detailUnavailableHint": "The vulnerability no longer affects deployments in your namespaces. The discussion stays readable here.",
+    "threadUnavailable": "No longer accessible",
+    "threadUnavailableHint": "You no longer have access to this risk acceptance. Only your own comment is shown.",
+    "riskAcceptanceLabel": "Risk acceptance for {{cve}}",
+    "escalationLabel": "{{cve}} · {{cluster}}/{{namespace}} (level {{level}})",
+    "showThread": "Show discussion",
+    "threadLoading": "Loading discussion...",
+    "threadEmpty": "No comments.",
+    "empty": "You have not commented yet.",
+    "emptyFiltered": "No discussions match this filter."
   }
 }

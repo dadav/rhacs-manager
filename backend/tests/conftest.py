@@ -24,6 +24,7 @@ def _build_app() -> FastAPI:
         audit,
         auth,
         badges,
+        comments,
         cves,
         dashboard,
         escalations,
@@ -50,6 +51,7 @@ def _build_app() -> FastAPI:
     test_app.add_middleware(LanguageMiddleware)
     for router_module in [
         auth,
+        comments,
         dashboard,
         cves,
         namespaces,

@@ -28,7 +28,6 @@ from ..schemas.cve import (
     CveDetail,
     CveListItem,
     CveOriginRating,
-    EscalationContext,
     ImageCveDetail,
     ImageCveGroup,
     SeverityLevel,
@@ -52,12 +51,6 @@ router = APIRouter(prefix="/cves", tags=["cves"])
 async def _get_settings(db: AsyncSession) -> GlobalSettings | None:
     r = await db.execute(select(GlobalSettings).limit(1))
     return r.scalar_one_or_none()
-
-
-def _escalation_context(esc: Escalation | None) -> EscalationContext | None:
-    if esc is None:
-        return None
-    return EscalationContext(cluster_name=esc.cluster_name, namespace=esc.namespace, level=esc.level)
 
 
 def _origin_or_none(code: int | None) -> VulnOrigin | None:
@@ -625,7 +618,9 @@ async def list_cve_comments(
                 created_at=c.created_at,
                 updated_at=c.updated_at,
                 is_sec_team=user.role.value == "sec_team" if user else False,
-                escalation_context=_escalation_context(esc_map.get(c.escalation_id)) if c.escalation_id else None,
+                escalation_context=comment_service.escalation_context(esc_map.get(c.escalation_id))
+                if c.escalation_id
+                else None,
             )
         )
     return out

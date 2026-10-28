@@ -231,6 +231,33 @@ only.
 
 Wildcard all-namespace users can list escalations across the full fleet, but this does not grant sec-team review privileges elsewhere in the API.
 
+## Comments
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| GET | `/api/comments/mine` | Any | Threads the current user commented in, newest activity first |
+
+### `GET /api/comments/mine`
+
+Query parameters: `kind` (`cve` \| `risk_acceptance` \| `escalation`),
+`only_with_replies` (bool), `page` (default 1), `page_size` (default 25, max 200).
+Returns `PaginatedResponse[MyCommentThread]`, one item per thread (all comments
+on one CVE, or on one risk acceptance).
+
+- Latest own comment and latest reply are each taken from a single row ordered
+  by `(created_at DESC, id DESC)`. `replies_since` counts other users' comments
+  after the user's latest own comment.
+- `kind` is `escalation` only for sec-team users whose latest own comment in the
+  thread is escalation-scoped; `escalation_context` is sec-team only.
+- `thread_available`: the thread is readable through the existing comment
+  endpoints (always true for CVEs, whose comments are global per CVE;
+  `user_can_access_ra` for risk acceptances).
+- `detail_available` / `detail_link`: the detail page will load. For CVEs this
+  means the CVE still affects a deployment in the user's namespaces (the rule
+  `GET /api/cves/{cve_id}` applies).
+- Risk acceptances the user can no longer access return `replies_since=0` and
+  no `last_reply_*` fields.
+
 ## Notifications
 
 | Method | Path | Role | Description |
