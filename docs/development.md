@@ -233,6 +233,9 @@ Key fields on `image_cves_v2` (all carried through `cve_rows`):
 !!! note "One CVE, several feeds"
     The same CVE can be reported by several feeds (for example Red Hat and OSV) with different severities and CVSS scores. CVE-level fields take `MAX` across feeds; the CVE detail endpoint also returns the per-feed values (`origin_ratings`).
 
+!!! warning "Scores come from the effective-score map"
+    `CVE_ROWS_CTE` replaces `severity`, `cvss`, and `cvebaseinfo_epss_epssprobability` with scope-independent values from `app/stackrox/effective_scores.py` (freshest scan per CVE, feed, and component). Every query that interpolates `CVE_ROWS_CTE` or `EFFECTIVE_SCORES_CTE` must bind `**await effective_score_params()`; `tests/test_effective_scores_binding.py` enforces this. Do not aggregate the raw `image_cves_v2` score columns for user-facing values. `tests/test_effective_scores_pg.py` runs the queries against a real PostgreSQL (`STACKROX_TEST_DB_URL`, default the local dev app DB, inside a rolled-back transaction) and is skipped when none is reachable.
+
 ### Updating the vendored StackRox proto
 
 `backend/app/stackrox/proto/storage/cve.proto` (used to decode `image_cves_v2.serialized`) and its copy in `tools/decode-cve-proto/` are vendored verbatim from a StackRox release tag. To move to a new release:

@@ -10,6 +10,9 @@ with ORDER BY ... LIMIT 1, preferring the row that actually carries scan data.
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
+from ._common import EFFECTIVE_SCORES_CTE
+
 # Picks the one images_v2 row to use for a digest: prefer a row with scan data,
 # then the most recently updated. COALESCE keeps a NULL count from sorting first
 # (ORDER BY ... DESC is NULLS FIRST in PostgreSQL).
@@ -46,8 +49,7 @@ async def get_image_metadata(
             scanstats_cvecount                  AS cves,
             scanstats_fixablecvecount           AS fixablecves,
             lastupdated,
-            riskscore,
-            topcvss
+            riskscore
         FROM images_v2
         WHERE digest = :image_id
         ORDER BY (COALESCE(scanstats_componentcount, 0) > 0) DESC, lastupdated DESC
@@ -68,8 +70,7 @@ async def get_image_metadata(
             cves,
             fixablecves,
             lastupdated,
-            riskscore,
-            topcvss
+            riskscore
         FROM images
         WHERE id = :image_id
     """)
@@ -121,10 +122,12 @@ async def get_image_cve_timeline(
 
     Groups by firstimageoccurrence month with severity buckets. Reads exactly one
     model — v2 rows if the image has v2 scan data, otherwise the frozen legacy
-    rows — so the COUNT(*) buckets cannot double-count across models.
+    rows — so the COUNT(*) buckets cannot double-count across models. Severity
+    is the scope-independent CVE severity (EFFECTIVE_SCORES_CTE), like every other view.
     """
-    sql = text("""
-        WITH v2img AS (
+    sql = text(f"""
+        WITH {EFFECTIVE_SCORES_CTE},
+        v2img AS (
             SELECT id FROM images_v2
             WHERE digest = :image_id
               AND scanstats_componentcount > 0
@@ -133,11 +136,12 @@ async def get_image_cve_timeline(
         )
         SELECT
             TO_CHAR(DATE_TRUNC('month', ic.firstimageoccurrence), 'YYYY-MM-DD') AS month,
-            COUNT(*) FILTER (WHERE ic.severity = 4) AS critical,
-            COUNT(*) FILTER (WHERE ic.severity = 3) AS important,
-            COUNT(*) FILTER (WHERE ic.severity = 2) AS moderate,
-            COUNT(*) FILTER (WHERE ic.severity <= 1) AS low
+            COUNT(*) FILTER (WHERE COALESCE(es.severity, ic.severity) = 4) AS critical,
+            COUNT(*) FILTER (WHERE COALESCE(es.severity, ic.severity) = 3) AS important,
+            COUNT(*) FILTER (WHERE COALESCE(es.severity, ic.severity) = 2) AS moderate,
+            COUNT(*) FILTER (WHERE COALESCE(es.severity, ic.severity) <= 1) AS low
         FROM image_cves_v2 ic
+        LEFT JOIN effective_scores es ON es.cve = ic.cvebaseinfo_cve
         WHERE (
                 ic.imageidv2 IN (SELECT id FROM v2img)
                 OR (ic.imageid = :image_id AND NOT EXISTS (SELECT 1 FROM v2img))
@@ -146,5 +150,5 @@ async def get_image_cve_timeline(
         GROUP BY DATE_TRUNC('month', ic.firstimageoccurrence)
         ORDER BY month
     """)
-    result = await session.execute(sql, {"image_id": image_id})
+    result = await session.execute(sql, {"image_id": image_id, **await effective_score_params()})
     return [dict(row._mapping) for row in result]

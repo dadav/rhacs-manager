@@ -3,7 +3,6 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, tuple_
-from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser, get_current_user
@@ -336,20 +335,9 @@ async def _mttr_by_severity(
 
     cve_ids = list({r.cve_id for r in rows})
 
-    # Step 2: get severity and first_seen for those CVE IDs from StackRox
+    # Step 2: get severity (scope-independent) and first_seen for those CVE IDs from StackRox
     async with StackRoxSessionLocal() as sx_db:
-        sx_rows = await sx_db.execute(
-            sa_text(
-                "SELECT ic.cvebaseinfo_cve, "
-                "       MAX(ic.severity), "
-                "       MIN(ic.firstimageoccurrence) "
-                "FROM image_cves_v2 ic "
-                "WHERE ic.cvebaseinfo_cve = ANY(:cve_ids) "
-                "GROUP BY ic.cvebaseinfo_cve"
-            ),
-            {"cve_ids": cve_ids},
-        )
-        cve_info = {row[0]: (row[1], row[2]) for row in sx_rows.all()}  # cve_id -> (severity, first_seen)
+        cve_info = await sx.get_cve_severity_and_first_seen(sx_db, cve_ids)  # cve_id -> (severity, first_seen)
 
     # Step 3: compute per-remediation MTTR using first_seen, aggregate by severity
     sev_totals: dict[int, list[float]] = defaultdict(list)

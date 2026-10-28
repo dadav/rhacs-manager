@@ -1,0 +1,122 @@
+-- Minimal StackRox Central schema for tests/test_effective_scores_pg.py.
+-- Column definitions copied from an ACS 4.11.6 central_active (pg_dump --schema-only);
+-- constraints and indexes omitted. Tables are created in a throwaway schema.
+
+CREATE TABLE deployments (
+    id uuid NOT NULL,
+    name character varying,
+    type character varying,
+    namespace character varying,
+    namespaceid uuid,
+    orchestratorcomponent boolean,
+    labels jsonb,
+    podlabels jsonb,
+    created timestamp without time zone,
+    clusterid uuid,
+    clustername character varying,
+    annotations jsonb,
+    priority bigint,
+    imagepullsecrets text[],
+    serviceaccount character varying,
+    serviceaccountpermissionlevel integer,
+    riskscore numeric,
+    platformcomponent boolean,
+    serialized bytea,
+    hash numeric
+);
+
+CREATE TABLE deployments_containers (
+    deployments_id uuid NOT NULL,
+    idx integer NOT NULL,
+    image_id character varying,
+    image_name_registry character varying,
+    image_name_remote character varying,
+    image_name_tag character varying,
+    image_name_fullname character varying,
+    securitycontext_privileged boolean,
+    securitycontext_dropcapabilities text[],
+    securitycontext_addcapabilities text[],
+    securitycontext_readonlyrootfilesystem boolean,
+    resources_cpucoresrequest numeric,
+    resources_cpucoreslimit numeric,
+    resources_memorymbrequest numeric,
+    resources_memorymblimit numeric,
+    image_idv2 character varying,
+    type integer
+);
+
+CREATE TABLE image_component_v2 (
+    id character varying NOT NULL,
+    name character varying,
+    version character varying,
+    priority bigint,
+    source integer,
+    riskscore numeric,
+    topcvss numeric,
+    operatingsystem character varying,
+    imageid character varying,
+    location character varying,
+    serialized bytea,
+    imageidv2 character varying,
+    layertype integer
+);
+
+CREATE TABLE image_cves_v2 (
+    id character varying NOT NULL,
+    imageid character varying,
+    cvebaseinfo_cve character varying,
+    cvebaseinfo_publishedon timestamp without time zone,
+    cvebaseinfo_createdat timestamp without time zone,
+    cvebaseinfo_epss_epssprobability numeric,
+    cvss numeric,
+    severity integer,
+    impactscore numeric,
+    nvdcvss numeric,
+    firstimageoccurrence timestamp without time zone,
+    state integer,
+    isfixable boolean,
+    fixedby character varying,
+    componentid character varying,
+    advisory_name character varying,
+    advisory_link character varying,
+    serialized bytea,
+    imageidv2 character varying,
+    fixavailabletimestamp timestamp without time zone,
+    origin integer
+);
+
+CREATE TABLE images_v2 (
+    id character varying NOT NULL,
+    digest character varying,
+    name_registry character varying,
+    name_remote character varying,
+    name_tag character varying,
+    name_fullname character varying,
+    metadata_v1_created timestamp without time zone,
+    metadata_v1_user character varying,
+    metadata_v1_command text[],
+    metadata_v1_entrypoint text[],
+    metadata_v1_volumes text[],
+    metadata_v1_labels jsonb,
+    scan_scantime timestamp without time zone,
+    scan_operatingsystem character varying,
+    signature_fetched timestamp without time zone,
+    scanstats_componentcount integer,
+    scanstats_cvecount integer,
+    scanstats_fixablecvecount integer,
+    scanstats_unknowncvecount integer,
+    scanstats_fixableunknowncvecount integer,
+    scanstats_criticalcvecount integer,
+    scanstats_fixablecriticalcvecount integer,
+    scanstats_importantcvecount integer,
+    scanstats_fixableimportantcvecount integer,
+    scanstats_moderatecvecount integer,
+    scanstats_fixablemoderatecvecount integer,
+    scanstats_lowcvecount integer,
+    scanstats_fixablelowcvecount integer,
+    lastupdated timestamp without time zone,
+    priority bigint,
+    riskscore numeric,
+    topcvss numeric,
+    serialized bytea
+);

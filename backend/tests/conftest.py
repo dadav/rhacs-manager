@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from app.auth.middleware import CurrentUser
 from app.deps import get_app_db, get_current_user, get_stackrox_db
 from app.models.user import UserRole
+from app.stackrox import effective_scores
 
 
 def _build_app() -> FastAPI:
@@ -104,6 +105,14 @@ def make_current_user(
         onboarding_completed=True,
         has_all_namespaces=has_all_namespaces,
     )
+
+
+@pytest.fixture(autouse=True)
+def _empty_effective_scores():
+    """Start every test with a loaded, empty score map so no query loads from a real StackRox DB."""
+    effective_scores.set_effective_scores([])
+    yield
+    effective_scores.reset_effective_scores()
 
 
 @pytest.fixture

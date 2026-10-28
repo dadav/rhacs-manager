@@ -140,6 +140,32 @@ disagree on severity and CVSS; CVE-level values are the `MAX` across feeds, and 
 detail page lists each feed's rating. `CVE_ROWS_CTE` carries the column, which is why
 ACS 4.11.6 is the minimum supported release.
 
+### Scope-independent CVE scores
+
+StackRox stores severity, CVSS, and EPSS per image row, and only images that get
+rescanned pick up a feed update. Aggregating the rows of one scope would show a stale
+score in a cluster whose images were not rescanned yet (for example 0.0 there, 8.1
+org-wide). The app therefore uses one score per CVE everywhere
+(`app/stackrox/effective_scores.py`):
+
+1. Only v2-model rows with a known feed (`origin IS NOT NULL`) count.
+2. Per CVE, feed, and component name, the rows from the most recently scanned image
+   (`images_v2.scan_scantime`) win. Rows tied at that time take the highest value. The
+   component is part of the key because one feed rates the same CVE differently per
+   package.
+3. The highest value per feed is the feed rating (CVE detail, **Rating per data source**).
+   The highest value across feeds is the CVE score.
+
+Each process (backend replicas and worker) loads this map at startup and refreshes it
+every 5 minutes. All loads run one at a time under a lock, so an older query result can
+never replace a newer one. `CVE_ROWS_CTE` joins it in through bound array parameters
+(`effective_score_params()`), replacing only the score columns, so lists, image views,
+CVE detail, dashboard charts, threshold filtering, escalations, alerts, and snapshots
+all agree while row membership stays scoped. The image **Top CVSS** card is the highest
+score in the image's CVE list (not StackRox's per-image `topcvss`), and MTTR by severity
+buckets remediated CVEs by the same CVE severity (`get_cve_severity_and_first_seen`). CVEs without a map entry (only
+pre-4.11.6 or legacy rows) and queries before the first load use the raw row values.
+
 !!! note "`images_v2.digest` is not unique"
     The same digest can appear under several pull specs. Any lookup by digest must pick a
     single row (`ORDER BY (scanstats_componentcount > 0) DESC, lastupdated DESC LIMIT 1`).

@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
 from ._common import CVE_ROWS_CTE, _namespace_filter
 
 
@@ -61,7 +62,7 @@ async def get_component_cve_rows(
         GROUP BY comp.name, comp.version, comp.operatingsystem, ic.cvebaseinfo_cve
         ORDER BY component_name, component_version, operating_system, cve_id
     """)
-    result = await session.execute(sql, params)
+    result = await session.execute(sql, {**params, **await effective_score_params()})
     return [dict(row._mapping) for row in result]
 
 

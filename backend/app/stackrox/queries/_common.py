@@ -34,7 +34,33 @@ VISIBILITY_HAVING = """HAVING (
 # ic.* column references keep working. `serialized` is intentionally excluded
 # (bytea; the protobuf queries read it directly from image_cves_v2).
 # `origin` (VulnOrigin feed) requires ACS 4.11.6+; see app/stackrox/schema_check.py.
-CVE_ROWS_CTE = """cve_rows AS (
+#
+# severity, cvss and cvebaseinfo_epss_epssprobability are the scope-independent
+# CVE scores from app/stackrox/effective_scores.py, not the raw per-image values
+# (stale on images StackRox has not rescanned since a feed update). Every query
+# interpolating CVE_ROWS_CTE or EFFECTIVE_SCORES_CTE MUST bind
+# `**await effective_score_params()` (:es_cve_ids, :es_severity, :es_cvss, :es_epss).
+# Only the score columns are replaced; row membership stays scoped.
+#
+# The GROUP BY cve in effective_scores is required (the ids are already unique):
+# it gives the planner a sane row estimate for the unnest(). Without it PostgreSQL
+# joined the ~1M CVE rows through a large on-disk sort (measured ~1s slower on the
+# full list); with it the overhead is ~5% (local ACS 4.11.6 dump, 447k rows).
+EFFECTIVE_SCORES_CTE = """effective_scores AS (
+            SELECT cve, MAX(severity) AS severity, MAX(cvss) AS cvss, MAX(epss) AS epss
+            FROM unnest(
+                CAST(:es_cve_ids AS varchar[]),
+                CAST(:es_severity AS int[]),
+                CAST(:es_cvss AS float8[]),
+                CAST(:es_epss AS float8[])
+            ) AS es(cve, severity, cvss, epss)
+            GROUP BY cve
+        )"""
+
+CVE_ROWS_CTE = (
+    EFFECTIVE_SCORES_CTE
+    + """,
+        cve_rows_raw AS (
             SELECT dc.deployments_id, dc.image_id, dc.image_name_fullname,
                    ic.cvebaseinfo_cve, ic.severity, ic.cvss,
                    ic.cvebaseinfo_epss_epssprobability, ic.impactscore,
@@ -56,7 +82,21 @@ CVE_ROWS_CTE = """cve_rows AS (
                 SELECT 1 FROM images_v2 iv
                 WHERE iv.id = dc.image_idv2 AND iv.scanstats_componentcount > 0
             )
+        ),
+        cve_rows AS (
+            SELECT r.deployments_id, r.image_id, r.image_name_fullname,
+                   r.cvebaseinfo_cve,
+                   COALESCE(es.severity, r.severity) AS severity,
+                   COALESCE(es.cvss, r.cvss) AS cvss,
+                   COALESCE(es.epss, r.cvebaseinfo_epss_epssprobability) AS cvebaseinfo_epss_epssprobability,
+                   r.impactscore,
+                   r.firstimageoccurrence, r.cvebaseinfo_publishedon,
+                   r.fixavailabletimestamp, r.isfixable, r.fixedby, r.componentid,
+                   r.origin
+            FROM cve_rows_raw r
+            LEFT JOIN effective_scores es ON es.cve = r.cvebaseinfo_cve
         )"""
+)
 
 
 def _namespace_filter(namespaces: list[tuple[str, str]], prefix: str = "ns") -> tuple[str, dict[str, str]]:

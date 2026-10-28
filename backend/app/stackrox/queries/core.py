@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params, feed_score
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, ORIGINS_SQL, _namespace_filter, _row_with_fixed_by
 
 
@@ -60,6 +61,7 @@ async def get_cves_for_namespaces(
             "min_epss": min_epss,
             "always_show": always_show,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [_row_with_fixed_by(row) for row in result]
@@ -100,7 +102,7 @@ async def get_cve_detail(
         GROUP BY ic.cvebaseinfo_cve
     """)
 
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
     row = result.fetchone()
     return _row_with_fixed_by(row) if row else None
 
@@ -132,7 +134,7 @@ async def get_affected_deployments(
         GROUP BY d.id, d.name, d.namespace, d.clustername, ic.image_name_fullname, ic.image_id
         ORDER BY d.namespace, d.name
     """)
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
     return [dict(row._mapping) for row in result]
 
 
@@ -170,7 +172,7 @@ async def _fetch_affected_components(
           AND comp.name IS NOT NULL
         ORDER BY comp.name, comp.version{origin_order}
     """)
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
     return [dict(row._mapping) for row in result]
 
 
@@ -199,7 +201,11 @@ async def get_cve_origin_ratings(
 ) -> list[dict]:
     """Severity/CVSS per vulnerability feed for one CVE in the given namespaces.
 
-    The NULL group (rows scanned before ACS 4.11.6) is kept so older data stays visible.
+    The scoped rows decide which feeds are listed and the component counts. The
+    ratings come from the scope-independent per-feed scores (``feed_score``), so
+    they match the CVE-level score. Feeds without one (the NULL group of rows
+    scanned before ACS 4.11.6, or before the first score load) keep the raw
+    per-image values from ``cve_rows_raw``.
     """
     if not namespaces:
         return []
@@ -214,14 +220,30 @@ async def get_cve_origin_ratings(
             MAX(COALESCE(ic.cvss, 0))       AS cvss,
             COUNT(DISTINCT ic.componentid)  AS components
         FROM deployments d
-        JOIN cve_rows ic ON ic.deployments_id = d.id
+        JOIN cve_rows_raw ic ON ic.deployments_id = d.id
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = :cve_id
         GROUP BY ic.origin
-        ORDER BY severity DESC, cvss DESC, ic.origin NULLS LAST
     """)
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
-    return [dict(row._mapping) for row in result]
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
+    ratings = []
+    for row in result:
+        rating = dict(row._mapping)
+        score = feed_score(cve_id, rating["origin_code"])
+        if score is not None:
+            rating["severity"] = score.severity
+            rating["cvss"] = score.cvss
+        ratings.append(rating)
+    # Same order the SQL used to apply: severity, cvss descending; NULL feed last on ties.
+    ratings.sort(
+        key=lambda r: (
+            -(r["severity"] or 0),
+            -float(r["cvss"] or 0),
+            r["origin_code"] is None,
+            r["origin_code"] or 0,
+        )
+    )
+    return ratings
 
 
 async def get_all_cves(
@@ -263,7 +285,9 @@ async def get_all_cves(
         )
         ORDER BY severity DESC, cvss DESC
     """)
-    result = await session.execute(sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show})
+    result = await session.execute(
+        sql, {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, **await effective_score_params()}
+    )
     return [_row_with_fixed_by(row) for row in result]
 
 
@@ -361,5 +385,5 @@ async def cve_visible_in_namespaces(
         LIMIT 1
     """)
 
-    result = await session.execute(sql, {"cve_id": cve_id, **ns_params})
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **await effective_score_params()})
     return result.first() is not None

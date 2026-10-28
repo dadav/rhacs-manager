@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
 from ._common import CVE_ROWS_CTE, _namespace_filter
 
 
@@ -26,7 +27,7 @@ async def get_namespaces_with_cve(
         JOIN cve_rows ic ON ic.deployments_id = d.id
         WHERE ic.cvebaseinfo_cve = :cve_id
     """)
-    result = await session.execute(sql, {"cve_id": cve_id})
+    result = await session.execute(sql, {"cve_id": cve_id, **await effective_score_params()})
     return [(row.namespace, row.clustername) for row in result]
 
 
@@ -47,7 +48,7 @@ async def get_cve_namespace_map(
         WHERE {ns_fragment}
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params, **await effective_score_params()})
     mapping: dict[str, list[str]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(row.namespace)
@@ -83,7 +84,7 @@ async def get_cve_namespace_cluster_map(
         WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
           {ns_filter}
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params, **await effective_score_params()})
     mapping: dict[str, set[tuple[str, str]]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, set()).add((row.clustername, row.namespace))
@@ -109,7 +110,7 @@ async def get_cve_component_map(
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
           AND comp.name IS NOT NULL
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params, **await effective_score_params()})
     mapping: dict[str, list[str]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(row.component_name)
@@ -138,7 +139,7 @@ async def get_cve_component_version_map(
           AND ic.cvebaseinfo_cve = ANY(:cve_ids)
           AND comp.name IS NOT NULL
     """)
-    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params})
+    result = await session.execute(sql, {"cve_ids": cve_ids, **ns_params, **await effective_score_params()})
     mapping: dict[str, list[tuple[str, str]]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append((row.component_name, row.component_version or ""))
@@ -153,7 +154,7 @@ async def get_all_deployed_cve_ids(session: AsyncSession) -> list[str]:
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
     """)
-    result = await session.execute(sql)
+    result = await session.execute(sql, await effective_score_params())
     return [row.cve_id for row in result]
 
 
@@ -172,7 +173,7 @@ async def get_global_component_version_map(
         LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE comp.name IS NOT NULL
     """)
-    result = await session.execute(sql)
+    result = await session.execute(sql, await effective_score_params())
     mapping: dict[str, list[tuple[str, str]]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append((row.component_name, row.component_version or ""))
@@ -212,7 +213,7 @@ async def get_cve_component_fixes(
           {ns_clause}
         ORDER BY cve_id, component_name, component_version
     """)
-    result = await session.execute(sql, params)
+    result = await session.execute(sql, {**params, **await effective_score_params()})
     mapping: dict[str, list[dict]] = {}
     for row in result:
         mapping.setdefault(row.cve_id, []).append(

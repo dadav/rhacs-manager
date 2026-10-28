@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
 from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
 
 
@@ -26,7 +27,7 @@ async def get_fixability_stats(
         WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve
     """)
-    result = await session.execute(sql, ns_params)
+    result = await session.execute(sql, {**ns_params, **await effective_score_params()})
     rows = result.fetchall()
     fixable = sum(1 for r in rows if r.any_fixable)
     unfixable = sum(1 for r in rows if not r.any_fixable)
@@ -73,6 +74,7 @@ async def get_fixability_breakdown(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     rows = result.fetchall()
@@ -139,6 +141,7 @@ async def get_top_affected_deployments(
             "always_show": always_show,
             "limit": limit,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [dict(row._mapping) for row in result]
@@ -163,7 +166,9 @@ async def get_cve_ids_for_deployment(
         WHERE d.name = :deployment_name
           AND {ns_fragment}
     """)
-    result = await session.execute(sql, {"deployment_name": deployment_name, **ns_params})
+    result = await session.execute(
+        sql, {"deployment_name": deployment_name, **ns_params, **await effective_score_params()}
+    )
     return [row.cve_id for row in result]
 
 
@@ -186,7 +191,7 @@ async def get_cve_ids_for_deployment_id(
         WHERE d.id = :deployment_id
           AND {ns_fragment}
     """)
-    result = await session.execute(sql, {"deployment_id": deployment_id, **ns_params})
+    result = await session.execute(sql, {"deployment_id": deployment_id, **ns_params, **await effective_score_params()})
     return [row.cve_id for row in result]
 
 
@@ -230,6 +235,7 @@ async def get_cve_aging(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     rows = [r.age_days for r in result if r.age_days is not None]

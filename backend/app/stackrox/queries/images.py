@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
 from ..vuln_origin import origin_filter_sql
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
@@ -35,8 +36,12 @@ async def get_threshold_preview(
                 AND MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) >= :min_epss
         ) sub
     """)
-    total = (await session.execute(sql_total)).scalar() or 0
-    visible = (await session.execute(sql_visible, {"min_cvss": min_cvss, "min_epss": min_epss})).scalar() or 0
+    total = (await session.execute(sql_total, await effective_score_params())).scalar() or 0
+    visible = (
+        await session.execute(
+            sql_visible, {"min_cvss": min_cvss, "min_epss": min_epss, **await effective_score_params()}
+        )
+    ).scalar() or 0
     return {
         "total_cves": total,
         "visible_cves": visible,
@@ -162,7 +167,7 @@ async def get_cves_grouped_by_image(
         GROUP BY ic.image_name_fullname, ic.image_id
         ORDER BY total_cves DESC
     """)
-    result = await session.execute(sql, params)
+    result = await session.execute(sql, {**params, **await effective_score_params()})
     return [dict(row._mapping) for row in result]
 
 
@@ -276,5 +281,5 @@ async def get_cves_for_image(
         HAVING 1=1 {having_extra} {component_having}
         ORDER BY severity DESC, cvss DESC
     """)
-    result = await session.execute(sql, bind_params)
+    result = await session.execute(sql, {**bind_params, **await effective_score_params()})
     return [_row_with_fixed_by(row) for row in result]

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +31,7 @@ from .routers import (
     settings,
     suppression_rules,
 )
+from .stackrox.effective_scores import run_refresh_loop
 from .stackrox.schema_check import SCHEMA_PROBE_TIMEOUT_SECONDS, probe_stackrox_schema
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
@@ -110,7 +111,14 @@ async def lifespan(app: FastAPI):
                 logger.exception("Initial escalation check failed")
     else:
         logger.info("Scheduler disabled (SCHEDULER_ENABLED=false)")
+    # Per-process, read-only cache of scope-independent CVE scores. Runs in every
+    # process (backend replicas and worker); it sends nothing, so unlike the
+    # scheduler it is safe to run more than once.
+    score_refresh_task = asyncio.create_task(run_refresh_loop(), name="effective-score-refresh")
     yield
+    score_refresh_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await score_refresh_task
     if active_scheduler:
         active_scheduler.shutdown()
         logger.info("APScheduler stopped")

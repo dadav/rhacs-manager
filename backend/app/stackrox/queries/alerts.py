@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..effective_scores import effective_score_params
 from ._common import CVE_ROWS_CTE
 
 
@@ -41,6 +42,11 @@ async def get_team_alert_candidates(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": list(always_show_cve_ids)},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": list(always_show_cve_ids),
+            **await effective_score_params(),
+        },
     )
     return [dict(row._mapping) for row in result]

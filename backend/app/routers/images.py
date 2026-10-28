@@ -123,7 +123,9 @@ async def get_image_detail(
         last_updated=meta.get("lastupdated"),
         docker_user=meta.get("metadata_v1_user"),
         risk_score=float(meta.get("riskscore") or 0),
-        top_cvss=float(meta.get("topcvss") or 0),
+        # From the shown CVE list (scope-independent scores), not StackRox's per-image
+        # topcvss, which keeps stale values until the image is rescanned.
+        top_cvss=max((c.cvss for c in cves), default=0.0),
         component_count=int(meta.get("components") or 0),
         cve_count=len(cves),
         fixable_cves=fixable_count,

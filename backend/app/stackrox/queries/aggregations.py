@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ._common import CVE_ROWS_CTE, VISIBILITY_HAVING, _namespace_filter
+from ..effective_scores import effective_score_params
+from ._common import CVE_ROWS_CTE, EFFECTIVE_SCORES_CTE, VISIBILITY_HAVING, _namespace_filter
 
 
 async def get_severity_distribution(
@@ -52,6 +53,7 @@ async def get_severity_distribution(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [dict(row._mapping) for row in result]
@@ -119,6 +121,7 @@ async def get_cves_per_namespace(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [dict(row._mapping) for row in result]
@@ -175,6 +178,7 @@ async def get_cves_by_namespace_detail(
             "min_epss": min_epss,
             "always_show": always_show,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [dict(row._mapping) for row in result]
@@ -238,6 +242,7 @@ async def get_cve_trend(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [
@@ -296,6 +301,7 @@ async def get_epss_risk_matrix(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     return [dict(row._mapping) for row in result]
@@ -354,6 +360,7 @@ async def get_cluster_heatmap(
             "always_show": always_show,
             "exclude_cve_ids": exclude,
             **ns_params,
+            **await effective_score_params(),
         },
     )
     rows = [dict(row._mapping) for row in result]
@@ -450,6 +457,38 @@ async def get_snapshot_counts(
     """)
     result = await session.execute(
         sql,
-        {"min_cvss": min_cvss, "min_epss": min_epss, "always_show": always_show, "exclude": exclude},
+        {
+            "min_cvss": min_cvss,
+            "min_epss": min_epss,
+            "always_show": always_show,
+            "exclude": exclude,
+            **await effective_score_params(),
+        },
     )
     return [dict(row._mapping) for row in result]
+
+
+async def get_cve_severity_and_first_seen(
+    session: AsyncSession,
+    cve_ids: list[str],
+) -> dict[str, tuple[int, datetime | None]]:
+    """{cve_id: (severity, first_seen)} for MTTR, across all rows of each CVE.
+
+    Severity is the scope-independent CVE severity (EFFECTIVE_SCORES_CTE), falling
+    back to the raw row MAX for CVEs without a map entry. first_seen is the
+    earliest occurrence in any image.
+    """
+    if not cve_ids:
+        return {}
+    sql = text(f"""
+        WITH {EFFECTIVE_SCORES_CTE}
+        SELECT ic.cvebaseinfo_cve AS cve_id,
+               COALESCE(MAX(es.severity), MAX(ic.severity)) AS severity,
+               MIN(ic.firstimageoccurrence) AS first_seen
+        FROM image_cves_v2 ic
+        LEFT JOIN effective_scores es ON es.cve = ic.cvebaseinfo_cve
+        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+        GROUP BY ic.cvebaseinfo_cve
+    """)
+    result = await session.execute(sql, {"cve_ids": cve_ids, **await effective_score_params()})
+    return {row.cve_id: (row.severity, row.first_seen) for row in result}
