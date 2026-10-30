@@ -56,6 +56,7 @@ FORWARDED_HEADER_NAMES = (
     "X-Forwarded-Groups",
     "X-Forwarded-Namespaces",
     "X-Forwarded-Namespace-Emails",
+    "X-Forwarded-Cluster",
 )
 
 
@@ -87,6 +88,9 @@ class AuthContext:
     forwarded_namespaces: str
     forwarded_namespace_emails: str
     forwarded_full_name: str = ""
+    # Origin cluster stamped by auth-header-injector; the backend uses it to add
+    # namespaces from peer clusters (CROSS_CLUSTER_ACCESS_SETS).
+    forwarded_cluster: str = ""
 
     def to_headers(self) -> dict[str, str]:
         """Build the header dict to forward to the backend API."""
@@ -96,6 +100,7 @@ class AuthContext:
             "X-Forwarded-Groups": self.forwarded_groups,
             "X-Forwarded-Namespaces": self.forwarded_namespaces,
             "X-Forwarded-Namespace-Emails": self.forwarded_namespace_emails,
+            "X-Forwarded-Cluster": self.forwarded_cluster,
         }
         if settings.api_key:
             headers["X-Api-Key"] = settings.api_key

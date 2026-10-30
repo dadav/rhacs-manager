@@ -35,6 +35,7 @@ ALICE_HEADERS = {
     "X-Forwarded-Groups": "payments-devs",
     "X-Forwarded-Namespaces": "payments:cluster-a",
     "X-Forwarded-Namespace-Emails": "payments:cluster-a=payments@example.com",
+    "X-Forwarded-Cluster": "cluster-a",
 }
 
 BOB_HEADERS = {
@@ -43,6 +44,7 @@ BOB_HEADERS = {
     "X-Forwarded-Groups": "sec-team,admins",
     "X-Forwarded-Namespaces": "*",
     "X-Forwarded-Namespace-Emails": "",
+    "X-Forwarded-Cluster": "cluster-b",
 }
 
 FORWARDED_HEADER_NAMES = list(ALICE_HEADERS)

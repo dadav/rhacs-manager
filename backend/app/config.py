@@ -74,6 +74,15 @@ class Settings(BaseSettings):
     # Spoke proxy auth (hub-spoke architecture)
     spoke_api_keys: list[str] = Field(default_factory=list)  # allowed API keys from spoke proxies
     sec_team_group: str = Field(default="rhacs-sec-team")  # group granting sec_team role
+    # Cross-cluster namespace visibility. Each inner list is a set of StackRox cluster
+    # names (same values as the injector's CLUSTER_NAME) that trust each other's
+    # namespace annotations, e.g. [["prod","test"]]. A user signing in through one
+    # cluster of a set also gets the namespaces annotated for them on its peers.
+    # Empty = only the origin cluster's namespaces (from X-Forwarded-Namespaces).
+    cross_cluster_access_sets: list[list[str]] = Field(default_factory=list)
+    # Must match the auth-header-injector NAMESPACE_ANNOTATION / GROUP_ANNOTATION.
+    namespace_user_annotation: str = Field(default="rhacs-manager.io/users")
+    namespace_group_annotation: str = Field(default="rhacs-manager.io/groups")
 
     # Scheduler
     scheduler_enabled: bool = Field(default=True)

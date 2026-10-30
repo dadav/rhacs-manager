@@ -385,6 +385,9 @@ func newProxyHandler(
 		// X-Forwarded-Email (<user>@cluster.local), which is not a real mailbox.
 		r.Header.Del("X-Forwarded-Full-Name")
 		r.Header.Del("X-Forwarded-Email")
+		// The origin cluster tells the backend which peer clusters (cross-cluster
+		// access sets) may add namespaces. Always overwrite any client value.
+		r.Header.Set("X-Forwarded-Cluster", cfg.ClusterName)
 
 		user := r.Header.Get("X-Forwarded-User")
 		if user == "" {

@@ -583,6 +583,11 @@ backend:
       TEAM_NOTIFICATION_ACTIVE_DAYS: "30"
       # REQUIRED: override in production with a list of allowed spoke API keys
       SPOKE_API_KEYS: "[]"
+      # Cross-cluster namespace visibility: JSON list of cluster sets whose namespace
+      # annotations are shared, e.g. '[["prod","test"]]'. Names must match StackRox
+      # cluster names (each spoke's CLUSTER_NAME). Only group clusters that share an
+      # identity provider and admin trust. Empty = origin cluster only.
+      CROSS_CLUSTER_ACCESS_SETS: "[]"
       SEC_TEAM_GROUP: "rhacs-sec-team"
       SCHEDULER_ENABLED: "false"
   # @schema
@@ -1180,6 +1185,8 @@ frontend:
       HUB_API_URL: "http://rhacs-manager-backend:8000"
       # REQUIRED: override in production to match a hub SPOKE_API_KEYS entry
       SPOKE_API_KEY: "change-me-to-match-hub-key"
+      # Origin cluster stamped by auth-header-injector. Set to the hub's StackRox
+      # cluster name to resolve its namespaces and include it in CROSS_CLUSTER_ACCESS_SETS.
       CLUSTER_NAME: "hub"
   # @schema
   # type: object

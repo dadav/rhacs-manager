@@ -14,6 +14,7 @@ from ..i18n import ApiError
 from ..models.namespace_contact import NamespaceContact
 from ..models.user import User, UserRole
 from ..services.namespace_snapshot import record_namespace_snapshot
+from ..stackrox.namespace_access import resolve_cross_cluster_namespaces
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,27 @@ def _parse_namespaces_header(raw: str) -> list[tuple[str, str]]:
         ns, cluster = ns.strip(), cluster.strip()
         if ns and cluster:
             pairs.append((ns, cluster))
+    _check_namespace_count(pairs)
+    return pairs
+
+
+def _check_namespace_count(pairs: list[tuple[str, str]]) -> None:
     if len(pairs) > settings.max_namespace_count:
         raise ApiError(400, "too_many_namespaces", count=len(pairs), max=settings.max_namespace_count)
-    return pairs
+
+
+def _merge_namespaces(
+    primary: list[tuple[str, str]],
+    extra: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Append ``extra`` pairs not already in ``primary``, keeping ``primary`` order first."""
+    seen = set(primary)
+    merged = list(primary)
+    for pair in extra:
+        if pair not in seen:
+            seen.add(pair)
+            merged.append(pair)
+    return merged
 
 
 def _parse_namespace_emails_header(raw: str) -> list[tuple[str, str, str]]:
@@ -256,6 +275,9 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     forwarded_full_name = request.headers.get("X-Forwarded-Full-Name", "").strip()
     forwarded_groups_raw = request.headers.get("X-Forwarded-Groups", "")
     forwarded_namespaces_raw = request.headers.get("X-Forwarded-Namespaces", "")
+    # Stamped by auth-header-injector (overwrites client values); trusted like the
+    # other forwarded headers because the request carries a valid spoke API key.
+    origin_cluster = request.headers.get("X-Forwarded-Cluster", "").strip()
 
     if not forwarded_user:
         raise ApiError(401, "forwarded_user_missing")
@@ -263,6 +285,14 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     groups = [g.strip() for g in forwarded_groups_raw.split(",") if g.strip()]
     has_all_namespaces = forwarded_namespaces_raw.strip() == "*"
     namespaces = [] if has_all_namespaces else _parse_namespaces_header(forwarded_namespaces_raw)
+
+    # Namespaces annotated for this user on peer clusters (CROSS_CLUSTER_ACCESS_SETS).
+    cross_cluster_namespaces: list[tuple[str, str]] = []
+    if not has_all_namespaces:
+        cross_cluster_namespaces = await resolve_cross_cluster_namespaces(origin_cluster, forwarded_user, groups)
+        if cross_cluster_namespaces:
+            namespaces = _merge_namespaces(namespaces, cross_cluster_namespaces)
+            _check_namespace_count(namespaces)
 
     # Determine role from groups
     role = UserRole.sec_team if settings.sec_team_group in groups else UserRole.team_member
@@ -289,10 +319,12 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
         await _upsert_namespace_contacts(session, ns_emails)
 
     logger.info(
-        "Spoke proxy auth: user=%s, role=%s, namespaces=%d, all_ns=%s",
+        "Spoke proxy auth: user=%s, role=%s, origin_cluster=%s, namespaces=%d, cross_cluster_namespaces=%d, all_ns=%s",
         user_id,
         role.value,
+        origin_cluster or "-",
         len(namespaces),
+        len(cross_cluster_namespaces),
         has_all_namespaces,
     )
     return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)

@@ -21,6 +21,7 @@ The spoke frontend deployment contains three containers:
 - Writes `X-Forwarded-Namespace-Emails` as `namespace:cluster=email@company.com` pairs
 - Writes `X-Forwarded-Groups` from the resolved OpenShift user groups
 - Writes `X-Forwarded-Full-Name` from the OpenShift User `fullName` (display only); any inbound value is stripped so it cannot be spoofed
+- Writes `X-Forwarded-Cluster` with its `CLUSTER_NAME` on every request (inbound values are overwritten). The hub uses it to add namespaces from peer clusters configured in `CROSS_CLUSTER_ACCESS_SETS` (see [Cross-cluster visibility](../configuration.md#cross-cluster-visibility))
 - If the user belongs to a configured `ALL_NAMESPACES_GROUPS` group, the injector emits `X-Forwarded-Namespaces: *` instead of enumerating namespaces
 
 !!! warning "Trust model"
@@ -30,7 +31,7 @@ Configuration:
 
 | Variable                  | Default                             | Description                                                          |
 | ------------------------- | ----------------------------------- | -------------------------------------------------------------------- |
-| `CLUSTER_NAME`            | required                            | Name of this spoke cluster                                           |
+| `CLUSTER_NAME`            | required                            | Name of this spoke cluster. Must equal its StackRox cluster name     |
 | `NAMESPACE_ANNOTATION`    | `rhacs-manager.io/users`            | User annotation key                                                  |
 | `GROUP_ANNOTATION`        | `rhacs-manager.io/groups`           | Group annotation key                                                 |
 | `EMAIL_ANNOTATION`        | `rhacs-manager.io/escalation-email` | Namespace escalation contact annotation key                          |

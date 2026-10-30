@@ -141,6 +141,8 @@ Other 4.11 rules:
 - `DEV_MODE=true` bypasses external auth and syncs the user from `DEV_USER_*` env vars.
 - Spoke mode relies on `X-Api-Key` plus forwarded headers from the proxy chain.
 - OIDC JWT mode can also supply namespaces from a JWT claim.
+- Cross-cluster visibility: in spoke-proxy auth only, the backend appends namespaces annotated for the user/groups on **peer** clusters of the origin. Peers come only from `CROSS_CLUSTER_ACCESS_SETS` (opt-in, default empty); the origin is the injector-stamped `X-Forwarded-Cluster` (always overwritten by the injector, forwarded by both nginx confs and the MCP `AuthContext`). Peer annotations come from StackRox `namespaces.annotations` via the per-process index in `app/stackrox/namespace_access.py`; the origin cluster always comes from the header. The index fails closed: older than `MAX_STALENESS_SECONDS` or a failed cold load means origin-only, never a 5xx. Normal requests must never query StackRox for this.
+- Users can see the same namespace name on several clusters. Never match a namespace by name alone or query with an empty cluster name; badges store exact `scope_namespaces` pairs for partial filters (only wildcard cluster-only badges expand at render time), and legacy namespace-only rows without pairs render zero, never expanded by name (`_badge_scope_pairs` in `routers/badges.py`).
 
 `CurrentUser` behavior:
 

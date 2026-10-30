@@ -224,3 +224,31 @@ async def get_cve_component_fixes(
             }
         )
     return mapping
+
+
+async def get_namespace_access_annotations(
+    session: AsyncSession,
+    cluster_names: list[str],
+    user_annotation: str,
+    group_annotation: str,
+) -> list[dict]:
+    """Raw user/group access annotations of every namespace on the given clusters.
+
+    Central mirrors namespace annotations from every secured cluster's Sensor.
+    Returns ``{cluster_name, namespace, users, groups}`` with the comma-separated
+    annotation values (``None`` when a namespace carries only one of the two).
+    """
+    sql = text("""
+        SELECT clustername AS cluster_name,
+               name AS namespace,
+               annotations ->> :user_key AS users,
+               annotations ->> :group_key AS groups
+        FROM namespaces
+        WHERE clustername = ANY(CAST(:clusters AS text[]))
+          AND annotations ?| ARRAY[CAST(:user_key AS text), CAST(:group_key AS text)]
+    """)
+    result = await session.execute(
+        sql,
+        {"clusters": cluster_names, "user_key": user_annotation, "group_key": group_annotation},
+    )
+    return [dict(row._mapping) for row in result]

@@ -91,6 +91,7 @@ def _extract_auth(ctx: Context) -> AuthContext:
         forwarded_groups=headers.get("x-forwarded-groups", ""),
         forwarded_namespaces=headers.get("x-forwarded-namespaces", ""),
         forwarded_namespace_emails=headers.get("x-forwarded-namespace-emails", ""),
+        forwarded_cluster=headers.get("x-forwarded-cluster", ""),
     )
     logger.debug(
         "Auth context: user=%s, groups=%s, namespaces=%s",

@@ -49,8 +49,29 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 |----------|---------|-------------|
 | `SPOKE_API_KEYS` | `[]` | JSON list of accepted spoke keys |
 | `SEC_TEAM_GROUP` | `rhacs-sec-team` | Group mapped to `sec_team` |
+| `CROSS_CLUSTER_ACCESS_SETS` | `[]` | JSON list of cluster sets that share namespace access, e.g. `[["prod","test"]]`. See [Cross-cluster visibility](#cross-cluster-visibility) |
+| `NAMESPACE_USER_ANNOTATION` | `rhacs-manager.io/users` | User annotation key read from StackRox for peer clusters. Must match the injector `NAMESPACE_ANNOTATION` |
+| `NAMESPACE_GROUP_ANNOTATION` | `rhacs-manager.io/groups` | Group annotation key read from StackRox for peer clusters. Must match the injector `GROUP_ANNOTATION` |
 
 Users can also receive wildcard namespace access from the spoke by setting `X-Forwarded-Namespaces: *`. This keeps the user in the `team_member` role while granting full namespace visibility, so sec-team-only actions stay restricted and CVSS/EPSS thresholds still apply.
+
+### Cross-cluster visibility
+
+By default a user only sees the namespaces annotated for them on the cluster whose spoke frontend they use. With `CROSS_CLUSTER_ACCESS_SETS` the hub backend also grants the namespaces annotated for them on **peer** clusters, so a user annotated on prod and test sees both in either spoke.
+
+```bash
+CROSS_CLUSTER_ACCESS_SETS='[["prod","test"]]'
+```
+
+- Each inner list is one set of StackRox cluster names (the same values as each spoke's `CLUSTER_NAME`). A cluster in several sets gets the union of their peers. Clusters in no set behave as before.
+- Peer annotations (`rhacs-manager.io/users` and `rhacs-manager.io/groups`) are read from StackRox Central's namespace table, which Sensor keeps in sync. Users do not need to visit the peer cluster's spoke first.
+- Groups are still resolved on the origin cluster. A group annotation on a peer only matches when a group of the same name exists on the origin cluster and the user is a member (typical for LDAP/IdP-synced groups).
+- Each backend process refreshes the annotation index every 5 minutes. If the index is older than 15 minutes (refreshes failing), peers are dropped and users see only their origin cluster until the next successful refresh.
+- The hub frontend also uses spoke auth with `CLUSTER_NAME: hub` by default. To include it, set its `CLUSTER_NAME` to the hub's StackRox cluster name and add that name to a set.
+- Escalation contact emails (`rhacs-manager.io/escalation-email`) are still collected per spoke.
+
+!!! warning "Only group clusters that trust each other"
+    Any admin of a cluster in a set can create users or groups on that cluster and thereby gain the namespaces annotated for those names on every peer. Only put clusters in one set when they share an identity provider and the same admin trust.
 
 ### Auth Header Injector (Spoke Sidecar)
 

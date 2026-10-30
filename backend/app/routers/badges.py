@@ -58,9 +58,10 @@ def _user_can_see_badge(user: CurrentUser, badge: BadgeToken) -> bool:
         return True
     user_ns = set(user.namespaces)  # set of (namespace, cluster)
     # Explicit single-namespace badge.
-    if badge.namespace:
-        if badge.cluster_name:
-            return (badge.namespace, badge.cluster_name) in user_ns
+    if badge.namespace and badge.cluster_name:
+        return (badge.namespace, badge.cluster_name) in user_ns
+    # Legacy namespace-only badge without stored pairs.
+    if badge.namespace and not badge.scope_namespaces:
         return any(ns == badge.namespace for ns, _ in user_ns)
     # Multi-namespace scoped badge: every scoped pair must be visible (subset).
     if badge.scope_namespaces:
@@ -68,6 +69,57 @@ def _user_can_see_badge(user: CurrentUser, badge: BadgeToken) -> bool:
         return scope <= user_ns
     # All-scope badge -> privileged users only.
     return False
+
+
+async def _badge_scope_pairs(badge: BadgeToken, sx_db: AsyncSession) -> list[tuple[str, str]] | None:
+    """(namespace, cluster) pairs a badge counts, or None for all namespaces.
+
+    Users can see the same namespace name on several clusters (cross-cluster
+    access), so a partial filter must never be widened to "all" or narrowed to an
+    empty cluster name.
+    """
+    if badge.namespace and badge.cluster_name:
+        return [(badge.namespace, badge.cluster_name)]
+    if badge.scope_namespaces is not None:
+        return [(entry[0], entry[1]) for entry in badge.scope_namespaces]
+    if badge.namespace:
+        # Legacy namespace-only row without stored pairs: the creator may have been
+        # scoped, so expanding by name could count unauthorized clusters. Fail closed
+        # (these rendered zero before as well); recreate the badge to fix it.
+        return []
+    if badge.cluster_name:
+        # Cluster-only rows without stored pairs only come from wildcard creators
+        # (scoped creators always store pairs): expand that cluster against StackRox.
+        return await _stackrox_pairs(sx_db, None, badge.cluster_name)
+    return None
+
+
+async def _stackrox_pairs(
+    sx_db: AsyncSession,
+    namespace: str | None,
+    cluster_name: str | None,
+) -> list[tuple[str, str]]:
+    """Every StackRox (namespace, cluster) pair matching the optional filters."""
+    rows = await sx.list_namespaces(sx_db)
+    return [
+        (row["namespace"], row["cluster_name"])
+        for row in rows
+        if (not namespace or row["namespace"] == namespace)
+        and (not cluster_name or row["cluster_name"] == cluster_name)
+    ]
+
+
+def _creator_scope_pairs(
+    user: CurrentUser,
+    namespace: str | None,
+    cluster_name: str | None,
+) -> list[tuple[str, str]]:
+    """The creator's visible pairs matching the optional namespace/cluster filter."""
+    return [
+        (ns, cluster)
+        for ns, cluster in user.namespaces
+        if (not namespace or ns == namespace) and (not cluster_name or cluster == cluster_name)
+    ]
 
 
 async def _build_response(b: BadgeToken, db: AsyncSession) -> BadgeResponse:
@@ -128,15 +180,11 @@ async def get_badge_svg(
     )
     always_show |= {row[0] for row in ra_result}
 
-    # Badge scoped by its namespace/cluster, stored scope_namespaces, or all (None)
-    if badge.namespace:
-        ns = [(badge.namespace, badge.cluster_name or "")]
-        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show)
-    elif badge.scope_namespaces:
-        ns = [(entry[0], entry[1]) for entry in badge.scope_namespaces]
-        cves = await sx.get_cves_for_namespaces(sx_db, ns, min_cvss, min_epss, always_show)
-    elif badge.scope_namespaces is None:
-        # All namespaces (has_all_namespaces user with no namespace filter)
+    scope_pairs = await _badge_scope_pairs(badge, sx_db)
+    if scope_pairs:
+        cves = await sx.get_cves_for_namespaces(sx_db, scope_pairs, min_cvss, min_epss, always_show)
+    elif scope_pairs is None:
+        # All namespaces (has_all_namespaces user with no namespace/cluster filter)
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
     else:
         # Empty list — no scope
@@ -184,25 +232,31 @@ async def create_badge(
     body: BadgeCreate,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> BadgeResponse:
     if not current_user.has_namespaces:
         raise ApiError(400, "no_namespaces")
 
-    # Validate namespace is in user's accessible namespaces
-    if body.namespace and not current_user.has_all_namespaces:
-        if body.cluster_name:
-            if (body.namespace, body.cluster_name) not in set(current_user.namespaces):
-                raise ApiError(400, "badge_namespace_not_accessible")
-        else:
-            if not any(ns == body.namespace for ns, _ in current_user.namespaces):
-                raise ApiError(400, "badge_namespace_not_accessible")
-
-    # When no namespace filter specified, store all user's namespaces
-    # so the public SVG endpoint can query the right scope.
-    # For has_all_namespaces users, scope_ns stays None (= all namespaces).
+    # Store the exact pairs a partial filter means, so the public SVG endpoint and
+    # the listing check (_user_can_see_badge) see one unambiguous scope (a namespace
+    # name may exist on several clusters):
+    # - scoped users: their visible pairs matching the filter (everything if no filter)
+    # - wildcard users, namespace-only: that namespace's StackRox pairs at creation
+    # - wildcard users, cluster-only or no filter: None, expanded at render time
+    # - exact namespace+cluster: None, the badge columns are the scope
     scope_ns = None
-    if not body.namespace and not current_user.has_all_namespaces:
-        scope_ns = [[ns, cluster] for ns, cluster in current_user.namespaces]
+    if current_user.has_all_namespaces:
+        if body.namespace and not body.cluster_name:
+            pairs = await _stackrox_pairs(sx_db, body.namespace, None)
+            if not pairs:
+                raise ApiError(400, "badge_namespace_not_accessible")
+            scope_ns = [[ns, cluster] for ns, cluster in pairs]
+    else:
+        pairs = _creator_scope_pairs(current_user, body.namespace, body.cluster_name)
+        if (body.namespace or body.cluster_name) and not pairs:
+            raise ApiError(400, "badge_namespace_not_accessible")
+        if not (body.namespace and body.cluster_name):
+            scope_ns = [[ns, cluster] for ns, cluster in pairs]
 
     badge = BadgeToken(
         created_by=current_user.id,

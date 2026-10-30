@@ -29,6 +29,7 @@ FORWARDED_HEADERS = {
     "x-forwarded-groups": "group-a,group-b",
     "x-forwarded-namespaces": "payments:cluster-a",
     "x-forwarded-namespace-emails": "payments:cluster-a=team@example.com",
+    "x-forwarded-cluster": "cluster-a",
 }
 
 
@@ -43,6 +44,7 @@ class TestExtractAuth:
         assert auth.forwarded_groups == "group-a,group-b"
         assert auth.forwarded_namespaces == "payments:cluster-a"
         assert auth.forwarded_namespace_emails == "payments:cluster-a=team@example.com"
+        assert auth.forwarded_cluster == "cluster-a"
 
     def test_missing_user_raises(self):
         from mcp_server.server import _extract_auth
@@ -82,6 +84,7 @@ class TestExtractAuth:
         assert auth.forwarded_groups == ""
         assert auth.forwarded_namespaces == ""
         assert auth.forwarded_namespace_emails == ""
+        assert auth.forwarded_cluster == ""
 
     def test_wildcard_namespaces(self):
         from mcp_server.server import _extract_auth

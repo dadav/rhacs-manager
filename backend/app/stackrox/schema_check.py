@@ -23,6 +23,10 @@ REQUIRED_STACKROX_COLUMNS: list[tuple[str, str, str]] = [
     ("images_v2", "scan_scantime", "4.11.0"),
     ("deployments_containers", "image_idv2", "4.11.0"),
     ("image_cves_v2", "origin", "4.11.6"),
+    # Cross-cluster namespace access (app/stackrox/namespace_access.py).
+    ("namespaces", "name", "4.0.0"),
+    ("namespaces", "clustername", "4.0.0"),
+    ("namespaces", "annotations", "4.0.0"),
 ]
 
 

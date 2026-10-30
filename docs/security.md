@@ -151,6 +151,8 @@ Some CVEs remain visible even if they do not meet the active thresholds.
 
 - The hub trusts spoke requests only after constant-time `X-Api-Key` validation.
 - Once the key matches, the hub trusts the `X-Forwarded-User`, `X-Forwarded-Groups`, and `X-Forwarded-Namespaces` values as sent. Anyone holding a spoke API key can therefore act as any user, including `sec_team` or wildcard namespace access. Keep the key inside the proxy chain; never hand it to clients, CI jobs, or scripts.
+- `X-Forwarded-Cluster` is trusted the same way. A key holder could already claim any namespaces directly, so the origin header adds no new capability. API keys are not bound to clusters.
+- Cross-cluster visibility (`CROSS_CLUSTER_ACCESS_SETS`) matches the origin cluster's usernames and groups against namespace annotations on peer clusters. Any admin of a cluster in a set can create matching users or groups there and gain those peer namespaces, so only group clusters that share an identity provider and admin trust. Stale annotation data (older than 15 minutes) fails closed to the origin cluster only.
 - `X-Forwarded-User` is required in spoke mode.
 - `spoke:<username>` is used as the stored user ID to avoid collisions with direct OIDC users.
 - Namespace escalation emails sent from the injector are written into the app DB so the hub can reuse them for notifications and escalations.

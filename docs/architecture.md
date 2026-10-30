@@ -201,8 +201,11 @@ Activated when the request has a valid `X-Api-Key` header matching one of `SPOKE
 | `X-Forwarded-Groups` | Comma-separated group list |
 | `X-Forwarded-Namespaces` | Comma-separated `namespace:cluster` pairs or `*` (set by auth-header-injector) |
 | `X-Forwarded-Namespace-Emails` | Comma-separated `namespace:cluster=email` pairs (set by auth-header-injector) |
+| `X-Forwarded-Cluster` | Origin cluster name (the injector's `CLUSTER_NAME`, inbound values overwritten). Selects the peer clusters from `CROSS_CLUSTER_ACCESS_SETS` |
 
 If the user belongs to the group specified by `SEC_TEAM_GROUP`, they get the `sec_team` role; otherwise they are a `team_member`. Separately, users may receive wildcard namespace visibility via `X-Forwarded-Namespaces: *`. Users are auto-provisioned with ID `spoke:<username>`.
+
+When `CROSS_CLUSTER_ACCESS_SETS` puts the origin cluster in a set, the backend appends the namespaces annotated for the user (or their groups) on the peer clusters. It reads them from a per-process index of StackRox `namespaces.annotations` (`app/stackrox/namespace_access.py`, refreshed every 5 minutes, dropped when older than 15 minutes). See [Cross-cluster visibility](configuration.md#cross-cluster-visibility).
 
 ### 3. OIDC JWT
 
@@ -259,7 +262,7 @@ The auth-header-injector emits:
 
 - `id`, `username`, `full_name`, `email`, `role` (persisted in DB)
 - `display_name` (derived: trimmed `full_name`, else `username`)
-- `namespaces: list[tuple[str, str]]` (from `X-Forwarded-Namespaces` header, NOT persisted)
+- `namespaces: list[tuple[str, str]]` (from `X-Forwarded-Namespaces` header plus peer-cluster namespaces from `CROSS_CLUSTER_ACCESS_SETS`, NOT persisted)
 - `is_sec_team` (derived from `sec_team_group` config via `X-Forwarded-Groups`)
 - `has_all_namespaces` (derived from wildcard `*` access)
 - `can_see_all_namespaces` (`is_sec_team or has_all_namespaces`)

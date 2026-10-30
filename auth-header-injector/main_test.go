@@ -487,3 +487,29 @@ func TestUserLookupFailureFailsClosed(t *testing.T) {
 		t.Errorf("expected sec-team after recovery, got %q", g)
 	}
 }
+
+func TestSpoofedClusterReplacedOnEveryPath(t *testing.T) {
+	wildcardInfo := func(context.Context, string) (userInfo, error) {
+		return userInfo{Groups: []string{"sec-team"}, EmailResolved: true}, nil
+	}
+	cases := []struct {
+		name      string
+		fetchInfo fetchInfoFunc
+		headers   map[string]string
+	}{
+		{"no user", noGroups, map[string]string{}},
+		{"namespaces", noGroups, map[string]string{"X-Forwarded-User": "alice"}},
+		{"wildcard", wildcardInfo, map[string]string{"X-Forwarded-User": "alice", "X-Forwarded-Access-Token": "tok"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config{AllNamespacesGroups: []string{"sec-team"}}
+			cache := newTestCache(map[string][]string{"alice": {"payments"}}, nil)
+			tc.headers["X-Forwarded-Cluster"] = "prod-cluster" // spoofed origin
+			got := serve(t, cfg, cache, tc.fetchInfo, tc.headers)
+			if c := got.Get("X-Forwarded-Cluster"); c != "cluster-a" {
+				t.Errorf("expected injector cluster, got %q", c)
+			}
+		})
+	}
+}

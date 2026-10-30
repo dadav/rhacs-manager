@@ -33,6 +33,7 @@ from .routers import (
     suppression_rules,
 )
 from .stackrox.effective_scores import run_refresh_loop
+from .stackrox.namespace_access import run_refresh_loop as run_namespace_access_refresh_loop
 from .stackrox.schema_check import SCHEMA_PROBE_TIMEOUT_SECONDS, probe_stackrox_schema
 from .tasks.scheduler import run_escalation_check, setup_scheduler
 
@@ -116,10 +117,21 @@ async def lifespan(app: FastAPI):
     # process (backend replicas and worker); it sends nothing, so unlike the
     # scheduler it is safe to run more than once.
     score_refresh_task = asyncio.create_task(run_refresh_loop(), name="effective-score-refresh")
+    # Per-process, read-only index of namespace annotations on peer clusters
+    # (CROSS_CLUSTER_ACCESS_SETS). Only needed when cross-cluster access is configured.
+    namespace_access_task = None
+    if app_settings.cross_cluster_access_sets:
+        namespace_access_task = asyncio.create_task(
+            run_namespace_access_refresh_loop(), name="namespace-access-refresh"
+        )
     yield
     score_refresh_task.cancel()
     with suppress(asyncio.CancelledError):
         await score_refresh_task
+    if namespace_access_task:
+        namespace_access_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await namespace_access_task
     if active_scheduler:
         active_scheduler.shutdown()
         logger.info("APScheduler stopped")

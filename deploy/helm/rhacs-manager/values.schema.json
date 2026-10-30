@@ -446,6 +446,12 @@
                   "title": "BADGE_BASE_URL",
                   "type": "string"
                 },
+                "CROSS_CLUSTER_ACCESS_SETS": {
+                  "default": "[]",
+                  "description": "Cross-cluster namespace visibility: JSON list of cluster sets whose namespace\nannotations are shared, e.g. '[[\"prod\",\"test\"]]'. Names must match StackRox\ncluster names (each spoke's CLUSTER_NAME). Only group clusters that share an\nidentity provider and admin trust. Empty = origin cluster only.",
+                  "title": "CROSS_CLUSTER_ACCESS_SETS",
+                  "type": "string"
+                },
                 "DEFAULT_ESCALATION_EMAIL": {
                   "default": "",
                   "title": "DEFAULT_ESCALATION_EMAIL",
@@ -583,6 +589,7 @@
                 "DEFAULT_ESCALATION_EMAIL",
                 "TEAM_NOTIFICATION_ACTIVE_DAYS",
                 "SPOKE_API_KEYS",
+                "CROSS_CLUSTER_ACCESS_SETS",
                 "SEC_TEAM_GROUP",
                 "SCHEDULER_ENABLED"
               ],
@@ -1714,6 +1721,7 @@
               "properties": {
                 "CLUSTER_NAME": {
                   "default": "hub",
+                  "description": "Origin cluster stamped by auth-header-injector. Set to the hub's StackRox\ncluster name to resolve its namespaces and include it in CROSS_CLUSTER_ACCESS_SETS.",
                   "title": "CLUSTER_NAME",
                   "type": "string"
                 },

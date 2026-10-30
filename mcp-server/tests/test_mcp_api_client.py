@@ -24,6 +24,7 @@ def auth():
         forwarded_groups="group-a,group-b",
         forwarded_namespaces="payments:cluster-a,frontend:cluster-a",
         forwarded_namespace_emails="payments:cluster-a=team@example.com",
+        forwarded_cluster="cluster-a",
     )
 
 
@@ -53,6 +54,7 @@ class TestAuthContext:
         assert headers["X-Forwarded-Groups"] == "group-a,group-b"
         assert headers["X-Forwarded-Namespaces"] == "payments:cluster-a,frontend:cluster-a"
         assert headers["X-Forwarded-Namespace-Emails"] == "payments:cluster-a=team@example.com"
+        assert headers["X-Forwarded-Cluster"] == "cluster-a"
 
     def test_to_headers_includes_api_key_when_set(self, auth):
         with patch("mcp_server.api_client.settings") as mock_settings:
