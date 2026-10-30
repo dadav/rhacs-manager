@@ -1,0 +1,36 @@
+{{- $isHub := eq (default "hub" .Values.mode) "hub" -}}
+{{- $isSpoke := eq (default "hub" .Values.mode) "spoke" -}}
+{{- if and .Values.frontendNetworkPolicy.enabled (or (and $isHub .Values.frontend.enabled) $isSpoke) }}
+{{- /* Same mode resolution as frontend-deployment.yaml and the frontend Services. */}}
+{{- $deploymentName := ternary .Values.frontend.deploymentName .Values.spoke.frontend.deploymentName $isHub -}}
+{{- $mcpEnabled := ternary .Values.mcp.enabled (and .Values.spoke.mcp .Values.spoke.mcp.enabled | default false) $isHub -}}
+{{- $mcpVals := ternary .Values.mcp .Values.spoke.mcp $isHub -}}
+{{- $mcpPlainHttp := and $mcpEnabled (dig "plainHttp" "enabled" false $mcpVals) -}}
+# Only oauth-proxy authenticates requests. nginx (8080), auth-header-injector
+# (8081) and the MCP sidecar (8001) trust X-Forwarded-* identity headers and are
+# reached over pod loopback, so ingress is limited to the oauth-proxy ports.
+# 8443 is fixed in the oauth-proxy container (_helpers.tpl), deliberately not the
+# Service targetPort: a values file that points the Service at nginx must not
+# open the trusted port; it has to disable this policy explicitly instead.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $deploymentName }}-ingress
+  namespace: {{ include "rhacs-manager.namespace" . }}
+  labels:
+    {{- include "rhacs-manager.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ $deploymentName }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8443
+        {{- if $mcpPlainHttp }}
+        - protocol: TCP
+          port: {{ dig "plainHttp" "port" 8082 $mcpVals }}
+        {{- end }}
+{{- end }}

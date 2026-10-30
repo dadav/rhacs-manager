@@ -42,6 +42,8 @@ Namespace access is derived from Kubernetes namespace annotations read by the sp
 
 The injector lowercases usernames and groups when building its cache. It refreshes namespace annotations every `CACHE_TTL_SECONDS` and caches OpenShift group lookups per access token for `GROUP_CACHE_TTL_SECONDS`.
 
+If refreshing the annotations fails, the injector keeps the previous data for up to three refresh intervals (`3 x CACHE_TTL_SECONDS`, 15 minutes by default). After that it **fails closed**: it forwards no annotation-based namespaces or escalation emails until a refresh succeeds, and logs `namespace cache stale` at most once per minute. This keeps revoked annotations from staying in effect while the Kubernetes API is unreachable. Wildcard (`ALL_NAMESPACES_GROUPS`) and sec-team access come from the user's groups, so they are not affected.
+
 ## How Groups Are Resolved
 
 When `X-Forwarded-Access-Token` is present, the injector calls:
@@ -146,6 +148,12 @@ Some CVEs remain visible even if they do not meet the active thresholds.
 | Manual priority exists | Yes |
 | Active risk acceptance exists (`requested` or `approved`) | Yes |
 | Below thresholds with no priority and no active risk acceptance | No, unless the user opts out with `ignore_thresholds=true` |
+
+## Frontend Pod Network Boundary
+
+Only oauth-proxy authenticates requests. The other listeners in the frontend pod trust the `X-Forwarded-*` identity headers they receive: nginx (`8080`) also attaches the spoke API key, auth-header-injector (`8081`) trusts `X-Forwarded-User`, and the MCP sidecar (`8001`) trusts all forwarded identity headers. A client that reached one of these ports directly could act as any user, including `sec_team` or wildcard namespace access.
+
+The chart therefore creates a NetworkPolicy (`frontendNetworkPolicy.enabled`, on by default, hub and spoke) that admits ingress to the frontend pod only on the oauth-proxy ports: `8443` and, when MCP plain HTTP is enabled, `mcp.plainHttp.port` / `spoke.mcp.plainHttp.port`. The internal hops run over pod loopback and are not affected. Kubelet probes come from the node, which NetworkPolicy does not block on OpenShift (OVN-Kubernetes). Disable the policy only if an equivalent one is managed outside the chart.
 
 ## Spoke-to-Hub Trust Boundary
 

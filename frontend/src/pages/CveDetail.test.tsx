@@ -41,12 +41,13 @@ vi.mock('../hooks/useAuth', () => ({
 }))
 
 let mockScopeSearchString = ''
+let mockScopeParams: { cluster?: string; namespace?: string } = {}
 vi.mock('../hooks/useScope', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../hooks/useScope')>()),
   useScope: () => ({
-    cluster: undefined,
-    namespace: undefined,
-    scopeParams: {},
+    cluster: mockScopeParams.cluster,
+    namespace: mockScopeParams.namespace,
+    scopeParams: mockScopeParams,
     setScope: vi.fn(),
     scopeSearchString: mockScopeSearchString,
   }),
@@ -154,6 +155,7 @@ function createWrapper(cveId: string) {
 beforeEach(() => {
   vi.clearAllMocks()
   mockScopeSearchString = ''
+  mockScopeParams = {}
   mockUseCveComments.mockReturnValue({ data: [], isLoading: false })
   mockUseAddCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
   mockUseEditCveComment.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
@@ -163,6 +165,15 @@ beforeEach(() => {
 // --- Tests ---
 
 describe('CveDetail', () => {
+  it('requests the detail with the sidebar scope', () => {
+    mockScopeParams = { cluster: 'cluster-a', namespace: 'payments' }
+    mockUseCveDetail.mockReturnValue({ data: undefined, isLoading: true, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(mockUseCveDetail).toHaveBeenCalledWith('CVE-2024-1234', { cluster: 'cluster-a', namespace: 'payments' })
+  })
+
   it('renders loading state', () => {
     mockUseCveDetail.mockReturnValue({ data: undefined, isLoading: true, error: null })
 

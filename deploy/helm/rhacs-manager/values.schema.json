@@ -1867,6 +1867,21 @@
       "title": "frontend",
       "type": "object"
     },
+    "frontendNetworkPolicy": {
+      "additionalProperties": false,
+      "description": "NetworkPolicy for the frontend pod (hub and spoke). Inside the pod, nginx\n(8080), auth-header-injector (8081) and the MCP sidecar (8001) trust the\nX-Forwarded-* identity headers and nginx attaches the backend API key. Only\noauth-proxy authenticates, so the policy admits ingress solely on the\noauth-proxy ports; other pods can no longer reach the internal listeners and\nforge a user, groups or namespaces. Keep enabled unless an equivalent policy\nis managed outside the chart.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Create the NetworkPolicy restricting frontend pod ingress to oauth-proxy ports.",
+          "title": "enabled",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "title": "frontendNetworkPolicy",
+      "type": "object"
+    },
     "fullnameOverride": {
       "default": "",
       "description": "Override the full release name used in resource names.",

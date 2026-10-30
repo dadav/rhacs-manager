@@ -49,7 +49,7 @@ These action-first sections sit at the top of the dashboard.
 The normal workflow starts in **Vulnerabilities**.
 
 1. Open **Vulnerabilities** and apply filters such as severity, fixability, EPSS, namespace, cluster, component, data source, or risk status.
-2. Open a CVE detail page to review affected deployments, components, external references, escalation state, comments, and existing remediation or risk-acceptance records.
+2. Open a CVE detail page to review affected deployments, components, external references, escalation state, comments, and existing remediation or risk-acceptance records. The detail page follows the cluster and namespace selected in the sidebar: deployments, components, counts, and data sources only cover that scope. With no selection it covers every namespace you can see. If the CVE does not occur in the selected scope, the page reports it as not found.
 3. Decide on the handling path:
    - Fix it now: create a remediation in **Remediations** from the CVE detail page.
    - Accept the risk temporarily: create a request in **Risk Acceptances** from the same CVE context.

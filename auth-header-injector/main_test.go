@@ -513,3 +513,72 @@ func TestSpoofedClusterReplacedOnEveryPath(t *testing.T) {
 		})
 	}
 }
+
+// staleTestCache returns a cache holding alice -> payments (direct and via
+// dev-team) with the given maxAge, last refreshed age ago.
+func staleTestCache(maxAge, age time.Duration) *nsCache {
+	c := newNSCache(maxAge)
+	c.update(
+		map[string][]string{"alice": {"payments"}},
+		map[string][]string{"dev-team": {"payments"}},
+		map[string]string{"payments": "pay@example.com"},
+	)
+	c.fetchedAt = time.Now().Add(-age)
+	return c
+}
+
+func TestNamespaceCacheFreshServesNamespaces(t *testing.T) {
+	c := staleTestCache(15*time.Minute, time.Minute)
+	if got := c.namespacesForUser("alice"); len(got) != 1 || got[0] != "payments" {
+		t.Errorf("expected [payments] for user, got %v", got)
+	}
+	if got := c.namespacesForGroups([]string{"dev-team"}); len(got) != 1 || got[0] != "payments" {
+		t.Errorf("expected [payments] for group, got %v", got)
+	}
+	if got := c.emailForNamespace("payments"); got != "pay@example.com" {
+		t.Errorf("expected email, got %q", got)
+	}
+}
+
+func TestNamespaceCacheStaleFailsClosed(t *testing.T) {
+	c := staleTestCache(15*time.Minute, 16*time.Minute)
+	if got := c.namespacesForUser("alice"); got != nil {
+		t.Errorf("expected no user namespaces from stale cache, got %v", got)
+	}
+	if got := c.namespacesForGroups([]string{"dev-team"}); got != nil {
+		t.Errorf("expected no group namespaces from stale cache, got %v", got)
+	}
+	if got := c.emailForNamespace("payments"); got != "" {
+		t.Errorf("expected no email from stale cache, got %q", got)
+	}
+}
+
+func TestNamespaceCacheNeverLoadedFailsClosed(t *testing.T) {
+	c := newNSCache(15 * time.Minute)
+	if got := c.namespacesForUser("alice"); got != nil {
+		t.Errorf("expected nothing before the first load, got %v", got)
+	}
+}
+
+func TestStaleCacheForwardsNoNamespaces(t *testing.T) {
+	cache := staleTestCache(15*time.Minute, time.Hour)
+	got := serve(t, config{}, cache, noGroups, map[string]string{"X-Forwarded-User": "alice"})
+	if ns := got.Get("X-Forwarded-Namespaces"); ns != "" {
+		t.Errorf("expected empty namespaces from stale cache, got %q", ns)
+	}
+}
+
+func TestStaleCacheKeepsWildcardGroups(t *testing.T) {
+	// Wildcard access comes from the token's groups, not the annotation cache.
+	cache := staleTestCache(15*time.Minute, time.Hour)
+	fetchInfo := func(context.Context, string) (userInfo, error) {
+		return userInfo{Groups: []string{"sec-team"}, EmailResolved: true}, nil
+	}
+	got := serve(t, config{AllNamespacesGroups: []string{"sec-team"}}, cache, fetchInfo, map[string]string{
+		"X-Forwarded-User":         "alice",
+		"X-Forwarded-Access-Token": "tok",
+	})
+	if ns := got.Get("X-Forwarded-Namespaces"); ns != "*" {
+		t.Errorf("expected wildcard, got %q", ns)
+	}
+}

@@ -6,9 +6,17 @@ import { scopeApiParams, type ScopeParams } from '../hooks/useScope'
 
 export const cveKeys = {
   list: (params: Record<string, unknown>) => ['cves', 'list', params] as const,
-  detail: (id: string) => ['cves', 'detail', id] as const,
-  deployments: (id: string) => ['cves', 'deployments', id] as const,
+  // The scope is the last key element, so ['cves', 'detail', id] still matches every scope.
+  detail: (id: string, scope: DetailScope = {}) => ['cves', 'detail', id, scope] as const,
+  deployments: (id: string, scope: DetailScope = {}) => ['cves', 'deployments', id, scope] as const,
   comments: (id: string) => ['cves', 'comments', id] as const,
+}
+
+/** Sidebar scope sent with CVE detail requests; the backend only ever narrows visibility with it. */
+type DetailScope = { cluster?: string; namespace?: string }
+
+function detailScope(scope: ScopeParams): DetailScope {
+  return { cluster: scope.cluster, namespace: scope.namespace }
 }
 
 interface CveListParams {
@@ -60,18 +68,20 @@ export function useCves(params: CveListParams = {}, scope: ScopeParams = {}) {
   })
 }
 
-export function useCveDetail(cveId: string) {
+export function useCveDetail(cveId: string, scope: ScopeParams = {}) {
+  const params = detailScope(scope)
   return useQuery({
-    queryKey: cveKeys.detail(cveId),
-    queryFn: () => api.get<CveDetail>(`/cves/${encodeURIComponent(cveId)}`),
+    queryKey: cveKeys.detail(cveId, params),
+    queryFn: () => api.get<CveDetail>(`/cves/${encodeURIComponent(cveId)}${buildQuery(params)}`),
     enabled: !!cveId,
   })
 }
 
-export function useCveDeployments(cveId: string) {
+export function useCveDeployments(cveId: string, scope: ScopeParams = {}) {
+  const params = detailScope(scope)
   return useQuery({
-    queryKey: cveKeys.deployments(cveId),
-    queryFn: () => api.get<AffectedDeployment[]>(`/cves/${encodeURIComponent(cveId)}/deployments`),
+    queryKey: cveKeys.deployments(cveId, params),
+    queryFn: () => api.get<AffectedDeployment[]>(`/cves/${encodeURIComponent(cveId)}/deployments${buildQuery(params)}`),
     enabled: !!cveId,
   })
 }

@@ -343,6 +343,24 @@ networkPolicy:
 # type: object
 # additionalProperties: false
 # @schema
+# -- NetworkPolicy for the frontend pod (hub and spoke). Inside the pod, nginx
+# (8080), auth-header-injector (8081) and the MCP sidecar (8001) trust the
+# X-Forwarded-* identity headers and nginx attaches the backend API key. Only
+# oauth-proxy authenticates, so the policy admits ingress solely on the
+# oauth-proxy ports; other pods can no longer reach the internal listeners and
+# forge a user, groups or namespaces. Keep enabled unless an equivalent policy
+# is managed outside the chart.
+frontendNetworkPolicy:
+  # @schema
+  # type: boolean
+  # @schema
+  # -- Create the NetworkPolicy restricting frontend pod ingress to oauth-proxy ports.
+  enabled: true
+
+# @schema
+# type: object
+# additionalProperties: false
+# @schema
 # -- Backend API server configuration (hub mode).
 backend:
   # @schema

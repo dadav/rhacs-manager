@@ -10,6 +10,8 @@ The spoke frontend deployment contains three containers:
 2. `auth-header-injector` (`:8081`) to resolve namespace access into forwarded scope headers
 3. `frontend` (`:8080`) nginx SPA with `/api/*` proxy to hub
 
+Only `oauth-proxy` is reachable from outside the pod: the chart's frontend NetworkPolicy (`frontendNetworkPolicy.enabled`, default on) admits ingress only on the oauth-proxy ports. See [Frontend Pod Network Boundary](../security.md#frontend-pod-network-boundary).
+
 ## Auth Header Injector Behavior
 
 - Reads `X-Forwarded-User`
@@ -35,7 +37,7 @@ Configuration:
 | `NAMESPACE_ANNOTATION`    | `rhacs-manager.io/users`            | User annotation key                                                  |
 | `GROUP_ANNOTATION`        | `rhacs-manager.io/groups`           | Group annotation key                                                 |
 | `EMAIL_ANNOTATION`        | `rhacs-manager.io/escalation-email` | Namespace escalation contact annotation key                          |
-| `CACHE_TTL_SECONDS`       | `300`                               | Cache refresh interval                                               |
+| `CACHE_TTL_SECONDS`       | `300`                               | Cache refresh interval; fails closed after 3 failed intervals        |
 | `GROUP_CACHE_TTL_SECONDS` | `60`                                | Group lookup cache interval                                          |
 | `ALL_NAMESPACES_GROUPS`   | `""`                                | Comma-separated groups that should receive wildcard namespace access |
 | `TRUST_FORWARDED_GROUPS`  | `false`                             | Trust the inbound `X-Forwarded-Groups` header as a fallback when token-based group lookup yields nothing. Keep `false` unless the injector exclusively receives oauth-proxy traffic (see trust model above) |

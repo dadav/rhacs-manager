@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,6 +89,14 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+// cacheStaleAfterRefreshes is how many refresh intervals the namespace cache may
+// miss before it fails closed. A failed refresh keeps the previous data, so
+// without this limit revoked annotations would stay granted indefinitely.
+const cacheStaleAfterRefreshes = 3
+
+// staleWarnInterval rate-limits the "namespace cache stale" warning.
+const staleWarnInterval = time.Minute
+
 // nsCache maps lowercase usernames and group names to the namespaces they can access,
 // and namespaces to their escalation email addresses.
 type nsCache struct {
@@ -96,17 +105,56 @@ type nsCache struct {
 	groupToNS map[string][]string // group -> []namespace
 	nsEmails  map[string]string   // namespace -> escalation email
 	fetchedAt time.Time
+	// maxAge is how old fetchedAt may get before reads return nothing (fail
+	// closed). Zero disables the check.
+	maxAge time.Duration
+	// lastStaleWarn holds the UnixNano of the last stale warning.
+	lastStaleWarn atomic.Int64
+}
+
+func newNSCache(maxAge time.Duration) *nsCache {
+	return &nsCache{
+		userToNS:  make(map[string][]string),
+		groupToNS: make(map[string][]string),
+		nsEmails:  make(map[string]string),
+		maxAge:    maxAge,
+	}
+}
+
+// usable reports whether the cached data may be served. The caller holds c.mu.
+func (c *nsCache) usable() bool {
+	if c.maxAge <= 0 {
+		return true
+	}
+	if !c.fetchedAt.IsZero() && time.Since(c.fetchedAt) <= c.maxAge {
+		return true
+	}
+	now := time.Now().UnixNano()
+	last := c.lastStaleWarn.Load()
+	if now-last >= int64(staleWarnInterval) && c.lastStaleWarn.CompareAndSwap(last, now) {
+		slog.Warn("namespace cache stale, serving no annotation-based namespaces",
+			"fetched_at", c.fetchedAt,
+			"max_age", c.maxAge,
+		)
+	}
+	return false
 }
 
 func (c *nsCache) namespacesForUser(username string) []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	if !c.usable() {
+		return nil
+	}
 	return c.userToNS[strings.ToLower(username)]
 }
 
 func (c *nsCache) namespacesForGroups(groups []string) []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	if !c.usable() {
+		return nil
+	}
 
 	seen := make(map[string]bool)
 	var result []string
@@ -124,6 +172,9 @@ func (c *nsCache) namespacesForGroups(groups []string) []string {
 func (c *nsCache) emailForNamespace(ns string) string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	if !c.usable() {
+		return ""
+	}
 	return c.nsEmails[ns]
 }
 
@@ -323,7 +374,7 @@ func fetchAndUpdate(ctx context.Context, client kubernetes.Interface, cache *nsC
 	nsList, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		slog.Error("failed to list namespaces", "error", err)
-		return // keep serving stale data
+		return // keep the previous data; reads fail closed once it exceeds the cache maxAge
 	}
 
 	userToNS := make(map[string][]string)
@@ -566,11 +617,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cache := &nsCache{
-		userToNS:  make(map[string][]string),
-		groupToNS: make(map[string][]string),
-		nsEmails:  make(map[string]string),
-	}
+	cache := newNSCache(cacheStaleAfterRefreshes * time.Duration(cfg.CacheTTLSeconds) * time.Second)
 
 	tokenCache := newTokenInfoCache(time.Duration(cfg.GroupCacheTTLSeconds) * time.Second)
 

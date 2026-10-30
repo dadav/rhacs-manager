@@ -83,7 +83,7 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `NAMESPACE_ANNOTATION` | `rhacs-manager.io/users` | Annotation key for comma-separated usernames |
 | `GROUP_ANNOTATION` | `rhacs-manager.io/groups` | Annotation key for comma-separated groups |
 | `EMAIL_ANNOTATION` | `rhacs-manager.io/escalation-email` | Annotation key for escalation email contact |
-| `CACHE_TTL_SECONDS` | `300` | Namespace annotation cache refresh interval |
+| `CACHE_TTL_SECONDS` | `300` | Namespace annotation cache refresh interval. After 3 failed intervals the cache fails closed (no annotation-based namespaces) |
 | `GROUP_CACHE_TTL_SECONDS` | `60` | OpenShift user-group cache TTL |
 | `KUBE_API_URL` | `https://kubernetes.default.svc` | OpenShift/Kubernetes API base URL |
 | `ALL_NAMESPACES_GROUPS` | `""` | Comma-separated OpenShift groups that should receive wildcard `*` namespace access |

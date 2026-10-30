@@ -58,6 +58,28 @@ def _origin_or_none(code: int | None) -> VulnOrigin | None:
     return VulnOrigin(name) if name else None
 
 
+async def _visible_detail_pairs(
+    current_user: CurrentUser,
+    sx_db: AsyncSession,
+    cluster: str | None,
+    namespace: str | None,
+) -> list[tuple[str, str]]:
+    """(namespace, cluster) pairs a CVE detail request may read.
+
+    Starts from the user's visibility (all StackRox namespaces for sec team and
+    wildcard users, otherwise ``current_user.namespaces``) and narrows it to the
+    sidebar scope. Narrowing never widens: an out-of-scope filter yields ``[]``.
+    """
+    from ._scope import narrow_namespaces
+
+    if current_user.can_see_all_namespaces:
+        all_ns = await sx.list_namespaces(sx_db)
+        pairs = [(r["namespace"], r["cluster_name"]) for r in all_ns]
+    else:
+        pairs = list(current_user.namespaces)
+    return narrow_namespaces(pairs, cluster, namespace)
+
+
 @router.get("", response_model=PaginatedResponse[CveListItem])
 async def list_cves(
     page: int = Query(1, ge=1),
@@ -364,6 +386,8 @@ async def list_cves_for_image(
 @router.get("/{cve_id}", response_model=CveDetail)
 async def get_cve(
     cve_id: str,
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -399,21 +423,20 @@ async def get_cve(
         if cur is None or esc.triggered_at < cur:
             esc_dates[esc.level] = esc.triggered_at
 
-    first_system_occurrence: datetime | None = None
-    if current_user.can_see_all_namespaces:
-        all_ns = await sx.list_namespaces(sx_db)
-        ns: list[tuple[str, str]] = [(r["namespace"], r["cluster_name"]) for r in all_ns]
-        cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
-        if cve_data:
-            first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
-    else:
-        if not current_user.has_namespaces:
-            raise ApiError(404, "cve_not_found")
-        ns = current_user.namespaces
-        cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
-
+    # Every StackRox read below uses these pairs, so the detail never shows data
+    # outside the user's visibility or the selected sidebar scope.
+    has_scope = cluster is not None or namespace is not None
+    ns = await _visible_detail_pairs(current_user, sx_db, cluster, namespace)
+    if not ns:
+        raise ApiError(404, "cve_not_found")
+    cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
     if not cve_data:
         raise ApiError(404, "cve_not_found")
+
+    first_system_occurrence: datetime | None = None
+    if current_user.can_see_all_namespaces:
+        # System-wide fact, independent of the sidebar scope.
+        first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
 
     esc_expected: dict[int, datetime | None] = {1: None, 2: None, 3: None}
     first_seen = cve_data.get("first_seen")
@@ -435,7 +458,7 @@ async def get_cve(
                     esc_expected[lvl] = dt
 
     # Fetch protobuf data for summary, references, and advisory
-    if current_user.can_see_all_namespaces:
+    if current_user.can_see_all_namespaces and not has_scope:
         proto_row = await sx.get_cve_protobuf_data_all(sx_db, cve_id)
     else:
         proto_row = await sx.get_cve_protobuf_data(sx_db, cve_id, ns)
@@ -706,17 +729,15 @@ async def delete_cve_comment(
 @router.get("/{cve_id}/deployments", response_model=list[AffectedDeployment])
 async def get_cve_deployments(
     cve_id: str,
+    cluster: str | None = Query(None),
+    namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[AffectedDeployment]:
-    if current_user.can_see_all_namespaces:
-        all_ns = await sx.list_namespaces(sx_db)
-        ns = [(r["namespace"], r["cluster_name"]) for r in all_ns]
-    else:
-        if not current_user.has_namespaces:
-            return []
-        ns = current_user.namespaces
+    ns = await _visible_detail_pairs(current_user, sx_db, cluster, namespace)
+    if not ns:
+        return []
 
     deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
     return [

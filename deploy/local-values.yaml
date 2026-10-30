@@ -33,6 +33,11 @@ frontend:
     port: 8080
     targetPort: 8080
 
+# The Service above bypasses oauth-proxy (dev only), which the frontend
+# NetworkPolicy would block. Never copy this to a real cluster.
+frontendNetworkPolicy:
+  enabled: false
+
 route:
   frontend:
     host: rhacs-manager.apps-crc.testing

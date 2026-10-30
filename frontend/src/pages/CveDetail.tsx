@@ -191,7 +191,7 @@ export function CveDetail() {
   const { isSecTeam, user } = useAuth();
   const { scopeParams, scopeSearchString } = useScope();
   const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString);
-  const { data: cve, isLoading, error } = useCveDetail(cveId ?? "");
+  const { data: cve, isLoading, error } = useCveDetail(cveId ?? "", scopeParams);
   const { data: comments } = useCveComments(cveId ?? "");
   const viewers = usePresence("cve", cveId);
 

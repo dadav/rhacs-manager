@@ -202,6 +202,145 @@ async def test_get_cve_detail_team_member_no_namespaces(app, patch_sx, mock_app_
     assert resp.status_code == 404
 
 
+# -- CVE detail visibility and sidebar scope --
+
+_SCOPED_DETAIL_QUERIES = (
+    "get_cve_detail",
+    "get_affected_deployments",
+    "get_affected_components_with_origin",
+    "get_cve_origin_ratings",
+    "get_cve_protobuf_data",
+)
+
+
+def _client_for(app, user) -> httpx.AsyncClient:
+    from app.deps import get_current_user
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+
+
+def _assert_detail_queries_used(patch_sx, expected: list[tuple[str, str]]) -> None:
+    """Every namespace-scoped StackRox read of the detail got exactly ``expected``."""
+    for name in _SCOPED_DETAIL_QUERIES:
+        mock = getattr(patch_sx, name)
+        assert mock.await_count == 1, name
+        assert mock.await_args.args[2] == expected, name
+
+
+def _deployment(namespace: str, cluster: str) -> dict:
+    return {
+        "deployment_id": f"dep-{namespace}-{cluster}",
+        "deployment_name": f"app-{namespace}",
+        "namespace": namespace,
+        "cluster_name": cluster,
+        "image_name": "registry/app:1",
+        "image_id": "sha256:abc",
+        "first_seen": None,
+    }
+
+
+async def test_get_cve_detail_team_member_reads_only_own_namespaces(app, patch_sx, mock_app_db):
+    """Regression: a team member's detail never queries namespaces outside their pairs."""
+    from tests.conftest import make_current_user
+
+    user = make_current_user(namespaces=[("payments", "cluster-a")])
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await _client_for(app, user).get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    _assert_detail_queries_used(patch_sx, [("payments", "cluster-a")])
+    patch_sx.list_namespaces.assert_not_awaited()
+    patch_sx.get_cve_protobuf_data_all.assert_not_awaited()
+    patch_sx.get_first_system_occurrence.assert_not_awaited()
+
+
+async def test_get_cve_detail_team_member_scope_narrows(team_member_client, patch_sx, mock_app_db):
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001?cluster=cluster-a&namespace=payments")
+
+    assert resp.status_code == 200
+    _assert_detail_queries_used(patch_sx, [("payments", "cluster-a")])
+
+
+async def test_get_cve_detail_scope_without_cve_returns_404(team_member_client, patch_sx, mock_app_db):
+    """Scope is allowed, but the CVE is not present there."""
+    patch_sx.get_cve_detail.return_value = None
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001?namespace=payments&cluster=cluster-a")
+
+    assert resp.status_code == 404
+    assert patch_sx.get_cve_detail.await_args.args[2] == [("payments", "cluster-a")]
+
+
+async def test_get_cve_detail_scope_outside_visibility_returns_404(team_member_client, patch_sx, mock_app_db):
+    """A scope the user does not own never widens visibility and never reaches StackRox."""
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001?namespace=secret-ns&cluster=cluster-a")
+
+    assert resp.status_code == 404
+    for name in _SCOPED_DETAIL_QUERIES:
+        getattr(patch_sx, name).assert_not_awaited()
+
+
+@pytest.mark.parametrize("is_sec_team", [True, False], ids=["sec_team", "wildcard"])
+async def test_get_cve_detail_all_namespaces_user_scope_narrows(is_sec_team, app, patch_sx, mock_app_db):
+    from tests.conftest import make_current_user
+
+    user = make_current_user(is_sec_team=is_sec_team, has_all_namespaces=not is_sec_team, namespaces=[])
+    patch_sx.list_namespaces.return_value = [
+        {"namespace": "payments", "cluster_name": "cluster-a"},
+        {"namespace": "payments", "cluster_name": "cluster-b"},
+        {"namespace": "frontend", "cluster_name": "cluster-a"},
+    ]
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    with patch("app.config.settings.default_escalation_email", "sec@example.com"):
+        resp = await _client_for(app, user).get("/api/cves/CVE-2024-0001?cluster=cluster-a")
+
+    assert resp.status_code == 200
+    _assert_detail_queries_used(patch_sx, [("payments", "cluster-a"), ("frontend", "cluster-a")])
+    patch_sx.get_cve_protobuf_data_all.assert_not_awaited()
+    patch_sx.get_first_system_occurrence.assert_awaited_once()
+    data = resp.json()
+    assert [d["namespace"] for d in data["affected_deployments_list"]] == ["payments"]
+    # Contact lookup is built from the scoped deployments only (no NamespaceContact rows -> default).
+    assert data["contact_emails"] == ["sec@example.com"]
+
+
+async def test_get_cve_detail_all_namespaces_user_unscoped_uses_global_protobuf(sec_team_client, patch_sx, mock_app_db):
+    patch_sx.list_namespaces.return_value = [{"namespace": "payments", "cluster_name": "cluster-a"}]
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await sec_team_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    patch_sx.get_cve_protobuf_data_all.assert_awaited_once()
+    patch_sx.get_cve_protobuf_data.assert_not_awaited()
+
+
+async def test_get_cve_deployments_team_member_scoped(team_member_client, patch_sx):
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001/deployments?namespace=payments&cluster=cluster-a")
+
+    assert resp.status_code == 200
+    assert [d["namespace"] for d in resp.json()] == ["payments"]
+    assert patch_sx.get_affected_deployments.await_args.args[2] == [("payments", "cluster-a")]
+
+
+async def test_get_cve_deployments_scope_outside_visibility_is_empty(team_member_client, patch_sx):
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001/deployments?namespace=secret-ns")
+
+    assert resp.status_code == 200
+    assert resp.json() == []
+    patch_sx.get_affected_deployments.assert_not_awaited()
+
+
 # -- origin (vulnerability feed, ACS 4.11.6+) --
 
 
