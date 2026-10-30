@@ -1006,6 +1006,13 @@
     "viewing_many": "{{count}} others are viewing this",
     "tooltip": "Active viewers: {{users}}"
   },
+  "mentionPicker": {
+    "title": "Mention a person",
+    "searchLabel": "Search people",
+    "searchPlaceholder": "Name or username",
+    "noResults": "No matching people found",
+    "keyboardHint": "Tab / Shift+Tab or arrow keys: select, Enter: insert, Esc: cancel"
+  },
   "mySettings": {
     "title": "My settings",
     "notificationsTitle": "Notifications",

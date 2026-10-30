@@ -1006,6 +1006,13 @@
     "viewing_many": "{{count}} weitere sehen sich das gerade an",
     "tooltip": "Aktive Betrachter: {{users}}"
   },
+  "mentionPicker": {
+    "title": "Person erwähnen",
+    "searchLabel": "Personen suchen",
+    "searchPlaceholder": "Name oder Benutzername",
+    "noResults": "Keine passenden Personen gefunden",
+    "keyboardHint": "Tab / Umschalt+Tab oder Pfeiltasten: auswählen, Enter: einfügen, Esc: abbrechen"
+  },
   "mySettings": {
     "title": "Persönliche Einstellungen",
     "notificationsTitle": "Benachrichtigungen",

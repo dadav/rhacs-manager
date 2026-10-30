@@ -236,6 +236,10 @@ CVE, escalation-contact, and risk-acceptance comments support `@[username]`
 mentions. Each newly-mentioned user gets an in-app notification and, best-effort,
 an email.
 
+- **Picking a user.** Typing `@` (at the start or after a space) opens a centered
+  search dialog. Type a name or username, move through the results with
+  **Tab** / **Shift+Tab** (or the arrow keys), press **Enter** to insert the
+  selected user, or **Esc** to cancel and keep the plain `@`.
 - **Case-insensitive.** `@[Alice]` and `@[alice]` resolve to the same account.
   Usernames are globally unique regardless of case, so a mention maps to exactly
   one user.

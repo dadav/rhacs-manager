@@ -1,5 +1,6 @@
-import { TextArea } from "@patternfly/react-core";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { Modal, ModalBody, ModalHeader, Spinner, TextArea, TextInput } from "@patternfly/react-core";
+import { useRef, useState, useEffect, useCallback, useId } from "react";
+import { useTranslation } from "react-i18next";
 import { useUserSearch } from "../api/auth";
 import type { CommentContentSegment, CommentInputSegment } from "../types";
 
@@ -135,6 +136,10 @@ interface MentionTextAreaProps {
   isDisabled?: boolean;
 }
 
+/** Fixed list height so the picker never grows or shrinks with the result count. */
+const PICKER_LIST_HEIGHT = 320;
+const PICKER_WIDTH = 480;
+
 export function MentionTextArea({
   value,
   onChange,
@@ -143,160 +148,222 @@ export function MentionTextArea({
   style,
   isDisabled,
 }: MentionTextAreaProps) {
-  const [mentionQuery, setMentionQuery] = useState("");
+  const { t } = useTranslation();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  // Index of the typed "@" in the derived text; replaced by the picked mention.
   const [mentionStart, setMentionStart] = useState(-1);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [showDropdown, setShowDropdown] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedOptionRef = useRef<HTMLDivElement | null>(null);
+  const idBase = useId();
+  const listboxId = `${idBase}-listbox`;
+  const optionId = (i: number) => `${idBase}-option-${i}`;
 
   const text = segmentsToText(value);
-  const { data: users } = useUserSearch(mentionQuery, showDropdown);
+  const { data: users, isLoading } = useUserSearch(pickerQuery, pickerOpen);
+  const userCount = users?.length ?? 0;
+  const activeIndex = userCount === 0 ? -1 : Math.min(selectedIndex, userCount - 1);
 
   const handleChange = useCallback(
-    (_: unknown, val: string) => {
+    (event: React.ChangeEvent<HTMLTextAreaElement>, val: string) => {
       onChange(applyTextEdit(value, val));
 
-      const el = textareaRef.current;
-      if (!el) return;
-      setTimeout(() => {
-        const cursorPos = el.selectionStart;
-        const before = val.slice(0, cursorPos);
-        // Keep spaces in the active query so users can search a full name.
-        // Newlines and sentence punctuation end the mention candidate.
-        const bareMatch = before.match(/(^|[\s])@([^@\n,;:!?()]*)$/);
-        if (bareMatch) {
-          setMentionQuery(bareMatch[2]);
-          setMentionStart(cursorPos - bareMatch[2].length - 1);
-          setShowDropdown(true);
-          setSelectedIndex(0);
-        } else {
-          setShowDropdown(false);
-          setMentionQuery("");
-        }
-      }, 0);
+      // Value and cursor come from the same event, so mentionStart always
+      // points at the "@" that was just typed.
+      const cursorPos = event.currentTarget.selectionStart ?? val.length;
+      const before = val.slice(0, cursorPos);
+      if (/(^|\s)@$/.test(before)) {
+        setMentionStart(cursorPos - 1);
+        setPickerQuery("");
+        setSelectedIndex(0);
+        setPickerOpen(true);
+      }
     },
     [onChange, value],
   );
 
+  const focusTextarea = useCallback((cursorPos: number) => {
+    setTimeout(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+  }, []);
+
+  const cancelPicker = useCallback(() => {
+    setPickerOpen(false);
+    setPickerQuery("");
+    focusTextarea(mentionStart + 1);
+  }, [focusTextarea, mentionStart]);
+
   const insertMention = useCallback(
     (user: { id: string; username: string; display_name: string }) => {
-      // Replace the "@query" token span with a real mention segment + a space.
-      const tokenEnd = mentionStart + 1 + mentionQuery.length;
+      setPickerOpen(false);
+      setPickerQuery("");
+      if (segmentsToText(value)[mentionStart] !== "@") {
+        console.warn("MentionTextArea: '@' not found at mention start, mention not inserted", {
+          mentionStart,
+        });
+        focusTextarea(mentionStart + 1);
+        return;
+      }
+      // Replace the typed "@" with a real mention segment + a space.
       const display = user.display_name || user.username;
-      const next = spliceSegments(value, mentionStart, tokenEnd, [
+      const next = spliceSegments(value, mentionStart, mentionStart + 1, [
         { type: "mention", user_id: user.id, username: user.username, display },
         { type: "text", text: " " },
       ]);
       onChange(next);
-      setShowDropdown(false);
-      setMentionQuery("");
-
-      setTimeout(() => {
-        const el = textareaRef.current;
-        if (el) {
-          el.focus();
-          const pos = mentionStart + `@${display} `.length;
-          el.setSelectionRange(pos, pos);
-        }
-      }, 0);
+      focusTextarea(mentionStart + `@${display} `.length);
     },
-    [value, mentionStart, mentionQuery, onChange],
+    [value, mentionStart, onChange, focusTextarea],
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!showDropdown || !users?.length) return;
-      if (e.key === "ArrowDown") {
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const isNext = (e.key === "Tab" && !e.shiftKey) || e.key === "ArrowDown";
+      const isPrevious = (e.key === "Tab" && e.shiftKey) || e.key === "ArrowUp";
+      if (isNext) {
+        // Tab never leaves the search field while the picker is open.
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, users.length - 1));
-      } else if (e.key === "ArrowUp") {
+        setSelectedIndex(Math.min(activeIndex + 1, Math.max(userCount - 1, 0)));
+      } else if (isPrevious) {
         e.preventDefault();
-        setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" || e.key === "Tab") {
-        if (users[selectedIndex]) {
-          e.preventDefault();
-          insertMention(users[selectedIndex]);
-        }
-      } else if (e.key === "Escape") {
-        setShowDropdown(false);
+        setSelectedIndex(Math.max(activeIndex - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (users && activeIndex >= 0) insertMention(users[activeIndex]);
       }
     },
-    [showDropdown, users, selectedIndex, insertMention],
+    [activeIndex, userCount, users, insertMention],
   );
+
+  // disableFocusTrap makes PF ignore elementToFocus, so focus the search field explicitly.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const frame = requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [pickerOpen]);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false);
-      }
+    const el = selectedOptionRef.current;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "nearest" });
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  }, [activeIndex, pickerOpen]);
 
   return (
-    <div style={{ position: "relative" }}>
+    <div>
       <TextArea
         ref={(el) => {
           textareaRef.current = el as unknown as HTMLTextAreaElement;
         }}
         value={text}
         onChange={handleChange}
-        onKeyDown={handleKeyDown}
         rows={rows}
         placeholder={placeholder}
         style={style}
         isDisabled={isDisabled}
       />
-      {showDropdown && users && users.length > 0 && (
-        <div
-          ref={dropdownRef}
-          role="listbox"
-          style={{
-            position: "absolute",
-            bottom: "100%",
-            left: 0,
-            zIndex: 1000,
-            background: "var(--pf-t--global--background--color--primary--default)",
-            border: "1px solid var(--pf-t--global--border--color--default)",
-            borderRadius: 4,
-            boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
-            maxHeight: 220,
-            overflowY: "auto",
-            minWidth: 220,
-            marginBottom: 4,
-          }}
-        >
-          {users.map((user, i) => (
-            <div
-              key={user.id}
-              role="option"
-              aria-selected={i === selectedIndex}
-              tabIndex={-1}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                insertMention(user);
-              }}
-              style={{
-                padding: "6px 12px",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                background:
-                  i === selectedIndex
-                    ? "var(--pf-t--global--background--color--secondary--default)"
-                    : "transparent",
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{user.display_name || user.username}</span>
-              <span style={{ fontSize: 11, color: "var(--pf-t--global--text--color--subtle)" }}>
-                @{user.username}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <Modal
+        isOpen={pickerOpen}
+        variant="small"
+        width={PICKER_WIDTH}
+        aria-label={t("mentionPicker.title")}
+        onClose={cancelPicker}
+        // Tab/Shift+Tab select entries; an active focus trap would move focus first.
+        disableFocusTrap
+      >
+        <ModalHeader title={t("mentionPicker.title")} />
+        <ModalBody>
+          <TextInput
+            ref={searchInputRef}
+            type="search"
+            value={pickerQuery}
+            onChange={(_event, val) => {
+              setPickerQuery(val);
+              setSelectedIndex(0);
+            }}
+            onKeyDown={handleSearchKeyDown}
+            aria-label={t("mentionPicker.searchLabel")}
+            placeholder={t("mentionPicker.searchPlaceholder")}
+            role="combobox"
+            aria-expanded
+            aria-controls={listboxId}
+            aria-activedescendant={activeIndex >= 0 ? optionId(activeIndex) : undefined}
+            autoComplete="off"
+          />
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={t("mentionPicker.title")}
+            data-testid="mention-picker-list"
+            style={{
+              height: PICKER_LIST_HEIGHT,
+              overflowY: "auto",
+              overscrollBehavior: "contain",
+              marginTop: 8,
+              border: "1px solid var(--pf-t--global--border--color--default)",
+              borderRadius: 4,
+            }}
+          >
+            {isLoading && userCount === 0 ? (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+                <Spinner size="md" />
+              </div>
+            ) : userCount === 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                  color: "var(--pf-t--global--text--color--subtle)",
+                }}
+              >
+                {t("mentionPicker.noResults")}
+              </div>
+            ) : (
+              users?.map((user, i) => (
+                <div
+                  key={user.id}
+                  id={optionId(i)}
+                  ref={i === activeIndex ? selectedOptionRef : undefined}
+                  role="option"
+                  aria-selected={i === activeIndex}
+                  tabIndex={-1}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    insertMention(user);
+                  }}
+                  onMouseEnter={() => setSelectedIndex(i)}
+                  style={{
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    background:
+                      i === activeIndex
+                        ? "var(--pf-t--global--background--color--secondary--default)"
+                        : "transparent",
+                  }}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{user.display_name || user.username}</span>
+                  <span style={{ fontSize: 11, color: "var(--pf-t--global--text--color--subtle)" }}>
+                    @{user.username}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: "var(--pf-t--global--text--color--subtle)" }}>
+            {t("mentionPicker.keyboardHint")}
+          </div>
+        </ModalBody>
+      </Modal>
     </div>
   );
 }
