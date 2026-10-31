@@ -13,7 +13,7 @@ from ..config import settings
 
 if TYPE_CHECKING:
     from ..notifications.service import MentionEmailJob
-    from ..services.team_notifications import TeamDigestStats
+    from ..services.team_notifications import AlertEmailCounts, TeamDigestStats
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +239,34 @@ async def send_team_digest(
         },
     )
     await send_email(to_email, "Ihr wöchentlicher Team-Bericht", html)
+
+
+async def send_alert_summary(
+    to_email: str,
+    recipient_name: str,
+    counts: "AlertEmailCounts",
+    *,
+    org_wide: bool,
+    base_url: str | None = None,
+) -> None:
+    """Daily opt-in CVE alert summary: counts and links only, one email per user per day.
+
+    Never include CVE IDs, component names, or namespace names: recipients are
+    chosen from a namespace snapshot that may be stale (same rule as the team digest).
+    """
+    base_url = base_url or settings.app_base_url
+    tmpl = _jinja_env.get_template("cve_alert_summary.html")
+    html = tmpl.render(
+        recipient_name=recipient_name,
+        counts=counts,
+        org_wide=org_wide,
+        links={
+            "new_critical": _app_link(base_url, "/vulnerabilities?severity=4"),
+            "critical_fixable": _app_link(base_url, "/vulnerabilities?severity=4&fixable=true"),
+            "prioritized": _app_link(base_url, "/vulnerabilities?prioritized_only=1"),
+            "cves": _app_link(base_url, "/vulnerabilities"),
+            "settings": _app_link(base_url, "/my-settings"),
+        },
+    )
+    subject = "Neue CVE-Funde in der Organisation" if org_wide else "Neue CVE-Funde in Ihren Namespaces"
+    await send_email(to_email, subject, html)

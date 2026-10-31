@@ -134,7 +134,7 @@ The scheduled jobs (all times UTC):
 | `remediation_overdue_check` | 08:30 | Notify owners of overdue remediations |
 | `remediation_auto_resolve` | 09:00 | Auto-resolve remediations when the CVE is no longer reported in the namespace |
 | `cve_snapshot` | 02:00 | Store daily per-namespace CVE counts for the dashboard trend |
-| `team_cve_alerts` | 02:30 | In-app alerts for CVEs newly above the thresholds or prioritized in a team member's namespaces (the first run only records a baseline) |
+| `team_cve_alerts` | 02:30 | In-app alerts for CVEs newly above the thresholds or prioritized in a team member's namespaces, plus the opt-in CVE alert summary email (at most one per user per day, counts only). The first run only records a baseline, separately for in-app and email conditions |
 | `team_digest` | 07:15 | Weekly opt-in team digest email per user (only on the configured `digest_day`) |
 
 ### Deployment: one worker, never the API

@@ -1,18 +1,27 @@
 """Team-facing background notifications (roadmap phase 3).
 
-Two scheduler-driven features, both targeting users through their namespace
+Three scheduler-driven features, all targeting users through their namespace
 snapshot (``services/namespace_snapshot.py``), never through access control:
 
 - **Team CVE alerts** (daily): in-app notification when a CVE newly becomes
   visible to thresholded team members in one of their namespaces (it crosses the
   CVSS/EPSS thresholds, appears there, or gets prioritized). Suppression is
   evaluated per namespace, like the CVE list.
+- **CVE alert summary email** (daily, opt-in per condition): built from the
+  same alert diff. One email per user per UTC day bundles every condition the
+  user opted into (new critical CVE, critical CVE with a fix, newly
+  prioritized CVE), as counts and links only. ``alert_email_deliveries`` caps it
+  at one per user per day. Best effort: the cap is claimed in the diff commit
+  and the email is sent afterwards, so an SMTP failure or crash loses that
+  day's email (the in-app alerts stay). A CVE that disappears and returns
+  counts again, like the in-app alerts.
 - **Team digest** (weekly, opt-in): per-user email with counts and links only.
   It never names CVEs or components, because the snapshot may be stale and the
   recipient's access cannot be verified at send time (same rule as mention mail).
 
 Wildcard and sec-team users (``can_see_all_namespaces``) do not get team CVE
-alerts: org-wide, that would be one alert per newly visible CVE anywhere.
+alerts: org-wide, that would be one alert per newly visible CVE anywhere. They
+can opt into the alert summary email, which then counts all namespaces.
 """
 
 import logging
@@ -20,11 +29,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings as app_config
 from ..mail import service as mail_svc
+from ..models.alert_email_delivery import AlertEmailDelivery
 from ..models.cve_alert_mark import CveAlertMark
 from ..models.cve_priority import CvePriority
 from ..models.global_settings import GlobalSettings
@@ -47,6 +57,14 @@ logger = logging.getLogger(__name__)
 MAX_ALERTS_PER_USER = 10
 REASON_VISIBLE = "visible"
 REASON_PRIORITIZED = "prioritized"
+# Email-only reasons, emitted independently of visible/prioritized so that
+# prioritizing an already critical CVE does not count as "new critical", and a
+# severity raise to critical or a new fix does count.
+REASON_EMAIL_CRITICAL = "email_critical"
+REASON_EMAIL_CRITICAL_FIXABLE = "email_critical_fixable"
+EMAIL_REASONS = frozenset({REASON_EMAIL_CRITICAL, REASON_EMAIL_CRITICAL_FIXABLE})
+# Delivery claims older than this are deleted by the alert job.
+ALERT_EMAIL_DELIVERY_RETENTION_DAYS = 30
 
 # Per reason: notification type, preference category, single and summary message keys.
 _REASON_CONFIG: dict[str, tuple[NotificationType, str, str, str]] = {
@@ -70,6 +88,21 @@ AlertKey = tuple[str, str, str, str]  # (cve_id, namespace, cluster_name, reason
 # The version suffix forces a fresh silent baseline whenever the trigger
 # definition changes (v2: any newly visible CVE instead of critical-only).
 BASELINE_MARK: AlertKey = ("__baseline__", "", "", "baseline:v2")
+# Same idea for the email-only reasons, so adding them did not reset the in-app
+# baseline. Bump the version when the email reasons change.
+BASELINE_MARK_EMAIL: AlertKey = ("__baseline__", "", "", "baseline:email:v1")
+BASELINE_MARKS = frozenset({BASELINE_MARK, BASELINE_MARK_EMAIL})
+
+# Alert summary email conditions: count field -> (mark reason, preference category).
+_EMAIL_CONDITIONS: dict[str, tuple[str, str]] = {
+    "new_critical": (REASON_EMAIL_CRITICAL, "alert_email_new_critical"),
+    "critical_fixable": (REASON_EMAIL_CRITICAL_FIXABLE, "alert_email_critical_fixable"),
+    "prioritized": (REASON_PRIORITIZED, "alert_email_prioritized"),
+}
+
+
+def _baseline_for(reason: str) -> AlertKey:
+    return BASELINE_MARK_EMAIL if reason in EMAIL_REASONS else BASELINE_MARK
 
 
 # --- Team CVE alerts -------------------------------------------------------
@@ -81,7 +114,11 @@ def classify_candidates(
     cve_rules: list,
     component_rules: list,
 ) -> set[AlertKey]:
-    """Alert keys for unsuppressed candidate rows; prioritization wins over plain visibility."""
+    """Alert keys for unsuppressed candidate rows.
+
+    Per row one in-app key (prioritization wins over plain visibility), plus the
+    email-only keys when the CVE is critical there (and fixable).
+    """
     keys: set[AlertKey] = set()
     for r in rows:
         components = [(c[0], c[1]) for c in r.get("components") or []]
@@ -89,8 +126,13 @@ def classify_candidates(
             r["cve_id"], r["namespace"], r["cluster_name"], components, cve_rules, component_rules
         ):
             continue
+        location = (r["cve_id"], r["namespace"], r["cluster_name"])
         reason = REASON_PRIORITIZED if r["cve_id"] in prioritized else REASON_VISIBLE
-        keys.add((r["cve_id"], r["namespace"], r["cluster_name"], reason))
+        keys.add((*location, reason))
+        if int(r.get("severity") or 0) == SeverityLevel.CRITICAL:
+            keys.add((*location, REASON_EMAIL_CRITICAL))
+            if r.get("fixable"):
+                keys.add((*location, REASON_EMAIL_CRITICAL_FIXABLE))
     return keys
 
 
@@ -153,6 +195,111 @@ async def _send_user_alerts(app_db: AsyncSession, user_id: str, alerts: list[Use
     return sent
 
 
+@dataclass(frozen=True)
+class AlertEmailCounts:
+    """Distinct new CVEs per alert email condition for one recipient."""
+
+    new_critical: int = 0
+    critical_fixable: int = 0
+    prioritized: int = 0
+
+    @property
+    def has_news(self) -> bool:
+        return any((self.new_critical, self.critical_fixable, self.prioritized))
+
+
+@dataclass(frozen=True)
+class AlertEmailJob:
+    """One claimed summary email. Primitives only, built before the commit."""
+
+    user_id: str
+    to_email: str
+    recipient_name: str
+    counts: AlertEmailCounts
+    org_wide: bool
+
+
+def plan_alert_emails(recipients: list[ActiveRecipient], new_keys: set[AlertKey]) -> dict[str, AlertEmailCounts]:
+    """Count new CVEs per condition and recipient, before preferences.
+
+    Team members count keys in their snapshot namespaces; org-wide users
+    (``can_see_all_namespaces``) count all keys. A CVE in several namespaces
+    counts once per condition.
+    """
+    by_namespace: dict[tuple[str, str], list[AlertKey]] = defaultdict(list)
+    for key in new_keys:
+        by_namespace[(key[1], key[2])].append(key)
+    plan: dict[str, AlertEmailCounts] = {}
+    for recipient in recipients:
+        if recipient.as_current_user().can_see_all_namespaces:
+            keys = list(new_keys)
+        else:
+            keys = [key for ns in set(recipient.namespaces) for key in by_namespace.get(ns, [])]
+        counts = AlertEmailCounts(
+            **{
+                name: len({key[0] for key in keys if key[3] == reason})
+                for name, (reason, _category) in _EMAIL_CONDITIONS.items()
+            }
+        )
+        if counts.has_news:
+            plan[recipient.user.id] = counts
+    return plan
+
+
+async def _claim_alert_emails(
+    app_db: AsyncSession,
+    recipients: list[ActiveRecipient],
+    plan: dict[str, AlertEmailCounts],
+    now: datetime,
+) -> tuple[list[AlertEmailJob], dict[str, int]]:
+    """Apply email preferences and the daily cap; stage delivery claims (no commit)."""
+    today = now.date()
+    by_id = {r.user.id: r for r in recipients}
+    skipped = {"skipped_no_pref": 0, "skipped_no_address": 0, "skipped_already_sent": 0}
+    jobs: list[AlertEmailJob] = []
+    for user_id, counts in plan.items():
+        recipient = by_id[user_id]
+        wanted: dict[str, int] = {}
+        for name, (_reason, category) in _EMAIL_CONDITIONS.items():
+            value = getattr(counts, name)
+            wanted[name] = value if value and await prefs.wants(app_db, user_id, category, "email") else 0
+        filtered = AlertEmailCounts(**wanted)
+        if not filtered.has_news:
+            skipped["skipped_no_pref"] += 1
+            continue
+        user = recipient.user
+        to_email = mail_svc.deliverable_address(user.email, user_id=user_id, purpose="cve_alert_email")
+        if to_email is None:
+            skipped["skipped_no_address"] += 1
+            continue
+        if await app_db.get(AlertEmailDelivery, (user_id, today)) is not None:
+            skipped["skipped_already_sent"] += 1
+            continue
+        app_db.add(AlertEmailDelivery(user_id=user_id, sent_on=today, created_at=now))
+        jobs.append(
+            AlertEmailJob(
+                user_id=user_id,
+                to_email=to_email,
+                recipient_name=user.display_name,
+                counts=filtered,
+                org_wide=recipient.as_current_user().can_see_all_namespaces,
+            )
+        )
+    return jobs, skipped
+
+
+async def send_alert_emails(jobs: list[AlertEmailJob]) -> int:
+    """Send claimed summary emails after the commit. One failure never blocks the rest."""
+    sent = 0
+    for job in jobs:
+        try:
+            await mail_svc.send_alert_summary(job.to_email, job.recipient_name, job.counts, org_wide=job.org_wide)
+            sent += 1
+        except Exception:
+            logger.exception("cve_alert_email_failed", extra={"user_id": job.user_id})
+    return sent
+
+
 async def run_team_cve_alerts(app_db: AsyncSession, sx_db: AsyncSession, now: datetime | None = None) -> int:
     """Diff current alert-worthy CVEs against stored marks and notify affected users.
 
@@ -179,15 +326,19 @@ async def run_team_cve_alerts(app_db: AsyncSession, sx_db: AsyncSession, now: da
 
 
 async def apply_alert_diff(app_db: AsyncSession, current: set[AlertKey], now: datetime) -> int:
-    """Store the new mark set and notify recipients about keys not seen before. Commits."""
+    """Store the new mark set, notify recipients in-app about keys not seen before,
+    and send the opt-in alert summary emails. Commits before sending email.
+
+    A reason whose baseline mark is missing is recorded silently this run.
+    Returns the number of in-app notifications attempted.
+    """
     existing_marks = (await app_db.execute(select(CveAlertMark))).scalars().all()
     existing = {(m.cve_id, m.namespace, m.cluster_name, m.reason) for m in existing_marks}
-    baseline = BASELINE_MARK not in existing
-    existing.discard(BASELINE_MARK)
+    missing_baselines = BASELINE_MARKS - existing
+    existing -= BASELINE_MARKS
     new_keys = current - existing
     stale = existing - current
-    if baseline:
-        cve_id, namespace, cluster, reason = BASELINE_MARK
+    for cve_id, namespace, cluster, reason in sorted(missing_baselines):
         app_db.add(
             CveAlertMark(cve_id=cve_id, namespace=namespace, cluster_name=cluster, reason=reason, created_at=now)
         )
@@ -200,11 +351,25 @@ async def apply_alert_diff(app_db: AsyncSession, current: set[AlertKey], now: da
             CveAlertMark(cve_id=cve_id, namespace=namespace, cluster_name=cluster, reason=reason, created_at=now)
         )
 
+    await app_db.execute(
+        delete(AlertEmailDelivery).where(
+            AlertEmailDelivery.sent_on < now.date() - timedelta(days=ALERT_EMAIL_DELIVERY_RETENTION_DAYS)
+        )
+    )
+
+    notify_keys = {key for key in new_keys if _baseline_for(key[3]) not in missing_baselines}
     sent = 0
-    if not baseline and new_keys:
+    jobs: list[AlertEmailJob] = []
+    skipped: dict[str, int] = {}
+    email_planned = 0
+    if notify_keys:
         recipients = await load_active_recipients(app_db, app_config.team_notification_active_days, now)
-        for user_id, alerts in plan_user_alerts(recipients, new_keys).items():
+        in_app_keys = {key for key in notify_keys if key[3] in _REASON_CONFIG}
+        for user_id, alerts in plan_user_alerts(recipients, in_app_keys).items():
             sent += await _send_user_alerts(app_db, user_id, alerts)
+        email_plan = plan_alert_emails(recipients, notify_keys)
+        email_planned = len(email_plan)
+        jobs, skipped = await _claim_alert_emails(app_db, recipients, email_plan, now)
     await app_db.commit()
     logger.info(
         "team_cve_alerts_done",
@@ -212,9 +377,15 @@ async def apply_alert_diff(app_db: AsyncSession, current: set[AlertKey], now: da
             "candidates": len(current),
             "new": len(new_keys),
             "stale_removed": len(stale),
-            "baseline": baseline,
+            "baselines_recorded": sorted(m[3] for m in missing_baselines),
             "notifications": sent,
         },
+    )
+
+    emails_sent = await send_alert_emails(jobs)
+    logger.info(
+        "cve_alert_emails_done",
+        extra={"planned": email_planned, "claimed": len(jobs), "sent": emails_sent, **skipped},
     )
     return sent
 

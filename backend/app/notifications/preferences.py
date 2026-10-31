@@ -57,6 +57,11 @@ CATEGORIES: dict[str, Category] = {
     "escalation": Category(types=(NotificationType.escalation,), in_app_default=True, email_default=None),
     # Weekly team digest: email only, opt-in.
     "team_digest": Category(types=(), in_app_default=None, email_default=False),
+    # Conditions of the daily CVE alert summary email (services/team_notifications.py):
+    # email only, opt-in. All opted-in conditions share one email per user per day.
+    "alert_email_new_critical": Category(types=(), in_app_default=None, email_default=False),
+    "alert_email_critical_fixable": Category(types=(), in_app_default=None, email_default=False),
+    "alert_email_prioritized": Category(types=(), in_app_default=None, email_default=False),
 }
 
 _CATEGORY_BY_TYPE: dict[NotificationType, str] = {t: name for name, cat in CATEGORIES.items() for t in cat.types}

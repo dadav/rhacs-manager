@@ -18,6 +18,7 @@ async def get_team_alert_candidates(
     applied here: it depends on the namespace (scoped rules) and on the
     components present there, so each row carries ``components``
     (``[[name, version], ...]``) for the caller to evaluate per location.
+    ``severity`` and ``fixable`` feed the email-only alert reasons.
     """
     sql = text(f"""
         WITH {CVE_ROWS_CTE}
@@ -25,6 +26,7 @@ async def get_team_alert_candidates(
                d.clustername AS cluster_name,
                ic.cvebaseinfo_cve AS cve_id,
                MAX(ic.severity) AS severity,
+               BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
                COALESCE(
                    ARRAY_AGG(DISTINCT ARRAY[comp.name, COALESCE(comp.version, '')])
                        FILTER (WHERE comp.name IS NOT NULL),

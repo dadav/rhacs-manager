@@ -269,6 +269,15 @@ on one CVE, or on one risk acceptance).
 | DELETE | `/api/notifications/{id}` | Any | Permanently delete a single own notification (204, idempotent) |
 | DELETE | `/api/notifications` | Any | Permanently delete all own notifications, including those older than the newest 50 (204, idempotent) |
 
+### Notification preferences
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| GET | `/api/me/notification-preferences` | Any | Effective in-app and email setting per category, plus `team_notifications_active` |
+| PUT | `/api/me/notification-preferences` | Any | Update one or more categories (`{"items": [{"category", "in_app", "email"}]}`); unknown categories return 400 |
+
+A channel value of `null` means that channel does not exist for the category. Email-only opt-in categories: `team_digest` (weekly digest) and the CVE alert summary email conditions `alert_email_new_critical`, `alert_email_critical_fixable`, `alert_email_prioritized` (one shared summary email per user per day at most).
+
 ## Badges
 
 | Method | Path | Role | Description |

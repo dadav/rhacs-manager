@@ -1,5 +1,6 @@
 """Phase 3 team notifications: snapshots, preferences, scoped notifications, alerts, digest."""
 
+import re
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.deps import get_app_db, get_current_user
 from app.mail.service import _jinja_env
+from app.models.alert_email_delivery import AlertEmailDelivery
 from app.models.cve_alert_mark import CveAlertMark
 from app.models.notification import Notification, NotificationType
 from app.models.notification_preference import NotificationPreference
@@ -36,7 +38,15 @@ BILLING = ("billing", "cluster-a")
 async def store() -> AsyncGenerator[async_sessionmaker[AsyncSession]]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
-        for model in (User, UserNamespaceSnapshot, NotificationPreference, Notification, CveAlertMark, Remediation):
+        for model in (
+            User,
+            UserNamespaceSnapshot,
+            NotificationPreference,
+            Notification,
+            CveAlertMark,
+            Remediation,
+            AlertEmailDelivery,
+        ):
             await connection.run_sync(model.__table__.create)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
@@ -240,8 +250,15 @@ async def test_mark_read_on_hidden_notification_is_not_found(app: FastAPI, store
 # --- 3.3 team CVE alerts ----------------------------------------------------------
 
 
-def _candidate(cve_id: str, ns=PAYMENTS, components=()):
-    return {"cve_id": cve_id, "namespace": ns[0], "cluster_name": ns[1], "components": [list(c) for c in components]}
+def _candidate(cve_id: str, ns=PAYMENTS, components=(), severity=3, fixable=False):
+    return {
+        "cve_id": cve_id,
+        "namespace": ns[0],
+        "cluster_name": ns[1],
+        "severity": severity,
+        "fixable": fixable,
+        "components": [list(c) for c in components],
+    }
 
 
 def _rule(cve_id=None, *, scope=None, component=None, version=None):
@@ -327,7 +344,7 @@ async def test_trigger_change_takes_a_fresh_silent_baseline(store):
     assert sent == 0
     async with store() as session:
         reasons = sorted(m.reason for m in (await session.execute(select(CveAlertMark))).scalars().all())
-    assert reasons == ["baseline:v2", "visible"]
+    assert reasons == ["baseline:email:v1", "baseline:v2", "visible"]
 
 
 async def test_gone_cve_alerts_again_when_it_returns(store):
@@ -517,3 +534,260 @@ def test_digest_has_news_ignores_plain_totals():
 def test_available_component_upgrades_alone_are_news():
     assert _stats(component_upgrades=5).has_news is True
     assert _stats(prioritized_cves=1).has_news is True
+
+
+# --- CVE alert summary email ---------------------------------------------------------
+
+
+def _key(cve_id: str, reason: str, ns=PAYMENTS) -> tuple:
+    return (cve_id, ns[0], ns[1], reason)
+
+
+def test_critical_rows_add_email_keys_independent_of_priority():
+    rows = [
+        _candidate("CVE-CRIT", severity=4),
+        _candidate("CVE-FIX", severity=4, fixable=True),
+        _candidate("CVE-PRIO", severity=4),
+        _candidate("CVE-HIGH", severity=3, fixable=True),
+    ]
+
+    keys = team.classify_candidates(rows, {"CVE-PRIO"}, [], [])
+
+    assert keys == {
+        _key("CVE-CRIT", "visible"),
+        _key("CVE-CRIT", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-FIX", "visible"),
+        _key("CVE-FIX", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-FIX", team.REASON_EMAIL_CRITICAL_FIXABLE),
+        _key("CVE-PRIO", "prioritized"),
+        _key("CVE-PRIO", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-HIGH", "visible"),
+    }
+
+
+def _recipient(user_id: str, namespaces=(), *, has_all=False, role=UserRole.team_member):
+    user = User(id=user_id, username=user_id, email=f"{user_id}@example.com", role=role, created_at=NOW)
+    return team.ActiveRecipient(user=user, namespaces=tuple(namespaces), has_all_namespaces=has_all)
+
+
+def test_alert_email_plan_counts_distinct_cves_in_own_namespaces_or_all():
+    new_keys = {
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL, PAYMENTS),
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL, BILLING),
+        _key("CVE-2", team.REASON_EMAIL_CRITICAL, BILLING),
+        _key("CVE-2", team.REASON_EMAIL_CRITICAL_FIXABLE, BILLING),
+        _key("CVE-3", "prioritized", PAYMENTS),
+        _key("CVE-4", "visible", PAYMENTS),
+    }
+    recipients = [
+        _recipient("dev", [PAYMENTS, BILLING]),
+        _recipient("pay", [PAYMENTS]),
+        _recipient("sec", role=UserRole.sec_team),
+        _recipient("wild", has_all=True),
+        _recipient("other", [("other", "cluster-b")]),
+    ]
+
+    plan = team.plan_alert_emails(recipients, new_keys)
+
+    assert plan == {
+        "dev": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
+        "pay": team.AlertEmailCounts(new_critical=1, critical_fixable=0, prioritized=1),
+        "sec": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
+        "wild": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
+    }
+
+
+def test_prioritizing_an_existing_critical_cve_is_not_a_new_critical():
+    before = team.classify_candidates([_candidate("CVE-1", severity=4)], set(), [], [])
+    after = team.classify_candidates([_candidate("CVE-1", severity=4)], {"CVE-1"}, [], [])
+
+    plan = team.plan_alert_emails([_recipient("dev", [PAYMENTS])], after - before)
+
+    assert plan == {"dev": team.AlertEmailCounts(new_critical=0, critical_fixable=0, prioritized=1)}
+
+
+_ALL_EMAIL_CONDITIONS = [
+    prefs.EffectivePreference(category, None, True)
+    for category in ("alert_email_new_critical", "alert_email_critical_fixable", "alert_email_prioritized")
+]
+
+
+async def _opt_in(store, user_id: str, preferences=_ALL_EMAIL_CONDITIONS) -> None:
+    async with store() as session:
+        await prefs.set_preferences(session, user_id, list(preferences))
+        await session.commit()
+
+
+async def _diff_runs(store, runs, now=NOW) -> AsyncMock:
+    """Apply each key set in order; returns the patched alert summary sender."""
+    send = AsyncMock()
+    with (
+        patch.object(team.mail_svc, "send_alert_summary", send),
+        patch.object(team.app_config, "team_notification_active_days", 30),
+    ):
+        for current in runs:
+            async with store() as session:
+                await team.apply_alert_diff(session, set(current), now)
+    return send
+
+
+async def test_alert_email_baseline_is_silent_and_survives_later_runs(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev")
+    critical = _key("CVE-OLD", team.REASON_EMAIL_CRITICAL)
+    async with store() as session:
+        # In-app baseline exists from before the email feature.
+        session.add(
+            CveAlertMark(cve_id="__baseline__", namespace="", cluster_name="", reason="baseline:v2", created_at=NOW)
+        )
+        await session.commit()
+
+    send = await _diff_runs(store, [{critical}, {critical}, {critical}, {critical}])
+    assert send.await_count == 0
+
+    later = await _diff_runs(store, [{critical, _key("CVE-NEW", team.REASON_EMAIL_CRITICAL)}], NOW + timedelta(days=1))
+    assert later.await_count == 1
+    assert later.await_args.args[2] == team.AlertEmailCounts(new_critical=1)
+    async with store() as session:
+        reasons = {m.reason for m in (await session.execute(select(CveAlertMark))).scalars().all()}
+    assert {"baseline:v2", "baseline:email:v1"} <= reasons
+
+
+async def test_many_new_critical_cves_send_one_summary_email(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev")
+    keys = {_key(f"CVE-{i}", team.REASON_EMAIL_CRITICAL) for i in range(50)}
+    keys |= {_key(f"CVE-{i}", "visible") for i in range(50)}
+
+    send = await _diff_runs(store, [set(), keys])
+
+    assert send.await_count == 1
+    to_email, name, counts = send.await_args.args
+    assert (to_email, name, counts) == ("dev@example.com", "dev", team.AlertEmailCounts(new_critical=50))
+    assert send.await_args.kwargs == {"org_wide": False}
+
+
+async def test_alert_email_only_includes_opted_in_conditions_and_valid_addresses(store):
+    await _add_user(store, "crit")
+    await _add_user(store, "prio_only")
+    await _add_user(store, "none")
+    await _add_user(store, "placeholder", email="placeholder@spoke.local")
+    for user_id in ("crit", "prio_only", "none", "placeholder"):
+        await _snapshot(store, user_id, [PAYMENTS])
+    await _opt_in(store, "crit", [prefs.EffectivePreference("alert_email_new_critical", None, True)])
+    await _opt_in(store, "prio_only", [prefs.EffectivePreference("alert_email_prioritized", None, True)])
+    await _opt_in(store, "placeholder")
+    keys = {_key("CVE-1", team.REASON_EMAIL_CRITICAL), _key("CVE-2", "prioritized")}
+
+    send = await _diff_runs(store, [set(), keys])
+
+    sent = {call.args[0]: call.args[2] for call in send.await_args_list}
+    assert sent == {
+        "crit@example.com": team.AlertEmailCounts(new_critical=1),
+        "prio_only@example.com": team.AlertEmailCounts(prioritized=1),
+    }
+    async with store() as session:
+        claimed = {d.user_id for d in (await session.execute(select(AlertEmailDelivery))).scalars().all()}
+    assert claimed == {"crit", "prio_only"}
+
+
+async def test_second_run_on_the_same_day_sends_no_second_email(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev")
+    first = {_key("CVE-1", team.REASON_EMAIL_CRITICAL)}
+    second = first | {_key("CVE-2", team.REASON_EMAIL_CRITICAL)}
+
+    same_day = await _diff_runs(store, [set(), first, second])
+    next_day = await _diff_runs(store, [second | {_key("CVE-3", team.REASON_EMAIL_CRITICAL)}], NOW + timedelta(days=1))
+
+    assert same_day.await_count == 1
+    assert next_day.await_count == 1
+
+
+async def test_failed_alert_email_does_not_block_other_recipients(store):
+    for user_id in ("a", "b"):
+        await _add_user(store, user_id)
+        await _snapshot(store, user_id, [PAYMENTS])
+        await _opt_in(store, user_id)
+    send = AsyncMock(side_effect=[RuntimeError("smtp down"), None])
+    with (
+        patch.object(team.mail_svc, "send_alert_summary", send),
+        patch.object(team.app_config, "team_notification_active_days", 30),
+    ):
+        for current in (set(), {_key("CVE-1", team.REASON_EMAIL_CRITICAL)}):
+            async with store() as session:
+                await team.apply_alert_diff(session, current, NOW)
+    assert [call.args[0] for call in send.await_args_list] == ["a@example.com", "b@example.com"]
+
+
+async def test_severity_raise_and_new_fix_trigger_the_email(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev")
+
+    def run(row):
+        return team.classify_candidates([row], set(), [], [])
+
+    important = run(_candidate("CVE-1", severity=3))
+    critical = run(_candidate("CVE-1", severity=4))
+    fixed = run(_candidate("CVE-1", severity=4, fixable=True))
+
+    raised = await _diff_runs(store, [important, critical])
+    got_fix = await _diff_runs(store, [fixed], NOW + timedelta(days=1))
+
+    assert raised.await_args.args[2] == team.AlertEmailCounts(new_critical=1)
+    assert got_fix.await_args.args[2] == team.AlertEmailCounts(critical_fixable=1)
+
+
+async def test_email_reasons_create_no_in_app_notifications(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    keys = {_key("CVE-1", team.REASON_EMAIL_CRITICAL), _key("CVE-1", team.REASON_EMAIL_CRITICAL_FIXABLE)}
+
+    await _diff_runs(store, [set(), keys])
+
+    async with store() as session:
+        assert (await session.execute(select(Notification))).scalars().all() == []
+
+
+async def test_old_delivery_claims_are_pruned(store):
+    await _add_user(store, "dev")
+    async with store() as session:
+        session.add(AlertEmailDelivery(user_id="dev", sent_on=(NOW - timedelta(days=31)).date(), created_at=NOW))
+        session.add(AlertEmailDelivery(user_id="dev", sent_on=(NOW - timedelta(days=2)).date(), created_at=NOW))
+        await session.commit()
+
+    await _diff_runs(store, [set()])
+
+    async with store() as session:
+        days = [d.sent_on for d in (await session.execute(select(AlertEmailDelivery))).scalars().all()]
+    assert days == [(NOW - timedelta(days=2)).date()]
+
+
+def test_alert_email_new_categories_default_off():
+    for category in ("alert_email_new_critical", "alert_email_critical_fixable", "alert_email_prioritized"):
+        cat = prefs.CATEGORIES[category]
+        assert (cat.in_app_default, cat.email_default) == (None, False)
+
+
+def test_alert_summary_email_has_counts_and_links_but_no_cve_details():
+    html = _jinja_env.get_template("cve_alert_summary.html").render(
+        recipient_name="Dev",
+        counts=team.AlertEmailCounts(new_critical=3, prioritized=2),
+        org_wide=False,
+        links={
+            "new_critical": "https://app/vulnerabilities?severity=4",
+            "critical_fixable": "https://app/vulnerabilities?severity=4&fixable=true",
+            "prioritized": "https://app/vulnerabilities?prioritized_only=1",
+            "cves": "https://app/vulnerabilities",
+            "settings": "https://app/my-settings",
+        },
+    )
+    assert ">3<" in html and ">2<" in html
+    assert "https://app/vulnerabilities?severity=4" in html
+    assert "fixable=true" not in html  # zero conditions are hidden
+    assert "https://app/my-settings" in html
+    assert re.search(r"CVE-\d", html) is None

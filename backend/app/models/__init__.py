@@ -1,3 +1,4 @@
+from .alert_email_delivery import AlertEmailDelivery
 from .audit_log import AuditLog
 from .badge import BadgeToken
 from .cve_alert_mark import CveAlertMark
@@ -40,4 +41,5 @@ __all__ = [
     "CveAlertMark",
     "NotificationPreference",
     "UserNamespaceSnapshot",
+    "AlertEmailDelivery",
 ]

@@ -1,0 +1,47 @@
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{#
+  Counts and links only. Never render CVE IDs, component or namespace names here:
+  recipients come from a namespace snapshot that may be stale.
+  Only conditions the recipient opted into have a count > 0; zero rows are hidden.
+#}
+
+{% block title %}Neue CVE-Funde{% endblock %}
+{% block preheader %}{{ counts.new_critical }} neue kritische CVEs, {{ counts.critical_fixable }} kritische mit Fix, {{ counts.prioritized }} neu priorisiert.{% endblock %}
+
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#c9190b">CVE-Alarm</div>
+  <h1 style="margin:8px 0 8px;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">Hallo {{ recipient_name }},</h1>
+  <p style="margin:0 0 22px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    {% if org_wide %}seit der letzten Prüfung gibt es neue CVE-Funde in der Organisation.{% else %}seit der letzten Prüfung gibt es neue CVE-Funde in Ihren Namespaces.{% endif %}
+  </p>
+
+  {{ ui.card_head("Neue Funde") }}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      {% set rows = [
+        ("Neue kritische CVEs", counts.new_critical, links.new_critical),
+        ("Kritische CVEs mit verfügbarem Fix (neu)", counts.critical_fixable, links.critical_fixable),
+        ("Neu priorisierte CVEs", counts.prioritized, links.prioritized)
+      ] | selectattr("1") | list %}
+      {% for label, value, href in rows %}
+      <tr>
+        <td style="padding:11px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}font-family:{{ ui.font() }};font-size:13px;color:#3f3f46">
+          <a href="{{ href }}" style="color:#3f3f46;text-decoration:none">{{ label }}</a>
+        </td>
+        <td style="padding:11px 18px;{% if not loop.last %}border-bottom:1px solid #f0f0f2;{% endif %}text-align:right;font-family:{{ ui.mono() }};font-size:14px;font-weight:700;color:#16161a">{{ value }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {{ ui.card_foot() }}
+
+  <div style="height:24px;line-height:24px;font-size:0">&nbsp;</div>
+  {{ ui.button(links.cves, "CVEs ansehen") }}
+
+  <p style="margin:22px 0 0;font-family:{{ ui.font() }};font-size:12px;line-height:1.6;color:#71717a">
+    Details zu CVEs werden aus Datenschutzgründen nur in der Anwendung angezeigt.
+    Sie erhalten höchstens eine solche Zusammenfassung pro Tag.
+    Die Bedingungen können Sie in den <a href="{{ links.settings }}" style="color:#0f62fe">persönlichen Einstellungen</a> ändern oder abbestellen.
+  </p>
+{% endblock %}
+{% block footer %}Tägliche CVE-Alarm-Zusammenfassung des RHACS CVE Managers. Bitte nicht auf diese E-Mail antworten.{% endblock %}

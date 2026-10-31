@@ -1030,7 +1030,10 @@
       "priority": "Priorisierungen",
       "new_critical_cve": "Neue relevante CVEs",
       "escalation": "Eskalationen",
-      "team_digest": "Wöchentlicher Team-Bericht"
+      "team_digest": "Wöchentlicher Team-Bericht",
+      "alert_email_new_critical": "Alarm-E-Mail: neue kritische CVEs",
+      "alert_email_critical_fixable": "Alarm-E-Mail: kritische CVEs mit Fix",
+      "alert_email_prioritized": "Alarm-E-Mail: neu priorisierte CVEs"
     },
     "categoryHelp": {
       "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen.",
@@ -1039,7 +1042,10 @@
       "priority": "CVEs, die das Security-Team in Ihren Namespaces priorisiert hat.",
       "new_critical_cve": "CVEs, die in Ihren Namespaces neu über den CVSS/EPSS-Schwellenwerten liegen.",
       "escalation": "Eskalationsstufen (Security-Team).",
-      "team_digest": "Wöchentliche E-Mail mit Kennzahlen und Links für Ihre Namespaces, ohne CVE-Details."
+      "team_digest": "Wöchentliche E-Mail mit Kennzahlen und Links für Ihre Namespaces, ohne CVE-Details.",
+      "alert_email_new_critical": "CVEs, die in Ihren Namespaces neu als kritisch gelten. Höchstens eine Zusammenfassung pro Tag mit Kennzahlen, gemeinsam für alle Alarm-Bedingungen.",
+      "alert_email_critical_fixable": "Kritische CVEs in Ihren Namespaces, für die neu ein Fix verfügbar ist. Teil der täglichen Zusammenfassung.",
+      "alert_email_prioritized": "CVEs, die in Ihren Namespaces neu priorisiert wurden. Teil der täglichen Zusammenfassung."
     }
   },
   "myComments": {

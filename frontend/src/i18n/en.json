@@ -1030,7 +1030,10 @@
       "priority": "Prioritizations",
       "new_critical_cve": "New relevant CVEs",
       "escalation": "Escalations",
-      "team_digest": "Weekly team digest"
+      "team_digest": "Weekly team digest",
+      "alert_email_new_critical": "Alert email: new critical CVEs",
+      "alert_email_critical_fixable": "Alert email: critical CVEs with a fix",
+      "alert_email_prioritized": "Alert email: newly prioritized CVEs"
     },
     "categoryHelp": {
       "risk_acceptance": "Comments, review results, and expiry of your risk acceptances.",
@@ -1039,7 +1042,10 @@
       "priority": "CVEs the security team prioritized in your namespaces.",
       "new_critical_cve": "CVEs newly above the CVSS/EPSS thresholds in your namespaces.",
       "escalation": "Escalation levels (security team).",
-      "team_digest": "Weekly email with counts and links for your namespaces, without CVE details."
+      "team_digest": "Weekly email with counts and links for your namespaces, without CVE details.",
+      "alert_email_new_critical": "CVEs newly rated critical in your namespaces. At most one summary email per day with counts only, shared by all alert email conditions.",
+      "alert_email_critical_fixable": "Critical CVEs in your namespaces that newly have a fix available. Part of the daily summary email.",
+      "alert_email_prioritized": "CVEs newly prioritized in your namespaces. Part of the daily summary email."
     }
   },
   "myComments": {
