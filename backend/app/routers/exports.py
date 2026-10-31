@@ -62,6 +62,25 @@ def _msg(lang: str) -> dict[str, str]:
     return _IMPORT_MESSAGES.get(lang, _IMPORT_MESSAGES["de"])
 
 
+def unique_image_names(deployments: list[dict]) -> list[str]:
+    """Sorted distinct non-empty image names of a CVE's affected deployments."""
+    return sorted({d["image_name"] for d in deployments if d.get("image_name")})
+
+
+def unique_component_labels(components: list[dict]) -> list[str]:
+    """Sorted distinct "name version" labels.
+
+    Component rows can repeat a (name, version) pair because the query's DISTINCT
+    also covers fixable/fixed_by; a missing version yields just the name.
+    """
+    labels = {
+        f"{c.get('component_name') or ''} {c.get('component_version') or ''}".strip()
+        for c in components
+        if c.get("component_name")
+    }
+    return sorted(labels)
+
+
 async def _resolve_namespaces(
     current_user: CurrentUser,
     sx_db: AsyncSession,
@@ -243,33 +262,16 @@ async def export_excel(
         components = await sx.get_affected_components(sx_db, item.cve_id, ns_list)
         deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
 
-        comp_name = ""
-        comp_version = ""
-        if components:
-            comp_name = components[0].get("component_name", "")
-            comp_version = components[0].get("component_version", "")
-
-        # Collect unique image names for summary
-        image_names = sorted({d.get("image_name", "") for d in deployments if d.get("image_name")})
-        image_summary = (
-            image_names[0]
-            if len(image_names) == 1
-            else f"{image_names[0]} (+{len(image_names) - 1})"
-            if image_names
-            else ""
-        )
-
         excel_rows.append(
             {
                 "cve_id": item.cve_id,
                 "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
                 "cvss": item.cvss,
                 "epss_probability": item.epss_probability,
-                "component_name": comp_name,
-                "component_version": comp_version,
+                "components": unique_component_labels(components),
                 "fixable": item.fixable,
                 "fixed_by": item.fixed_by,
-                "image_name": image_summary,
+                "image_names": unique_image_names(deployments),
                 "first_seen": item.first_seen,
                 "published_on": item.published_on,
                 "priority_level": item.priority_level or "",

@@ -19,6 +19,7 @@ TRANSLATIONS: dict[str, dict] = {
         },
         "yes": "Ja",
         "no": "Nein",
+        "more_label": "… und {n} weitere",
         "sheet_data": "CVE-Daten",
         "sheet_help": "Anleitung",
         "import_sheet_not_found": "Tabellenblatt '{names}' nicht gefunden",
@@ -29,11 +30,11 @@ TRANSLATIONS: dict[str, dict] = {
             ("Schweregrad", 14),
             ("CVSS", 8),
             ("EPSS", 10),
-            ("Komponente", 22),
-            ("Version", 14),
+            ("Komponente", 40),
             ("Behebbar", 10),
             ("Fix-Version", 16),
-            ("Image", 40),
+            ("Anzahl Images", 14),
+            ("Image", 60),
             ("Erstmals gesehen", 16),
             ("Veröffentlicht", 16),
             ("Priorität", 12),
@@ -81,6 +82,7 @@ HINWEISE:
         },
         "yes": "Yes",
         "no": "No",
+        "more_label": "… and {n} more",
         "sheet_data": "CVE Data",
         "sheet_help": "Instructions",
         "import_sheet_not_found": "Sheet '{names}' not found",
@@ -91,11 +93,11 @@ HINWEISE:
             ("Severity", 14),
             ("CVSS", 8),
             ("EPSS", 10),
-            ("Component", 22),
-            ("Version", 14),
+            ("Component", 40),
             ("Fixable", 10),
             ("Fix Version", 16),
-            ("Image", 40),
+            ("Image Count", 14),
+            ("Image", 60),
             ("First Seen", 16),
             ("Published", 16),
             ("Priority", 12),
@@ -148,20 +150,59 @@ for _lang_key in ("de", "en"):
 _JUSTIFICATION_KEY = "RA Justification (fill in)"
 _EXPIRY_KEY = "RA Expiry Date (optional, YYYY-MM-DD)"
 
+# The import only reads these columns, so only these are required. Files exported by
+# older versions (different descriptive columns) stay importable.
+_IMPORT_REQUIRED_KEYS = {"CVE-ID", _JUSTIFICATION_KEY, _EXPIRY_KEY}
+
 # All known sheet data names (for import parser)
 _SHEET_DATA_NAMES = {TRANSLATIONS[lang]["sheet_data"] for lang in TRANSLATIONS}
+
+# Excel per-cell limits: 32,767 characters and 253 line feeds.
+MAX_CELL_CHARS = 32_767
+MAX_CELL_LINES = 250
 
 
 def _get_translations(lang: str) -> dict:
     return TRANSLATIONS.get(lang, TRANSLATIONS["de"])
 
 
+def _column_name(t: dict, canonical: str) -> str:
+    """Localized header for a canonical (English) column name."""
+    for (name, _), (en_name, _) in zip(t["columns"], TRANSLATIONS["en"]["columns"], strict=True):
+        if en_name == canonical:
+            return name
+    raise KeyError(canonical)
+
+
+def _cell_lines(values: list[str], more_label: str) -> str:
+    """Join values one per line within Excel's per-cell limits.
+
+    When not all values fit, the last line is `more_label` formatted with the number
+    of omitted values (`{n}`), so a truncated cell is never silently incomplete.
+    """
+    joined = "\n".join(values)
+    if len(values) <= MAX_CELL_LINES and len(joined) <= MAX_CELL_CHARS:
+        return joined
+
+    reserve = len(more_label.format(n=len(values)))
+    kept: list[str] = []
+    used = 0
+    for value in values[: MAX_CELL_LINES - 1]:
+        cost = len(value) + 1  # value plus its trailing line feed
+        if used + cost + reserve > MAX_CELL_CHARS:
+            break
+        kept.append(value)
+        used += cost
+    omitted = len(values) - len(kept)
+    return "\n".join([*kept, more_label.format(n=omitted)])
+
+
 def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
     """Generate an Excel workbook with CVE data and instruction sheet.
 
     Each dict in `rows` should contain:
-      cve_id, severity, cvss, epss_probability, component_name, component_version,
-      fixable, fixed_by, image_name, first_seen, published_on, priority_level,
+      cve_id, severity, cvss, epss_probability, components (list of "name version"),
+      fixable, fixed_by, image_names (list), first_seen, published_on, priority_level,
       risk_acceptance_status
     """
     t = _get_translations(lang)
@@ -171,6 +212,7 @@ def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
     ra_status_labels = t["ra_status_labels"]
     yes_label = t["yes"]
     no_label = t["no"]
+    more_label = t["more_label"]
 
     wb = Workbook()
 
@@ -183,14 +225,11 @@ def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
 
     # Find indices for editable columns (Justification, Expiry) and EPSS
     col_names = [name for name, _ in data_columns]
-    justification_col_name = TRANSLATIONS[lang]["columns"][13][0] if lang in TRANSLATIONS else data_columns[13][0]
-    expiry_col_name = TRANSLATIONS[lang]["columns"][14][0] if lang in TRANSLATIONS else data_columns[14][0]
-    epss_col_name = data_columns[3][0]  # EPSS is always at index 3
-
-    begr_col = col_names.index(justification_col_name) + 1
-    ablauf_col = col_names.index(expiry_col_name) + 1
-    epss_col = col_names.index(epss_col_name) + 1
+    begr_col = col_names.index(_column_name(t, _JUSTIFICATION_KEY)) + 1
+    ablauf_col = col_names.index(_column_name(t, _EXPIRY_KEY)) + 1
+    epss_col = col_names.index(_column_name(t, "EPSS")) + 1
     editable_cols = [begr_col, ablauf_col]
+    cell_alignment = Alignment(vertical="top", wrap_text=True)
 
     for col_idx, (col_name, col_width) in enumerate(data_columns, start=1):
         cell = ws.cell(row=1, column=col_idx, value=col_name)
@@ -209,17 +248,19 @@ def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
         severity = row_data.get("severity", 0)
         first_seen = row_data.get("first_seen")
         published_on = row_data.get("published_on")
+        image_names = row_data.get("image_names") or []
+        components = row_data.get("components") or []
 
         values = [
             row_data.get("cve_id", ""),
             severity_labels.get(severity, severity_labels.get(0, "Unknown")),
             round(row_data.get("cvss", 0), 1),
             row_data.get("epss_probability", 0),
-            row_data.get("component_name", ""),
-            row_data.get("component_version", ""),
+            _cell_lines(components, more_label),
             yes_label if row_data.get("fixable") else no_label,
             row_data.get("fixed_by", "") or "",
-            row_data.get("image_name", ""),
+            len(image_names),
+            _cell_lines(image_names, more_label),
             first_seen.strftime("%Y-%m-%d") if isinstance(first_seen, datetime) else str(first_seen or ""),
             published_on.strftime("%Y-%m-%d") if isinstance(published_on, datetime) else str(published_on or ""),
             priority_labels.get(row_data.get("priority_level", ""), row_data.get("priority_level", "")) or "",
@@ -231,6 +272,7 @@ def generate_cve_excel(rows: list[dict], lang: str = "de") -> bytes:
 
         for col_idx, val in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.alignment = cell_alignment
             if col_idx == epss_col:
                 cell.number_format = "0.00%"
             if col_idx in editable_cols:
@@ -280,10 +322,9 @@ def parse_import_excel(file_bytes: bytes, lang: str = "de") -> list[dict]:
     # Read header row and map to canonical keys
     headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
 
-    # Validate that all expected canonical columns are present
-    expected_canonical = {name for name, _ in TRANSLATIONS["en"]["columns"]}
+    # Validate that the columns the import reads are present
     present = {_COLUMN_CANONICAL.get(h, h) for h in headers if h is not None}
-    missing = expected_canonical - present
+    missing = _IMPORT_REQUIRED_KEYS - present
     if missing:
         raise ValueError(msgs["import_missing_columns"].format(cols=", ".join(sorted(missing))))
 

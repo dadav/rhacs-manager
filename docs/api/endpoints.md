@@ -417,6 +417,9 @@ Response:
 - Content type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - Attachment filename: `cve-export-YYYY-MM-DD.xlsx`
 - Emits one row per CVE, not one row per deployment
+- `Image` lists every affected image in the caller's scope, one per line; `Image Count` (`Anzahl Images`) holds the total
+- `Component` (`Komponente`) lists every affected component as `name version`, one per line
+- A cell that would exceed Excel's per-cell limits (32,767 characters, 250 lines) is cut off and ends with `… and N more` (`… und N weitere`)
 
 ### `POST /api/exports/excel/import`
 
@@ -435,6 +438,7 @@ Behavior:
 
 - `sec_team` cannot use this route.
 - The caller must have at least one namespace.
+- The data sheet (`CVE-Daten` or `CVE Data`) must contain the `CVE-ID`, justification and expiry date columns (German or English headers, any order). Other columns are ignored, so files from older exports stay importable.
 - Rows are grouped by `(cve_id, justification)`.
 - For each valid group, the backend derives a namespace scope covering all affected namespaces currently visible to the caller for that CVE.
 - The backend validates the resulting scope against live affected deployments.
