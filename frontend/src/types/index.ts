@@ -426,6 +426,7 @@ export interface EpssMatrixPoint {
   cvss: number
   epss: number
   severity: Severity
+  fixable: boolean
 }
 
 export interface ClusterHeatmapRow {

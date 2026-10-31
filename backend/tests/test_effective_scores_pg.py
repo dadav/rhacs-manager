@@ -305,3 +305,20 @@ async def test_mttr_severity_uses_effective_severity(sx_session):
     # No map entry: raw severity.
     assert info["CVE-NULL"] == (4, OLD_SCAN)
     assert "CVE-UNKNOWN" not in info
+
+
+async def test_epss_matrix_fixable_is_scoped_bool_or(sx_session):
+    # The fix exists only on the team-b image; team-a stays unfixable. NULL counts as not fixable.
+    await sx_session.execute(
+        text("UPDATE image_cves_v2 SET isfixable = true WHERE cvebaseinfo_cve = 'CVE-STALE' AND imageidv2 = 'v2-fresh'")
+    )
+    await sx_session.execute(text("UPDATE image_cves_v2 SET isfixable = NULL WHERE cvebaseinfo_cve = 'CVE-NULL'"))
+
+    team_b = _by_id(await sx.get_epss_risk_matrix(sx_session, TEAM_B, 0.0, 0.0))
+    team_a = _by_id(await sx.get_epss_risk_matrix(sx_session, TEAM_A, 0.0, 0.0))
+    org_wide = _by_id(await sx.get_epss_risk_matrix(sx_session, None, 0.0, 0.0))
+
+    assert team_b["CVE-STALE"]["fixable"] is True
+    assert team_a["CVE-STALE"]["fixable"] is False
+    assert org_wide["CVE-STALE"]["fixable"] is True
+    assert team_a["CVE-NULL"]["fixable"] is False

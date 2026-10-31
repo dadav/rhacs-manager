@@ -524,6 +524,7 @@ async def dashboard(
             cvss=float(r["cvss"]),
             epss=float(r["epss"]),
             severity=SeverityLevel(r["severity"]),
+            fixable=bool(r.get("fixable", False)),
         )
         for r in matrix_rows
     ]

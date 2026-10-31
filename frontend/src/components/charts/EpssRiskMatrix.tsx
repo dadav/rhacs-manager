@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { formatCvss, formatEpssPercent } from '../../utils/format'
 import { Severity } from '../../types'
+import type { EpssMatrixPoint } from '../../types'
 
 const DOT_COLORS: Record<number, string> = {
   [Severity.CRITICAL]: '#c9190b',
@@ -21,23 +22,17 @@ const DOT_COLORS: Record<number, string> = {
   [Severity.UNKNOWN]: '#8a8d90',
 }
 
-interface Point {
-  cve_id: string
-  cvss: number
-  epss: number
-  severity: Severity
-}
-
 interface Props {
-  data: Point[]
+  data: EpssMatrixPoint[]
   onDotClick?: (cveId: string) => void
 }
 
 interface TooltipPayload {
-  payload?: Point
+  payload?: EpssMatrixPoint
 }
 
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
+export function EpssMatrixTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload[] }) {
+  const { t } = useTranslation()
   if (!active || !payload?.[0]?.payload) return null
   const d = payload[0].payload
   return (
@@ -52,6 +47,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
       <strong>{d.cve_id}</strong>
       <div>CVSS: {formatCvss(d.cvss)}</div>
       <div>EPSS: {formatEpssPercent(d.epss)}</div>
+      <div>{d.fixable ? t('dashboard.fixable') : t('dashboard.unfixable')}</div>
     </div>
   )
 }
@@ -68,7 +64,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
     { x1: 0.1, x2: 1,   y1: 7, y2: 10, fill: '#c9190b', label: t('epssMatrix.criticalRisk'),  labelFill: '#c9190b' },
   ]
 
-  const bySeverity = data.reduce<Record<number, Point[]>>((acc, p) => {
+  const bySeverity = data.reduce<Record<number, EpssMatrixPoint[]>>((acc, p) => {
     if (!acc[p.severity]) acc[p.severity] = []
     acc[p.severity].push(p)
     return acc
@@ -109,7 +105,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
             tick={{ fill: axisColor, fontSize: 11 }}
             label={{ value: 'CVSS', angle: -90, position: 'insideLeft', fontSize: 11, fill: axisColor }}
           />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<EpssMatrixTooltip />} />
           {zones.map(z => (
             <ReferenceArea
               key={z.label}
@@ -129,7 +125,7 @@ export function EpssRiskMatrix({ data, onDotClick }: Props) {
               fillOpacity={0.85}
               style={onDotClick ? { cursor: 'pointer' } : undefined}
               onClick={onDotClick ? (point) => {
-                onDotClick((point as unknown as Point).cve_id)
+                onDotClick((point as unknown as EpssMatrixPoint).cve_id)
               } : undefined}
             />
           ))}

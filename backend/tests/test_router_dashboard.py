@@ -135,6 +135,18 @@ async def test_dashboard_severity_distribution_shape(sec_team_client: httpx.Asyn
         assert "count" in entry
 
 
+async def test_dashboard_epss_matrix_includes_fixable(sec_team_client: httpx.AsyncClient, sx_mock):
+    matrix_rows = [
+        {"cve_id": "CVE-2024-0001", "cvss": 9.8, "epss": 0.95, "severity": 4, "fixable": True},
+        {"cve_id": "CVE-2024-0002", "cvss": 5.0, "epss": 0.02, "severity": 2, "fixable": False},
+    ]
+    with patch("app.routers.dashboard._sx_epss_risk_matrix", return_value=matrix_rows):
+        resp = await sec_team_client.get("/api/dashboard")
+    assert resp.status_code == 200
+    fixable_by_cve = {p["cve_id"]: p["fixable"] for p in resp.json()["epss_matrix"]}
+    assert fixable_by_cve == {"CVE-2024-0001": True, "CVE-2024-0002": False}
+
+
 async def test_dashboard_team_member_no_namespaces_returns_zeros(app, sx_mock):
     """A team member with no namespaces should get an empty dashboard, not a 403."""
     from app.deps import get_current_user

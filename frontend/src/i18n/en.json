@@ -189,7 +189,7 @@
       "180+": ">180 days"
     },
     "help": {
-      "epssMatrix": "The EPSS Risk Matrix plots each CVE by CVSS score (Y-axis) and EPSS exploitation probability (X-axis). CVEs in the top-right have both high severity and high exploitation likelihood and should be addressed first.",
+      "epssMatrix": "The EPSS Risk Matrix plots each CVE by CVSS score (Y-axis) and EPSS exploitation probability (X-axis). CVEs in the top-right have both high severity and high exploitation likelihood and should be addressed first. Hovering a point also shows whether a fix is available in your scope.",
       "pipeline": "Shows the current distribution of all risk acceptances by status. Quickly see how many requests are pending, approved, rejected, or expired.",
       "severityDistribution": "Shows the distribution of your visible CVEs by severity level. Click a segment to filter the vulnerability list accordingly.",
       "fixabilityBreakdown": "Shows how many of your CVEs can be fixed by an update vs. those with no fix available yet. Helps prioritize update efforts.",

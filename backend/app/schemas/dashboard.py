@@ -32,6 +32,7 @@ class EpssMatrixPoint(BaseModel):
     cvss: float
     epss: float
     severity: SeverityLevel
+    fixable: bool = False
 
 
 class ClusterHeatmapRow(BaseModel):

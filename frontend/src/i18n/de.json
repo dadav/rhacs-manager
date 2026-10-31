@@ -189,7 +189,7 @@
       "180+": ">180 Tage"
     },
     "help": {
-      "epssMatrix": "Die EPSS-Risikomatrix zeigt jede CVE als Punkt, positioniert nach CVSS-Score (Y-Achse) und EPSS-Ausnutzungswahrscheinlichkeit (X-Achse). CVEs oben rechts haben sowohl hohen Schweregrad als auch hohe Ausnutzungswahrscheinlichkeit und sollten zuerst bearbeitet werden.",
+      "epssMatrix": "Die EPSS-Risikomatrix zeigt jede CVE als Punkt, positioniert nach CVSS-Score (Y-Achse) und EPSS-Ausnutzungswahrscheinlichkeit (X-Achse). CVEs oben rechts haben sowohl hohen Schweregrad als auch hohe Ausnutzungswahrscheinlichkeit und sollten zuerst bearbeitet werden. Beim Überfahren eines Punkts wird zusätzlich angezeigt, ob in Ihrem Bereich ein Fix verfügbar ist.",
       "pipeline": "Zeigt die aktuelle Verteilung aller Risikoakzeptanzen nach Status. So erkennen Sie auf einen Blick, wie viele Anträge offen, genehmigt, abgelehnt oder abgelaufen sind.",
       "severityDistribution": "Zeigt die Verteilung Ihrer sichtbaren CVEs nach Schweregrad. Klicken Sie auf ein Segment, um die entsprechenden CVEs gefiltert anzuzeigen.",
       "fixabilityBreakdown": "Zeigt, wie viele Ihrer CVEs durch ein Update behoben werden können und wie viele derzeit keinen Fix haben. Hilft bei der Priorisierung von Update-Maßnahmen.",

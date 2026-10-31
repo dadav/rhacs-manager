@@ -285,7 +285,8 @@ async def get_epss_risk_matrix(
             ic.cvebaseinfo_cve AS cve_id,
             MAX(COALESCE(ic.cvss, 0)) AS cvss,
             MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss,
-            MAX(ic.severity) AS severity
+            MAX(ic.severity) AS severity,
+            BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
         {where_clause}

@@ -36,7 +36,7 @@ These action-first sections sit at the top of the dashboard.
 
 ### Charts
 
-- **EPSS Risk Matrix** plots each CVE as a point. The upper-right area represents the most urgent combination of severity and exploit probability.
+- **EPSS Risk Matrix** plots each CVE as a point. The upper-right area represents the most urgent combination of severity and exploit probability. Hovering a point shows its CVSS, EPSS, and whether a fix is available in your scope.
 - **Cluster Heatmap** compares clusters by severity distribution so you can spot hotspots quickly.
 - **CVE Aging Distribution** groups CVEs by age based on `first_seen`, which helps identify long-running backlog.
 - **CVE totals over time** is a real trend: it charts the actual number of visible CVEs per day (by severity) from a daily snapshot, so a falling line means genuine progress. History accrues from the day snapshots start being recorded; until at least two days exist the card shows a hint instead of a chart. For teams spanning multiple namespaces the same CVE may be counted once per namespace.
