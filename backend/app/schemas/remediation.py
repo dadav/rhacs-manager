@@ -16,6 +16,22 @@ class RemediationCreate(BaseModel):
     notes: str | None = Field(default=None, max_length=5000)
 
 
+class RemediationTarget(BaseModel):
+    namespace: str = Field(min_length=1, max_length=255)
+    cluster_name: str = Field(min_length=1, max_length=255)
+
+
+class RemediationBatchCreate(BaseModel):
+    """Create one remediation per target pair of a single CVE (all-or-nothing)."""
+
+    cve_id: str = Field(pattern=r"^CVE-\d{4}-\d+$")
+    # Keep max_length in sync with MAX_REMEDIATION_TARGETS in frontend/src/api/remediations.ts.
+    targets: list[RemediationTarget] = Field(min_length=1, max_length=200)
+    assigned_to: str | None = None
+    target_date: date | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+
+
 class RemediationUpdate(BaseModel):
     status: RemediationStatusType | None = None
     assigned_to: str | None = None

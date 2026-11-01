@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   CardBody,
+  Checkbox,
   CardTitle,
   Label,
   Spinner,
@@ -12,7 +13,12 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
-import { useRemediationsByCve, useCreateRemediation, useUpdateRemediation } from "../api/remediations";
+import {
+  MAX_REMEDIATION_TARGETS,
+  useCreateRemediations,
+  useRemediationsByCve,
+  useUpdateRemediation,
+} from "../api/remediations";
 import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
 import { RemediationStatus } from "../types";
@@ -25,6 +31,10 @@ import { formatDate } from "../utils/format";
 import { UserPicker } from "./UserPicker";
 import type { UserSearchResult } from "../api/auth";
 
+function namespaceKey(d: { namespace: string; cluster_name: string }): string {
+  return `${d.namespace}:${d.cluster_name}`
+}
+
 export function CveRemediationSection({
   cveId,
   deployments,
@@ -36,25 +46,25 @@ export function CveRemediationSection({
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const { data: remediations, isLoading } = useRemediationsByCve(cveId, scopeParams)
-  const createMutation = useCreateRemediation()
+  const createMutation = useCreateRemediations()
   const [showForm, setShowForm] = useState(false)
-  const [selectedNs, setSelectedNs] = useState('')
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
   const [targetDate, setTargetDate] = useState('')
   const [notes, setNotes] = useState('')
   const [assignee, setAssignee] = useState<UserSearchResult | null>(null)
 
   const namespaces = Array.from(
-    new Map(
-      deployments.map(d => [`${d.namespace}:${d.cluster_name}`, d])
-    ).values()
+    new Map(deployments.map(d => [namespaceKey(d), d])).values()
   )
 
-  const existingKeys = new Set(
-    (remediations ?? []).map(r => `${r.namespace}:${r.cluster_name}`)
-  )
-  const availableNs = namespaces.filter(
-    d => !existingKeys.has(`${d.namespace}:${d.cluster_name}`)
-  )
+  const existingKeys = new Set((remediations ?? []).map(namespaceKey))
+  const availableNs = namespaces.filter(d => !existingKeys.has(namespaceKey(d)))
+
+  // Derived from availableNs so a namespace that gained a remediation meanwhile is never submitted.
+  const selectedTargets = availableNs.filter(d => selectedKeys.has(namespaceKey(d)))
+  const tooManySelected = selectedTargets.length > MAX_REMEDIATION_TARGETS
+  const allSelected = availableNs.length > 0 && selectedTargets.length === availableNs.length
+  const selectAllState: boolean | null = allSelected ? true : selectedTargets.length === 0 ? false : null
 
   const REM_STATUS_LABELS: Record<string, string> = {
     open: t('remediations.statusOpen'),
@@ -64,20 +74,36 @@ export function CveRemediationSection({
     wont_fix: t('remediations.statusWontFix'),
   }
 
+  function openForm() {
+    // Keep the one-click path when only a single namespace can still be remediated.
+    setSelectedKeys(availableNs.length === 1 ? new Set([namespaceKey(availableNs[0])]) : new Set())
+    setShowForm(true)
+  }
+
+  function toggleNamespace(key: string, checked: boolean) {
+    setSelectedKeys(prev => {
+      const next = new Set(prev)
+      if (checked) next.add(key); else next.delete(key)
+      return next
+    })
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelectedKeys(checked ? new Set(availableNs.map(namespaceKey)) : new Set())
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedNs) return
-    const [namespace, cluster_name] = selectedNs.split(':')
+    if (selectedTargets.length === 0 || tooManySelected) return
     await createMutation.mutateAsync({
       cve_id: cveId,
-      namespace,
-      cluster_name,
+      targets: selectedTargets.map(d => ({ namespace: d.namespace, cluster_name: d.cluster_name })),
       target_date: targetDate || null,
       notes: notes || null,
       assigned_to: assignee?.id ?? null,
     })
     setShowForm(false)
-    setSelectedNs('')
+    setSelectedKeys(new Set())
     setTargetDate('')
     setNotes('')
     setAssignee(null)
@@ -89,7 +115,7 @@ export function CveRemediationSection({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>{t('cveDetail.remediationsCount', { count: remediations?.length ?? 0 })}</span>
           {!isSecTeam && availableNs.length > 0 && !showForm && (
-            <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+            <Button variant="secondary" size="sm" onClick={openForm}>
               {t('cveDetail.startRemediationBtn')}
             </Button>
           )}
@@ -113,26 +139,40 @@ export function CveRemediationSection({
         {showForm && (
           <form onSubmit={handleCreate} style={{ marginTop: 16, padding: 12, border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.selectNamespace')}</label>
-                <select
-                  value={selectedNs}
-                  onChange={e => setSelectedNs(e.target.value)}
-                  style={{
-                    display: 'block', width: '100%', marginTop: 4, height: 36, padding: '0 8px',
-                    border: '1px solid var(--pf-t--global--border--color--default)', borderRadius: 4,
-                    background: 'var(--pf-t--global--background--color--primary--default)',
-                    color: 'var(--pf-t--global--text--color--regular)', fontSize: 13,
-                  }}
-                >
-                  <option value="">{t('cveDetail.selectNamespacePlaceholder')}</option>
-                  {availableNs.map(d => (
-                    <option key={`${d.namespace}:${d.cluster_name}`} value={`${d.namespace}:${d.cluster_name}`}>
-                      {d.cluster_name}/{d.namespace}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <fieldset style={{ border: 'none', margin: 0, padding: 0 }}>
+                <legend style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.selectNamespaces')}</legend>
+                {availableNs.length > 1 && (
+                  <Checkbox
+                    id="remediation-ns-all"
+                    label={t('cveDetail.selectAllNamespaces', { count: availableNs.length })}
+                    isChecked={selectAllState}
+                    onChange={(_e, checked) => toggleAll(checked)}
+                    style={{ marginTop: 4 }}
+                  />
+                )}
+                <div style={{
+                  display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4,
+                  paddingLeft: availableNs.length > 1 ? 16 : 0, maxHeight: 240, overflowY: 'auto',
+                }}>
+                  {availableNs.map(d => {
+                    const key = namespaceKey(d)
+                    return (
+                      <Checkbox
+                        key={key}
+                        id={`remediation-ns-${key}`}
+                        label={`${d.cluster_name}/${d.namespace}`}
+                        isChecked={selectedKeys.has(key)}
+                        onChange={(_e, checked) => toggleNamespace(key, checked)}
+                      />
+                    )
+                  })}
+                </div>
+                {tooManySelected && (
+                  <p style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--status--danger--default)', margin: '6px 0 0' }}>
+                    {t('cveDetail.tooManyNamespaces', { max: MAX_REMEDIATION_TARGETS })}
+                  </p>
+                )}
+              </fieldset>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.assigneeOptional')}</label>
                 <div style={{ marginTop: 4 }}>
@@ -174,8 +214,14 @@ export function CveRemediationSection({
                 />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Button type="submit" variant="primary" size="sm" isLoading={createMutation.isPending} isDisabled={!selectedNs}>
-                  {t('common.create')}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={createMutation.isPending}
+                  isDisabled={selectedTargets.length === 0 || tooManySelected || createMutation.isPending}
+                >
+                  {t('cveDetail.createRemediationsBtn', { count: selectedTargets.length })}
                 </Button>
                 <Button variant="link" size="sm" onClick={() => setShowForm(false)}>
                   {t('common.cancel')}

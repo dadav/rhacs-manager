@@ -122,7 +122,7 @@ Risk acceptances are requested from a specific CVE, not from a blank form on the
 Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 1. Start from a CVE detail page and choose **Start remediation**.
-2. Pick the affected namespace and optional assignee, target date, or notes.
+2. Tick one or more affected namespaces (or **Select all**) and set an optional assignee, target date, or notes. One remediation is created per selected namespace; namespaces that already have a remediation for the CVE are not offered.
 3. Assign or reassign an `open` or `in_progress` remediation from its card. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
 4. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
 5. If the work is intentionally not going to happen, use `wont_fix` and provide a reason.

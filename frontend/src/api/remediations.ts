@@ -61,17 +61,25 @@ export function useRemediationStats(scope: ScopeParams = {}) {
   })
 }
 
-export function useCreateRemediation() {
+// Keep in sync with RemediationBatchCreate.targets max_length in backend/app/schemas/remediation.py.
+export const MAX_REMEDIATION_TARGETS = 200
+
+export interface RemediationTarget {
+  namespace: string
+  cluster_name: string
+}
+
+/** Create one remediation per target namespace of a CVE. The backend rejects the whole batch on any invalid target. */
+export function useCreateRemediations() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: {
       cve_id: string
-      namespace: string
-      cluster_name: string
+      targets: RemediationTarget[]
       assigned_to?: string | null
       target_date?: string | null
       notes?: string | null
-    }) => api.post<RemediationItem>('/remediations', body),
+    }) => api.post<RemediationItem[]>('/remediations/batch', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remediations'] })
     },

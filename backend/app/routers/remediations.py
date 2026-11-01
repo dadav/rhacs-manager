@@ -13,14 +13,15 @@ from ..models.remediation import Remediation, RemediationStatus
 from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.remediation import (
+    RemediationBatchCreate,
     RemediationCreate,
     RemediationResponse,
     RemediationStats,
     RemediationUpdate,
 )
 from ..services import cve_subscription_service as sub_svc
+from ..services import remediation_service as rem_svc
 from ..services.audit_service import log_action
-from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
 
 router = APIRouter(prefix="/remediations", tags=["remediations"])
@@ -52,14 +53,6 @@ def _user_can_access(user: CurrentUser, r: Remediation) -> bool:
     if user.can_see_all_namespaces:
         return True
     return (r.namespace, r.cluster_name) in user.namespaces
-
-
-async def _require_user(db: AsyncSession, user_id: str) -> User:
-    """Load an assignee candidate or fail with a user-visible 404."""
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if not user:
-        raise ApiError(404, "user_not_found")
-    return user
 
 
 def _build_response(r: Remediation) -> RemediationResponse:
@@ -106,76 +99,44 @@ async def create_remediation(
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RemediationResponse:
-    # Verify user has access to the namespace
-    if not current_user.can_see_all_namespaces and (body.namespace, body.cluster_name) not in current_user.namespaces:
-        raise ApiError(403, "remediation_namespace_forbidden")
-
-    # Verify the CVE exists in this namespace
-    deployments = await sx.get_affected_deployments(
+    created = await rem_svc.create_remediations(
+        db,
         sx_db,
-        body.cve_id,
-        [(body.namespace, body.cluster_name)],
-    )
-    if not deployments:
-        raise ApiError(404, "cve_not_in_namespace")
-
-    # Check for existing remediation
-    existing = await db.execute(
-        select(Remediation).where(
-            Remediation.cve_id == body.cve_id,
-            Remediation.namespace == body.namespace,
-            Remediation.cluster_name == body.cluster_name,
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise ApiError(409, "remediation_duplicate")
-
-    if body.assigned_to:
-        await _require_user(db, body.assigned_to)
-
-    remediation = Remediation(
+        current_user,
         cve_id=body.cve_id,
-        namespace=body.namespace,
-        cluster_name=body.cluster_name,
-        status=RemediationStatus.open,
+        targets=[(body.namespace, body.cluster_name)],
         assigned_to=body.assigned_to,
-        created_by=current_user.id,
         target_date=body.target_date,
         notes=body.notes,
     )
-    db.add(remediation)
-    await db.flush()
-
-    await log_action(
-        db,
-        current_user.id,
-        "remediation_created",
-        "remediation",
-        str(remediation.id),
-        {
-            "cve_id": body.cve_id,
-            "namespace": body.namespace,
-            "cluster_name": body.cluster_name,
-            "assigned_to_id": body.assigned_to or None,
-        },
-    )
-
-    # Notify the assignee about the new remediation
-    await notif_svc.notify_remediation_created(db, remediation, current_user)
-    await sub_svc.broadcast_subscription_event(
-        db,
-        sx_db,
-        cve_id=remediation.cve_id,
-        kind="remediation",
-        params={"status": remediation.status.value},
-        actor_id=current_user.id,
-        exclude_user_ids=[remediation.assigned_to] if remediation.assigned_to else [],
-        scope=[(remediation.namespace, remediation.cluster_name)],
-    )
-
     await db.commit()
+    remediation = created[0]
     await db.refresh(remediation, ["creator", "assignee", "resolver"])
     return _build_response(remediation)
+
+
+@router.post("/batch", response_model=list[RemediationResponse], status_code=201)
+async def create_remediations_batch(
+    body: RemediationBatchCreate,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> list[RemediationResponse]:
+    """Create one remediation per target namespace of a CVE; rejects the whole batch on any invalid target."""
+    created = await rem_svc.create_remediations(
+        db,
+        sx_db,
+        current_user,
+        cve_id=body.cve_id,
+        targets=[(t.namespace, t.cluster_name) for t in body.targets],
+        assigned_to=body.assigned_to,
+        target_date=body.target_date,
+        notes=body.notes,
+    )
+    await db.commit()
+    for remediation in created:
+        await db.refresh(remediation, ["creator", "assignee", "resolver"])
+    return [_build_response(r) for r in created]
 
 
 @router.get("", response_model=list[RemediationResponse])
@@ -345,7 +306,7 @@ async def update_remediation(
     if body.assigned_to is not None:
         new_assignee_id = body.assigned_to or None
         if new_assignee_id and new_assignee_id != r.assigned_to:
-            newly_assigned = await _require_user(db, new_assignee_id)
+            newly_assigned = await rem_svc.require_user(db, new_assignee_id)
         r.assigned_to = new_assignee_id
         details["assigned_to_id"] = new_assignee_id
 

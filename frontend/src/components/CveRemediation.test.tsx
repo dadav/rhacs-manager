@@ -1,20 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RemediationCard } from './CveRemediation'
+import { CveRemediationSection, RemediationCard } from './CveRemediation'
 import { RemediationStatus } from '../types'
 import type { RemediationItem } from '../types'
 
 // --- Mocks ---
 
 const mockPatch = vi.fn()
+const mockGet = vi.fn()
+const mockPost = vi.fn()
 vi.mock('../api/client', () => ({
   api: {
     patch: (...args: unknown[]) => mockPatch(...args),
-    get: vi.fn(),
-    post: vi.fn(),
+    get: (...args: unknown[]) => mockGet(...args),
+    post: (...args: unknown[]) => mockPost(...args),
     delete: vi.fn(),
   },
+}))
+
+// Small cap keeps the over-the-cap test fast; the real value is 200.
+vi.mock('../api/remediations', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/remediations')>()),
+  MAX_REMEDIATION_TARGETS: 2,
+}))
+
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ isSecTeam: false }),
+}))
+
+vi.mock('../hooks/useScope', () => ({
+  useScope: () => ({ scopeParams: {} }),
 }))
 
 vi.mock('../api/auth', () => ({
@@ -25,7 +41,7 @@ vi.mock('../api/auth', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, opts?: { count?: number }) => (opts?.count !== undefined ? `${key}:${opts.count}` : key),
     i18n: { language: 'en', changeLanguage: vi.fn() },
   }),
 }))
@@ -95,5 +111,86 @@ describe('RemediationCard assignment', () => {
 
     fireEvent.click(startButton)
     await waitFor(() => expect(mockPatch).toHaveBeenLastCalledWith('/remediations/rem-1', { status: 'in_progress' }))
+  })
+})
+
+describe('CveRemediationSection multi-namespace create', () => {
+  const deployments = [
+    { namespace: 'payments', cluster_name: 'cluster-a' },
+    { namespace: 'payments', cluster_name: 'cluster-a' },
+    { namespace: 'frontend', cluster_name: 'cluster-b' },
+    { namespace: 'billing', cluster_name: 'cluster-a' },
+  ]
+
+  function renderSection(existing: RemediationItem[] = []) {
+    mockGet.mockResolvedValue(existing)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <CveRemediationSection cveId="CVE-2024-0001" deployments={deployments} />
+      </QueryClientProvider>,
+    )
+  }
+
+  beforeEach(() => {
+    mockGet.mockReset()
+    mockPost.mockReset()
+    mockPost.mockResolvedValue([])
+  })
+
+  it('creates remediations for every checked namespace in one batch request', async () => {
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'cveDetail.startRemediationBtn' }))
+    const submit = screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:0' })
+    expect(submit).toBeDisabled()
+
+    fireEvent.click(screen.getByLabelText('cluster-a/payments'))
+    fireEvent.click(screen.getByLabelText('cluster-b/frontend'))
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:2' }))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/remediations/batch', {
+      cve_id: 'CVE-2024-0001',
+      targets: [
+        { namespace: 'payments', cluster_name: 'cluster-a' },
+        { namespace: 'frontend', cluster_name: 'cluster-b' },
+      ],
+      target_date: null,
+      notes: null,
+      assigned_to: null,
+    }))
+  })
+
+  it('select all covers only namespaces without an existing remediation', async () => {
+    renderSection([makeItem({ namespace: 'billing', cluster_name: 'cluster-a' })])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'cveDetail.startRemediationBtn' }))
+    expect(screen.queryByLabelText('cluster-a/billing')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('cveDetail.selectAllNamespaces:2'))
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:2' }))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1))
+    expect(mockPost.mock.calls[0][1].targets).toEqual([
+      { namespace: 'payments', cluster_name: 'cluster-a' },
+      { namespace: 'frontend', cluster_name: 'cluster-b' },
+    ])
+  })
+
+  it('blocks submit above the batch cap', async () => {
+    mockGet.mockResolvedValue([])
+    const many = Array.from({ length: 3 }, (_, i) => ({ namespace: `ns-${i}`, cluster_name: 'cluster-a' }))
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <CveRemediationSection cveId="CVE-2024-0001" deployments={many} />
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'cveDetail.startRemediationBtn' }))
+    fireEvent.click(screen.getByLabelText('cveDetail.selectAllNamespaces:3'))
+
+    expect(screen.getByText('cveDetail.tooManyNamespaces')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:3' })).toBeDisabled()
   })
 })

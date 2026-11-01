@@ -303,6 +303,7 @@ Badge behavior:
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | POST | `/api/remediations` | Any user with namespace access | Create a remediation for a CVE in one namespace |
+| POST | `/api/remediations/batch` | Any user with namespace access | Create remediations for a CVE in several namespaces at once |
 | GET | `/api/remediations` | Any | List accessible remediations |
 | GET | `/api/remediations/stats` | Any | Status counters for the current scope |
 | GET | `/api/remediations/{id}` | Any | Get one remediation |
@@ -328,6 +329,28 @@ Behavior:
 - The backend verifies that the CVE currently exists in that namespace.
 - Only one remediation may exist per `(cve_id, namespace, cluster_name)`.
 - New records always start in status `open`.
+
+### `POST /api/remediations/batch` Body
+
+```json
+{
+  "cve_id": "CVE-2025-1234",
+  "targets": [
+    { "namespace": "payments", "cluster_name": "cluster-a" },
+    { "namespace": "checkout", "cluster_name": "cluster-b" }
+  ],
+  "assigned_to": "alice",
+  "target_date": "2026-03-31",
+  "notes": "Upgrade the affected base image."
+}
+```
+
+Behavior:
+
+- Creates one `open` remediation per target with the shared assignee, target date, and notes. Returns the created records (`201`).
+- `targets` holds 1 to 200 pairs; duplicate pairs are collapsed.
+- All-or-nothing: the whole batch is rejected if any target is outside the caller's namespaces (`403`), does not currently contain the CVE (`404`), or already has a remediation for the CVE (`409`).
+- Each record gets its own audit entry and assignee notification. CVE subscribers get one event covering all targets.
 
 ### `GET /api/remediations` Query Parameters
 
