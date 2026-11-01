@@ -31,7 +31,7 @@ def _result(*, scalar_one=None, all_items=None):
 
 def _app_db_with_calls(settings):
     """app_db whose execute() returns, in order: settings, priorities, RAs,
-    suppression rules (none), remediations (none)."""
+    suppression rules (none), subscriptions (none), remediations (none)."""
     priority = SimpleNamespace(cve_id="CVE-PRIO-1")
     ra = SimpleNamespace(cve_id="CVE-RA-1", status=RiskStatus.approved)
     db = AsyncMock()
@@ -40,6 +40,7 @@ def _app_db_with_calls(settings):
         _result(all_items=[priority]),  # CvePriority
         _result(all_items=[ra]),  # RiskAcceptance
         _result(all_items=[]),  # SuppressionRule (_load_suppression_sets)
+        _result(all_items=[]),  # CveSubscription (subscribed_cve_ids)
         _result(all_items=[]),  # Remediation (compute_remediation_status)
     ]
     return db

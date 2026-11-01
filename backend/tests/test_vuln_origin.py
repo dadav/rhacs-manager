@@ -79,11 +79,12 @@ def _result(*, scalar_one=None, all_items=None):
 
 
 def _app_db():
-    """execute() order: settings, priorities, RAs, suppression rules, remediations."""
+    """execute() order: settings, priorities, RAs, suppression rules, subscriptions, remediations."""
     db = AsyncMock()
     settings = SimpleNamespace(min_cvss_score=0.0, min_epss_score=0.0, fix_overdue_threshold_days=30)
     db.execute.side_effect = [
         _result(scalar_one=settings),
+        _result(),
         _result(),
         _result(),
         _result(),

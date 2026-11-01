@@ -72,7 +72,17 @@ async def test_auto_resolves_only_when_cve_no_longer_present(monkeypatch):
         fake_get_affected_deployments,
     )
 
+    broadcast = AsyncMock(return_value=0)
+    monkeypatch.setattr(scheduler.sub_svc, "broadcast_subscription_event", broadcast)
+
     await scheduler.run_remediation_auto_resolve()
+
+    # Subscribers of the resolved CVE are told, scoped to that one location.
+    broadcast.assert_awaited_once()
+    kwargs = broadcast.await_args.kwargs
+    assert kwargs["cve_id"] == "CVE-2024-0001"
+    assert kwargs["kind"] == "remediation"
+    assert kwargs["scope"] == [("payments", "cluster-a")]
 
     assert gone.status == RemediationStatus.resolved
     assert gone.resolved_at is not None

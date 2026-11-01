@@ -35,6 +35,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useAddCveComment, useCveComments, useCveDetail, useEditCveComment, useDeleteCveComment } from "../api/cves";
 import { usePresence } from "../api/presence";
 import { ViewerIndicator } from "../components/ViewerIndicator";
+import { CveSubscribeButton } from "../components/CveSubscribeButton";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
 import {
@@ -410,6 +411,9 @@ export function CveDetail() {
             </Label>
           )}
           <ViewerIndicator viewers={viewers} />
+          <div style={{ marginLeft: "auto" }}>
+            <CveSubscribeButton cveId={cve.cve_id} />
+          </div>
         </div>
       </PageSection>
 

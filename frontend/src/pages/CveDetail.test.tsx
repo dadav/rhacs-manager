@@ -25,6 +25,11 @@ vi.mock('../api/suppressionRules', () => ({
   useCreateSuppressionRule: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
+vi.mock('../api/subscriptions', () => ({
+  useCveSubscription: () => ({ data: { cve_id: 'CVE-2024-1234', subscribed: false }, isLoading: false }),
+  useSetCveSubscription: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
+}))
+
 vi.mock('../api/remediations', () => ({
   useRemediationsByCve: () => ({ data: [], isLoading: false }),
 }))
@@ -220,6 +225,14 @@ describe('CveDetail', () => {
     expect(fixesParams.get('cluster')).toBe('cluster-a')
     expect(fixesParams.get('ns')).toBe('prod')
     expect(fixesParams.get('ignore_thresholds')).toBe('1')
+  })
+
+  it('shows the subscribe toggle in the header', () => {
+    mockUseCveDetail.mockReturnValue({ data: makeCveDetail(), isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(screen.getByRole('button', { name: /subscription.subscribe/ })).toBeInTheDocument()
   })
 
   it('shows error state when CVE not found', () => {

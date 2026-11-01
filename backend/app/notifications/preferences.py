@@ -55,6 +55,13 @@ CATEGORIES: dict[str, Category] = {
     "priority": Category(types=(NotificationType.new_priority,), in_app_default=True, email_default=None),
     "new_critical_cve": Category(types=(NotificationType.new_critical_cve,), in_app_default=True, email_default=None),
     "escalation": Category(types=(NotificationType.escalation,), in_app_default=True, email_default=None),
+    # CVE subscriptions: in-app per event; the email channel is the opt-in daily
+    # summary (counts and one link only, services/cve_subscription_service.py).
+    "cve_subscription": Category(
+        types=(NotificationType.cve_subscription,),
+        in_app_default=True,
+        email_default=False,
+    ),
     # Weekly team digest: email only, opt-in.
     "team_digest": Category(types=(), in_app_default=None, email_default=False),
     # Conditions of the daily CVE alert summary email (services/team_notifications.py):

@@ -12,6 +12,7 @@ from ..i18n import ApiError
 from ..models.cve_priority import CvePriority
 from ..notifications import service as notif_svc
 from ..schemas.priority import PriorityCreate, PriorityResponse, PriorityUpdate
+from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 
 router = APIRouter(prefix="/priorities", tags=["priorities"])
@@ -80,6 +81,14 @@ async def create_priority(
 
     # Notify sec team about new priority
     await notif_svc.notify_new_priority(db, body.cve_id, body.priority.value)
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=body.cve_id,
+        kind="priority_set",
+        params={"status": body.priority.value},
+        actor_id=current_user.id,
+    )
 
     await log_action(db, current_user.id, "priority_created", "cve_priority", str(priority.id))
     await db.commit()
@@ -93,12 +102,14 @@ async def update_priority(
     body: PriorityUpdate,
     current_user: CurrentUser = Depends(require_sec_team),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> PriorityResponse:
     result = await db.execute(select(CvePriority).where(CvePriority.id == priority_id))
     priority = result.scalar_one_or_none()
     if not priority:
         raise ApiError(404, "not_found")
 
+    level_changed = body.priority is not None and body.priority != priority.priority
     if body.priority is not None:
         priority.priority = body.priority
     if body.reason is not None:
@@ -107,6 +118,15 @@ async def update_priority(
         priority.deadline = body.deadline
     priority.updated_at = datetime.utcnow()
 
+    if level_changed:
+        await sub_svc.broadcast_subscription_event(
+            db,
+            sx_db,
+            cve_id=priority.cve_id,
+            kind="priority_changed",
+            params={"status": priority.priority.value},
+            actor_id=current_user.id,
+        )
     await log_action(db, current_user.id, "priority_updated", "cve_priority", str(priority.id))
     await db.commit()
     await db.refresh(priority, ["setter"])
@@ -118,12 +138,21 @@ async def delete_priority(
     priority_id: UUID,
     current_user: CurrentUser = Depends(require_sec_team),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> None:
     result = await db.execute(select(CvePriority).where(CvePriority.id == priority_id))
     priority = result.scalar_one_or_none()
     if not priority:
         raise ApiError(404, "not_found")
 
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=priority.cve_id,
+        kind="priority_removed",
+        params={},
+        actor_id=current_user.id,
+    )
     await log_action(db, current_user.id, "priority_deleted", "cve_priority", str(priority.id))
     await db.delete(priority)
     await db.commit()

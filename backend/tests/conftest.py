@@ -37,6 +37,7 @@ def _build_app() -> FastAPI:
         remediations,
         risk_acceptances,
         settings,
+        subscriptions,
         suppression_rules,
     )
 
@@ -67,6 +68,7 @@ def _build_app() -> FastAPI:
         exports,
         suppression_rules,
         presence,
+        subscriptions,
     ]:
         test_app.include_router(router_module.router, prefix="/api")
 

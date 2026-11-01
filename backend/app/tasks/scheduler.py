@@ -19,6 +19,7 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
+from ..services import cve_subscription_service as sub_svc
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,27 @@ async def run_expiry_check() -> None:
                 acceptance.id,
                 acceptance.cve_id,
             )
+            scope = sub_svc.risk_acceptance_scope_pairs(acceptance.scope)
+            if scope is None:
+                async with StackRoxSessionLocal() as sx_session:
+                    await sub_svc.broadcast_subscription_event(
+                        session,
+                        sx_session,
+                        cve_id=acceptance.cve_id,
+                        kind="risk_acceptance",
+                        params={"status": RiskStatus.expired.value},
+                        link=f"/risk-acceptances/{acceptance.id}",
+                    )
+            else:
+                await sub_svc.broadcast_subscription_event(
+                    session,
+                    None,
+                    cve_id=acceptance.cve_id,
+                    kind="risk_acceptance",
+                    params={"status": RiskStatus.expired.value},
+                    link=f"/risk-acceptances/{acceptance.id}",
+                    scope=scope,
+                )
         await session.commit()
 
 
@@ -220,6 +242,14 @@ async def run_escalation_check() -> None:
                     continue
 
                 await notif_svc.notify_escalation(app_session, row["cve_id"], ns_name, cluster, level)
+                await sub_svc.broadcast_subscription_event(
+                    app_session,
+                    None,
+                    cve_id=row["cve_id"],
+                    kind="escalation",
+                    params={"level": level},
+                    scope=[(ns_name, cluster)],
+                )
                 esc.notified = True
 
                 # Fetch affected deployments for email context
@@ -533,6 +563,14 @@ async def run_remediation_auto_resolve() -> None:
                         remediation.namespace,
                         remediation.cluster_name,
                     )
+                    await sub_svc.broadcast_subscription_event(
+                        app_session,
+                        None,
+                        cve_id=remediation.cve_id,
+                        kind="remediation",
+                        params={"status": RemediationStatus.resolved.value},
+                        scope=[(remediation.namespace, remediation.cluster_name)],
+                    )
 
         await app_session.commit()
     logger.info("Remediation auto-resolve complete")
@@ -677,6 +715,22 @@ async def run_team_cve_alerts() -> None:
         await team_notifications.run_team_cve_alerts(app_db, sx_db)
 
 
+@instrument_job("cve_subscription_diff")
+async def run_cve_subscription_diff() -> None:
+    """Hourly: diff subscribed CVEs against StackRox and notify each subscriber."""
+    logger.info("Running CVE subscription diff")
+    async with AppSessionLocal() as app_db, StackRoxSessionLocal() as sx_db:
+        await sub_svc.run_subscription_diff(app_db, sx_db)
+
+
+@instrument_job("cve_subscription_email")
+async def run_cve_subscription_email() -> None:
+    """Daily opt-in summary email of subscription events (counts and one link only)."""
+    logger.info("Running CVE subscription summary email")
+    async with AppSessionLocal() as app_db:
+        await sub_svc.run_subscription_email_digest(app_db)
+
+
 @instrument_job("team_digest")
 async def run_team_digest() -> None:
     """Weekly opt-in team digest per user (same weekday as the management digest)."""
@@ -816,5 +870,18 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=7,
         minute=15,
         id="team_digest",
+    )
+    scheduler.add_job(
+        run_cve_subscription_diff,
+        "cron",
+        minute=10,
+        id="cve_subscription_diff",
+    )
+    scheduler.add_job(
+        run_cve_subscription_email,
+        "cron",
+        hour=7,
+        minute=20,
+        id="cve_subscription_email",
     )
     return scheduler

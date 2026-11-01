@@ -5,6 +5,7 @@ from .cve_alert_mark import CveAlertMark
 from .cve_comment import CveComment
 from .cve_priority import CvePriority, PriorityLevel
 from .cve_snapshot import CveSnapshot
+from .cve_subscription import CveSubscription, CveSubscriptionEmailDelivery, CveSubscriptionEvent
 from .escalation import Escalation
 from .global_settings import GlobalSettings
 from .namespace_contact import NamespaceContact
@@ -42,4 +43,7 @@ __all__ = [
     "NotificationPreference",
     "UserNamespaceSnapshot",
     "AlertEmailDelivery",
+    "CveSubscription",
+    "CveSubscriptionEvent",
+    "CveSubscriptionEmailDelivery",
 ]

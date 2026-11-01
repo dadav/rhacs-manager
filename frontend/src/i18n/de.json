@@ -125,7 +125,8 @@
     "mention": "Erwähnung",
     "remediation_created": "Behebung",
     "remediation_status": "Behebungsstatus",
-    "remediation_overdue": "Behebung überfällig"
+    "remediation_overdue": "Behebung überfällig",
+    "cve_subscription": "Abonnement"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -786,7 +787,8 @@
       "remediation": "Behebung",
       "suppression_rule": "Unterdrückungsregel",
       "global_settings": "Einstellungen",
-      "settings": "Einstellungen"
+      "settings": "Einstellungen",
+      "cve": "CVE"
     },
     "actions": {
       "priority_created": "Priorität gesetzt",
@@ -812,7 +814,9 @@
       "suppression_rule_created": "Unterdrückungsregel erstellt",
       "suppression_rule_reviewed": "Unterdrückungsregel überprüft",
       "suppression_rule_updated": "Unterdrückungsregel aktualisiert",
-      "suppression_rule_deleted": "Unterdrückungsregel gelöscht"
+      "suppression_rule_deleted": "Unterdrückungsregel gelöscht",
+      "cve_subscribed": "CVE abonniert",
+      "cve_unsubscribed": "CVE-Abonnement beendet"
     }
   },
   "onboarding": {
@@ -1033,7 +1037,8 @@
       "team_digest": "Wöchentlicher Team-Bericht",
       "alert_email_new_critical": "Alarm-E-Mail: neue kritische CVEs",
       "alert_email_critical_fixable": "Alarm-E-Mail: kritische CVEs mit Fix",
-      "alert_email_prioritized": "Alarm-E-Mail: neu priorisierte CVEs"
+      "alert_email_prioritized": "Alarm-E-Mail: neu priorisierte CVEs",
+      "cve_subscription": "Abonnierte CVEs"
     },
     "categoryHelp": {
       "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen.",
@@ -1045,7 +1050,8 @@
       "team_digest": "Wöchentliche E-Mail mit Kennzahlen und Links für Ihre Namespaces, ohne CVE-Details.",
       "alert_email_new_critical": "CVEs, die in Ihren Namespaces neu als kritisch gelten. Höchstens eine Zusammenfassung pro Tag mit Kennzahlen, gemeinsam für alle Alarm-Bedingungen.",
       "alert_email_critical_fixable": "Kritische CVEs in Ihren Namespaces, für die neu ein Fix verfügbar ist. Teil der täglichen Zusammenfassung.",
-      "alert_email_prioritized": "CVEs, die in Ihren Namespaces neu priorisiert wurden. Teil der täglichen Zusammenfassung."
+      "alert_email_prioritized": "CVEs, die in Ihren Namespaces neu priorisiert wurden. Teil der täglichen Zusammenfassung.",
+      "cve_subscription": "Änderungen an CVEs, die Sie abonniert haben. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und einem Link, ohne CVE-Details."
     }
   },
   "myComments": {
@@ -1079,5 +1085,15 @@
     "threadEmpty": "Keine Kommentare vorhanden.",
     "empty": "Sie haben noch nicht kommentiert.",
     "emptyFiltered": "Keine Diskussionen für diesen Filter."
+  },
+  "subscription": {
+    "subscribe": "Abonnieren",
+    "subscribed": "Abonniert",
+    "tooltip": "Benachrichtigungen zu diesem CVE erhalten: neue Kommentare, Priorisierung, Risikoakzeptanzen, Behebungen, Eskalationen, geänderte Bewertungen, verfügbare Fixes und neu betroffene Images. StackRox-Daten werden stündlich geprüft.",
+    "tooltipSubscribed": "Sie erhalten Benachrichtigungen zu diesem CVE. Klicken, um das Abonnement zu beenden. Die tägliche Zusammenfassung per E-Mail aktivieren Sie in den persönlichen Einstellungen.",
+    "error": "Abonnement konnte nicht geändert werden: {{message}}",
+    "filter": "Nur abonnierte",
+    "filterHint": "Zeigt nur CVEs, die Sie abonniert haben. Abonnierte CVEs unter den globalen Schwellenwerten erscheinen nur mit \"Alle CVEs anzeigen\".",
+    "listIndicator": "Von Ihnen abonniert"
   }
 }

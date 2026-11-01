@@ -6,3 +6,4 @@ from .fixability import *  # noqa: F403
 from .image_detail import *  # noqa: F403
 from .images import *  # noqa: F403
 from .mappings import *  # noqa: F403
+from .subscriptions import *  # noqa: F403

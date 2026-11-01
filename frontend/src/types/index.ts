@@ -31,6 +31,7 @@ export enum NotificationType {
   remediation_created = 'remediation_created',
   remediation_status = 'remediation_status',
   remediation_overdue = 'remediation_overdue',
+  cve_subscription = 'cve_subscription',
 }
 
 export enum UserRole {
@@ -80,6 +81,7 @@ export interface CveListItem {
   is_suppressed: boolean
   suppression_requested: boolean
   remediation_status?: string | null
+  is_subscribed?: boolean
 }
 
 export enum SuppressionStatus {

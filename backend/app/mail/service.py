@@ -270,3 +270,30 @@ async def send_alert_summary(
     )
     subject = "Neue CVE-Funde in der Organisation" if org_wide else "Neue CVE-Funde in Ihren Namespaces"
     await send_email(to_email, subject, html)
+
+
+async def send_cve_subscription_summary(
+    to_email: str,
+    recipient_name: str,
+    *,
+    event_count: int,
+    cve_count: int,
+    base_url: str | None = None,
+) -> None:
+    """Daily opt-in CVE subscription summary: counts and links only, one email per user per day.
+
+    Never include CVE IDs, component, image or namespace names, authors, or comment
+    text: recipients are chosen from a namespace snapshot that may be stale.
+    """
+    base_url = base_url or settings.app_base_url
+    tmpl = _jinja_env.get_template("cve_subscription_summary.html")
+    html = tmpl.render(
+        recipient_name=recipient_name,
+        event_count=event_count,
+        cve_count=cve_count,
+        links={
+            "subscriptions": _app_link(base_url, "/vulnerabilities?subscribed=1"),
+            "settings": _app_link(base_url, "/my-settings"),
+        },
+    )
+    await send_email(to_email, "Neuigkeiten zu Ihren abonnierten CVEs", html)

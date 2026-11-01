@@ -30,6 +30,7 @@ from .routers import (
     remediations,
     risk_acceptances,
     settings,
+    subscriptions,
     suppression_rules,
 )
 from .stackrox.effective_scores import run_refresh_loop
@@ -189,6 +190,7 @@ for router_module in [
     audit,
     exports,
     suppression_rules,
+    subscriptions,
 ]:
     app.include_router(router_module.router, prefix="/api")
 

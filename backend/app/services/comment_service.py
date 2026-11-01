@@ -30,6 +30,7 @@ from ..notifications import service as notif_svc
 from ..schemas.comment import MAX_COMMENT_LEN
 from ..schemas.cve import CveCommentResponse, EscalationContext
 from ..schemas.risk_acceptance import CommentResponse
+from . import cve_subscription_service as sub_svc
 from .comment_content import (
     enrich_segments,
     legacy_mention_names,
@@ -174,6 +175,7 @@ async def add_cve_comment(
     message: str | None = None,
     content: list | None = None,
     current_user: CurrentUser,
+    sx_db: AsyncSession | None = None,
 ) -> tuple[CveCommentResponse, tuple[notif_svc.MentionEmailJob, ...]]:
     prepared = await _resolve_input(db, message=message, content=content)
     comment = CveComment(
@@ -191,6 +193,17 @@ async def add_cve_comment(
         current_user,
         f"/vulnerabilities/{cve_id}#comment-{comment.id}",
         context_label=f"CVE {cve_id}",
+    )
+    # Mentioned users already got the mention; no second notification for them.
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=cve_id,
+        kind="comment",
+        params={"author": current_user.display_name},
+        link=sub_svc.cve_link(cve_id, f"comment-{comment.id}"),
+        actor_id=current_user.id,
+        exclude_user_ids=mention_result.recipient_ids,
     )
 
     await db.commit()

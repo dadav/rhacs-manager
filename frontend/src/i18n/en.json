@@ -125,7 +125,8 @@
     "mention": "Mention",
     "remediation_created": "Remediation",
     "remediation_status": "Remediation status",
-    "remediation_overdue": "Remediation overdue"
+    "remediation_overdue": "Remediation overdue",
+    "cve_subscription": "Subscription"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -786,7 +787,8 @@
       "remediation": "Remediation",
       "suppression_rule": "Suppression rule",
       "global_settings": "Settings",
-      "settings": "Settings"
+      "settings": "Settings",
+      "cve": "CVE"
     },
     "actions": {
       "priority_created": "Priority set",
@@ -812,7 +814,9 @@
       "suppression_rule_created": "Suppression rule created",
       "suppression_rule_reviewed": "Suppression rule reviewed",
       "suppression_rule_updated": "Suppression rule updated",
-      "suppression_rule_deleted": "Suppression rule deleted"
+      "suppression_rule_deleted": "Suppression rule deleted",
+      "cve_subscribed": "CVE subscribed",
+      "cve_unsubscribed": "CVE unsubscribed"
     }
   },
   "onboarding": {
@@ -1033,7 +1037,8 @@
       "team_digest": "Weekly team digest",
       "alert_email_new_critical": "Alert email: new critical CVEs",
       "alert_email_critical_fixable": "Alert email: critical CVEs with a fix",
-      "alert_email_prioritized": "Alert email: newly prioritized CVEs"
+      "alert_email_prioritized": "Alert email: newly prioritized CVEs",
+      "cve_subscription": "Subscribed CVEs"
     },
     "categoryHelp": {
       "risk_acceptance": "Comments, review results, and expiry of your risk acceptances.",
@@ -1045,7 +1050,8 @@
       "team_digest": "Weekly email with counts and links for your namespaces, without CVE details.",
       "alert_email_new_critical": "CVEs newly rated critical in your namespaces. At most one summary email per day with counts only, shared by all alert email conditions.",
       "alert_email_critical_fixable": "Critical CVEs in your namespaces that newly have a fix available. Part of the daily summary email.",
-      "alert_email_prioritized": "CVEs newly prioritized in your namespaces. Part of the daily summary email."
+      "alert_email_prioritized": "CVEs newly prioritized in your namespaces. Part of the daily summary email.",
+      "cve_subscription": "Changes to CVEs you subscribed to. The email is a daily summary with counts and one link, without CVE details."
     }
   },
   "myComments": {
@@ -1079,5 +1085,15 @@
     "threadEmpty": "No comments.",
     "empty": "You have not commented yet.",
     "emptyFiltered": "No discussions match this filter."
+  },
+  "subscription": {
+    "subscribe": "Subscribe",
+    "subscribed": "Subscribed",
+    "tooltip": "Get notified about this CVE: new comments, prioritization, risk acceptances, remediations, escalations, changed scores, available fixes, and newly affected images. StackRox data is checked hourly.",
+    "tooltipSubscribed": "You get notifications about this CVE. Click to unsubscribe. Turn on the daily email summary in your personal settings.",
+    "error": "Could not change the subscription: {{message}}",
+    "filter": "Subscribed only",
+    "filterHint": "Shows only CVEs you subscribed to. Subscribed CVEs below the global thresholds only appear with \"Show all CVEs\".",
+    "listIndicator": "Subscribed by you"
   }
 }

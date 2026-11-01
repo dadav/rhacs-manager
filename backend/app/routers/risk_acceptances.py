@@ -25,6 +25,7 @@ from ..schemas.risk_acceptance import (
     RiskAcceptanceUpdate,
 )
 from ..services import comment_service
+from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
 from ..services.risk_acceptance_service import (
@@ -152,6 +153,16 @@ async def create_risk_acceptance(
     await log_action(db, current_user.id, "risk_acceptance_created", "risk_acceptance", str(ra.id))
     if single_team:
         await log_action(db, current_user.id, "risk_acceptance_auto_approved", "risk_acceptance", str(ra.id))
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=ra.cve_id,
+        kind="risk_acceptance",
+        params={"status": ra.status.value},
+        link=f"/risk-acceptances/{ra.id}",
+        actor_id=current_user.id,
+        scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
+    )
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -292,6 +303,16 @@ async def update_risk_acceptance(
     await log_action(db, current_user.id, "risk_acceptance_updated", "risk_acceptance", str(ra.id))
     if single_team:
         await log_action(db, current_user.id, "risk_acceptance_auto_approved", "risk_acceptance", str(ra.id))
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=ra.cve_id,
+        kind="risk_acceptance",
+        params={"status": ra.status.value},
+        link=f"/risk-acceptances/{ra.id}",
+        actor_id=current_user.id,
+        scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
+    )
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -302,6 +323,7 @@ async def review_risk_acceptance(
     body: RiskAcceptanceReview,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> RiskAcceptanceResponse:
     if not current_user.is_sec_team:
         raise ApiError(403, "ra_sec_team_only_review")
@@ -355,6 +377,18 @@ async def review_risk_acceptance(
         except Exception:
             logger.exception("Failed to send risk status email for RA %s", ra.id)
 
+    # The creator already got the status notification above.
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=ra.cve_id,
+        kind="risk_acceptance",
+        params={"status": ra.status.value},
+        link=f"/risk-acceptances/{ra.id}",
+        actor_id=current_user.id,
+        exclude_user_ids=[ra.created_by],
+        scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
+    )
     await db.commit()
     return await _single_ra_response(ra, db)
 
@@ -414,6 +448,7 @@ async def cancel_risk_acceptance(
     ra_id: UUID,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> None:
     """Delete a risk acceptance. Sec team can delete any; creators can delete their own."""
     result = await db.execute(select(RiskAcceptance).where(RiskAcceptance.id == ra_id))
@@ -424,6 +459,16 @@ async def cancel_risk_acceptance(
         raise ApiError(403, "ra_only_creator_can_delete")
 
     await log_action(db, current_user.id, "risk_acceptance_deleted", "risk_acceptance", str(ra.id))
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=ra.cve_id,
+        kind="risk_acceptance",
+        params={"status": "deleted"},
+        link=sub_svc.cve_link(ra.cve_id),
+        actor_id=current_user.id,
+        scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
+    )
     await db.delete(ra)
     await db.commit()
 

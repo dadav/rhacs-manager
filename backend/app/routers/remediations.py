@@ -18,6 +18,7 @@ from ..schemas.remediation import (
     RemediationStats,
     RemediationUpdate,
 )
+from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
@@ -161,6 +162,16 @@ async def create_remediation(
 
     # Notify the assignee about the new remediation
     await notif_svc.notify_remediation_created(db, remediation, current_user)
+    await sub_svc.broadcast_subscription_event(
+        db,
+        sx_db,
+        cve_id=remediation.cve_id,
+        kind="remediation",
+        params={"status": remediation.status.value},
+        actor_id=current_user.id,
+        exclude_user_ids=[remediation.assigned_to] if remediation.assigned_to else [],
+        scope=[(remediation.namespace, remediation.cluster_name)],
+    )
 
     await db.commit()
     await db.refresh(remediation, ["creator", "assignee", "resolver"])
@@ -358,6 +369,17 @@ async def update_remediation(
             current_user,
             details["old_status"],
             details["new_status"],
+        )
+        # Creator and assignee already got the status notification above.
+        await sub_svc.broadcast_subscription_event(
+            db,
+            None,
+            cve_id=r.cve_id,
+            kind="remediation",
+            params={"status": details["new_status"]},
+            actor_id=current_user.id,
+            exclude_user_ids=[uid for uid in (r.created_by, r.assigned_to) if uid],
+            scope=[(r.namespace, r.cluster_name)],
         )
 
     await db.commit()

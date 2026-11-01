@@ -28,6 +28,7 @@ class NotificationType(str, enum.Enum):
     suppression_approved = "suppression_approved"
     suppression_rejected = "suppression_rejected"
     mention = "mention"
+    cve_subscription = "cve_subscription"
 
 
 class Notification(Base):

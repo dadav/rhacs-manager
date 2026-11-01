@@ -91,6 +91,8 @@ class CveListItem(BaseModel):
     is_suppressed: bool = False
     suppression_requested: bool = False
     remediation_status: str | None = None
+    # The requesting user follows this CVE (services/cve_subscription_service.py).
+    is_subscribed: bool = False
 
 
 class CveReference(BaseModel):

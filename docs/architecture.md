@@ -338,9 +338,13 @@ When a namespace has no `rhacs-manager.io/escalation-email` annotation, escalati
 
 ## Background Jobs
 
-APScheduler runs two recurring jobs:
+APScheduler runs recurring jobs in the single `worker` process, including:
 
 | Job | Schedule | Purpose |
 |-----|----------|---------|
 | Escalation check | Periodic | Evaluate escalation rules against CVE ages, create namespace-scoped escalation records |
 | Weekly digest | Weekly (configurable day) | Send summary email to `MANAGEMENT_EMAIL` |
+| CVE subscription diff | Hourly (minute 10) | Compare each subscription's stored state (`cve_subscriptions.state`) with StackRox and notify that subscriber |
+| CVE subscription email | Daily 07:20 UTC | Opt-in summary of `cve_subscription_events` (counts and one link only, at most one per user per day) |
+
+CVE subscriptions have two emitters. Workflow events (comments, priorities, risk acceptances, remediations, escalations) are broadcast to every subscriber inside the originating transaction. StackRox data changes are computed per subscriber by the hourly diff from a pair-keyed state (scores, and per `(namespace, cluster)` the affected image pull specs and fixable components); pairs entering or leaving a subscriber's scope are absorbed silently. Every notification carries the `(namespace, cluster)` pairs it is about, so the notifications endpoint hides it from readers who lost access.

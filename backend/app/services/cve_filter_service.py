@@ -22,6 +22,7 @@ from ..routers._scope import narrow_namespaces
 from ..schemas.cve import CveListItem, SeverityLevel, VulnOrigin
 from ..stackrox import queries as sx
 from ..stackrox.vuln_origin import origin_names
+from .cve_subscription_service import subscribed_cve_ids
 
 logger = logging.getLogger(__name__)
 
@@ -448,6 +449,7 @@ async def fetch_filtered_cves(
     restrict_namespaces: list[tuple[str, str]] | None = None,
     ignore_thresholds: bool = False,
     origin: VulnOrigin | None = None,
+    subscribed_only: bool = False,
 ) -> list[CveListItem]:
     """Fetch, filter, and sort the full CVE list (pre-pagination).
 
@@ -460,6 +462,9 @@ async def fetch_filtered_cves(
 
     ``ignore_thresholds`` drops the global CVSS/EPSS floor for this request
     (see ``resolve_view_thresholds``).
+
+    ``subscribed_only`` keeps only CVEs the user subscribed to. It never bypasses
+    the thresholds (subscriptions are not always-show CVEs).
     """
     settings = await _get_settings(app_db)
     min_cvss, min_epss = resolve_view_thresholds(current_user, settings, ignore_thresholds)
@@ -537,6 +542,13 @@ async def fetch_filtered_cves(
     # Filter out suppressed CVEs by default (unless show_suppressed is True)
     if not show_suppressed:
         items = [i for i in items if not i.is_suppressed]
+
+    if items:
+        subscribed = await subscribed_cve_ids(app_db, current_user.id)
+        for item in items:
+            item.is_subscribed = item.cve_id in subscribed
+    if subscribed_only:
+        items = [i for i in items if i.is_subscribed]
 
     # Compute remediation_status for each CVE (shared with dashboard)
     if items:

@@ -78,6 +78,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Nur das Security-Team darf Eskalationskommentare erstellen",
         "en": "Only the security team can add escalation comments",
     },
+    "too_many_subscriptions": {
+        "de": "Zu viele CVE-Abonnements (maximal {max})",
+        "en": "Too many CVE subscriptions (maximum {max})",
+    },
     "too_many_mentions": {
         "de": "Zu viele Erwähnungen (maximal {max} Empfänger)",
         "en": "Too many mentions (maximum {max} recipients)",

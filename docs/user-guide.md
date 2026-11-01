@@ -330,6 +330,25 @@ Notifications appear in the bell menu and are stored per user.
 - **CVE alert summary email (opt-in):** choose any of three conditions in **My settings**: new critical CVEs, critical CVEs that now have a fix available, and newly prioritized CVEs. The check runs with the daily alert job. All conditions you opted into share **one summary email per day at most**, however many CVEs are new; it holds counts and links only and never names CVEs, components, or namespaces. A CVE in several of your namespaces counts once. Security-team and all-namespace users can opt in too; their summary counts all namespaces. The conditions follow the global CVSS/EPSS thresholds and suppression rules like the in-app alerts, so critical CVEs below the thresholds are not counted. Delivery is best effort: if sending fails, that day's email is not retried.
 - All of these go only to users who signed in within the last 30 days (configurable with `TEAM_NOTIFICATION_ACTIVE_DAYS`), based on the namespaces seen at that sign-in. If you have since lost access to a namespace, alerts only about it are hidden, and alerts that also cover other namespaces no longer name it.
 
+### CVE subscriptions (Abonnieren)
+
+Use **Abonnieren** / **Subscribe** in the header of a CVE detail page to follow that CVE. You can subscribe to any CVE that affects a deployment you can see; **Abonniert** / **Subscribed** turns it off again. In the CVE list, a bell icon marks your subscriptions and the **Nur abonnierte** / **Subscribed only** filter shows only them. The filter keeps the global CVSS/EPSS thresholds, so subscribed CVEs below them only appear with **Show all CVEs**.
+
+You get an in-app notification when:
+
+- someone else comments on the CVE (if you are @mentioned in that comment, you get only the mention),
+- the security team prioritizes it, changes the priority level, or removes it,
+- a risk acceptance for it is requested, approved, rejected, expires, or is deleted,
+- a remediation for it is created or changes status (also when it is resolved automatically),
+- it escalates in a namespace,
+- its severity or CVSS changes, or its EPSS moves by 5 percentage points or more since the last notification, or crosses the global EPSS threshold,
+- a component in one of your namespaces gets a fix,
+- new images in your namespaces are affected, or it is no longer reported in one of your namespaces.
+
+Workflow events notify immediately. StackRox data (scores, fixes, images) is checked every hour; more than 10 changes in one check arrive as one summary. Changes to your own access (a namespace added to or removed from your visibility) never count as changes. Notifications only name namespaces you can still see, and are hidden when you lost access to all namespaces they are about. Your own actions do not notify you.
+
+The **Subscribed CVEs** category in **My settings** turns the in-app notifications off and opts into a **daily summary email** (off by default). The email holds counts and one link only and never names CVEs, namespaces, images, or authors. You get at most one per day, only while you signed in within the last 30 days, and a failed send is not retried. Each user can follow up to 500 CVEs.
+
 ### My settings
 
 Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest and the CVE alert summary email conditions. Mentions (`@name`) are always delivered and cannot be turned off.

@@ -14,6 +14,7 @@ interface ExportFilters {
   severity?: number
   fixable?: boolean
   prioritized_only?: boolean
+  subscribed_only?: boolean
   sort_by?: string
   sort_desc?: boolean
   cvss_min?: number

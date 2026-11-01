@@ -27,7 +27,7 @@ import {
   Badge,
 } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { ExportIcon, FilterIcon, ImportIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
+import { BellIcon, ExportIcon, FilterIcon, ImportIcon, OutlinedQuestionCircleIcon, SearchIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { formatCvss, formatDate } from '../utils/format'
 import { useEffect, useRef, useState } from 'react'
@@ -99,6 +99,7 @@ export function CveList() {
   const urlSeverity   = searchParams.get('severity') || ''
   const urlFixable    = searchParams.get('fixable') || ''
   const urlPrioOnly   = searchParams.get('prioritized_only') === '1'
+  const urlSubscribed = searchParams.get('subscribed') === '1'
   const urlSortBy     = searchParams.get('sort_by') || 'severity'
   const urlSortDesc   = searchParams.get('sort_desc') !== '0'
   const urlCvssMin    = Number(searchParams.get('cvss_min')) || 0
@@ -217,6 +218,7 @@ export function CveList() {
     severity: urlSeverity ? Number(urlSeverity) as Severity : undefined,
     fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
     prioritized_only: urlPrioOnly || undefined,
+    subscribed_only: urlSubscribed || undefined,
     sort_by: urlSortBy,
     sort_desc: urlSortDesc,
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
@@ -274,6 +276,7 @@ export function CveList() {
     severity: urlSeverity ? Number(urlSeverity) : undefined,
     fixable: urlFixable === 'true' ? true : urlFixable === 'false' ? false : undefined,
     prioritized_only: urlPrioOnly || undefined,
+    subscribed_only: urlSubscribed || undefined,
     sort_by: urlSortBy,
     sort_desc: urlSortDesc,
     cvss_min: debouncedCvssMin > 0 ? debouncedCvssMin : undefined,
@@ -467,6 +470,16 @@ export function CveList() {
                 isChecked={urlPrioOnly}
                 onChange={(_, checked) => updateParams({ prioritized_only: checked ? '1' : null })}
               />
+            </ToolbarItem>
+            <ToolbarItem>
+              <Tooltip content={t('subscription.filterHint')}>
+                <Checkbox
+                  id="filter-subscribed"
+                  label={t('subscription.filter')}
+                  isChecked={urlSubscribed}
+                  onChange={(_, checked) => updateParams({ subscribed: checked ? '1' : null })}
+                />
+              </Tooltip>
             </ToolbarItem>
             <ToolbarItem>
               <Checkbox
@@ -838,6 +851,14 @@ export function CveList() {
                           <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
                             {cve.cve_id}
                           </Link>
+                          {cve.is_subscribed && (
+                            <Tooltip content={t('subscription.listIndicator')}>
+                              <BellIcon
+                                aria-label={t('subscription.listIndicator')}
+                                style={{ marginLeft: 6, color: BRAND_BLUE, verticalAlign: 'middle' }}
+                              />
+                            </Tooltip>
+                          )}
                           {cve.has_priority && (
                             <Tooltip content={t('priorities.badgeTooltip')}>
                               <span style={{

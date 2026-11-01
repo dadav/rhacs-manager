@@ -31,6 +31,10 @@ Comment create/update requests accept **exactly one** representation:
 | GET | `/api/cves/{cve_id}/comments` | Any | List CVE comments |
 | POST | `/api/cves/{cve_id}/comments` | Any | Add CVE comment |
 | GET | `/api/cves/{cve_id}/deployments` | Any | Affected deployments |
+| GET | `/api/cves/{cve_id}/subscription` | Any | Whether the caller follows the CVE (`{cve_id, subscribed}`) |
+| PUT | `/api/cves/{cve_id}/subscription` | Any | Follow the CVE (idempotent); 404 unless it affects a deployment the caller can see; 400 `too_many_subscriptions` above 500 |
+| DELETE | `/api/cves/{cve_id}/subscription` | Any | Stop following (idempotent, always allowed) |
+| GET | `/api/me/cve-subscriptions` | Any | The caller's subscriptions (`[{cve_id, created_at}]`, newest first) |
 
 ### `/api/cves` Query Parameters
 
@@ -52,6 +56,7 @@ Comment create/update requests accept **exactly one** representation:
 | `namespace` | string | - | scope filter |
 | `show_suppressed` | bool | `false` | include suppressed (false positive) CVEs |
 | `ignore_thresholds` | bool | `false` | drop the global CVSS/EPSS floor for this request (view only, see below) |
+| `subscribed_only` | bool | `false` | only CVEs the caller subscribed to; thresholds still apply. Also accepted by `/api/cves/fixes` and both exports |
 
 !!! note
     Prioritized CVEs are always placed first, regardless of selected sort column.
@@ -276,7 +281,7 @@ on one CVE, or on one risk acceptance).
 | GET | `/api/me/notification-preferences` | Any | Effective in-app and email setting per category, plus `team_notifications_active` |
 | PUT | `/api/me/notification-preferences` | Any | Update one or more categories (`{"items": [{"category", "in_app", "email"}]}`); unknown categories return 400 |
 
-A channel value of `null` means that channel does not exist for the category. Email-only opt-in categories: `team_digest` (weekly digest) and the CVE alert summary email conditions `alert_email_new_critical`, `alert_email_critical_fixable`, `alert_email_prioritized` (one shared summary email per user per day at most).
+A channel value of `null` means that channel does not exist for the category. `cve_subscription` covers subscription notifications (in-app on by default); its email channel is the daily subscription summary (off by default). Email-only opt-in categories: `team_digest` (weekly digest) and the CVE alert summary email conditions `alert_email_new_critical`, `alert_email_critical_fixable`, `alert_email_prioritized` (one shared summary email per user per day at most).
 
 ## Badges
 
@@ -531,3 +536,5 @@ These routes are available only when `DEV_MODE=true`.
 |--------|------|------|-------------|
 | POST | `/api/dev/trigger-escalation-check` | Any dev user | Trigger escalation check job |
 | POST | `/api/dev/trigger-weekly-digest` | Any dev user | Trigger digest job |
+| POST | `/api/dev/trigger-cve-subscription-diff` | Any dev user | Run the hourly CVE subscription diff now |
+| POST | `/api/dev/trigger-cve-subscription-email` | Any dev user | Send the daily subscription summary emails now |

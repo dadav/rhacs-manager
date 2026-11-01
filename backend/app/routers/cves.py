@@ -106,6 +106,7 @@ async def list_cves(
     fix_overdue: bool = Query(False),
     deployment_id: str | None = Query(None),
     ignore_thresholds: bool = Query(False),
+    subscribed_only: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -136,6 +137,7 @@ async def list_cves(
         deployment_id=deployment_id,
         ignore_thresholds=ignore_thresholds,
         origin=origin,
+        subscribed_only=subscribed_only,
     )
 
     total = len(items)
@@ -176,6 +178,7 @@ async def list_component_fixes(
     fix_overdue: bool = Query(False),
     deployment_id: str | None = Query(None),
     ignore_thresholds: bool = Query(False),
+    subscribed_only: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -215,6 +218,7 @@ async def list_component_fixes(
             "deployment_id": deployment_id,
             "ignore_thresholds": ignore_thresholds,
             "origin": origin,
+            "subscribed_only": subscribed_only,
         },
     )
 
@@ -656,9 +660,15 @@ async def add_cve_comment(
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveCommentResponse:
     response, email_jobs = await comment_service.add_cve_comment(
-        app_db, cve_id=cve_id, message=body.message, content=body.content, current_user=current_user
+        app_db,
+        cve_id=cve_id,
+        message=body.message,
+        content=body.content,
+        current_user=current_user,
+        sx_db=sx_db,
     )
     if email_jobs:
         background_tasks.add_task(mail_svc.send_mention_emails, email_jobs)

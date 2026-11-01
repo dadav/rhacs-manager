@@ -308,6 +308,23 @@ describe('CveList', () => {
     expect(mockUseCveFixes.mock.calls.at(-1)?.[1]).toMatchObject({ ignoreThresholds: true })
   })
 
+  it('sends subscribed_only from the URL to the list and component views', () => {
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities?view=component&subscribed=1') })
+
+    expect(mockUseCves.mock.calls.at(-1)?.[0]).toMatchObject({ subscribed_only: true })
+    expect(mockUseCveFixes.mock.calls.at(-1)?.[0]).toMatchObject({ subscribed_only: true })
+  })
+
+  it('omits subscribed_only without the URL flag', () => {
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null })
+
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities') })
+
+    expect(mockUseCves.mock.calls.at(-1)?.[0].subscribed_only).toBeUndefined()
+  })
+
   describe('origin (data source) filter', () => {
     const EMPTY_PAGE = { data: { items: [], total: 0, page: 1, page_size: 50 }, isLoading: false, error: null }
 

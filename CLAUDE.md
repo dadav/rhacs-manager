@@ -207,6 +207,16 @@ Access control rules:
 - Usernames are globally unique regardless of case, enforced by the `uq_users_username_lower` unique index on `lower(username)` (migration `021`). Auth sync (`_assert_username_available` in `auth/middleware.py`) raises `ApiError(409, "username_conflict")` on collision; the migration aborts if pre-existing duplicates exist.
 - Transactional email links use canonical frontend routes under `APP_BASE_URL`: `/risk-acceptances/...` and `/escalations` (not the old German `/risikoakzeptanzen`/`/eskalationen`).
 
+### CVE subscription rules
+
+- Users follow single CVEs (`cve_subscriptions`, migration `027`); logic lives in `services/cve_subscription_service.py`. Subscribe requires the CVE to affect a deployment the user sees (same rule as CVE detail, no thresholds); unsubscribe is always allowed. Max 500 per user.
+- Two emitters, both writing a `cve_subscription_events` row plus a `create_notification(..., scope=...)` of type `cve_subscription`: `broadcast_subscription_event` (app events: CVE comment, priority, RA create/review/delete/import/expiry, remediation create/status/auto-resolve, escalation) runs inside the caller's transaction and never commits; the hourly `cve_subscription_diff` worker job emits recipient-specific events only. Never route diff events through the broadcast path.
+- Every subscription notification carries `scope` pairs describing the event (RA target pairs, the remediation/escalation pair, or `get_namespaces_with_cve` for CVE-wide events). Params never carry namespace names, image names, versions, or per-location counts; `{namespaces}` is rendered on read from the reader's visible scope.
+- Broadcast excludes the actor and anyone already notified for the same action (mentioned users, RA creator on review, remediation creator/assignee). A StackRox failure while resolving scope skips the fan-out; it must never fail the caller's request.
+- Diff state (`cve_subscriptions.state`, versioned) is baselined on subscribe and never NULL. It is pair-keyed: pairs entering or leaving the subscriber's scope (snapshot pairs, or `*` for org-wide) are absorbed silently; only pairs in both old and new state, or new pairs inside an unchanged scope, produce events. Images are identified by `image_name_fullname` without the `@sha256:` digest pin (`image_identity`), fixability by component name (never `MAX(fixedby)`). `epss_anchor` is the last notified EPSS and moves only when a `scores_changed` event fires (EPSS alone triggers on drift >= `EPSS_NOTIFY_DELTA` or a crossing of the global EPSS threshold).
+- `subscribed_only` on `/cves`, `/cves/fixes` and exports filters after thresholds; subscriptions are not always-show CVEs.
+- The daily subscription summary email (`cve_subscription` email channel, default off) is counts and one link only, capped by the `cve_subscription_email_deliveries` PK (user, UTC day), claimed before sending, never retried.
+
 ### Risk acceptance rules
 
 - Risk acceptance creation is CVE-contextual only.

@@ -16,6 +16,7 @@ from ..exports.pdf_generator import generate_cve_pdf
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..schemas.cve import VulnOrigin
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
+from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import fetch_filtered_cves
 from ..services.risk_acceptance_service import scope_key, validate_and_resolve_scope
@@ -118,6 +119,7 @@ async def export_pdf(
     namespace: str | None = Query(None),
     lang: str = Query("de"),
     ignore_thresholds: bool = Query(False),
+    subscribed_only: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -140,6 +142,7 @@ async def export_pdf(
         namespace=namespace,
         ignore_thresholds=ignore_thresholds,
         origin=origin,
+        subscribed_only=subscribed_only,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -230,6 +233,7 @@ async def export_excel(
     namespace: str | None = Query(None),
     lang: str = Query("de"),
     ignore_thresholds: bool = Query(False),
+    subscribed_only: bool = Query(False),
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -252,6 +256,7 @@ async def export_excel(
         namespace=namespace,
         ignore_thresholds=ignore_thresholds,
         origin=origin,
+        subscribed_only=subscribed_only,
     )
 
     ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
@@ -445,6 +450,16 @@ async def import_excel(
         await app_db.flush()
 
         await log_action(app_db, current_user.id, "risk_acceptance_imported", "risk_acceptance", str(ra.id))
+        await sub_svc.broadcast_subscription_event(
+            app_db,
+            sx_db,
+            cve_id=ra.cve_id,
+            kind="risk_acceptance",
+            params={"status": ra.status.value},
+            link=f"/risk-acceptances/{ra.id}",
+            actor_id=current_user.id,
+            scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
+        )
         created.append({"cve_id": item["cve_id"], "ra_id": str(ra.id)})
 
     if created:

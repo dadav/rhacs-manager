@@ -177,10 +177,106 @@ NOTIFICATION_MESSAGES: dict[str, dict[str, dict[str, str]]] = {
         "de": {"title": "Erwähnung von {author}", "message": "{author} hat Sie in einem Kommentar erwähnt."},
         "en": {"title": "Mention by {author}", "message": "{author} mentioned you in a comment."},
     },
+    # CVE subscriptions (services/cve_subscription_service.py). Params never carry
+    # namespace names, image names, versions, or counts per location: {namespaces}
+    # is filled on read from the scope the reader still sees.
+    "subscription.comment": {
+        "de": {
+            "title": "Neuer Kommentar: {cve_id}",
+            "message": "{author} hat einen Kommentar zu einem abonnierten CVE geschrieben.",
+        },
+        "en": {"title": "New comment: {cve_id}", "message": "{author} commented on a CVE you follow."},
+    },
+    "subscription.priority_set": {
+        "de": {"title": "Priorisiert: {cve_id}", "message": "{cve_id} wurde mit Priorität {status_label} priorisiert."},
+        "en": {"title": "Prioritized: {cve_id}", "message": "{cve_id} was prioritized as {status_label}."},
+    },
+    "subscription.priority_changed": {
+        "de": {
+            "title": "Priorität geändert: {cve_id}",
+            "message": "Die Priorität von {cve_id} ist jetzt {status_label}.",
+        },
+        "en": {"title": "Priority changed: {cve_id}", "message": "The priority of {cve_id} is now {status_label}."},
+    },
+    "subscription.priority_removed": {
+        "de": {"title": "Priorität entfernt: {cve_id}", "message": "Die Priorisierung von {cve_id} wurde entfernt."},
+        "en": {"title": "Priority removed: {cve_id}", "message": "{cve_id} is no longer prioritized."},
+    },
+    "subscription.risk_acceptance": {
+        "de": {
+            "title": "Risikoakzeptanz {status_label}: {cve_id}",
+            "message": "Risikoakzeptanz für {cve_id} ({namespaces}): {status_label}.",
+        },
+        "en": {
+            "title": "Risk acceptance {status_label}: {cve_id}",
+            "message": "Risk acceptance for {cve_id} ({namespaces}): {status_label}.",
+        },
+    },
+    "subscription.remediation": {
+        "de": {
+            "title": "Behebung {status_label}: {cve_id}",
+            "message": "Behebung von {cve_id} in {namespaces}: {status_label}.",
+        },
+        "en": {
+            "title": "Remediation {status_label}: {cve_id}",
+            "message": "Remediation of {cve_id} in {namespaces}: {status_label}.",
+        },
+    },
+    "subscription.escalation": {
+        "de": {
+            "title": "Eskalation Stufe {level}: {cve_id}",
+            "message": "{cve_id} wurde in {namespaces} auf Stufe {level} eskaliert.",
+        },
+        "en": {
+            "title": "Escalation level {level}: {cve_id}",
+            "message": "{cve_id} was escalated to level {level} in {namespaces}.",
+        },
+    },
+    "subscription.scores_changed": {
+        "de": {
+            "title": "Bewertung geändert: {cve_id}",
+            "message": "Neue Bewertung für {cve_id}: CVSS {cvss_old} → {cvss}, EPSS {epss_old} → {epss}.",
+        },
+        "en": {
+            "title": "Scores changed: {cve_id}",
+            "message": "New scores for {cve_id}: CVSS {cvss_old} → {cvss}, EPSS {epss_old} → {epss}.",
+        },
+    },
+    "subscription.fix_available": {
+        "de": {"title": "Fix verfügbar: {cve_id}", "message": "Für {cve_id} ist in {namespaces} ein Fix verfügbar."},
+        "en": {"title": "Fix available: {cve_id}", "message": "A fix for {cve_id} is available in {namespaces}."},
+    },
+    "subscription.new_images": {
+        "de": {
+            "title": "Neue betroffene Images: {cve_id}",
+            "message": "{cve_id} betrifft neue Images in {namespaces}.",
+        },
+        "en": {"title": "New affected images: {cve_id}", "message": "{cve_id} affects new images in {namespaces}."},
+    },
+    "subscription.no_longer_affected": {
+        "de": {
+            "title": "Nicht mehr betroffen: {cve_id}",
+            "message": "{cve_id} wird in {namespaces} nicht mehr gemeldet.",
+        },
+        "en": {
+            "title": "No longer affected: {cve_id}",
+            "message": "{cve_id} is no longer reported in {namespaces}.",
+        },
+    },
+    "subscription.summary": {
+        "de": {
+            "title": "{count} Änderungen an abonnierten CVEs",
+            "message": "Seit der letzten Prüfung gab es {count} Änderungen an Ihren abonnierten CVEs.",
+        },
+        "en": {
+            "title": "{count} changes to followed CVEs",
+            "message": "Since the last check there were {count} changes to the CVEs you follow.",
+        },
+    },
 }
 
-# Status values from risk acceptances, suppression rules, and remediations. The
-# value sets do not overlap, so one table per language is enough.
+# Status values from risk acceptances, suppression rules, remediations, and
+# priority levels. The value sets do not overlap, so one table per language is enough.
 STATUS_LABELS: dict[str, dict[str, str]] = {
     "de": {
         "approved": "genehmigt",
@@ -190,6 +286,13 @@ STATUS_LABELS: dict[str, dict[str, str]] = {
         "resolved": "Behoben",
         "verified": "Verifiziert",
         "wont_fix": "Wird nicht behoben",
+        "requested": "beantragt",
+        "expired": "abgelaufen",
+        "deleted": "gelöscht",
+        "critical": "Kritisch",
+        "high": "Hoch",
+        "medium": "Mittel",
+        "low": "Niedrig",
     },
     "en": {
         "approved": "approved",
@@ -199,6 +302,13 @@ STATUS_LABELS: dict[str, dict[str, str]] = {
         "resolved": "resolved",
         "verified": "verified",
         "wont_fix": "won't fix",
+        "requested": "requested",
+        "expired": "expired",
+        "deleted": "deleted",
+        "critical": "critical",
+        "high": "high",
+        "medium": "medium",
+        "low": "low",
     },
 }
 
