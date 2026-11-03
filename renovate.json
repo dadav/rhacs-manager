@@ -11,7 +11,7 @@
     },
     {
       "description": "Do not update the ose-oauth-proxy image",
-      "matchPackageNames": ["registry.redhat.io/openshift4/ose-oauth-proxy"],
+      "matchPackageNames": ["registry.redhat.io/openshift4/ose-oauth-proxy-rhel9"],
       "enabled": false
     },
     {

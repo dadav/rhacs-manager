@@ -1420,13 +1420,13 @@
                   "type": "string"
                 },
                 "repository": {
-                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy-rhel9",
                   "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
-                  "default": "v4.14",
+                  "default": "v4.22",
                   "description": "Image tag.",
                   "title": "tag",
                   "type": "string"
@@ -3081,13 +3081,13 @@
                   "type": "string"
                 },
                 "repository": {
-                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy",
+                  "default": "registry.redhat.io/openshift4/ose-oauth-proxy-rhel9",
                   "description": "Image repository.",
                   "title": "repository",
                   "type": "string"
                 },
                 "tag": {
-                  "default": "v4.14",
+                  "default": "v4.22",
                   "description": "Image tag.",
                   "title": "tag",
                   "type": "string"

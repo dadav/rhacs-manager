@@ -1227,12 +1227,12 @@ frontend:
       # type: string
       # @schema
       # -- Image repository.
-      repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      repository: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9
       # @schema
       # type: string
       # @schema
       # -- Image tag.
-      tag: "v4.14"
+      tag: "v4.22"
       # @schema
       # type: string
       # enum: [Always, IfNotPresent, Never]
@@ -1588,12 +1588,12 @@ spoke:
       # type: string
       # @schema
       # -- Image repository.
-      repository: registry.redhat.io/openshift4/ose-oauth-proxy
+      repository: registry.redhat.io/openshift4/ose-oauth-proxy-rhel9
       # @schema
       # type: string
       # @schema
       # -- Image tag.
-      tag: "v4.14"
+      tag: "v4.22"
       # @schema
       # type: string
       # enum: [Always, IfNotPresent, Never]
