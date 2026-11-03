@@ -67,8 +67,11 @@ update-deps:
     uv lock --upgrade --directory backend
     uv lock --upgrade --directory mcp-server
     cd frontend && bun update
-    cd auth-header-injector && go get -u ./... && go mod tidy
-    cd random-data-generator && go get -u ./... && go mod tidy
+    # Go: bump direct deps only (no `-u`). `go get -u ./...` lifts k8s indirect
+    # deps (kube-openapi) past what client-go supports and breaks the build
+    # (structured-merge-diff v6 vs v7 type mismatch).
+    cd auth-header-injector && go get k8s.io/apimachinery@latest k8s.io/client-go@latest && go mod tidy
+    cd random-data-generator && go get github.com/lib/pq@latest k8s.io/apimachinery@latest k8s.io/client-go@latest && go mod tidy
 
 # Re-vendor StackRox storage/cve.proto verbatim from a release tag and regenerate
 # the Python (backend decoder) and Go (tools/decode-cve-proto) bindings.
