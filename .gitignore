@@ -29,3 +29,8 @@ site/
 .vscode/
 
 todo.md
+
+# Go build outputs (`go build` names the binary after the module dir)
+/auth-header-injector/auth-header-injector
+/random-data-generator/random-data-generator
+/tools/decode-cve-proto/decode-cve-proto
