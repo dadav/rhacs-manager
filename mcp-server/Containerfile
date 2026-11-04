@@ -1,4 +1,4 @@
-FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6
+FROM python:3.14-slim@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966
 
 LABEL org.opencontainers.image.source="https://github.com/dadav/rhacs-manager" \
       org.opencontainers.image.description="RHACS Manager MCP Server" \
@@ -8,8 +8,15 @@ WORKDIR /app
 
 ENV UV_CACHE_DIR=/tmp/uv-cache
 
+# Pull Debian security fixes published after the base image digest was built.
+# pip is removed because dependencies are installed and run with uv only.
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* && \
+    python -m pip uninstall -y pip
+
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /uvx /usr/local/bin/
 
 # Copy dependency files first for layer caching
 COPY pyproject.toml uv.lock ./

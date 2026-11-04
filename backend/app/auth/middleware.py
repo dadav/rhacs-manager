@@ -3,6 +3,7 @@ import secrets
 import time
 
 import httpx
+import jwt
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -330,12 +331,10 @@ async def _handle_spoke_proxy(session: AsyncSession, request: Request) -> Curren
     return _to_current_user(user, namespaces, has_all_namespaces=has_all_namespaces)
 
 
-async def _get_oidc_signing_key(token: str) -> object:
-    """Fetch OIDC JWKS and return the RSA public key matching the token's kid header."""
-    from jose import jwt as jose_jwt
-
+async def _get_oidc_signing_key(token: str) -> dict:
+    """Fetch OIDC JWKS and return the JWK dict matching the token's kid header."""
     # Decode header to get kid
-    header = jose_jwt.get_unverified_header(token)
+    header = jwt.get_unverified_header(token)
     kid = header.get("kid")
     if not kid:
         raise ApiError(401, "token_no_kid")
@@ -391,14 +390,15 @@ async def _handle_oidc_jwt(session: AsyncSession, request: Request) -> CurrentUs
 
     token = auth_header.removeprefix("Bearer ")
     try:
-        from jose import jwt
-
-        # Fetch the correct RSA public key from OIDC JWKS
-        rsa_key = await _get_oidc_signing_key(token)
+        # Fetch the correct RSA public key from OIDC JWKS. Passing a typed PyJWK
+        # (not raw key material) plus the explicit RS256 allow-list rules out
+        # algorithm-confusion attacks (e.g. HS256 signed with the public key).
+        jwk_dict = await _get_oidc_signing_key(token)
+        signing_key = jwt.PyJWK(jwk_dict, algorithm="RS256")
 
         payload = jwt.decode(
             token,
-            rsa_key,
+            signing_key,
             algorithms=["RS256"],
             audience=settings.oidc_client_id,
             issuer=settings.oidc_issuer,
