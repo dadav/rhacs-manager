@@ -25,7 +25,9 @@
     "settings": "Settings",
     "auditLog": "Audit Log",
     "general": "General",
-    "admin": "Admin"
+    "admin": "Admin",
+    "help": "Help",
+    "faq": "FAQ"
   },
   "error": {
     "unexpected": "An unexpected error occurred",
@@ -986,7 +988,8 @@
     "nextWithProgress": "Next (Step {current} of {total})",
     "back": "Back",
     "close": "Close",
-    "skip": "Skip tour"
+    "skip": "Skip tour",
+    "navFaq": "Find answers to common questions in the FAQ. The search covers questions and answers."
   },
   "imageDetail": {
     "title": "Image Details",
@@ -1108,5 +1111,16 @@
     "filter": "Subscribed only",
     "filterHint": "Shows only CVEs you subscribed to. Subscribed CVEs below the global thresholds only appear with \"Show all CVEs\".",
     "listIndicator": "Subscribed by you"
+  },
+  "faq": {
+    "title": "Frequently asked questions",
+    "intro": "Answers to common questions about working with RHACS CVE Manager.",
+    "searchPlaceholder": "Search the FAQ",
+    "searchAriaLabel": "Search the FAQ",
+    "resultsCount_one": "{{count}} result",
+    "resultsCount_other": "{{count}} results",
+    "noResults": "No matching questions found",
+    "noResultsHint": "Try different or fewer search terms.",
+    "clearSearch": "Clear search"
   }
 }

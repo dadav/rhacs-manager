@@ -145,8 +145,8 @@ The **False Positives** page manages suppression rules for CVEs that are incorre
 
 | Type | Matches on | Use case |
 |------|-----------|----------|
-| **Component** | Component name + optional version pattern | A misidentified component produces many false CVEs (e.g., `github.com/grafana/grafana` at `v0.0.0-*`) |
-| **CVE** | Single CVE ID | One-off false positive for a specific CVE |
+| **Component** | Component name + optional version pattern, always in every namespace | A misidentified component produces many false CVEs (e.g., `github.com/grafana/grafana` at `v0.0.0-*`) |
+| **CVE** | Single CVE ID, either globally or only in selected namespaces | One-off false positive for a specific CVE, or a CVE that does not apply to some namespaces only |
 
 ### Creating a Suppression Rule
 
@@ -157,13 +157,14 @@ The **False Positives** page manages suppression rules for CVEs that are incorre
      - Optionally enter a version pattern using glob syntax (e.g., `v0.0.0-*` to match all pseudo-versions). Leave empty to suppress all versions.
 4. For **CVE** rules:
      - Enter the CVE ID (e.g., `CVE-2024-12345`).
+     - Choose the scope: **Global (all namespaces)** or **Specific namespaces**. Namespaces are picked when you create the rule from the CVE detail page, which offers only the affected namespaces you can see. The **False Positives** page itself creates global CVE rules.
 5. Provide a reason explaining why this is a false positive (minimum 10 characters).
 6. Optionally add a reference URL linking to the upstream issue (e.g., a GitHub issue confirming the version misidentification).
 7. Submit the rule.
 
 ### Review Workflow
 
-- **Team members** create rules in `requested` status. The security team must approve before suppression takes effect.
+- **Team members** create rules in `requested` status. The security team must approve before suppression takes effect, even when the rule is scoped to a single namespace (unlike risk acceptances, which are approved immediately in that case).
 - **Security team** creates rules directly in `approved` status, with immediate suppression effect.
 - Approved rules suppress matched CVEs from the default CVE list and dashboard counts.
 - Rejected rules have no effect and are kept for audit purposes.
@@ -171,13 +172,15 @@ The **False Positives** page manages suppression rules for CVEs that are incorre
 ### Visibility of Suppressed CVEs
 
 - By default, suppressed CVEs are **hidden** from the CVE list and excluded from dashboard statistics.
+- A CVE rule with scope **Global** hides the CVE for everyone. A namespace-scoped CVE rule only applies in its selected namespaces: the CVE disappears from your list only when every namespace where you see it is covered by a rule, otherwise it stays listed.
+- A component rule is not limited to namespaces, but it only matches where the named component (and version pattern) is actually installed. The CVE is hidden from your list when a matching component appears in your namespaces; someone who only sees a different, non-matching version still sees the CVE.
 - The CVE list supports a `show_suppressed` toggle to reveal suppressed CVEs with a visual indicator.
 - CVEs with a pending suppression request (status `requested`) are **not** hidden but are marked with a "FP Requested" label.
 
 ### Interaction with Other Features
 
 - Suppression is independent from risk acceptance — a CVE can have both.
-- Suppressed CVEs are excluded from escalation triggers and notification generation.
+- Approved rules also stop escalations, escalation warnings, and new-CVE alerts in the namespaces they cover. Upcoming escalations only list a CVE while at least one namespace in scope is not covered.
 - Component-level rules are especially powerful: one rule for `github.com/grafana/grafana` at `v0.0.0-*` eliminates all false positives from that misidentification in a single action.
 - When the upstream issue is fixed (e.g., RHACS or the component corrects its version reporting), the security team can delete the rule and the CVEs will reappear automatically.
 
@@ -185,7 +188,7 @@ The **False Positives** page manages suppression rules for CVEs that are incorre
     Use component-level rules for systematic version misidentification issues. Reserve CVE-level rules for isolated false positives that don't share a common component pattern.
 
 !!! note
-    Suppression rules are org-wide. Unlike risk acceptances, they are not scoped to specific namespaces because scanner errors affect all users equally.
+    Component rules always apply in every namespace, because a misidentified component is a scanner error that affects everyone equally. CVE rules default to global but can be limited to specific namespaces; those targets are validated against the CVE's affected deployments in namespaces you can see. There is at most one active rule per CVE and scope.
 
 ## Escalations
 
@@ -201,7 +204,7 @@ The **Escalations** page shows both active escalations and upcoming ones.
 - The warning period comes from `escalation_warning_days`. It drives both the upcoming-escalation preview and a pre-escalation warning email: when a CVE is within that many days of reaching a level it has not yet hit, the namespace contact (or `DEFAULT_ESCALATION_EMAIL`/`MANAGEMENT_EMAIL` fallback) is emailed once per `(CVE, level, namespace, cluster)`.
 
 !!! note
-    CVEs with approved risk acceptances are skipped during escalation checks.
+    CVEs with approved risk acceptances are skipped during escalation checks. Namespaces where an approved suppression rule hides the CVE do not escalate either.
 
 ### The active escalation queue
 
@@ -352,6 +355,14 @@ The **Subscribed CVEs** category in **My settings** turns the in-app notificatio
 ### My settings
 
 Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest and the CVE alert summary email conditions. Mentions (`@name`) are always delivered and cannot be turned off.
+
+## FAQ
+
+**FAQ** is the last item in the sidebar, under **Help**, for every user. It answers common questions about visibility, ratings, risk acceptances, remediations, escalations, notifications, and badges.
+
+- The search box filters questions and answers in the current UI language. Every word you type must appear in an entry (case does not matter). Matching entries open automatically and the matched words are highlighted.
+- The search is stored in the page URL (`?q=`), so you can share a link to a filtered FAQ. The sidebar cluster and namespace selection stays in the URL as well.
+- The FAQ content ships with each release (German and English) and cannot be edited in the app.
 
 ## Practical Differences Between Roles
 

@@ -112,7 +112,7 @@ Targets are validated against affected deployments for that CVE.
 | POST | `/api/suppression-rules` | Any | Create a suppression rule (team members: `requested`, sec team: `approved`) |
 | GET | `/api/suppression-rules` | Any | List all rules |
 | GET | `/api/suppression-rules/{id}` | Any | Get one rule |
-| PUT | `/api/suppression-rules/{id}` | Creator or `sec_team` | Update reason/reference |
+| PUT | `/api/suppression-rules/{id}` | Creator (`requested` only) or `sec_team` | Update reason/reference and, for CVE rules, scope |
 | PATCH | `/api/suppression-rules/{id}` | `sec_team` | Approve or reject a `requested` rule |
 | DELETE | `/api/suppression-rules/{id}` | Creator (`requested` only) or `sec_team` | Delete a rule |
 
@@ -128,7 +128,7 @@ Targets are validated against affected deployments for that CVE.
 }
 ```
 
-Or for a single CVE:
+Or for a single CVE (no `scope` = global, same as `{"mode": "all", "targets": []}`):
 
 ```json
 {
@@ -137,6 +137,22 @@ Or for a single CVE:
   "reason": "This CVE does not apply to our deployment configuration."
 }
 ```
+
+A CVE rule limited to specific namespaces:
+
+```json
+{
+  "type": "cve",
+  "cve_id": "CVE-2024-12345",
+  "reason": "The vulnerable code path is disabled in this namespace.",
+  "scope": {
+    "mode": "namespace",
+    "targets": [{ "cluster_name": "cluster-a", "namespace": "payments" }]
+  }
+}
+```
+
+`scope.mode` is `all` (no targets) or `namespace` (at least one target). Targets must be namespaces where the CVE affects a deployment the caller can see. Component rules reject `scope`.
 
 ### `GET /api/suppression-rules` Query Parameters
 
@@ -157,10 +173,11 @@ Or for a single CVE:
 ### Suppression Behavior
 
 - **Component rules** match CVEs whose affected components include a component with the specified `component_name` and, if provided, a version matching the `version_pattern` glob (e.g., `v0.0.0-*`).
-- **CVE rules** match a single CVE by ID.
+- **CVE rules** match a single CVE by ID, globally or only in their `namespace` targets. In `/api/cves` a CVE counts as suppressed only when a global rule matches or scoped rules cover every `(cluster, namespace)` where the caller sees it.
 - Only `approved` rules suppress CVEs. Rules in `requested` status mark CVEs with a `suppression_requested` flag but do not hide them.
 - Suppressed CVEs are excluded from the default `/api/cves` response. Pass `show_suppressed=true` to include them.
-- Active rules are unique per target: one active rule per `(component_name, version_pattern)` for component rules, one per `cve_id` for CVE rules.
+- Active rules are unique per target: one active rule per `(component_name, version_pattern)` for component rules, one per `cve_id` and normalized scope for CVE rules.
+- Escalations, escalation warnings, and team CVE alerts skip each `(cluster, namespace)` that an approved rule covers.
 
 ## Priorities
 

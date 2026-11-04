@@ -1,9 +1,15 @@
 """Tests for escalation rule matching and selection semantics."""
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 from app.models.global_settings import DEFAULT_ESCALATION_RULES
-from app.services.escalation_rules import level_deadlines, pick_matching_rule, rule_matches
+from app.services.escalation_rules import (
+    escalation_candidate_rows,
+    level_deadlines,
+    pick_matching_rule,
+    rule_matches,
+)
 
 
 class TestRuleMatches:
@@ -74,3 +80,66 @@ class TestLevelDeadlines:
         rule = {"days_to_level1": 30, "days_to_level1_after_fix_available": 5}
         deadlines = level_deadlines(rule, first_seen=first_seen, fix_available_since=fix_available)
         assert deadlines[1] == fix_available + timedelta(days=5)
+
+
+def _rule(*, cve_id=None, scope=None, component_name=None, version_pattern=None):
+    return SimpleNamespace(cve_id=cve_id, scope=scope, component_name=component_name, version_pattern=version_pattern)
+
+
+def _row(cve_id, namespace, cluster_name, components=None):
+    row = {"cve_id": cve_id, "namespace": namespace, "cluster_name": cluster_name}
+    if components is not None:
+        row["components"] = components
+    return row
+
+
+def _locations(rows):
+    return [(r["cve_id"], r["namespace"], r["cluster_name"]) for r in rows]
+
+
+class TestEscalationCandidateRows:
+    def test_approved_risk_acceptance_skips_every_location(self):
+        rows = [_row("CVE-1", "a", "c1"), _row("CVE-1", "b", "c1"), _row("CVE-2", "a", "c1")]
+        assert _locations(escalation_candidate_rows(rows, {"CVE-1"}, [], [])) == [("CVE-2", "a", "c1")]
+
+    def test_global_cve_rule_skips_every_location(self):
+        rows = [_row("CVE-1", "a", "c1"), _row("CVE-1", "b", "c2"), _row("CVE-2", "a", "c1")]
+        rules = [_rule(cve_id="CVE-1", scope={"mode": "all", "targets": []})]
+        assert _locations(escalation_candidate_rows(rows, set(), rules, [])) == [("CVE-2", "a", "c1")]
+
+    def test_rule_without_stored_scope_counts_as_global(self):
+        rows = [_row("CVE-1", "a", "c1")]
+        assert escalation_candidate_rows(rows, set(), [_rule(cve_id="CVE-1", scope=None)], []) == []
+
+    def test_namespace_rule_skips_only_the_exact_pair(self):
+        rows = [_row("CVE-1", "a", "c1"), _row("CVE-1", "b", "c1"), _row("CVE-1", "a", "c2")]
+        rules = [
+            _rule(
+                cve_id="CVE-1",
+                scope={"mode": "namespace", "targets": [{"cluster_name": "c1", "namespace": "a"}]},
+            )
+        ]
+        assert _locations(escalation_candidate_rows(rows, set(), rules, [])) == [
+            ("CVE-1", "b", "c1"),
+            ("CVE-1", "a", "c2"),
+        ]
+
+    def test_component_rule_with_version_glob_skips_matching_locations(self):
+        rows = [
+            _row("CVE-1", "a", "c1", [["github.com/grafana/grafana", "v0.0.0-20240101"]]),
+            _row("CVE-1", "b", "c1", [["github.com/grafana/grafana", "v11.0.0"]]),
+            _row("CVE-1", "d", "c1", [["openssl", "3.0.7"]]),
+        ]
+        rules = [_rule(component_name="github.com/grafana/grafana", version_pattern="v0.0.0-*")]
+        assert _locations(escalation_candidate_rows(rows, set(), [], rules)) == [
+            ("CVE-1", "b", "c1"),
+            ("CVE-1", "d", "c1"),
+        ]
+
+    def test_rows_without_components_are_kept(self):
+        rows = [_row("CVE-1", "a", "c1"), _row("CVE-2", "a", "c1", [])]
+        rules = [_rule(component_name="openssl", version_pattern=None)]
+        assert _locations(escalation_candidate_rows(rows, set(), [], rules)) == [
+            ("CVE-1", "a", "c1"),
+            ("CVE-2", "a", "c1"),
+        ]

@@ -271,6 +271,10 @@ async def test_escalation_job_query_matches_list_query(sx_session):
     for cve_id in job:
         assert float(job[cve_id]["cvss"]) == float(preview[cve_id]["cvss"])
         assert job[cve_id]["severity"] == preview[cve_id]["severity"]
+        # Per-location components feed escalation_candidate_rows (component suppression rules).
+        components = job[cve_id]["components"]
+        assert components, cve_id
+        assert all(len(pair) == 2 and pair[1] == "1.0" for pair in components)
 
 
 async def test_image_views_use_effective_scores(sx_session):

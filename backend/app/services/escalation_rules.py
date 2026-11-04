@@ -8,9 +8,16 @@ JSON dict against a CVE's anchors (`first_seen`, `fix_available_since`):
 - tasks/scheduler.py — actually create escalations once a level fires.
 
 Adding a new anchor (e.g. KEV-listed-at) should be a single edit here.
+
+`escalation_candidate_rows` is the single exclusion rule (approved risk
+acceptance, approved suppression) shared by the escalation check, the warning
+job, and the upcoming preview, so the preview never lists what will not fire.
 """
 
 from datetime import datetime, timedelta
+
+from ..models.suppression_rule import SuppressionRule
+from .cve_filter_service import is_location_suppressed
 
 LEVELS: tuple[int, ...] = (1, 2, 3)
 
@@ -65,3 +72,29 @@ def level_deadlines(
         if candidates:
             out[level] = min(candidates)
     return out
+
+
+def escalation_candidate_rows(
+    rows: list[dict],
+    accepted_cve_ids: set[str],
+    cve_rules: list[SuppressionRule],
+    component_rules: list[SuppressionRule],
+) -> list[dict]:
+    """Per-(cve, namespace, cluster) rows that may escalate.
+
+    Drops CVEs with an approved risk acceptance and locations hidden by approved
+    suppression rules (global CVE rule, namespace-scoped CVE rule covering that
+    exact (namespace, cluster), or a component rule matching a component there).
+    Rows come from ``get_cves_by_namespace_detail`` and carry ``components``.
+    """
+    candidates: list[dict] = []
+    for row in rows:
+        if row["cve_id"] in accepted_cve_ids:
+            continue
+        components = [(c[0], c[1]) for c in row.get("components") or []]
+        if is_location_suppressed(
+            row["cve_id"], row["namespace"], row["cluster_name"], components, cve_rules, component_rules
+        ):
+            continue
+        candidates.append(row)
+    return candidates

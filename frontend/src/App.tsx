@@ -49,6 +49,7 @@ const Remediations = lazy(() => import("./pages/Remediations").then(m => ({ defa
 const SuppressionRules = lazy(() => import("./pages/SuppressionRules").then(m => ({ default: m.SuppressionRules })));
 const ImageDetail = lazy(() => import("./pages/ImageDetail").then(m => ({ default: m.ImageDetail })));
 const MySettings = lazy(() => import("./pages/MySettings").then(m => ({ default: m.MySettings })));
+const Faq = lazy(() => import("./pages/Faq").then(m => ({ default: m.Faq })));
 
 interface NavEntry {
   to: string;
@@ -70,6 +71,11 @@ const TEAM_NAV_ITEMS: NavEntry[] = [
 const SEC_NAV_ITEMS: NavEntry[] = [
   { to: "/settings", labelKey: "nav.settings" },
   { to: "/audit-log", labelKey: "nav.auditLog" },
+];
+
+// Rendered as the last sidebar group so FAQ is the final item for every role.
+const HELP_NAV_ITEMS: NavEntry[] = [
+  { to: "/faq", labelKey: "nav.faq" },
 ];
 
 export function App() {
@@ -288,6 +294,16 @@ export function App() {
                 ))}
               </NavGroup>
             )}
+            <NavGroup title={t("nav.help")}>
+              {HELP_NAV_ITEMS.map((item) => (
+                <NavItem
+                  key={item.to}
+                  isActive={location.pathname.startsWith(item.to)}
+                >
+                  <Link to={scopedLink(item.to)} data-tour={`nav-${item.to.slice(1)}`}>{t(item.labelKey)}</Link>
+                </NavItem>
+              ))}
+            </NavGroup>
           </NavList>
         </Nav>
       </PageSidebarBody>
@@ -364,6 +380,7 @@ export function App() {
           <Route path="/suppression-rules" element={<SuppressionRules />} />
           <Route path="/my-comments" element={<MyComments />} />
           <Route path="/my-settings" element={<MySettings />} />
+          <Route path="/faq" element={<Faq />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         </Suspense>

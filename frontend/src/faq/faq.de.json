@@ -1,0 +1,257 @@
+{
+  "categories": [
+    {
+      "id": "basics",
+      "title": "Erste Schritte und Rollen",
+      "entries": [
+        {
+          "id": "what-is-rhacs-manager",
+          "question": "Was ist der RHACS CVE Manager?",
+          "answer": [
+            "Der RHACS CVE Manager zeigt die Schwachstellen (CVEs), die Red Hat Advanced Cluster Security (RHACS) in den Container-Images Ihrer Namespaces findet, und unterstützt Sie bei der Bearbeitung.",
+            "Sie sehen nur CVEs in Namespaces, auf die Sie Zugriff haben. Von dort aus können Sie Behebungen planen, Risikoakzeptanzen beantragen, False Positives melden und CVEs abonnieren."
+          ]
+        },
+        {
+          "id": "roles",
+          "question": "Was ist der Unterschied zwischen Teammitgliedern und dem Security-Team?",
+          "answer": [
+            "Teammitglieder bearbeiten CVEs in ihren eigenen Namespaces: Sie verwalten Behebungen vollständig selbst (einschließlich Abschluss), beantragen Risikoakzeptanzen und False-Positive-Regeln und erstellen Badges.",
+            "Das Security-Team sieht alle Namespaces und agiert als Auditor: Es prüft Risikoakzeptanzen über mehrere Namespaces sowie False-Positive-Regeln, setzt Prioritäten, pflegt die globalen Einstellungen und liest das Audit-Log. Die tägliche Arbeit eines einzelnen Teams muss nicht vom Security-Team freigegeben werden."
+          ]
+        },
+        {
+          "id": "all-namespaces-user",
+          "question": "Ich sehe alle Namespaces. Gehöre ich damit zum Security-Team?",
+          "answer": [
+            "Nein. Zugriff auf alle Namespaces erweitert nur, was Sie sehen können, nicht Ihre Rolle. Sie bleiben Teammitglied, die globalen CVSS- und EPSS-Schwellenwerte gelten weiter für Sie und Sie können keine Risikoakzeptanzen über mehrere Namespaces freigeben.",
+            "Zum Security-Team gehört, wer Mitglied der dafür konfigurierten Gruppe ist. Dann erscheint oben rechts neben Ihrem Namen das Kürzel SEC."
+          ]
+        },
+        {
+          "id": "guided-tour",
+          "question": "Wie starte ich die Einführungstour erneut?",
+          "answer": [
+            "Klicken Sie oben rechts auf das Fragezeichen-Symbol. Die Tour erklärt die wichtigsten Bereiche der Seitenleiste."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "visibility",
+      "title": "Sichtbarkeit von CVEs",
+      "entries": [
+        {
+          "id": "why-cve-missing",
+          "question": "Warum sehe ich eine CVE nicht, die in RHACS angezeigt wird?",
+          "answer": [
+            "Meist liegt es an einem dieser Gründe: Die CVE betrifft keinen Namespace, auf den Sie Zugriff haben. Sie liegt unter den globalen CVSS- oder EPSS-Schwellenwerten. Sie wurde als False Positive unterdrückt. Oder in der Seitenleiste ist ein Cluster oder Namespace ausgewählt, in dem sie nicht vorkommt.",
+            "Prüfen Sie zuerst die Auswahl in der Seitenleiste und schalten Sie dort testweise \"Alle CVEs anzeigen\" ein. Aktive Unterdrückungsregeln finden Sie unter \"False Positives\"."
+          ]
+        },
+        {
+          "id": "namespace-access",
+          "question": "Wie bekomme ich Zugriff auf einen Namespace?",
+          "answer": [
+            "Der Zugriff wird nicht in der App vergeben, sondern über Annotationen am Namespace im Cluster. Dort wird Ihr Benutzername oder eine Ihrer OpenShift-Gruppen eingetragen (standardmäßig in den Annotationen rhacs-manager.io/users bzw. rhacs-manager.io/groups).",
+            "Änderungen werden nach wenigen Minuten wirksam. Wenden Sie sich an das Team, das den Namespace betreibt, oder an die Cluster-Administration."
+          ]
+        },
+        {
+          "id": "show-all-cves",
+          "question": "Was bewirkt \"Alle CVEs anzeigen\"?",
+          "answer": [
+            "Teammitglieder sehen standardmäßig nur CVEs, die sowohl den globalen CVSS- als auch den EPSS-Schwellenwert erreichen. Mit dem Schalter in der Seitenleiste blenden Sie auch die CVEs darunter in Ihren Namespaces ein.",
+            "Die Einstellung gilt nur für Ihre Ansicht und steht in der URL, sodass Sie den Link teilen können. Sie erweitert nie die Namespaces, die Sie sehen dürfen. Benachrichtigungen, Digest, Eskalationen und Badges folgen weiterhin den globalen Schwellenwerten."
+          ]
+        },
+        {
+          "id": "always-visible-cves",
+          "question": "Warum sehe ich eine CVE, obwohl sie unter den Schwellenwerten liegt?",
+          "answer": [
+            "Vom Security-Team priorisierte CVEs und CVEs mit einer aktiven Risikoakzeptanz bleiben immer sichtbar, auch wenn sie die Schwellenwerte nicht erreichen."
+          ]
+        },
+        {
+          "id": "cve-not-found",
+          "question": "Warum meldet die Detailseite einer CVE \"nicht gefunden\"?",
+          "answer": [
+            "Die Detailseite folgt der Cluster- und Namespace-Auswahl in der Seitenleiste. Kommt die CVE in dieser Auswahl nicht vor, etwa weil sie inzwischen behoben wurde, wird sie als nicht gefunden gemeldet. Ohne Auswahl umfasst die Seite alle Namespaces, die Sie sehen dürfen.",
+            "Ihre Kommentare zu dieser CVE bleiben unter \"Meine Kommentare\" lesbar."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data",
+      "title": "CVE-Daten und Bewertung",
+      "entries": [
+        {
+          "id": "severity-source",
+          "question": "Woher stammen Schweregrad und CVSS-Wert?",
+          "answer": [
+            "Aus den Schwachstellen-Feeds, die RHACS nutzt: Red Hat für Red-Hat-Inhalte, OSV für Sprachpakete (z. B. Go, npm, Python) und die Linux-Distributionen (z. B. Debian, Ubuntu, Alpine). Die Werte stammen nicht aus der NVD.",
+            "Melden mehrere Quellen dieselbe CVE, zeigt die App den höchsten Wert. Die Bewertung jeder Quelle finden Sie auf der CVE-Detailseite unter \"Bewertung je Datenquelle\"."
+          ]
+        },
+        {
+          "id": "epss",
+          "question": "Was ist EPSS und warum ist es so wichtig?",
+          "answer": [
+            "EPSS (Exploit Prediction Scoring System) schätzt die Wahrscheinlichkeit, dass eine Schwachstelle in den nächsten 30 Tagen tatsächlich ausgenutzt wird.",
+            "Der CVSS-Wert beschreibt, wie schwer eine Schwachstelle theoretisch wiegt. EPSS zeigt, wie dringend sie in der Praxis ist. Deshalb priorisiert die App nach EPSS: Eine kritische CVE mit sehr niedrigem EPSS ist oft weniger dringend als eine hohe CVE, die bereits aktiv ausgenutzt wird."
+          ]
+        },
+        {
+          "id": "rating-delay",
+          "question": "Warum ändert sich eine Bewertung erst verzögert?",
+          "answer": [
+            "RHACS speichert Bewertungen pro Image und aktualisiert sie erst, wenn ein Image neu gescannt wird. Die App verwendet immer die Bewertung des zuletzt gescannten Images, deshalb sind Schweregrad, CVSS und EPSS in jeder Ansicht gleich.",
+            "Eine geänderte Bewertung erscheint etwa 5 Minuten, nachdem RHACS mindestens ein betroffenes Image neu gescannt hat."
+          ]
+        },
+        {
+          "id": "upgrade-to",
+          "question": "Wie wird die Zielversion in der Komponentenansicht bestimmt?",
+          "answer": [
+            "Die Zielversion ist die höchste Fix-Version über alle behebbaren CVEs der Komponente. Versionen werden als Versionen verglichen, nicht als Text: 1.10 liegt über 1.9.",
+            "Lässt sich eine gemeldete Fix-Version nicht vergleichen, ist die Zielversion mit \"?\" markiert und die aufgeklappte Zeile listet alle gemeldeten Fix-Versionen. Prüfen Sie diese vor dem Upgrade."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workflow",
+      "title": "Behebungen, Risikoakzeptanzen und Prioritäten",
+      "entries": [
+        {
+          "id": "fix-or-accept",
+          "question": "Soll ich eine CVE beheben oder das Risiko akzeptieren?",
+          "answer": [
+            "Beheben ist der Normalfall: Starten Sie auf der CVE-Detailseite eine Behebung, vor allem wenn bereits eine Fix-Version existiert.",
+            "Eine Risikoakzeptanz ist für Fälle gedacht, in denen eine Behebung vorerst nicht möglich oder nicht nötig ist, zum Beispiel weil die betroffene Funktion nicht genutzt wird. Sie braucht eine Begründung und sollte ein Ablaufdatum haben."
+          ]
+        },
+        {
+          "id": "risk-acceptance-review",
+          "question": "Wann muss das Security-Team eine Risikoakzeptanz prüfen?",
+          "answer": [
+            "Bleibt der Geltungsbereich in einem einzigen Namespace, wird die Risikoakzeptanz sofort genehmigt. Umfasst sie alle Namespaces oder mehrere Namespaces, prüft das Security-Team sie und genehmigt oder lehnt sie ab.",
+            "Das Formular zeigt unter dem Geltungsbereich an, welcher Fall vorliegt. Risikoakzeptanzen werden immer aus dem Kontext einer CVE beantragt, nicht über ein leeres Formular."
+          ]
+        },
+        {
+          "id": "risk-acceptance-expiry",
+          "question": "Was passiert, wenn eine Risikoakzeptanz abläuft?",
+          "answer": [
+            "Genehmigte Risikoakzeptanzen laufen zum gesetzten Ablaufdatum automatisch ab. Danach unterliegt die CVE wieder den normalen Regeln für Sichtbarkeit und Eskalation. Bald ablaufende Risikoakzeptanzen erzeugen vorher eine Benachrichtigung.",
+            "Abgelehnte oder bereits genehmigte Anträge kann die Person, die sie erstellt hat, bearbeiten und erneut einreichen."
+          ]
+        },
+        {
+          "id": "remediation-status",
+          "question": "Welche Status hat eine Behebung?",
+          "answer": [
+            "Der normale Weg ist offen, in Bearbeitung, behoben. Wird eine Behebung bewusst nicht umgesetzt, wählen Sie \"Wird nicht behoben\" und geben einen Grund an.",
+            "Ihr Team schließt Behebungen selbst ab, eine Freigabe durch das Security-Team gibt es nicht. Meldet RHACS die CVE im Namespace nicht mehr, wird eine offene Behebung automatisch als behoben markiert."
+          ]
+        },
+        {
+          "id": "false-positive",
+          "question": "Eine CVE ist ein False Positive. Was tue ich?",
+          "answer": [
+            "Legen Sie unter \"False Positives\" eine Unterdrückungsregel an: für eine einzelne CVE oder für eine Komponente, optional mit Versionsmuster (z. B. v0.0.0-*), wenn ein falsch erkannter Komponentenname viele falsche Treffer erzeugt. Geben Sie eine Begründung und nach Möglichkeit einen Link auf das Upstream-Issue an.",
+            "Eine CVE-Regel gilt global oder nur in ausgewählten Namespaces; die Namespaces wählen Sie beim Anlegen über die CVE-Detailseite. Komponentenregeln gelten immer global. Regeln von Teammitgliedern wirken erst nach Freigabe durch das Security-Team, auch wenn sie nur einen Namespace betreffen. Bis dahin ist die CVE mit \"FP beantragt\" markiert."
+          ]
+        },
+        {
+          "id": "prioritized-cve",
+          "question": "Was bedeutet es, wenn eine CVE priorisiert ist?",
+          "answer": [
+            "Das Security-Team hat die CVE manuell als dringend markiert. Priorisierte CVEs stehen in der Schwachstellenliste immer ganz oben, unabhängig von der Sortierung, und bleiben auch unter den Schwellenwerten sichtbar. Bearbeiten Sie sie bevorzugt."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "escalations",
+      "title": "Eskalationen",
+      "entries": [
+        {
+          "id": "escalation-how",
+          "question": "Wie funktionieren Eskalationen?",
+          "answer": [
+            "Das Security-Team legt in den Einstellungen Regeln aus Schweregrad, EPSS-Schwelle und drei Fristen fest. Bleibt eine passende CVE in einem Namespace zu lange offen, eskaliert sie stufenweise: Stufe 1 benachrichtigt das Team, Stufe 2 zusätzlich das Security-Team, Stufe 3 das Management.",
+            "Kurz vor Erreichen einer Stufe erhält der Namespace-Kontakt eine Warn-E-Mail. Die Seite \"Eskalationen\" zeigt aktive und bevorstehende Eskalationen."
+          ]
+        },
+        {
+          "id": "escalation-stop",
+          "question": "Wie verhindere ich, dass eine CVE eskaliert?",
+          "answer": [
+            "Beheben Sie die CVE, sodass RHACS sie im Namespace nicht mehr meldet. CVEs mit einer genehmigten Risikoakzeptanz werden bei der Eskalationsprüfung übersprungen, ebenso Namespaces, in denen eine genehmigte Unterdrückungsregel die CVE als False Positive ausblendet."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "Benachrichtigungen und Kommentare",
+      "entries": [
+        {
+          "id": "notification-settings",
+          "question": "Wie steuere ich, welche Benachrichtigungen ich erhalte?",
+          "answer": [
+            "Öffnen Sie \"Persönliche Einstellungen\" über das Regler-Symbol oben rechts. Dort wählen Sie je Kategorie, ob Sie In-App-Benachrichtigungen und E-Mails erhalten, und können den wöchentlichen Team-Digest sowie die CVE-Alarm-Zusammenfassung abonnieren.",
+            "Erwähnungen (@Name) werden immer zugestellt und lassen sich nicht abschalten."
+          ]
+        },
+        {
+          "id": "mention",
+          "question": "Wie erwähne ich jemanden in einem Kommentar?",
+          "answer": [
+            "Tippen Sie @ am Anfang oder nach einem Leerzeichen. Es öffnet sich eine Suche nach Name oder Benutzername. Mit Enter fügen Sie die Person ein, mit Esc behalten Sie das einfache @.",
+            "Die erwähnte Person erhält eine In-App-Benachrichtigung und, sofern eine E-Mail-Adresse bekannt ist, eine E-Mail. Pro Kommentar sind höchstens 20 Personen möglich."
+          ]
+        },
+        {
+          "id": "mention-email-content",
+          "question": "Warum enthält die E-Mail zu einer Erwähnung nicht den Kommentartext?",
+          "answer": [
+            "Beim Versand lässt sich nicht prüfen, ob die empfangende Person Zugriff auf den betroffenen Namespace hat. Die E-Mail nennt deshalb nur Autor, Kontext und einen direkten Link. Den Text sehen Sie nach dem Anmelden in der App."
+          ]
+        },
+        {
+          "id": "no-email",
+          "question": "Warum bekomme ich keine E-Mails?",
+          "answer": [
+            "Häufige Gründe: Ihr Identitätsanbieter liefert keine E-Mail-Adresse, dann erhalten Sie nur In-App-Benachrichtigungen. Die E-Mail-Kategorie ist in den persönlichen Einstellungen ausgeschaltet (Digest und Zusammenfassungen sind standardmäßig aus). Oder Sie haben sich länger als 30 Tage nicht angemeldet: Team-Benachrichtigungen gehen nur an kürzlich angemeldete Personen.",
+            "E-Mails werden nach bestem Bemühen versendet und bei einem Fehler nicht wiederholt."
+          ]
+        },
+        {
+          "id": "subscribe-cve",
+          "question": "Wie verfolge ich eine einzelne CVE?",
+          "answer": [
+            "Klicken Sie auf der CVE-Detailseite auf \"Abonnieren\". Sie werden dann benachrichtigt, wenn jemand kommentiert, sich Priorität, Risikoakzeptanzen, Behebungen, Eskalationen oder Bewertungen ändern oder eine Komponente in Ihren Namespaces einen Fix erhält.",
+            "In der Schwachstellenliste zeigt der Filter \"Nur abonnierte\" nur Ihre abonnierten CVEs. Sie können bis zu 500 CVEs abonnieren."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "badges",
+      "title": "Badges",
+      "entries": [
+        {
+          "id": "badges-purpose",
+          "question": "Wofür sind SVG-Badges da?",
+          "answer": [
+            "Ein Badge ist ein kleines Bild mit dem CVE-Status eines oder mehrerer Namespaces, das ohne Anmeldung abrufbar ist. Sie können es zum Beispiel in eine README oder ein Wiki einbinden.",
+            "Unter \"SVG-Badges\" erstellen Sie ein Badge und kopieren die URL oder ein fertiges Markdown-Snippet."
+          ]
+        }
+      ]
+    }
+  ]
+}

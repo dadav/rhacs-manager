@@ -25,7 +25,9 @@
     "settings": "Einstellungen",
     "auditLog": "Audit-Log",
     "general": "Allgemein",
-    "admin": "Admin"
+    "admin": "Admin",
+    "help": "Hilfe",
+    "faq": "FAQ"
   },
   "error": {
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten",
@@ -986,7 +988,8 @@
     "nextWithProgress": "Weiter (Schritt {current} von {total})",
     "back": "Zurück",
     "close": "Schließen",
-    "skip": "Tour überspringen"
+    "skip": "Tour überspringen",
+    "navFaq": "Antworten auf häufige Fragen finden Sie in den FAQ. Die Suche durchsucht Fragen und Antworten."
   },
   "imageDetail": {
     "title": "Image-Details",
@@ -1108,5 +1111,16 @@
     "filter": "Nur abonnierte",
     "filterHint": "Zeigt nur CVEs, die Sie abonniert haben. Abonnierte CVEs unter den globalen Schwellenwerten erscheinen nur mit \"Alle CVEs anzeigen\".",
     "listIndicator": "Von Ihnen abonniert"
+  },
+  "faq": {
+    "title": "Häufig gestellte Fragen",
+    "intro": "Antworten auf häufige Fragen zur Arbeit mit dem RHACS CVE Manager.",
+    "searchPlaceholder": "FAQ durchsuchen",
+    "searchAriaLabel": "FAQ durchsuchen",
+    "resultsCount_one": "{{count}} Treffer",
+    "resultsCount_other": "{{count}} Treffer",
+    "noResults": "Keine passenden Fragen gefunden",
+    "noResultsHint": "Versuchen Sie andere oder weniger Suchbegriffe.",
+    "clearSearch": "Suche zurücksetzen"
   }
 }

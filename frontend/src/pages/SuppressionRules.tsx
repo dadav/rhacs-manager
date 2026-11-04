@@ -467,7 +467,9 @@ export function SuppressionRules() {
               createMutation.isPending ||
               createReason.length < 10 ||
               (createType === 'component' && !createComponentName) ||
-              (createType === 'cve' && !createCveId)
+              (createType === 'cve' && !createCveId) ||
+              // Namespace targets can only be picked on the CVE detail page (scopeNamespaceHint).
+              (createType === 'cve' && createScopeMode === 'namespace')
             }
           >
             {t('suppressionRules.submit')}

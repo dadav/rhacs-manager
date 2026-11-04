@@ -185,6 +185,7 @@ Access control rules:
 - The `cve_history` trend is sourced from the `cve_snapshots` table, filled by the daily `cve_snapshot` scheduler job (runs in the single `worker` process only). The `'*'`/`'*'` rows are org-wide counts deduplicated across namespaces; per-namespace rows may count a CVE once per namespace. `count_visible` applies CVSS/EPSS thresholds (always-show CVEs bypass), `count_total` does not.
 - The opt-in CVE alert summary email (`alert_email_*` preference categories) rides on the daily `team_cve_alerts` diff via the email-only mark reasons `email_critical` / `email_critical_fixable` (emitted independently of `visible`/`prioritized`; `prioritized` keys feed its third condition). It sends at most one email per user per UTC day (PK of `alert_email_deliveries`, claimed in the diff commit, mail sent after commit, never retried), counts and links only. Each reason group has its own silent baseline sentinel in `BASELINE_MARKS`; every sentinel must stay excluded from stale-mark cleanup. Sec-team/wildcard users get org-wide counts.
 - `mttr_by_severity` is a sec-team-only audit metric; the endpoint returns an empty list for non-sec-team users.
+- Suppression rules: component rules are always global; CVE rules have `scope.mode` `all` (default) or `namespace` with `(cluster_name, namespace)` targets. `/cves` and the dashboard hide a CVE when a global CVE rule matches, scoped CVE rules cover every visible location, or a component rule matches a component in the caller's scope (`compute_suppression_sets`). Per-location background work must use `is_location_suppressed`: team alerts directly, escalation check/warning and the upcoming preview through `escalation_candidate_rows` in `services/escalation_rules.py`.
 
 ### CVE detail and workflow rules
 
@@ -253,6 +254,7 @@ Access control rules:
 - In-app links and `navigate()` targets into CVE, image, dashboard, or list views must go through `useScopedLink()` / `buildScopedTo` from `frontend/src/hooks/useScope.ts`, so the sidebar scope (`cluster`, `ns`) and `ignore_thresholds` survive navigation. Params already in the target win (drilldowns override the sidebar scope). The CVE list reads its namespace filter from `ns`, not `namespace`.
 - Keep translations aligned in `frontend/src/i18n/de.json` and `frontend/src/i18n/en.json`.
 - The UI is German-first, but English translations also exist.
+- In-app FAQ content lives in `frontend/src/faq/faq.de.json` and `faq.en.json` (plain-text paragraphs only, formal "Sie" in German like the rest of the UI). Category and entry ids must stay identical in both files (`faqContent.test.ts`). Only state rules that this file or the docs back up.
 
 Example:
 

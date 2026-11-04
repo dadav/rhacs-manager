@@ -11,7 +11,8 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..stackrox import queries as sx
-from .escalation_rules import level_deadlines, pick_matching_rule
+from .cve_filter_service import load_approved_suppression_rules
+from .escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
 
 class UpcomingEscalation(BaseModel):
@@ -48,6 +49,19 @@ def filter_upcoming_escalations(
     total = len(filtered)
     start = (page - 1) * page_size
     return filtered[start : start + page_size], total
+
+
+def _anchors_by_cve(location_rows: list[dict]) -> dict[str, dict]:
+    """Earliest ``first_seen`` / ``fix_available_since`` per CVE across the given
+    per-location rows (None when no location has the timestamp)."""
+    anchors: dict[str, dict] = {}
+    for row in location_rows:
+        current = anchors.setdefault(row["cve_id"], {"first_seen": None, "fix_available_since": None})
+        for key in ("first_seen", "fix_available_since"):
+            value = row.get(key)
+            if value is not None and (current[key] is None or value < current[key]):
+                current[key] = value
+    return anchors
 
 
 async def compute_upcoming_escalations(
@@ -101,6 +115,18 @@ async def compute_upcoming_escalations(
         cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
     else:
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
+
+    # Mirror the scheduler: a CVE is upcoming only if at least one location in
+    # scope survives escalation_candidate_rows, and its deadline anchors come from
+    # those surviving locations only (a suppressed older location must not pull the
+    # deadline forward or hide a later one). The per-location query runs only when
+    # approved suppression rules exist.
+    cve_rules, component_rules = await load_approved_suppression_rules(app_db)
+    if cve_rules or component_rules:
+        scope_pairs = namespaces or [(r["namespace"], r["cluster_name"]) for r in await sx.list_namespaces(sx_db)]
+        location_rows = await sx.get_cves_by_namespace_detail(sx_db, scope_pairs, min_cvss, min_epss, always_show)
+        anchors = _anchors_by_cve(escalation_candidate_rows(location_rows, accepted_ids, cve_rules, component_rules))
+        cves = [{**cve, **anchors[cve["cve_id"]]} for cve in cves if cve["cve_id"] in anchors]
 
     upcoming: list[UpcomingEscalation] = []
 

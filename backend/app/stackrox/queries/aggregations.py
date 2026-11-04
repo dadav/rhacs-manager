@@ -139,6 +139,10 @@ async def get_cves_by_namespace_detail(
     Unlike get_cves_for_namespaces which aggregates across all namespaces,
     this returns one row per (cve_id, namespace, cluster) so escalations
     can be created with the actual namespace where the CVE exists.
+
+    Suppression is NOT applied here: each row carries ``components``
+    (``[[name, version], ...]``) so callers evaluate approved suppression rules
+    per location (``escalation_candidate_rows``).
     """
     if not namespaces:
         return []
@@ -157,9 +161,15 @@ async def get_cves_by_namespace_detail(
             MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
             MIN(ic.firstimageoccurrence)    AS first_seen,
             MIN(ic.fixavailabletimestamp)   AS fix_available_since,
-            MAX(COALESCE(ic.cvss, 0))       AS cvss
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            COALESCE(
+                ARRAY_AGG(DISTINCT ARRAY[comp.name, COALESCE(comp.version, '')])
+                    FILTER (WHERE comp.name IS NOT NULL),
+                ARRAY[]::text[][]
+            )                               AS components
         FROM deployments d
         JOIN cve_rows ic ON ic.deployments_id = d.id
+        LEFT JOIN image_component_v2 comp ON comp.id = ic.componentid
         WHERE {ns_fragment}
         GROUP BY ic.cvebaseinfo_cve, d.namespace, d.clustername
         HAVING (

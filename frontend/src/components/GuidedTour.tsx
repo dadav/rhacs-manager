@@ -77,6 +77,11 @@ export function GuidedTour({ run, onComplete, isSecTeam }: GuidedTourProps) {
         ]
       : []),
     {
+      target: '[data-tour="nav-faq"]',
+      content: t("tour.navFaq"),
+      placement: "right",
+    },
+    {
       target: '[data-tour="help-button"]',
       content: t("tour.helpButton"),
       placement: "bottom",

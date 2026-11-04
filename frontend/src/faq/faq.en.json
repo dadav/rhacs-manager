@@ -1,0 +1,257 @@
+{
+  "categories": [
+    {
+      "id": "basics",
+      "title": "Getting started and roles",
+      "entries": [
+        {
+          "id": "what-is-rhacs-manager",
+          "question": "What is RHACS CVE Manager?",
+          "answer": [
+            "RHACS CVE Manager shows the vulnerabilities (CVEs) that Red Hat Advanced Cluster Security (RHACS) finds in the container images of your namespaces and helps you work through them.",
+            "You only see CVEs in namespaces you have access to. From there you can plan remediations, request risk acceptances, report false positives, and subscribe to CVEs."
+          ]
+        },
+        {
+          "id": "roles",
+          "question": "What is the difference between team members and the security team?",
+          "answer": [
+            "Team members work on CVEs in their own namespaces: they manage remediations end to end (including resolving them), request risk acceptances and false positive rules, and create badges.",
+            "The security team sees all namespaces and acts as an auditor: it reviews risk acceptances that span several namespaces as well as false positive rules, sets priorities, maintains the global settings, and reads the audit log. A single team's daily work does not need security team approval."
+          ]
+        },
+        {
+          "id": "all-namespaces-user",
+          "question": "I can see all namespaces. Does that make me part of the security team?",
+          "answer": [
+            "No. Access to all namespaces only widens what you can see, not your role. You stay a team member, the global CVSS and EPSS thresholds still apply to you, and you cannot approve risk acceptances that span several namespaces.",
+            "Security team membership comes from the configured security team group. Members see the SEC tag next to their name in the top right."
+          ]
+        },
+        {
+          "id": "guided-tour",
+          "question": "How do I restart the guided tour?",
+          "answer": [
+            "Click the question mark icon in the top right. The tour explains the main areas of the sidebar."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "visibility",
+      "title": "CVE visibility",
+      "entries": [
+        {
+          "id": "why-cve-missing",
+          "question": "Why don't I see a CVE that RHACS shows?",
+          "answer": [
+            "Usually for one of these reasons: the CVE does not affect a namespace you have access to, it is below the global CVSS or EPSS thresholds, it was suppressed as a false positive, or the sidebar has a cluster or namespace selected where it does not occur.",
+            "Check the sidebar selection first and try turning on \"Show all CVEs\" there. Active suppression rules are listed under \"False Positives\"."
+          ]
+        },
+        {
+          "id": "namespace-access",
+          "question": "How do I get access to a namespace?",
+          "answer": [
+            "Access is not granted in the app but through annotations on the namespace in the cluster. Your username or one of your OpenShift groups is added there (by default in the rhacs-manager.io/users or rhacs-manager.io/groups annotation).",
+            "Changes take effect within a few minutes. Contact the team that runs the namespace or your cluster administrators."
+          ]
+        },
+        {
+          "id": "show-all-cves",
+          "question": "What does \"Show all CVEs\" do?",
+          "answer": [
+            "By default, team members only see CVEs that meet both the global CVSS and EPSS thresholds. The switch in the sidebar also shows the CVEs below them in your namespaces.",
+            "The setting only affects your own view and is stored in the URL, so you can share the link. It never widens the namespaces you may see. Notifications, the digest, escalations, and badges keep following the global thresholds."
+          ]
+        },
+        {
+          "id": "always-visible-cves",
+          "question": "Why do I see a CVE even though it is below the thresholds?",
+          "answer": [
+            "CVEs prioritized by the security team and CVEs with an active risk acceptance always stay visible, even when they do not meet the thresholds."
+          ]
+        },
+        {
+          "id": "cve-not-found",
+          "question": "Why does a CVE detail page say \"not found\"?",
+          "answer": [
+            "The detail page follows the cluster and namespace selected in the sidebar. If the CVE does not occur in that selection, for example because it has been fixed in the meantime, it is reported as not found. With no selection the page covers every namespace you can see.",
+            "Your comments on that CVE stay readable under \"My comments\"."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data",
+      "title": "CVE data and ratings",
+      "entries": [
+        {
+          "id": "severity-source",
+          "question": "Where do severity and CVSS come from?",
+          "answer": [
+            "From the vulnerability feeds RHACS uses: Red Hat for Red Hat content, OSV for language packages (such as Go, npm, or Python), and the Linux distributions (such as Debian, Ubuntu, or Alpine). The values do not come from NVD.",
+            "When several sources report the same CVE, the app shows the highest value. Each source's rating is listed on the CVE detail page under \"Rating per data source\"."
+          ]
+        },
+        {
+          "id": "epss",
+          "question": "What is EPSS and why does it matter so much?",
+          "answer": [
+            "EPSS (Exploit Prediction Scoring System) estimates the probability that a vulnerability will actually be exploited in the next 30 days.",
+            "CVSS describes how severe a vulnerability is in theory. EPSS shows how urgent it is in practice. That is why the app prioritizes by EPSS: a critical CVE with a very low EPSS is often less urgent than a high CVE that is already being exploited."
+          ]
+        },
+        {
+          "id": "rating-delay",
+          "question": "Why does a rating change with a delay?",
+          "answer": [
+            "RHACS stores ratings per image and only updates them when it rescans an image. The app always uses the rating from the most recently scanned image, so severity, CVSS, and EPSS are the same in every view.",
+            "A changed rating appears about 5 minutes after RHACS has rescanned at least one affected image."
+          ]
+        },
+        {
+          "id": "upgrade-to",
+          "question": "How is the upgrade target in the component view determined?",
+          "answer": [
+            "The upgrade target is the highest fix version across the component's fixable CVEs. Versions are compared as versions, not as text: 1.10 ranks above 1.9.",
+            "If a reported fix version cannot be compared, the target is marked with \"?\" and the expanded row lists every reported fix version. Check those before upgrading."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workflow",
+      "title": "Remediations, risk acceptances, and priorities",
+      "entries": [
+        {
+          "id": "fix-or-accept",
+          "question": "Should I fix a CVE or accept the risk?",
+          "answer": [
+            "Fixing is the normal path: start a remediation from the CVE detail page, especially when a fix version already exists.",
+            "A risk acceptance is meant for cases where a fix is not possible or not needed for now, for example because the affected functionality is not used. It needs a justification and should have an expiry date."
+          ]
+        },
+        {
+          "id": "risk-acceptance-review",
+          "question": "When does the security team have to review a risk acceptance?",
+          "answer": [
+            "If the scope stays within a single namespace, the risk acceptance is approved immediately. If it covers all namespaces or several namespaces, the security team reviews it and approves or rejects it.",
+            "The form shows below the scope which case applies. Risk acceptances are always requested from a CVE, not from a blank form."
+          ]
+        },
+        {
+          "id": "risk-acceptance-expiry",
+          "question": "What happens when a risk acceptance expires?",
+          "answer": [
+            "Approved risk acceptances expire automatically on their expiry date. After that the CVE follows the normal visibility and escalation rules again. Risk acceptances that are about to expire create a notification beforehand.",
+            "The person who created a rejected or previously approved request can edit and resubmit it."
+          ]
+        },
+        {
+          "id": "remediation-status",
+          "question": "Which statuses does a remediation have?",
+          "answer": [
+            "The normal path is open, in progress, resolved. If a remediation is intentionally not going to happen, choose \"Won't fix\" and give a reason.",
+            "Your team resolves remediations itself; there is no security team approval. When RHACS no longer reports the CVE in the namespace, an open remediation is marked as resolved automatically."
+          ]
+        },
+        {
+          "id": "false-positive",
+          "question": "A CVE is a false positive. What do I do?",
+          "answer": [
+            "Create a suppression rule under \"False Positives\": for a single CVE, or for a component, optionally with a version pattern (such as v0.0.0-*) when a misidentified component produces many false matches. Give a reason and, if possible, a link to the upstream issue.",
+            "A CVE rule applies globally or only in selected namespaces; you pick the namespaces when creating the rule from the CVE detail page. Component rules always apply globally. Rules created by team members only take effect after security team approval, even when they cover a single namespace. Until then the CVE is marked \"FP Requested\"."
+          ]
+        },
+        {
+          "id": "prioritized-cve",
+          "question": "What does it mean when a CVE is prioritized?",
+          "answer": [
+            "The security team has manually marked the CVE as urgent. Prioritized CVEs always appear at the top of the vulnerability list, whatever the sort order, and stay visible below the thresholds. Work on them first."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "escalations",
+      "title": "Escalations",
+      "entries": [
+        {
+          "id": "escalation-how",
+          "question": "How do escalations work?",
+          "answer": [
+            "The security team defines rules in the settings, each made of a severity, an EPSS threshold, and three deadlines. If a matching CVE stays open in a namespace for too long, it escalates in levels: level 1 notifies the team, level 2 also the security team, level 3 management.",
+            "Shortly before a level is reached, the namespace contact receives a warning email. The \"Escalations\" page shows active and upcoming escalations."
+          ]
+        },
+        {
+          "id": "escalation-stop",
+          "question": "How do I keep a CVE from escalating?",
+          "answer": [
+            "Fix the CVE so that RHACS no longer reports it in the namespace. CVEs with an approved risk acceptance are skipped during escalation checks, as are namespaces where an approved suppression rule hides the CVE as a false positive."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "Notifications and comments",
+      "entries": [
+        {
+          "id": "notification-settings",
+          "question": "How do I control which notifications I get?",
+          "answer": [
+            "Open \"My settings\" from the sliders icon in the top right. There you choose per category whether you get in-app notifications and emails, and you can opt into the weekly team digest and the CVE alert summary email.",
+            "Mentions (@name) are always delivered and cannot be turned off."
+          ]
+        },
+        {
+          "id": "mention",
+          "question": "How do I mention someone in a comment?",
+          "answer": [
+            "Type @ at the start or after a space. A search for a name or username opens. Press Enter to insert the person, or Esc to keep the plain @.",
+            "The mentioned person gets an in-app notification and, if an email address is known, an email. A comment can mention at most 20 people."
+          ]
+        },
+        {
+          "id": "mention-email-content",
+          "question": "Why doesn't the mention email contain the comment text?",
+          "answer": [
+            "When the email is sent, the app cannot verify that the recipient has access to the affected namespace. The email therefore only names the author, the context, and a direct link. You see the text after signing in to the app."
+          ]
+        },
+        {
+          "id": "no-email",
+          "question": "Why don't I get any emails?",
+          "answer": [
+            "Common reasons: your identity provider sends no email address, so you only get in-app notifications. The email category is turned off in your settings (the digest and summary emails are off by default). Or you have not signed in for more than 30 days: team notifications only go to recently active users.",
+            "Emails are sent on a best-effort basis and are not retried after a failure."
+          ]
+        },
+        {
+          "id": "subscribe-cve",
+          "question": "How do I follow a single CVE?",
+          "answer": [
+            "Click \"Subscribe\" on the CVE detail page. You are then notified when someone comments, when its priority, risk acceptances, remediations, escalations, or ratings change, or when a component in your namespaces gets a fix.",
+            "In the vulnerability list, the \"Subscribed only\" filter shows just your subscribed CVEs. You can follow up to 500 CVEs."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "badges",
+      "title": "Badges",
+      "entries": [
+        {
+          "id": "badges-purpose",
+          "question": "What are SVG badges for?",
+          "answer": [
+            "A badge is a small image with the CVE status of one or more namespaces that can be fetched without signing in. You can embed it in a README or a wiki, for example.",
+            "Under \"Badges\" you create a badge and copy its URL or a ready-made Markdown snippet."
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,8 @@ from ..models.remediation import Remediation, RemediationStatus
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..notifications import service as notif_svc
 from ..services import cve_subscription_service as sub_svc
-from ..services.escalation_rules import level_deadlines, pick_matching_rule
+from ..services.cve_filter_service import load_approved_suppression_rules
+from ..services.escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
@@ -136,6 +137,31 @@ async def _insert_escalation(app_session: AsyncSession, esc: Escalation) -> bool
     return True
 
 
+def _log_escalation_candidates(
+    job: str,
+    cve_rows: list[dict],
+    candidate_rows: list[dict],
+    accepted_ids: set[str],
+) -> None:
+    skipped_accepted = sum(1 for row in cve_rows if row["cve_id"] in accepted_ids)
+    skipped_suppressed = len(cve_rows) - skipped_accepted - len(candidate_rows)
+    logger.info(
+        "%s: %d location rows, %d candidates, %d skipped (approved risk acceptance), %d skipped (suppressed)",
+        job,
+        len(cve_rows),
+        len(candidate_rows),
+        skipped_accepted,
+        skipped_suppressed,
+        extra={
+            "job": job,
+            "location_rows": len(cve_rows),
+            "candidates": len(candidate_rows),
+            "skipped_accepted": skipped_accepted,
+            "skipped_suppressed": skipped_suppressed,
+        },
+    )
+
+
 @instrument_job("escalation_check")
 async def run_escalation_check() -> None:
     """Check for CVEs that should be escalated based on age and settings.
@@ -192,11 +218,13 @@ async def run_escalation_check() -> None:
                 min_epss,
                 always_show,
             )
+            suppression_cve_rules, suppression_component_rules = await load_approved_suppression_rules(app_session)
+            candidate_rows = escalation_candidate_rows(
+                cve_rows, accepted_ids, suppression_cve_rules, suppression_component_rules
+            )
+            _log_escalation_candidates("escalation_check", cve_rows, candidate_rows, accepted_ids)
 
-            for row in cve_rows:
-                if row["cve_id"] in accepted_ids:
-                    continue
-
+            for row in candidate_rows:
                 now = datetime.utcnow()
 
                 # Strictest matching rule only (highest severity_min / epss_threshold).
@@ -372,11 +400,13 @@ async def run_escalation_warning() -> None:
                 min_epss,
                 always_show,
             )
+            suppression_cve_rules, suppression_component_rules = await load_approved_suppression_rules(app_session)
+            candidate_rows = escalation_candidate_rows(
+                cve_rows, accepted_ids, suppression_cve_rules, suppression_component_rules
+            )
+            _log_escalation_candidates("escalation_warning", cve_rows, candidate_rows, accepted_ids)
 
-            for row in cve_rows:
-                if row["cve_id"] in accepted_ids:
-                    continue
-
+            for row in candidate_rows:
                 now = datetime.utcnow()
                 ns_name = row["namespace"]
                 cluster = row["cluster_name"]
