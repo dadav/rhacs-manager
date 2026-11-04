@@ -1,0 +1,126 @@
+{
+  "releases": [
+    {
+      "version": "0.45.1",
+      "date": "2026-11-04",
+      "items": [
+        {
+          "id": "faq",
+          "kind": "feature",
+          "text": "Neue FAQ-Seite unter Hilfe in der Seitenleiste: Sie beantwortet häufige Fragen zu Sichtbarkeit, Bewertungen, Risikoakzeptanzen, Behebungen, Eskalationen, Benachrichtigungen und Badges. Die Suche bleibt in der URL erhalten, sodass Sie einen Link auf ein gefiltertes FAQ teilen können."
+        }
+      ]
+    },
+    {
+      "version": "0.45.0",
+      "date": "2026-11-04",
+      "items": [
+        {
+          "id": "oidc-token-check",
+          "kind": "security",
+          "text": "Die Prüfung von OIDC-Anmeldetoken wurde gehärtet."
+        },
+        {
+          "id": "dependencies",
+          "kind": "security",
+          "text": "Abhängigkeiten wurden aktualisiert, um bekannte Schwachstellen zu beheben."
+        }
+      ]
+    },
+    {
+      "version": "0.44.2",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "id": "dependencies",
+          "kind": "security",
+          "text": "Abhängigkeiten wurden aktualisiert, um bekannte Schwachstellen zu beheben."
+        }
+      ]
+    },
+    {
+      "version": "0.44.1",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "id": "maintenance",
+          "kind": "improvement",
+          "text": "Wartungsrelease mit Korrekturen am Build, ohne sichtbare Änderungen."
+        }
+      ]
+    },
+    {
+      "version": "0.44.0",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "id": "cve-subscriptions",
+          "kind": "feature",
+          "text": "CVEs abonnieren: Mit Abonnieren auf der CVE-Detailseite folgen Sie einer CVE und erhalten Benachrichtigungen zu Kommentaren, Priorisierung, Risikoakzeptanzen, Behebungen, Eskalationen sowie zu geänderten Bewertungen und neuen Fixes. In der CVE-Liste zeigt der Filter Nur abonnierte nur Ihre Abonnements."
+        },
+        {
+          "id": "bulk-remediations",
+          "kind": "feature",
+          "text": "Behebungen für mehrere Namespaces auf einmal anlegen: Wählen Sie einen oder mehrere betroffene Namespaces (oder Alle auswählen), pro Namespace wird eine Behebung erstellt."
+        },
+        {
+          "id": "alert-summary-email",
+          "kind": "feature",
+          "text": "Optionale tägliche Zusammenfassungs-E-Mail unter Persönliche Einstellungen: neue kritische CVEs, kritische CVEs mit verfügbarem Fix und neu priorisierte CVEs. Höchstens eine E-Mail pro Tag, nur mit Anzahlen und Links."
+        },
+        {
+          "id": "mention-picker",
+          "kind": "improvement",
+          "text": "Erwähnungen in Kommentaren: Ein @ öffnet einen Suchdialog, in dem Sie Benutzer per Name oder Benutzername suchen und mit der Tastatur auswählen."
+        },
+        {
+          "id": "epss-matrix-fixability",
+          "kind": "improvement",
+          "text": "Die EPSS-Risikomatrix im Dashboard zeigt beim Überfahren eines Punktes, ob in Ihrem Bereich ein Fix verfügbar ist."
+        },
+        {
+          "id": "workflow-stepper",
+          "kind": "fix",
+          "text": "Die Workflow-Schritte auf der CVE-Detailseite zeigen laufende Behebungen und beantragte Risikoakzeptanzen jetzt korrekt an."
+        },
+        {
+          "id": "detail-scope",
+          "kind": "fix",
+          "text": "Die CVE-Detailseite folgt dem in der Seitenleiste gewählten Cluster und Namespace: Deployments, Komponenten und Zahlen beziehen sich nur auf diesen Bereich."
+        },
+        {
+          "id": "excel-export",
+          "kind": "fix",
+          "text": "Fehler im Excel-Export behoben."
+        }
+      ]
+    },
+    {
+      "version": "0.43.0",
+      "date": "2026-10-30",
+      "items": [
+        {
+          "id": "cross-cluster-access",
+          "kind": "feature",
+          "text": "Clusterübergreifender Zugriff: Wenn Ihr Betriebsteam Cluster zu Gruppen zusammenfasst, sehen Sie Namespaces, die für Sie auf einem Partner-Cluster freigegeben sind, auch im Frontend der anderen Cluster dieser Gruppe."
+        }
+      ]
+    },
+    {
+      "version": "0.42.0",
+      "date": "2026-10-28",
+      "items": [
+        {
+          "id": "my-comments",
+          "kind": "feature",
+          "text": "Neue Seite Meine Kommentare: Sie listet alle Diskussionen, in denen Sie kommentiert haben, mit Ihrem letzten Kommentar und der Anzahl neuer Antworten seitdem."
+        },
+        {
+          "id": "consistent-scores",
+          "kind": "fix",
+          "text": "Schweregrad, CVSS und EPSS sind jetzt in jeder Ansicht und jedem Bereich gleich. Es gilt immer die Bewertung des zuletzt gescannten Images."
+        }
+      ]
+    }
+  ]
+}

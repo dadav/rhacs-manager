@@ -1,0 +1,126 @@
+{
+  "releases": [
+    {
+      "version": "0.45.1",
+      "date": "2026-11-04",
+      "items": [
+        {
+          "id": "faq",
+          "kind": "feature",
+          "text": "New FAQ page under Help in the sidebar: it answers common questions about visibility, ratings, risk acceptances, remediations, escalations, notifications, and badges. The search is kept in the URL, so you can share a link to a filtered FAQ."
+        }
+      ]
+    },
+    {
+      "version": "0.45.0",
+      "date": "2026-11-04",
+      "items": [
+        {
+          "id": "oidc-token-check",
+          "kind": "security",
+          "text": "Hardened the validation of OIDC sign-in tokens."
+        },
+        {
+          "id": "dependencies",
+          "kind": "security",
+          "text": "Updated dependencies to fix known vulnerabilities."
+        }
+      ]
+    },
+    {
+      "version": "0.44.2",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "id": "dependencies",
+          "kind": "security",
+          "text": "Updated dependencies to fix known vulnerabilities."
+        }
+      ]
+    },
+    {
+      "version": "0.44.1",
+      "date": "2026-11-03",
+      "items": [
+        {
+          "id": "maintenance",
+          "kind": "improvement",
+          "text": "Maintenance release with build fixes and no visible changes."
+        }
+      ]
+    },
+    {
+      "version": "0.44.0",
+      "date": "2026-11-01",
+      "items": [
+        {
+          "id": "cve-subscriptions",
+          "kind": "feature",
+          "text": "Subscribe to CVEs: use Subscribe on a CVE detail page to follow a CVE and get notified about comments, prioritization, risk acceptances, remediations, escalations, changed ratings, and new fixes. In the CVE list, the Subscribed only filter shows just your subscriptions."
+        },
+        {
+          "id": "bulk-remediations",
+          "kind": "feature",
+          "text": "Create remediations for several namespaces at once: tick one or more affected namespaces (or Select all) and one remediation is created per namespace."
+        },
+        {
+          "id": "alert-summary-email",
+          "kind": "feature",
+          "text": "Optional daily summary email in My settings: new critical CVEs, critical CVEs with a fix available, and newly prioritized CVEs. At most one email per day, with counts and links only."
+        },
+        {
+          "id": "mention-picker",
+          "kind": "improvement",
+          "text": "Mentions in comments: typing @ opens a search dialog where you find users by name or username and pick them with the keyboard."
+        },
+        {
+          "id": "epss-matrix-fixability",
+          "kind": "improvement",
+          "text": "Hovering a point in the dashboard EPSS risk matrix now shows whether a fix is available in your scope."
+        },
+        {
+          "id": "workflow-stepper",
+          "kind": "fix",
+          "text": "The workflow steps on the CVE detail page now correctly show remediations in progress and requested risk acceptances."
+        },
+        {
+          "id": "detail-scope",
+          "kind": "fix",
+          "text": "The CVE detail page follows the cluster and namespace selected in the sidebar: deployments, components, and counts only cover that scope."
+        },
+        {
+          "id": "excel-export",
+          "kind": "fix",
+          "text": "Fixed an issue in the Excel export."
+        }
+      ]
+    },
+    {
+      "version": "0.43.0",
+      "date": "2026-10-30",
+      "items": [
+        {
+          "id": "cross-cluster-access",
+          "kind": "feature",
+          "text": "Cross-cluster access: when your platform team groups clusters together, namespaces shared with you on a peer cluster also show up in the frontend of the other clusters in that group."
+        }
+      ]
+    },
+    {
+      "version": "0.42.0",
+      "date": "2026-10-28",
+      "items": [
+        {
+          "id": "my-comments",
+          "kind": "feature",
+          "text": "New My comments page: it lists every discussion you commented in, with your latest comment and how many replies arrived since."
+        },
+        {
+          "id": "consistent-scores",
+          "kind": "fix",
+          "text": "Severity, CVSS, and EPSS are now the same in every view and scope. The rating of the most recently scanned image always wins."
+        }
+      ]
+    }
+  ]
+}

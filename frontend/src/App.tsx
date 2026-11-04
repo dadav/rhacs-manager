@@ -32,6 +32,7 @@ import { ScopeSelector } from "./components/scope/ScopeSelector";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { GuidedTour } from "./components/GuidedTour";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { WhatsNewLink } from "./components/WhatsNew";
 
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const CveList = lazy(() => import("./pages/CveList").then(m => ({ default: m.CveList })));
@@ -316,16 +317,18 @@ export function App() {
             alignItems: "center",
             justifyContent: "space-between",
             fontSize: 12,
-            opacity: 0.7,
           }}
         >
-          <span>v{__APP_VERSION__}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ opacity: 0.7 }}>v{__APP_VERSION__}</span>
+            <WhatsNewLink currentVersion={__APP_VERSION__} />
+          </span>
           <a
             href="https://github.com/dadav/rhacs-manager"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
-            style={{ color: "inherit", display: "flex", alignItems: "center" }}
+            style={{ color: "inherit", display: "flex", alignItems: "center", opacity: 0.7 }}
           >
             <GithubIcon style={{ fontSize: 20 }} />
           </a>

@@ -377,6 +377,18 @@ After updating, verify the build with:
 go build -o /dev/null .
 ```
 
+## Releasing
+
+Every release needs user-facing notes for the in-app **What's new?** modal in `frontend/src/releases/releases.de.json` and `releases.en.json` (newest first, plain text, identical version, date, item ids and kinds in both files).
+
+1. Add the entry for the new version to both files.
+2. Run `cd frontend && bun run test` (validates both files).
+3. Commit the notes; `just release` refuses a dirty working tree.
+4. Run `just release vX.Y.Z`. It refuses to tag a version without notes in both files.
+5. Push the release commit and the tag.
+
+Notes for a version newer than the running build are hidden, so committing them on `main` before the release is safe.
+
 ## PatternFly 6 Notes
 
 When working with the frontend, keep these PatternFly 6 constraints in mind:

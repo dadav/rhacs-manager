@@ -364,6 +364,10 @@ Open **My settings** from the sliders icon in the masthead to choose, per catego
 - The search is stored in the page URL (`?q=`), so you can share a link to a filtered FAQ. The sidebar cluster and namespace selection stays in the URL as well.
 - The FAQ content ships with each release (German and English) and cannot be edited in the app.
 
+## What's new?
+
+The sidebar footer shows the running version next to a **What's new?** link. It opens the release notes of that version, with earlier releases collapsed below. A dot on the link marks a release whose notes you have not opened yet; it disappears once you open them. This is remembered per browser, so a new browser or cleared site data shows the dot again. The release notes ship with each release (German and English).
+
 ## Practical Differences Between Roles
 
 ### `team_member`

@@ -1122,5 +1122,19 @@
     "noResults": "No matching questions found",
     "noResultsHint": "Try different or fewer search terms.",
     "clearSearch": "Clear search"
+  },
+  "whatsNew": {
+    "label": "What's new?",
+    "title": "What's new in v{{version}}",
+    "newIndicator": "new release",
+    "earlierReleases": "Earlier releases",
+    "noNotesForVersion": "There are no release notes for this version.",
+    "viewOnGithub": "View on GitHub",
+    "kind": {
+      "feature": "New",
+      "improvement": "Improved",
+      "fix": "Fixed",
+      "security": "Security"
+    }
   }
 }

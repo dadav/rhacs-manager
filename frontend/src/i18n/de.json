@@ -1122,5 +1122,19 @@
     "noResults": "Keine passenden Fragen gefunden",
     "noResultsHint": "Versuchen Sie andere oder weniger Suchbegriffe.",
     "clearSearch": "Suche zurücksetzen"
+  },
+  "whatsNew": {
+    "label": "Was ist neu?",
+    "title": "Neuigkeiten in v{{version}}",
+    "newIndicator": "neue Version",
+    "earlierReleases": "Frühere Versionen",
+    "noNotesForVersion": "Für diese Version gibt es keine Versionshinweise.",
+    "viewOnGithub": "Auf GitHub ansehen",
+    "kind": {
+      "feature": "Neu",
+      "improvement": "Verbessert",
+      "fix": "Behoben",
+      "security": "Sicherheit"
+    }
   }
 }

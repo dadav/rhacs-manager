@@ -254,6 +254,7 @@ Access control rules:
 - In-app links and `navigate()` targets into CVE, image, dashboard, or list views must go through `useScopedLink()` / `buildScopedTo` from `frontend/src/hooks/useScope.ts`, so the sidebar scope (`cluster`, `ns`) and `ignore_thresholds` survive navigation. Params already in the target win (drilldowns override the sidebar scope). The CVE list reads its namespace filter from `ns`, not `namespace`.
 - Keep translations aligned in `frontend/src/i18n/de.json` and `frontend/src/i18n/en.json`.
 - The UI is German-first, but English translations also exist.
+- Release notes for the sidebar "What's new?" modal live in `frontend/src/releases/releases.de.json` and `releases.en.json`: user-facing plain text (formal "Sie" in German), newest first, identical versions/dates/item ids/kinds in both files (`releaseNotes.test.ts`, which also requires an entry for the `package.json` version). `just release` refuses to tag without one. Notes newer than the running version are hidden (`visibleReleases`).
 - In-app FAQ content lives in `frontend/src/faq/faq.de.json` and `faq.en.json` (plain-text paragraphs only, formal "Sie" in German like the rest of the UI). Category and entry ids must stay identical in both files (`faqContent.test.ts`). Only state rules that this file or the docs back up.
 
 Example:

@@ -396,6 +396,18 @@ release version:
       exit 1
     fi
 
+    # Require user-facing release notes (shown in the app's "What's new?" modal)
+    if ! command -v jq >/dev/null 2>&1; then
+      echo "Error: jq is required to check the release notes."
+      exit 1
+    fi
+    for notes in frontend/src/releases/releases.de.json frontend/src/releases/releases.en.json; do
+      if ! jq -e --arg v "${app_version}" 'any(.releases[]; .version == $v and (.items | length) > 0)' "${notes}" >/dev/null; then
+        echo "Error: no release notes for ${app_version} in ${notes}. Add and commit an entry first."
+        exit 1
+      fi
+    done
+
     # Update chart version and appVersion in Chart.yaml.
     # The release workflow packages with `helm show chart ... version` for BOTH
     # --version and --app-version, so the chart `version` field is what actually
