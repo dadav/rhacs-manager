@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.45.2",
+      "date": "2026-11-04",
+      "items": [
+        {
+          "id": "whatsnew",
+          "kind": "feature",
+          "text": "Each version now has a changelog. The changelog can be found in the sidebar."
+        }
+      ]
+    },
+    {
       "version": "0.45.1",
       "date": "2026-11-04",
       "items": [
