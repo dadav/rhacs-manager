@@ -29,6 +29,10 @@ NOTIFICATION_MESSAGES: dict[str, dict[str, dict[str, str]]] = {
         "de": {"title": "Neuer Kommentar: {cve_id}", "message": "{author} hat einen Kommentar hinterlassen."},
         "en": {"title": "New comment: {cve_id}", "message": "{author} left a comment."},
     },
+    "risk_comment_sec_team": {
+        "de": {"title": "Neuer Kommentar: {cve_id}", "message": "{author} hat einen Kommentar hinterlassen."},
+        "en": {"title": "New comment: {cve_id}", "message": "{author} left a comment."},
+    },
     "risk_status": {
         "de": {
             "title": "Risikoakzeptanz {status_label}: {cve_id}",

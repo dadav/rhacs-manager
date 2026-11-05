@@ -16,10 +16,11 @@ from ..models.cve_priority import CvePriority
 from ..models.escalation import ESCALATION_UNIQUE_CONSTRAINT, Escalation, EscalationWarning
 from ..models.global_settings import GlobalSettings
 from ..models.namespace_contact import NamespaceContact
-from ..models.remediation import Remediation, RemediationStatus
-from ..models.risk_acceptance import RiskAcceptance, RiskStatus
+from ..models.remediation import Remediation, RemediationStatus, overdue_remediation_filters
+from ..models.risk_acceptance import RiskAcceptance, RiskStatus, expiring_risk_acceptance_filters
 from ..notifications import service as notif_svc
 from ..services import cve_subscription_service as sub_svc
+from ..services import notification_summary_service as summary_svc
 from ..services.cve_filter_service import load_approved_suppression_rules
 from ..services.escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
@@ -82,15 +83,7 @@ async def run_expiry_warning() -> None:
     logger.info("Running expiry warning check")
     async with AppSessionLocal() as session:
         now = datetime.utcnow()
-        warning_cutoff = now + timedelta(days=7)
-        result = await session.execute(
-            select(RiskAcceptance).where(
-                RiskAcceptance.status == RiskStatus.approved,
-                RiskAcceptance.expires_at != None,
-                RiskAcceptance.expires_at >= now,
-                RiskAcceptance.expires_at <= warning_cutoff,
-            )
-        )
+        result = await session.execute(select(RiskAcceptance).where(*expiring_risk_acceptance_filters(now)))
         for acceptance in result.scalars().all():
             await notif_svc.notify_risk_expiring(session, acceptance)
         await session.commit()
@@ -539,13 +532,7 @@ async def run_remediation_overdue_check() -> None:
     logger.info("Running remediation overdue check")
     async with AppSessionLocal() as session:
         today = datetime.utcnow().date()
-        result = await session.execute(
-            select(Remediation).where(
-                Remediation.target_date != None,
-                Remediation.target_date < today,
-                Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
-            )
-        )
+        result = await session.execute(select(Remediation).where(*overdue_remediation_filters(today)))
         for remediation in result.scalars().all():
             await notif_svc.notify_remediation_overdue(session, remediation)
         await session.commit()
@@ -761,6 +748,14 @@ async def run_cve_subscription_email() -> None:
         await sub_svc.run_subscription_email_digest(app_db)
 
 
+@instrument_job("notification_summary")
+async def run_notification_summary() -> None:
+    """Daily opt-in summary email of in-app-only notifications (counts and links only)."""
+    logger.info("Running notification summary email")
+    async with AppSessionLocal() as app_db:
+        await summary_svc.run_notification_summary(app_db)
+
+
 @instrument_job("team_digest")
 async def run_team_digest() -> None:
     """Weekly opt-in team digest per user (same weekday as the management digest)."""
@@ -913,5 +908,13 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=7,
         minute=20,
         id="cve_subscription_email",
+    )
+    # After the overdue check (08:30) and auto-resolve (09:00), so live counts are current.
+    scheduler.add_job(
+        run_notification_summary,
+        "cron",
+        hour=9,
+        minute=15,
+        id="notification_summary",
     )
     return scheduler

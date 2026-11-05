@@ -298,7 +298,7 @@ on one CVE, or on one risk acceptance).
 | GET | `/api/me/notification-preferences` | Any | Effective in-app and email setting per category, plus `team_notifications_active` |
 | PUT | `/api/me/notification-preferences` | Any | Update one or more categories (`{"items": [{"category", "in_app", "email"}]}`); unknown categories return 400 |
 
-A channel value of `null` means that channel does not exist for the category. `cve_subscription` covers subscription notifications (in-app on by default); its email channel is the daily subscription summary (off by default). Email-only opt-in categories: `team_digest` (weekly digest) and the CVE alert summary email conditions `alert_email_new_critical`, `alert_email_critical_fixable`, `alert_email_prioritized` (one shared summary email per user per day at most).
+A channel value of `null` means that channel does not exist for the category. `cve_subscription` covers subscription notifications (in-app on by default); its email channel is the daily subscription summary (off by default). Email-only opt-in categories: `team_digest` (weekly digest) and `alert_email_critical` (CVE alert summary email: newly critical and newly fixable critical CVEs). The email channel of `priority` and `new_critical_cve` adds two more conditions to that summary (one shared email per user per day at most). The email channel of `remediation`, `suppression`, and `escalation`, plus the email-only `risk_acceptance_updates`, feed the daily notification summary email (off by default, one per user per day at most).
 
 ## Badges
 
@@ -578,3 +578,4 @@ These routes are available only when `DEV_MODE=true`.
 | POST | `/api/dev/trigger-weekly-digest` | Any dev user | Trigger digest job |
 | POST | `/api/dev/trigger-cve-subscription-diff` | Any dev user | Run the hourly CVE subscription diff now |
 | POST | `/api/dev/trigger-cve-subscription-email` | Any dev user | Send the daily subscription summary emails now |
+| POST | `/api/dev/trigger-notification-summary` | Any dev user | Send the daily notification summary emails now |

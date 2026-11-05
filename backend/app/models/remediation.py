@@ -2,7 +2,7 @@ import enum
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ColumnElement, Date, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,3 +62,12 @@ class Remediation(Base):
     assignee: Mapped["User"] = relationship("User", foreign_keys=[assigned_to])  # type: ignore[name-defined]
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])  # type: ignore[name-defined]
     resolver: Mapped["User"] = relationship("User", foreign_keys=[resolved_by])  # type: ignore[name-defined]
+
+
+def overdue_remediation_filters(today: date) -> tuple[ColumnElement[bool], ...]:
+    """WHERE conditions of "overdue": target date passed, still open or in progress."""
+    return (
+        Remediation.target_date.is_not(None),
+        Remediation.target_date < today,
+        Remediation.status.in_([RemediationStatus.open, RemediationStatus.in_progress]),
+    )

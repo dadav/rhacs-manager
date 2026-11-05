@@ -203,6 +203,7 @@
           "question": "Wie steuere ich, welche Benachrichtigungen ich erhalte?",
           "answer": [
             "Öffnen Sie \"Persönliche Einstellungen\" über das Regler-Symbol oben rechts. Dort wählen Sie je Kategorie, ob Sie In-App-Benachrichtigungen und E-Mails erhalten, und können den wöchentlichen Team-Digest sowie die CVE-Alarm-Zusammenfassung abonnieren.",
+            "Für Behebungen, Unterdrückungsregeln, Eskalationen sowie Prüfungen, Kommentare und Ablauf von Risikoakzeptanzen können Sie eine tägliche Zusammenfassung per E-Mail einschalten (standardmäßig aus). Sie enthält nur Kennzahlen und Links.",
             "Erwähnungen (@Name) werden immer zugestellt und lassen sich nicht abschalten."
           ]
         },
@@ -225,7 +226,7 @@
           "id": "no-email",
           "question": "Warum bekomme ich keine E-Mails?",
           "answer": [
-            "Häufige Gründe: Ihr Identitätsanbieter liefert keine E-Mail-Adresse, dann erhalten Sie nur In-App-Benachrichtigungen. Die E-Mail-Kategorie ist in den persönlichen Einstellungen ausgeschaltet (Digest und Zusammenfassungen sind standardmäßig aus). Oder Sie haben sich länger als 30 Tage nicht angemeldet: Team-Benachrichtigungen gehen nur an kürzlich angemeldete Personen.",
+            "Häufige Gründe: Ihr Identitätsanbieter liefert keine E-Mail-Adresse, dann erhalten Sie nur In-App-Benachrichtigungen. Die E-Mail-Kategorie ist in den persönlichen Einstellungen ausgeschaltet (Digest und alle Zusammenfassungen sind standardmäßig aus). Oder Sie haben sich länger als 30 Tage nicht angemeldet: Team-Benachrichtigungen gehen nur an kürzlich angemeldete Personen.",
             "E-Mails werden nach bestem Bemühen versendet und bei einem Fehler nicht wiederholt."
           ]
         },

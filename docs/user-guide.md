@@ -325,13 +325,30 @@ Notifications appear in the bell menu and are stored per user.
 - The weekly digest is sent to the configured management email on the configured weekday.
 - Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request (can be turned off, see below).
 - Overdue remediations and expiring risk acceptances also create notifications.
+- Most of these can also reach you by email, see [Notification summary email](#notification-summary-email-opt-in) below.
 
 ### Team notifications
 
 - **New relevant CVEs:** once a day, team members get an in-app notification when a CVE newly becomes visible in one of their namespaces: it crosses the configured CVSS/EPSS thresholds, first appears there, or is prioritized by the security team. CVEs hidden in that namespace by a suppression rule do not alert. Prioritizations and threshold crossings follow their own preference category; more than 10 of one kind at once arrive as one summary. The first run after installation only records the current state and notifies nobody.
 - **Weekly team digest (opt-in):** on the digest weekday, an email with counts for your namespaces: new fixable CVEs, critical fixable CVEs, available component upgrades, overdue and due remediations, remediations assigned to you, and risk acceptances expiring within 14 days. It links into the app and never names CVEs or components. It is only sent when at least one of these counts is not zero.
-- **CVE alert summary email (opt-in):** choose any of three conditions in **My settings**: new critical CVEs, critical CVEs that now have a fix available, and newly prioritized CVEs. The check runs with the daily alert job. All conditions you opted into share **one summary email per day at most**, however many CVEs are new; it holds counts and links only and never names CVEs, components, or namespaces. A CVE in several of your namespaces counts once. Security-team and all-namespace users can opt in too; their summary counts all namespaces. The conditions follow the global CVSS/EPSS thresholds and suppression rules like the in-app alerts, so critical CVEs below the thresholds are not counted. Delivery is best effort: if sending fails, that day's email is not retried.
+- **CVE alert summary email (opt-in):** three switches in **My settings** feed four lines. **Alert email: critical CVEs** covers CVEs newly rated critical, including severity raises, and critical CVEs that now have a fix available. The email switches of the **Prioritizations** and **New relevant CVEs** rows add newly prioritized CVEs and new relevant CVEs (newly above the thresholds regardless of severity). A CVE can count in both a critical and the relevant line. The check runs with the daily alert job. All conditions you opted into share **one summary email per day at most**, however many CVEs are new; it holds counts and links only and never names CVEs, components, or namespaces. A CVE in several of your namespaces counts once. Security-team and all-namespace users can opt in too; their summary counts all namespaces. The conditions follow the global CVSS/EPSS thresholds and suppression rules like the in-app alerts, so critical CVEs below the thresholds are not counted. Delivery is best effort: if sending fails, that day's email is not retried.
 - All of these go only to users who signed in within the last 30 days (configurable with `TEAM_NOTIFICATION_ACTIVE_DAYS`), based on the namespaces seen at that sign-in. If you have since lost access to a namespace, alerts only about it are hidden, and alerts that also cover other namespaces no longer name it.
+
+### Notification summary email (opt-in)
+
+Events that otherwise only appear in the app can be summarized in **one email per day at most**, sent after the morning jobs. Turn it on per category in **My settings**; everything is off by default. The email holds counts and links only and never names CVEs, namespaces, components, or authors.
+
+| Switch | Counted |
+| --- | --- |
+| Remediations | Remediations assigned to you, status changes, overdue remediations |
+| Suppression rules | New requests, decisions on your rules |
+| Escalations | New escalations (security team) |
+| Risk acceptances: reviews, comments, expiry | Reviews assigned to you, team comments to the security team, your own acceptances expiring within 7 days |
+
+- Overdue remediations and expiring risk acceptances are counted live, so they appear every day until they are resolved or have expired. Overdue remediations only count in namespaces you could see at your last sign-in, unless you can see all namespaces.
+- The setting is independent of the in-app switch: you can turn in-app notifications off and keep the email.
+- Only users who signed in within the last 30 days receive it (`TEAM_NOTIFICATION_ACTIVE_DAYS`). Delivery is best effort: a failed send is not retried.
+- Prioritizations are not part of this email: the email switch of the **Prioritizations** row belongs to the **CVE alert summary email**. It counts CVEs with an affected deployment that are not suppressed.
 
 ### CVE subscriptions (Abonnieren)
 
@@ -354,7 +371,7 @@ The **Subscribed CVEs** category in **My settings** turns the in-app notificatio
 
 ### My settings
 
-Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest and the CVE alert summary email conditions. Mentions (`@name`) are always delivered and cannot be turned off.
+Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest, the CVE alert summary email conditions, and the notification summary email. Mentions (`@name`) are always delivered and cannot be turned off.
 
 ## FAQ
 

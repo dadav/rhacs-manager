@@ -264,6 +264,7 @@ async def send_alert_summary(
             "new_critical": _app_link(base_url, "/vulnerabilities?severity=4"),
             "critical_fixable": _app_link(base_url, "/vulnerabilities?severity=4&fixable=true"),
             "prioritized": _app_link(base_url, "/vulnerabilities?prioritized_only=1"),
+            "new_relevant": _app_link(base_url, "/vulnerabilities"),
             "cves": _app_link(base_url, "/vulnerabilities"),
             "settings": _app_link(base_url, "/my-settings"),
         },
@@ -297,3 +298,52 @@ async def send_cve_subscription_summary(
         },
     )
     await send_email(to_email, "Neuigkeiten zu Ihren abonnierten CVEs", html)
+
+
+# Daily notification summary: (counted keys, label, app path), in display order.
+# Keys are ``EMAIL_SUMMARY_KEYS`` message keys plus the live counts
+# ``remediation_overdue`` and ``risk_expiring``.
+_NOTIFICATION_SUMMARY_ROWS: tuple[tuple[tuple[str, ...], str, str], ...] = (
+    (("remediation_overdue",), "Überfällige Behebungen", "/remediations?overdue=1"),
+    (("remediation_created", "remediation_assigned"), "Ihnen zugewiesene Behebungen", "/remediations?mine=1"),
+    (("remediation_status",), "Statusänderungen bei Behebungen", "/remediations"),
+    (("suppression_requested",), "Angefragte Unterdrückungsregeln", "/suppression-rules"),
+    (("suppression_status",), "Entscheidungen zu Ihren Unterdrückungsregeln", "/suppression-rules"),
+    (("escalation",), "Neue Eskalationen", "/escalations"),
+    (("risk_reviewer_assigned",), "Ihnen zugewiesene Risikoakzeptanz-Prüfungen", "/risk-acceptances"),
+    (("risk_comment_sec_team",), "Neue Kommentare zu Risikoakzeptanzen", "/risk-acceptances"),
+    (("risk_expiring",), "Risikoakzeptanzen, die in 7 Tagen oder früher ablaufen", "/risk-acceptances"),
+)
+
+
+def notification_summary_rows(counts: dict[str, int], base_url: str) -> list[tuple[str, int, str]]:
+    """(label, count, absolute link) for every row with a non-zero count."""
+    rows: list[tuple[str, int, str]] = []
+    for keys, label, path in _NOTIFICATION_SUMMARY_ROWS:
+        value = sum(counts.get(key, 0) for key in keys)
+        if value:
+            rows.append((label, value, _app_link(base_url, path)))
+    return rows
+
+
+async def send_notification_summary(
+    to_email: str,
+    recipient_name: str,
+    *,
+    counts: dict[str, int],
+    base_url: str | None = None,
+) -> None:
+    """Daily opt-in summary of in-app-only notifications: counts and links only.
+
+    Never include CVE IDs, component, image or namespace names, authors, or comment
+    text: the recipient's current namespace access cannot be verified at send time.
+    """
+    base_url = base_url or settings.app_base_url
+    tmpl = _jinja_env.get_template("notification_summary.html")
+    html = tmpl.render(
+        recipient_name=recipient_name,
+        rows=notification_summary_rows(counts, base_url),
+        settings_link=_app_link(base_url, "/my-settings"),
+        app_link=_app_link(base_url, "/"),
+    )
+    await send_email(to_email, "Ihre tägliche Benachrichtigungs-Zusammenfassung", html)

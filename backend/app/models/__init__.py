@@ -10,6 +10,7 @@ from .escalation import Escalation
 from .global_settings import GlobalSettings
 from .namespace_contact import NamespaceContact
 from .notification import Notification, NotificationType
+from .notification_email import NotificationEmailEvent, NotificationSummaryDelivery
 from .notification_preference import NotificationPreference
 from .remediation import Remediation, RemediationStatus
 from .risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
@@ -46,4 +47,6 @@ __all__ = [
     "CveSubscription",
     "CveSubscriptionEvent",
     "CveSubscriptionEmailDelivery",
+    "NotificationEmailEvent",
+    "NotificationSummaryDelivery",
 ]

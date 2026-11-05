@@ -1,6 +1,27 @@
 {
   "releases": [
     {
+      "version": "0.45.3",
+      "date": "2026-11-05",
+      "items": [
+        {
+          "id": "notification-summary-email",
+          "kind": "feature",
+          "text": "You can now get a daily summary email covering, among other things, overdue remediations, suppression rules, escalations, and expiring risk acceptances. It holds counts and links only. Turn it on per category in My settings; it is off by default."
+        },
+        {
+          "id": "new-relevant-email",
+          "kind": "feature",
+          "text": "The CVE alert summary can now also count new relevant CVEs of any severity. To use it, turn on the email for \"New relevant CVEs\" in My settings."
+        },
+        {
+          "id": "settings-merged",
+          "kind": "improvement",
+          "text": "My settings is easier to read: the email for newly prioritized CVEs now sits in the \"Prioritizations\" row, and the two critical CVE switches are now one, \"Alert email: critical CVEs\". Your existing choices are kept. If you had turned on only one of the two switches, you now get both counts."
+        }
+      ]
+    },
+    {
       "version": "0.45.2",
       "date": "2026-11-04",
       "items": [

@@ -1,13 +1,16 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, ForeignKey, Index, String, Text, text
+from sqlalchemy import JSON, ColumnElement, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
+
+# Risk acceptances expiring within this many days are reminded about.
+EXPIRY_WARNING_DAYS = 7
 
 # JSONB on Postgres, plain JSON on SQLite (test engine) so create_all renders.
 _SEGMENTS_JSON = JSONB().with_variant(JSON(), "sqlite")
@@ -71,3 +74,13 @@ class RiskAcceptanceComment(Base):
 
     acceptance: Mapped["RiskAcceptance"] = relationship(back_populates="comments")
     author: Mapped["User"] = relationship("User")  # type: ignore[name-defined]
+
+
+def expiring_risk_acceptance_filters(now: datetime) -> tuple[ColumnElement[bool], ...]:
+    """WHERE conditions of "expiring": approved and expires within the warning window."""
+    return (
+        RiskAcceptance.status == RiskStatus.approved,
+        RiskAcceptance.expires_at.is_not(None),
+        RiskAcceptance.expires_at >= now,
+        RiskAcceptance.expires_at <= now + timedelta(days=EXPIRY_WARNING_DAYS),
+    )

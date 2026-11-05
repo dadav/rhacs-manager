@@ -8,11 +8,12 @@ from ..config import settings
 from ..i18n import DEFAULT_LANG
 from ..mail.service import deliverable_address
 from ..models.notification import Notification, NotificationType
+from ..models.notification_email import NotificationEmailEvent
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
 from ..services.comment_content import legacy_mention_names
 from .messages import SCOPE_PARAM, render_notification
-from .preferences import category_for_type, wants
+from .preferences import EMAIL_SUMMARY_KEYS, category_for_type, wants
 
 # Hard cap on distinct, non-self recipients per comment. Guards against a single
 # comment fanning out to the whole org.
@@ -67,7 +68,13 @@ async def create_notification(
     ``scope`` lists the (namespace, cluster) pairs the notification is about. Set
     it whenever recipients were picked from namespace snapshots: on read, the
     notification is only shown if the reader still sees one of those namespaces.
+
+    Also queues the notification for the daily summary email when the user opted in,
+    independent of the in-app setting. Both writes share the caller's transaction.
     """
+    email_category = EMAIL_SUMMARY_KEYS.get(message_key)
+    if email_category is not None and await wants(session, user_id, email_category, "email"):
+        session.add(NotificationEmailEvent(user_id=user_id, message_key=message_key))
     category = category_for_type(type)
     if category is not None and not await wants(session, user_id, category, "in_app"):
         logger.debug("Notification %s for user %s suppressed by preference", type, user_id)
@@ -124,7 +131,10 @@ async def notify_risk_comment(
         for user in await _get_sec_team_users(session):
             if user.id in excluded:
                 continue
-            await create_notification(session, user.id, NotificationType.risk_comment, "risk_comment", params, link)
+            # Separate key from the creator branch: only this one has no direct email.
+            await create_notification(
+                session, user.id, NotificationType.risk_comment, "risk_comment_sec_team", params, link
+            )
     else:
         # Notify the RA creator
         if acceptance.created_by != author.id and acceptance.created_by not in excluded:

@@ -8,7 +8,7 @@
 #}
 
 {% block title %}Neue CVE-Funde{% endblock %}
-{% block preheader %}{{ counts.new_critical }} neue kritische CVEs, {{ counts.critical_fixable }} kritische mit Fix, {{ counts.prioritized }} neu priorisiert.{% endblock %}
+{% block preheader %}{{ counts.new_critical }} neue kritische CVEs, {{ counts.critical_fixable }} kritische mit Fix, {{ counts.prioritized }} neu priorisiert, {{ counts.new_relevant }} neu relevant.{% endblock %}
 
 {% block content %}
   <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#c9190b">CVE-Alarm</div>
@@ -22,7 +22,8 @@
       {% set rows = [
         ("Neue kritische CVEs", counts.new_critical, links.new_critical),
         ("Kritische CVEs mit verfügbarem Fix (neu)", counts.critical_fixable, links.critical_fixable),
-        ("Neu priorisierte CVEs", counts.prioritized, links.prioritized)
+        ("Neu priorisierte CVEs", counts.prioritized, links.prioritized),
+        ("Neu relevante CVEs", counts.new_relevant, links.new_relevant)
       ] | selectattr("1") | list %}
       {% for label, value, href in rows %}
       <tr>

@@ -116,7 +116,9 @@ async def test_preference_defaults_and_overrides(store):
     async with store() as session:
         assert await prefs.wants(session, "dev", "risk_acceptance", "email") is True
         assert await prefs.wants(session, "dev", "team_digest", "email") is False  # opt-in
-        assert await prefs.wants(session, "dev", "remediation", "email") is False  # channel does not exist
+        assert await prefs.wants(session, "dev", "remediation", "email") is False  # opt-in
+        assert await prefs.wants(session, "dev", "priority", "email") is False  # opt-in
+        assert await prefs.wants(session, "dev", "alert_email_critical", "in_app") is False  # channel does not exist
 
         await prefs.set_preferences(
             session,
@@ -124,6 +126,8 @@ async def test_preference_defaults_and_overrides(store):
             [
                 prefs.EffectivePreference("team_digest", in_app=True, email=True),
                 prefs.EffectivePreference("remediation", in_app=False, email=True),
+                prefs.EffectivePreference("priority", in_app=True, email=True),
+                prefs.EffectivePreference("alert_email_critical", in_app=True, email=True),
             ],
         )
         await session.commit()
@@ -132,7 +136,9 @@ async def test_preference_defaults_and_overrides(store):
     assert effective["team_digest"].email is True
     assert effective["team_digest"].in_app is None  # unsupported channel stays unsupported
     assert effective["remediation"].in_app is False
-    assert effective["remediation"].email is None
+    assert effective["remediation"].email is True
+    assert effective["priority"].email is True
+    assert effective["alert_email_critical"].in_app is None  # unsupported channel stays unsupported
 
 
 async def test_disabled_category_suppresses_in_app_notification(store):
@@ -590,10 +596,10 @@ def test_alert_email_plan_counts_distinct_cves_in_own_namespaces_or_all():
     plan = team.plan_alert_emails(recipients, new_keys)
 
     assert plan == {
-        "dev": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
-        "pay": team.AlertEmailCounts(new_critical=1, critical_fixable=0, prioritized=1),
-        "sec": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
-        "wild": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1),
+        "dev": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1, new_relevant=1),
+        "pay": team.AlertEmailCounts(new_critical=1, critical_fixable=0, prioritized=1, new_relevant=1),
+        "sec": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1, new_relevant=1),
+        "wild": team.AlertEmailCounts(new_critical=2, critical_fixable=1, prioritized=1, new_relevant=1),
     }
 
 
@@ -607,8 +613,7 @@ def test_prioritizing_an_existing_critical_cve_is_not_a_new_critical():
 
 
 _ALL_EMAIL_CONDITIONS = [
-    prefs.EffectivePreference(category, None, True)
-    for category in ("alert_email_new_critical", "alert_email_critical_fixable", "alert_email_prioritized")
+    prefs.EffectivePreference(category, None, True) for category in ("alert_email_critical", "priority")
 ]
 
 
@@ -676,8 +681,8 @@ async def test_alert_email_only_includes_opted_in_conditions_and_valid_addresses
     await _add_user(store, "placeholder", email="placeholder@spoke.local")
     for user_id in ("crit", "prio_only", "none", "placeholder"):
         await _snapshot(store, user_id, [PAYMENTS])
-    await _opt_in(store, "crit", [prefs.EffectivePreference("alert_email_new_critical", None, True)])
-    await _opt_in(store, "prio_only", [prefs.EffectivePreference("alert_email_prioritized", None, True)])
+    await _opt_in(store, "crit", [prefs.EffectivePreference("alert_email_critical", None, True)])
+    await _opt_in(store, "prio_only", [prefs.EffectivePreference("priority", None, True)])
     await _opt_in(store, "placeholder")
     keys = {_key("CVE-1", team.REASON_EMAIL_CRITICAL), _key("CVE-2", "prioritized")}
 
@@ -691,6 +696,94 @@ async def test_alert_email_only_includes_opted_in_conditions_and_valid_addresses
     async with store() as session:
         claimed = {d.user_id for d in (await session.execute(select(AlertEmailDelivery))).scalars().all()}
     assert claimed == {"crit", "prio_only"}
+
+
+async def test_new_relevant_condition_shares_the_one_daily_email(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(
+        store,
+        "dev",
+        [
+            prefs.EffectivePreference("alert_email_critical", None, True),
+            prefs.EffectivePreference("new_critical_cve", None, True),
+        ],
+    )
+    keys = {
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-1", "visible"),
+        _key("CVE-2", "visible"),
+    }
+
+    send = await _diff_runs(store, [set(), keys])
+
+    assert send.await_count == 1
+    assert send.await_args.args[2] == team.AlertEmailCounts(new_critical=1, new_relevant=2)
+
+
+async def test_alert_email_is_independent_of_the_in_app_switch_of_the_same_row(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev", [prefs.EffectivePreference("new_critical_cve", False, True)])
+
+    send = await _diff_runs(store, [set(), {_key("CVE-1", "visible")}])
+
+    send.assert_awaited_once()
+    assert send.await_args.args[2] == team.AlertEmailCounts(new_relevant=1)
+    async with store() as session:
+        assert (await session.execute(select(Notification))).scalars().all() == []
+
+
+async def test_new_relevant_alone_sends_nothing_without_opt_in(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev", [prefs.EffectivePreference("alert_email_critical", None, True)])
+
+    send = await _diff_runs(store, [set(), {_key("CVE-1", "visible")}])
+
+    send.assert_not_awaited()
+
+
+async def test_critical_switch_enables_both_count_lines_in_one_email(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev", [prefs.EffectivePreference("alert_email_critical", None, True)])
+    keys = {
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-2", team.REASON_EMAIL_CRITICAL_FIXABLE),
+    }
+
+    send = await _diff_runs(store, [set(), keys])
+
+    send.assert_awaited_once()
+    assert send.await_args.args[2] == team.AlertEmailCounts(new_critical=1, critical_fixable=1)
+
+
+async def test_without_critical_switch_neither_line_appears(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev", [prefs.EffectivePreference("priority", None, True)])
+    keys = {
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL),
+        _key("CVE-1", team.REASON_EMAIL_CRITICAL_FIXABLE),
+    }
+
+    send = await _diff_runs(store, [set(), keys])
+
+    send.assert_not_awaited()
+
+
+async def test_second_run_same_day_with_a_new_fix_sends_nothing(store):
+    await _add_user(store, "dev")
+    await _snapshot(store, "dev", [PAYMENTS])
+    await _opt_in(store, "dev", [prefs.EffectivePreference("alert_email_critical", None, True)])
+    first = {_key("CVE-1", team.REASON_EMAIL_CRITICAL)}
+    second = first | {_key("CVE-1", team.REASON_EMAIL_CRITICAL_FIXABLE)}
+
+    send = await _diff_runs(store, [set(), first, second])
+
+    send.assert_awaited_once()
+    assert send.await_args.args[2] == team.AlertEmailCounts(new_critical=1)
 
 
 async def test_second_run_on_the_same_day_sends_no_second_email(store):
@@ -768,9 +861,11 @@ async def test_old_delivery_claims_are_pruned(store):
 
 
 def test_alert_email_new_categories_default_off():
-    for category in ("alert_email_new_critical", "alert_email_critical_fixable", "alert_email_prioritized"):
+    cat = prefs.CATEGORIES["alert_email_critical"]
+    assert (cat.in_app_default, cat.email_default) == (None, False)
+    for category in ("priority", "new_critical_cve"):
         cat = prefs.CATEGORIES[category]
-        assert (cat.in_app_default, cat.email_default) == (None, False)
+        assert (cat.in_app_default, cat.email_default) == (True, False)
 
 
 def test_alert_summary_email_has_counts_and_links_but_no_cve_details():

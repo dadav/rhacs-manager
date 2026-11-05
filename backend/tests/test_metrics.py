@@ -75,6 +75,7 @@ def test_scheduler_metrics_initialized_before_first_run() -> None:
         "weekly_digest",
         "remediation_overdue_check",
         "remediation_auto_resolve",
+        "notification_summary",
     )
     for job in expected_jobs:
         assert f'rhacs_manager_scheduler_job_runs_total{{job="{job}",status="success"}} 0.0' in body

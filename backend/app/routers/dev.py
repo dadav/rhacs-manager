@@ -11,6 +11,7 @@ from ..tasks.scheduler import (
     run_cve_subscription_diff,
     run_cve_subscription_email,
     run_escalation_check,
+    run_notification_summary,
     run_team_cve_alerts,
     run_team_digest_now,
     run_weekly_digest,
@@ -61,3 +62,10 @@ async def trigger_cve_subscription_email() -> dict:
     logger.info("Dev trigger: run_cve_subscription_email")
     await run_cve_subscription_email()
     return {"status": "ok", "job": "cve_subscription_email"}
+
+
+@router.post("/trigger-notification-summary")
+async def trigger_notification_summary() -> dict:
+    logger.info("Dev trigger: run_notification_summary")
+    await run_notification_summary()
+    return {"status": "ok", "job": "notification_summary"}

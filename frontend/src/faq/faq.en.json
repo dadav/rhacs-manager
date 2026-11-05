@@ -203,6 +203,7 @@
           "question": "How do I control which notifications I get?",
           "answer": [
             "Open \"My settings\" from the sliders icon in the top right. There you choose per category whether you get in-app notifications and emails, and you can opt into the weekly team digest and the CVE alert summary email.",
+            "For remediations, suppression rules, escalations, and risk acceptance reviews, comments, and expiry you can turn on a daily summary email (off by default). It holds counts and links only.",
             "Mentions (@name) are always delivered and cannot be turned off."
           ]
         },
@@ -225,7 +226,7 @@
           "id": "no-email",
           "question": "Why don't I get any emails?",
           "answer": [
-            "Common reasons: your identity provider sends no email address, so you only get in-app notifications. The email category is turned off in your settings (the digest and summary emails are off by default). Or you have not signed in for more than 30 days: team notifications only go to recently active users.",
+            "Common reasons: your identity provider sends no email address, so you only get in-app notifications. The email category is turned off in your settings (the digest and all summary emails are off by default). Or you have not signed in for more than 30 days: team notifications only go to recently active users.",
             "Emails are sent on a best-effort basis and are not retried after a failure."
           ]
         },

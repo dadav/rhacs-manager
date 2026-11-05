@@ -1,6 +1,27 @@
 {
   "releases": [
     {
+      "version": "0.45.3",
+      "date": "2026-11-05",
+      "items": [
+        {
+          "id": "notification-summary-email",
+          "kind": "feature",
+          "text": "Sie können nun eine tägliche Zusammenfassung per E-Mail erhalten, unter anderem zu überfälligen Behebungen, Unterdrückungsregeln, Eskalationen und ablaufenden Risikoakzeptanzen. Die E-Mail enthält nur Kennzahlen und Links. Sie schalten sie je Kategorie in den persönlichen Einstellungen ein; standardmäßig ist sie aus."
+        },
+        {
+          "id": "new-relevant-email",
+          "kind": "feature",
+          "text": "Die CVE-Alarm-Zusammenfassung kann nun auch neue relevante CVEs jeden Schweregrads zählen. Schalten Sie dazu in den persönlichen Einstellungen die E-Mail bei \"Neue relevante CVEs\" ein."
+        },
+        {
+          "id": "settings-merged",
+          "kind": "improvement",
+          "text": "Die persönlichen Einstellungen sind übersichtlicher: Die E-Mail für neu priorisierte CVEs befindet sich nun in der Zeile \"Priorisierungen\", und die beiden Schalter für kritische CVEs sind zu \"Alarm-E-Mail: kritische CVEs\" zusammengefasst. Bestehende Auswahlen bleiben erhalten. Wer nur einen der beiden Schalter aktiviert hatte, erhält nun beide Angaben."
+        }
+      ]
+    },
+    {
       "version": "0.45.2",
       "date": "2026-11-04",
       "items": [

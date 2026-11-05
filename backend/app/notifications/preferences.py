@@ -41,8 +41,11 @@ CATEGORIES: dict[str, Category] = {
             NotificationType.remediation_overdue,
         ),
         in_app_default=True,
-        email_default=None,
+        email_default=False,
     ),
+    # Email only, opt-in: part of the daily notification summary. A separate category
+    # because ``risk_acceptance`` email defaults to on and must not start sending these.
+    "risk_acceptance_updates": Category(types=(), in_app_default=None, email_default=False),
     "suppression": Category(
         types=(
             NotificationType.suppression_requested,
@@ -50,11 +53,13 @@ CATEGORIES: dict[str, Category] = {
             NotificationType.suppression_rejected,
         ),
         in_app_default=True,
-        email_default=None,
+        email_default=False,
     ),
-    "priority": Category(types=(NotificationType.new_priority,), in_app_default=True, email_default=None),
-    "new_critical_cve": Category(types=(NotificationType.new_critical_cve,), in_app_default=True, email_default=None),
-    "escalation": Category(types=(NotificationType.escalation,), in_app_default=True, email_default=None),
+    # Email channel of these two: conditions of the daily CVE alert summary email
+    # (services/team_notifications.py), not the notification summary.
+    "priority": Category(types=(NotificationType.new_priority,), in_app_default=True, email_default=False),
+    "new_critical_cve": Category(types=(NotificationType.new_critical_cve,), in_app_default=True, email_default=False),
+    "escalation": Category(types=(NotificationType.escalation,), in_app_default=True, email_default=False),
     # CVE subscriptions: in-app per event; the email channel is the opt-in daily
     # summary (counts and one link only, services/cve_subscription_service.py).
     "cve_subscription": Category(
@@ -64,11 +69,27 @@ CATEGORIES: dict[str, Category] = {
     ),
     # Weekly team digest: email only, opt-in.
     "team_digest": Category(types=(), in_app_default=None, email_default=False),
-    # Conditions of the daily CVE alert summary email (services/team_notifications.py):
-    # email only, opt-in. All opted-in conditions share one email per user per day.
-    "alert_email_new_critical": Category(types=(), in_app_default=None, email_default=False),
-    "alert_email_critical_fixable": Category(types=(), in_app_default=None, email_default=False),
-    "alert_email_prioritized": Category(types=(), in_app_default=None, email_default=False),
+    # Critical conditions of the daily CVE alert summary email (services/team_notifications.py):
+    # newly critical and newly fixable critical CVEs. Email only, opt-in. All opted-in
+    # conditions share one email per user per day.
+    "alert_email_critical": Category(types=(), in_app_default=None, email_default=False),
+}
+
+# Message keys counted in the daily notification summary email
+# (services/notification_summary_service.py), and the category whose email channel
+# gates them. Keyed on message key, not type: ``risk_comment`` shares its type with
+# ``risk_reviewer_assigned`` but is emailed directly. Never add a key that already
+# has its own email (mentions, risk_comment, risk_status, alert and subscription
+# summaries), and add a row to ``_NOTIFICATION_SUMMARY_ROWS`` in mail/service.py.
+EMAIL_SUMMARY_KEYS: dict[str, str] = {
+    "remediation_created": "remediation",
+    "remediation_assigned": "remediation",
+    "remediation_status": "remediation",
+    "suppression_requested": "suppression",
+    "suppression_status": "suppression",
+    "escalation": "escalation",
+    "risk_reviewer_assigned": "risk_acceptance_updates",
+    "risk_comment_sec_team": "risk_acceptance_updates",
 }
 
 _CATEGORY_BY_TYPE: dict[NotificationType, str] = {t: name for name, cat in CATEGORIES.items() for t in cat.types}

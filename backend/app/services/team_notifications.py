@@ -10,7 +10,7 @@ snapshot (``services/namespace_snapshot.py``), never through access control:
 - **CVE alert summary email** (daily, opt-in per condition): built from the
   same alert diff. One email per user per UTC day bundles every condition the
   user opted into (new critical CVE, critical CVE with a fix, newly
-  prioritized CVE), as counts and links only. ``alert_email_deliveries`` caps it
+  prioritized CVE, newly relevant CVE), as counts and links only. ``alert_email_deliveries`` caps it
   at one per user per day. Best effort: the cap is claimed in the diff commit
   and the email is sent afterwards, so an SMTP failure or crash loses that
   day's email (the in-app alerts stay). A CVE that disappears and returns
@@ -95,9 +95,10 @@ BASELINE_MARKS = frozenset({BASELINE_MARK, BASELINE_MARK_EMAIL})
 
 # Alert summary email conditions: count field -> (mark reason, preference category).
 _EMAIL_CONDITIONS: dict[str, tuple[str, str]] = {
-    "new_critical": (REASON_EMAIL_CRITICAL, "alert_email_new_critical"),
-    "critical_fixable": (REASON_EMAIL_CRITICAL_FIXABLE, "alert_email_critical_fixable"),
-    "prioritized": (REASON_PRIORITIZED, "alert_email_prioritized"),
+    "new_critical": (REASON_EMAIL_CRITICAL, "alert_email_critical"),
+    "critical_fixable": (REASON_EMAIL_CRITICAL_FIXABLE, "alert_email_critical"),
+    "prioritized": (REASON_PRIORITIZED, "priority"),
+    "new_relevant": (REASON_VISIBLE, "new_critical_cve"),
 }
 
 
@@ -202,10 +203,11 @@ class AlertEmailCounts:
     new_critical: int = 0
     critical_fixable: int = 0
     prioritized: int = 0
+    new_relevant: int = 0
 
     @property
     def has_news(self) -> bool:
-        return any((self.new_critical, self.critical_fixable, self.prioritized))
+        return any((self.new_critical, self.critical_fixable, self.prioritized, self.new_relevant))
 
 
 @dataclass(frozen=True)
