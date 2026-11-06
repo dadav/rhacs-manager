@@ -569,6 +569,7 @@ export interface RemediationItem {
   resolved_by_name: string | null
   target_date: string | null
   notes: string | null
+  wont_fix_reason: string | null
   resolved_at: string | null
   verified_at: string | null
   created_at: string

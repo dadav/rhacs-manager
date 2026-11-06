@@ -237,7 +237,7 @@ Access control rules:
 - Status values: `open | in_progress | resolved | wont_fix` (`verified` retained for legacy records only).
 - Expected path is `open -> in_progress -> resolved`. `resolved` is terminal (reopen to `in_progress` only).
 - Remediations are single-team daily ops; the owning team self-resolves and the sec team audits (no verification gate). Sec-team remediation notifications were removed; they consume the audit log and weekly digest instead.
-- `wont_fix` requires a reason.
+- `wont_fix` requires a reason, stored in `wont_fix_reason` and never in `notes`. Reopening clears it (the audit log keeps it) and leaves `notes` unchanged.
 - Auto-resolution runs when StackRox no longer reports the CVE in that namespace.
 
 ### Badge URL rule

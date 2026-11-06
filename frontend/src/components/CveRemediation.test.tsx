@@ -64,6 +64,7 @@ function makeItem(overrides: Partial<RemediationItem> = {}): RemediationItem {
     resolved_by_name: null,
     target_date: null,
     notes: null,
+    wont_fix_reason: null,
     resolved_at: null,
     verified_at: null,
     created_at: '2026-09-01T00:00:00Z',
@@ -123,6 +124,26 @@ describe('RemediationCard assignment', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(await screen.findByText(/assign failed/)).toBeInTheDocument()
+  })
+})
+
+describe('RemediationCard notes and won\'t-fix reason', () => {
+  it('shows the note and the reason side by side, and only the note after a reopen', () => {
+    const { rerenderWith } = renderCard(makeItem({
+      status: RemediationStatus.wont_fix,
+      notes: 'Upgrade the base image',
+      wont_fix_reason: 'Component is removed next sprint',
+    }))
+
+    expect(screen.getByText('Upgrade the base image')).toBeInTheDocument()
+    expect(screen.getByText('cveDetail.wontFixReasonLabel')).toBeInTheDocument()
+    expect(screen.getByText('Component is removed next sprint')).toBeInTheDocument()
+
+    rerenderWith(makeItem({ notes: 'Upgrade the base image' }))
+
+    expect(screen.getByText('Upgrade the base image')).toBeInTheDocument()
+    expect(screen.queryByText('cveDetail.wontFixReasonLabel')).toBeNull()
+    expect(screen.queryByText('Component is removed next sprint')).toBeNull()
   })
 })
 

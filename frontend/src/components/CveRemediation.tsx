@@ -309,6 +309,12 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
           {item.notes}
         </p>
       )}
+      {item.wont_fix_reason && (
+        <div style={{ fontSize: 12, marginTop: 6, color: 'var(--pf-t--global--text--color--regular)' }}>
+          <div style={{ fontWeight: 600 }}>{t('cveDetail.wontFixReasonLabel')}</div>
+          <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{item.wont_fix_reason}</p>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         {canProgress && (
           <Button variant="secondary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>

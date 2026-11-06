@@ -56,6 +56,7 @@ class RemediationResponse(BaseModel):
     resolved_by_name: str | None = None
     target_date: date | None
     notes: str | None
+    wont_fix_reason: str | None = None
     resolved_at: datetime | None
     verified_at: datetime | None
     created_at: datetime

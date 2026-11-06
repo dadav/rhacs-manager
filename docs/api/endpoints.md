@@ -418,8 +418,8 @@ Status transitions:
 Special rules:
 
 - Only `sec_team` can set `verified`.
-- `wont_fix` requires `wont_fix_reason`; the backend stores that text in `notes`.
-- Moving back to `open` or `in_progress` clears prior resolution or verification timestamps when reopening from `resolved`, `verified`, or `wont_fix`.
+- `wont_fix` requires `wont_fix_reason`. The backend stores it in the response field of the same name and leaves `notes` unchanged.
+- Moving back to `open` or `in_progress` clears prior resolution or verification timestamps when reopening from `resolved`, `verified`, or `wont_fix`. Reopening also clears `wont_fix_reason` and keeps `notes`; the audit log retains the reason.
 
 ## Exports
 

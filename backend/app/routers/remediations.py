@@ -84,6 +84,7 @@ def _build_response(r: Remediation) -> RemediationResponse:
         resolved_by_name=resolver_name,
         target_date=r.target_date,
         notes=r.notes,
+        wont_fix_reason=r.wont_fix_reason,
         resolved_at=r.resolved_at,
         verified_at=r.verified_at,
         created_at=r.created_at,
@@ -297,9 +298,10 @@ async def update_remediation(
                 r.resolved_at = None
                 r.resolved_by = None
                 r.verified_at = None
+                r.wont_fix_reason = None
 
         if new_status == RemediationStatus.wont_fix and body.wont_fix_reason:
-            r.notes = body.wont_fix_reason
+            r.wont_fix_reason = body.wont_fix_reason
             details["wont_fix_reason"] = body.wont_fix_reason
 
     newly_assigned: User | None = None
@@ -314,7 +316,7 @@ async def update_remediation(
         r.target_date = body.target_date
         details["target_date"] = str(body.target_date)
 
-    if body.notes is not None and body.status != "wont_fix":
+    if body.notes is not None:
         r.notes = body.notes
 
     await log_action(db, current_user.id, "remediation_updated", "remediation", str(r.id), details)

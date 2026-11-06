@@ -403,6 +403,7 @@
     "wontFix": "Wird nicht behoben",
     "wontFixPlaceholder": "Warum wird diese CVE nicht behoben?",
     "wontFixReason": "Begründung *",
+    "wontFixReasonLabel": "Begründung für „Wird nicht behoben“",
     "overdueLabel": "(überfällig)",
     "assignedLabel": "Zugewiesen: {{name}}",
     "dueLabel": "Fällig: {{date}}",

@@ -403,6 +403,7 @@
     "wontFix": "Won't fix",
     "wontFixPlaceholder": "Why won't this CVE be fixed?",
     "wontFixReason": "Reason *",
+    "wontFixReasonLabel": "Reason for \"Won't fix\"",
     "overdueLabel": "(overdue)",
     "assignedLabel": "Assigned: {{name}}",
     "dueLabel": "Due: {{date}}",
