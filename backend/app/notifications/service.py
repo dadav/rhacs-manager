@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -291,6 +292,38 @@ async def notify_remediation_status_change(
     for user_id in recipients:
         await create_notification(
             session, user_id, NotificationType.remediation_status, "remediation_status", params, link
+        )
+
+
+async def notify_remediation_target_date_changed(
+    session: AsyncSession,
+    remediation: "Remediation",  # type: ignore[name-defined]
+    actor: "User",  # type: ignore[name-defined]
+    old_date: date | None,
+    new_date: date | None,
+    exclude_user_ids: list[str],
+) -> None:
+    """Notify the creator and assignee that the target date moved or was removed."""
+    params = {
+        **_remediation_params(remediation, actor),
+        "old_date": old_date.isoformat() if old_date else "-",
+        "new_date": new_date.isoformat() if new_date else "-",
+    }
+
+    recipients: set[str] = {remediation.created_by}
+    if remediation.assigned_to:
+        recipients.add(remediation.assigned_to)
+    recipients.discard(actor.id)
+    recipients.difference_update(exclude_user_ids)
+
+    for user_id in recipients:
+        await create_notification(
+            session,
+            user_id,
+            NotificationType.remediation_status,
+            "remediation_target_date_changed",
+            params,
+            "/remediations",
         )
 
 

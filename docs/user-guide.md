@@ -123,10 +123,11 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 1. Start from a CVE detail page and choose **Start remediation**.
 2. Tick one or more affected namespaces (or **Select all**) and set an optional assignee, target date, or notes. One remediation is created per selected namespace; namespaces that already have a remediation for the CVE are not offered.
-3. Assign or reassign an `open` or `in_progress` remediation from its card. Assignees are picked in the same search dialog as `@` mentions. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
-4. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
-5. If the work is intentionally not going to happen, use `wont_fix` and provide a reason. The reason is shown separately and your notes are kept. Reopening removes the reason from the card; the audit log retains it.
-6. Reopen when needed:
+3. Assign, reassign, or unassign an `open` or `in_progress` remediation from its card or its row on **Remediations**. Assignees are picked in the same search dialog as `@` mentions. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
+4. Use **Edit** on an `open` or `in_progress` remediation to change its notes or to move or remove its target date, for example when the date has been reached. A new date cannot be in the past. A date change notifies the creator and the assignee and is recorded in the audit log with the old and new date. A remediation with a future date or no date is no longer overdue. To change a closed remediation, reopen it first.
+5. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
+6. If the work is intentionally not going to happen, use `wont_fix` and provide a reason. The reason is shown separately and your notes are kept. Reopening removes the reason from the card; the audit log retains it.
+7. Reopen when needed:
    - `in_progress` can move back to `open`
    - `resolved` can move back to `in_progress`
    - `wont_fix` can move back to `open`

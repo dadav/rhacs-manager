@@ -125,6 +125,61 @@ describe('RemediationCard assignment', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(await screen.findByText(/assign failed/)).toBeInTheDocument()
   })
+
+  it('unassigns and keeps status actions usable', async () => {
+    renderCard(makeItem({ assigned_to: 'teammate-1', assigned_to_name: 'Team Mate' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.unassign' }))
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { assigned_to: null }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'cveDetail.start' })).toBeEnabled())
+  })
+
+  it('offers no unassign without an assignee', () => {
+    renderCard(makeItem())
+
+    expect(screen.queryByRole('button', { name: 'cveDetail.unassign' })).toBeNull()
+  })
+})
+
+describe('RemediationCard editing', () => {
+  beforeEach(() => {
+    mockPatch.mockReset()
+    mockPatch.mockResolvedValue({})
+  })
+
+  it.each([RemediationStatus.open, RemediationStatus.in_progress])('offers edit on %s', (status) => {
+    renderCard(makeItem({ status }))
+
+    expect(screen.getByRole('button', { name: 'common.edit' })).toBeEnabled()
+  })
+
+  it.each([RemediationStatus.resolved, RemediationStatus.verified, RemediationStatus.wont_fix])(
+    'offers no edit or assignment on %s',
+    (status) => {
+      renderCard(makeItem({ status, assigned_to: 'teammate-1', assigned_to_name: 'Team Mate' }))
+
+      expect(screen.queryByRole('button', { name: 'common.edit' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'cveDetail.reassign' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'cveDetail.unassign' })).toBeNull()
+    },
+  )
+
+  it('keeps status actions usable after a save', async () => {
+    renderCard(makeItem())
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.edit' }))
+    fireEvent.change(await screen.findByLabelText('cveDetail.notes'), { target: { value: 'New plan' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { notes: 'New plan' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    const startButton = screen.getByRole('button', { name: 'cveDetail.start' })
+    expect(startButton).toBeEnabled()
+    fireEvent.click(startButton)
+    await waitFor(() => expect(mockPatch).toHaveBeenLastCalledWith('/remediations/rem-1', { status: 'in_progress' }))
+  })
 })
 
 describe('RemediationCard notes and won\'t-fix reason', () => {

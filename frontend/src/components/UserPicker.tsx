@@ -195,6 +195,7 @@ interface UserPickerProps {
   size?: 'sm' | 'default'
   // aria-disabled, not disabled: focus returns to this button when the modal closes.
   isAriaDisabled?: boolean
+  isInline?: boolean
 }
 
 /** Button that opens the user selection modal. Must stay mounted across a selection. */
@@ -206,12 +207,13 @@ export function UserPicker({
   variant = 'secondary',
   size = 'sm',
   isAriaDisabled,
+  isInline,
 }: UserPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
     <>
-      <Button variant={variant} size={size} isAriaDisabled={isAriaDisabled} onClick={() => setIsOpen(true)}>
+      <Button variant={variant} size={size} isAriaDisabled={isAriaDisabled} isInline={isInline} onClick={() => setIsOpen(true)}>
         {label}
       </Button>
       <UserPickerModal

@@ -5,7 +5,7 @@ produces `verified` anymore (legacy `verified` rows may only be reopened).
 """
 
 from app.models.remediation import RemediationStatus
-from app.routers.remediations import _TRANSITIONS
+from app.services.remediation_service import _TRANSITIONS
 
 
 def test_resolved_is_terminal_except_reopen():

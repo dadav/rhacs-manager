@@ -107,6 +107,22 @@ NOTIFICATION_MESSAGES: dict[str, dict[str, dict[str, str]]] = {
             "message": "Remediation for {cve_id} in {namespace}/{cluster_name}: {status_label}",
         },
     },
+    "remediation_target_date_changed": {
+        "de": {
+            "title": "Zieldatum geändert: {cve_id}",
+            "message": (
+                "{actor} hat das Zieldatum der Behebung für {cve_id} in {namespace}/{cluster_name} geändert: "
+                "{old_date} auf {new_date}."
+            ),
+        },
+        "en": {
+            "title": "Target date changed: {cve_id}",
+            "message": (
+                "{actor} changed the target date of the remediation for {cve_id} in {namespace}/{cluster_name}: "
+                "{old_date} to {new_date}."
+            ),
+        },
+    },
     "remediation_overdue": {
         "de": {
             "title": "Behebung überfällig: {cve_id}",

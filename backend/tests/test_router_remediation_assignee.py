@@ -73,7 +73,7 @@ async def remediation_store(app: FastAPI, team_member_user: CurrentUser):
     app.dependency_overrides[get_app_db] = override_app_db
     app.dependency_overrides[get_current_user] = lambda: team_member_user
 
-    with patch("app.routers.remediations.log_action", new_callable=AsyncMock) as mock_audit:
+    with patch("app.services.remediation_service.log_action", new_callable=AsyncMock) as mock_audit:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
             base_url="http://test",

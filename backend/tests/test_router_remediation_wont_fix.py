@@ -64,9 +64,9 @@ async def remediation_store(app: FastAPI, team_member_user: CurrentUser):
     app.dependency_overrides[get_current_user] = lambda: team_member_user
 
     with (
-        patch("app.routers.remediations.log_action", new_callable=AsyncMock) as mock_audit,
-        patch("app.routers.remediations.notif_svc.notify_remediation_status_change", new_callable=AsyncMock),
-        patch("app.routers.remediations.sub_svc.broadcast_subscription_event", new_callable=AsyncMock),
+        patch("app.services.remediation_service.log_action", new_callable=AsyncMock) as mock_audit,
+        patch("app.services.remediation_service.notif_svc.notify_remediation_status_change", new_callable=AsyncMock),
+        patch("app.services.remediation_service.sub_svc.broadcast_subscription_event", new_callable=AsyncMock),
     ):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -129,16 +129,18 @@ async def test_patch_with_notes_and_reason_stores_both(remediation_store):
     assert body["wont_fix_reason"] == _REASON
 
 
-async def test_note_edited_while_closed_survives_reopen(remediation_store):
+async def test_note_edit_while_closed_is_rejected_and_reopen_keeps_note(remediation_store):
     client, url, _ = remediation_store
     await client.patch(url, json={"status": "wont_fix", "wont_fix_reason": _REASON})
 
     edited = await client.patch(url, json={"notes": "Edited while closed"})
 
-    assert edited.json()["notes"] == "Edited while closed"
-    assert edited.json()["wont_fix_reason"] == _REASON
+    assert edited.status_code == 400
+    current = (await client.get(url)).json()
+    assert current["notes"] == _NOTE
+    assert current["wont_fix_reason"] == _REASON
 
     reopened = await client.patch(url, json={"status": "open"})
 
-    assert reopened.json()["notes"] == "Edited while closed"
+    assert reopened.json()["notes"] == _NOTE
     assert reopened.json()["wont_fix_reason"] is None

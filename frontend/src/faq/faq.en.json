@@ -157,6 +157,14 @@
           ]
         },
         {
+          "id": "remediation-edit",
+          "question": "Can I change a remediation after creating it?",
+          "answer": [
+            "Yes, as long as it is open or in progress. Choose \"Edit\" to move or remove the target date or to change the notes, and assign or unassign someone right next to it. Reopen a closed remediation first if you want to change it.",
+            "A new target date cannot be in the past. When a date changes, the creator and the assignee are notified, and the change is recorded in the audit log. A remediation with a new date in the future is no longer overdue."
+          ]
+        },
+        {
           "id": "false-positive",
           "question": "A CVE is a false positive. What do I do?",
           "answer": [

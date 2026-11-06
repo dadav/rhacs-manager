@@ -455,6 +455,7 @@
     "assigneeOptional": "Assignee (optional)",
     "assign": "Assign",
     "reassign": "Reassign",
+    "unassign": "Unassign",
     "deploymentFixesLink": "Show all fixable components of this deployment",
     "origins": "Data sources",
     "originsUnknown": "Unknown (scanned before ACS 4.11.6)",
@@ -681,7 +682,9 @@
     "start": "Start",
     "markResolved": "Resolved",
     "reopen": "Reopen",
-    "assignedToMe": "Assigned to me"
+    "assignedToMe": "Assigned to me",
+    "editTitle": "Edit remediation",
+    "targetDatePast": "The target date cannot be in the past."
   },
   "badges": {
     "title": "SVG Badges",
@@ -1061,7 +1064,7 @@
     "categoryHelp": {
       "risk_acceptance": "Comments, review results, and expiry of your risk acceptances.",
       "risk_acceptance_updates": "Reviews assigned to you, team comments to the security team, and your own risk acceptances expiring soon. Part of the daily notification summary with counts and links.",
-      "remediation": "Assignments, status changes, and overdue remediations. The email is a daily summary with counts and links; overdue remediations appear in it every day until resolved.",
+      "remediation": "Assignments, status changes, target date changes, and overdue remediations. The email is a daily summary with counts and links; overdue remediations appear in it every day until resolved.",
       "suppression": "Requests and decisions on suppression rules. The email is a daily summary with counts and links.",
       "priority": "CVEs the security team prioritized in your namespaces. The email is part of the daily CVE alert summary with counts and links.",
       "new_critical_cve": "CVEs newly above the CVSS/EPSS thresholds in your namespaces. The email is part of the daily CVE alert summary with counts and links.",

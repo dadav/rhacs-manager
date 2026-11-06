@@ -455,6 +455,7 @@
     "assigneeOptional": "Zuständige Person (optional)",
     "assign": "Zuweisen",
     "reassign": "Neu zuweisen",
+    "unassign": "Zuweisung aufheben",
     "deploymentFixesLink": "Alle behebbaren Komponenten dieses Deployments anzeigen",
     "origins": "Datenquellen",
     "originsUnknown": "Unbekannt (Scan vor ACS 4.11.6)",
@@ -681,7 +682,9 @@
     "start": "Starten",
     "markResolved": "Behoben",
     "reopen": "Wiedereröffnen",
-    "assignedToMe": "Mir zugewiesen"
+    "assignedToMe": "Mir zugewiesen",
+    "editTitle": "Behebung bearbeiten",
+    "targetDatePast": "Das Zieldatum darf nicht in der Vergangenheit liegen."
   },
   "badges": {
     "title": "SVG-Badges",
@@ -1061,7 +1064,7 @@
     "categoryHelp": {
       "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen.",
       "risk_acceptance_updates": "Ihnen zugewiesene Prüfungen, Kommentare von Teams an das Security-Team und bald ablaufende eigene Risikoakzeptanzen. Teil der täglichen Benachrichtigungs-Zusammenfassung mit Kennzahlen und Links.",
-      "remediation": "Zuweisungen, Statusänderungen und überfällige Behebungen. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und Links; überfällige Behebungen erscheinen darin täglich, bis sie erledigt sind.",
+      "remediation": "Zuweisungen, Statusänderungen, geänderte Zieldaten und überfällige Behebungen. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und Links; überfällige Behebungen erscheinen darin täglich, bis sie erledigt sind.",
       "suppression": "Anfragen und Entscheidungen zu Unterdrückungsregeln. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und Links.",
       "priority": "CVEs, die das Security-Team in Ihren Namespaces priorisiert hat. Die E-Mail ist Teil der täglichen CVE-Alarm-Zusammenfassung mit Kennzahlen und Links.",
       "new_critical_cve": "CVEs, die in Ihren Namespaces neu über den CVSS/EPSS-Schwellenwerten liegen. Die E-Mail ist Teil der täglichen CVE-Alarm-Zusammenfassung mit Kennzahlen und Links.",

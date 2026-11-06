@@ -255,6 +255,14 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Für 'Wird nicht behoben' ist eine Begründung erforderlich",
         "en": "A reason is required for 'won't fix'",
     },
+    "remediation_not_editable": {
+        "de": "Zieldatum, Notizen und Zuweisung sind nur bei offenen oder laufenden Behebungen änderbar",
+        "en": "Target date, notes, and assignee can only be changed on open or in-progress remediations",
+    },
+    "remediation_target_date_past": {
+        "de": "Das Zieldatum darf nicht in der Vergangenheit liegen",
+        "en": "The target date cannot be in the past",
+    },
     "remediation_only_creator_or_sec_delete": {
         "de": "Nur der Ersteller oder das Security-Team kann Behebungen löschen",
         "en": "Only the creator or the security team can delete remediations",

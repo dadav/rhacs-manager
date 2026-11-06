@@ -239,6 +239,7 @@ Access control rules:
 - Remediations are single-team daily ops; the owning team self-resolves and the sec team audits (no verification gate). Sec-team remediation notifications were removed; they consume the audit log and weekly digest instead.
 - `wont_fix` requires a reason, stored in `wont_fix_reason` and never in `notes`. Reopening clears it (the audit log keeps it) and leaves `notes` unchanged.
 - Auto-resolution runs when StackRox no longer reports the CVE in that namespace.
+- `assigned_to`, `target_date`, and `notes` are editable only while the current or requested status is `open`/`in_progress` (`services/remediation_service.py`). In `PATCH`, an omitted field stays unchanged and an explicit `null` clears it (`model_fields_set`). Only a changed target date is checked against today, so an overdue item can still get a notes edit. A date change notifies creator and assignee.
 
 ### Badge URL rule
 

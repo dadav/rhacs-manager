@@ -85,6 +85,7 @@ EMAIL_SUMMARY_KEYS: dict[str, str] = {
     "remediation_created": "remediation",
     "remediation_assigned": "remediation",
     "remediation_status": "remediation",
+    "remediation_target_date_changed": "remediation",
     "suppression_requested": "suppression",
     "suppression_status": "suppression",
     "escalation": "escalation",

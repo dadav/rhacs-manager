@@ -157,6 +157,14 @@
           ]
         },
         {
+          "id": "remediation-edit",
+          "question": "Kann ich eine Behebung nachträglich ändern?",
+          "answer": [
+            "Ja, solange sie offen oder in Bearbeitung ist. Über \"Bearbeiten\" verschieben oder entfernen Sie das Zieldatum und ändern die Notizen; die Zuweisung ändern Sie direkt daneben. Möchten Sie eine abgeschlossene Behebung ändern, öffnen Sie sie zuerst wieder.",
+            "Ein neues Zieldatum darf nicht in der Vergangenheit liegen. Ändert sich das Datum, werden Ersteller und zugewiesene Person benachrichtigt, und die Änderung wird im Audit-Log festgehalten. Eine Behebung mit einem neuen Datum in der Zukunft ist nicht mehr überfällig."
+          ]
+        },
+        {
           "id": "false-positive",
           "question": "Eine CVE ist ein False Positive. Was tue ich?",
           "answer": [

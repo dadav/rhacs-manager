@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -10,8 +10,6 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
 from ..models.remediation import Remediation, RemediationStatus
-from ..models.user import User
-from ..notifications import service as notif_svc
 from ..schemas.remediation import (
     RemediationBatchCreate,
     RemediationCreate,
@@ -19,27 +17,11 @@ from ..schemas.remediation import (
     RemediationStats,
     RemediationUpdate,
 )
-from ..services import cve_subscription_service as sub_svc
 from ..services import remediation_service as rem_svc
 from ..services.audit_service import log_action
 from ._scope import narrow_namespaces
 
 router = APIRouter(prefix="/remediations", tags=["remediations"])
-
-# Valid status transitions
-_TRANSITIONS: dict[RemediationStatus, set[RemediationStatus]] = {
-    RemediationStatus.open: {RemediationStatus.in_progress, RemediationStatus.wont_fix},
-    RemediationStatus.in_progress: {
-        RemediationStatus.resolved,
-        RemediationStatus.wont_fix,
-        RemediationStatus.open,
-    },
-    # resolved is terminal; only reopening to in_progress is allowed.
-    # (verification was removed: the owning team self-resolves, sec team audits.)
-    RemediationStatus.resolved: {RemediationStatus.in_progress},  # reopen
-    RemediationStatus.verified: {RemediationStatus.in_progress},  # legacy reopen
-    RemediationStatus.wont_fix: {RemediationStatus.open},  # reopen
-}
 
 # Shared selectinload options for list and single-item queries
 _REM_LOAD_OPTIONS = [
@@ -270,81 +252,7 @@ async def update_remediation(
     if not _user_can_access(current_user, r):
         raise ApiError(403, "forbidden")
 
-    details: dict = {}
-
-    # Status transition
-    if body.status is not None:
-        new_status = RemediationStatus[body.status]
-
-        allowed = _TRANSITIONS.get(r.status, set())
-        if new_status not in allowed:
-            raise ApiError(400, "invalid_status_transition", old=r.status.value, new=new_status.value)
-
-        # wont_fix requires a reason
-        if new_status == RemediationStatus.wont_fix and not body.wont_fix_reason:
-            raise ApiError(400, "remediation_wontfix_requires_reason")
-
-        old_status = r.status.value
-        r.status = new_status
-        details["old_status"] = old_status
-        details["new_status"] = new_status.value
-
-        if new_status == RemediationStatus.resolved:
-            r.resolved_at = datetime.utcnow()
-            r.resolved_by = current_user.id
-        elif new_status in (RemediationStatus.open, RemediationStatus.in_progress):
-            # Reopen: clear resolution/verification timestamps
-            if old_status in ("resolved", "verified", "wont_fix"):
-                r.resolved_at = None
-                r.resolved_by = None
-                r.verified_at = None
-                r.wont_fix_reason = None
-
-        if new_status == RemediationStatus.wont_fix and body.wont_fix_reason:
-            r.wont_fix_reason = body.wont_fix_reason
-            details["wont_fix_reason"] = body.wont_fix_reason
-
-    newly_assigned: User | None = None
-    if body.assigned_to is not None:
-        new_assignee_id = body.assigned_to or None
-        if new_assignee_id and new_assignee_id != r.assigned_to:
-            newly_assigned = await rem_svc.require_user(db, new_assignee_id)
-        r.assigned_to = new_assignee_id
-        details["assigned_to_id"] = new_assignee_id
-
-    if body.target_date is not None:
-        r.target_date = body.target_date
-        details["target_date"] = str(body.target_date)
-
-    if body.notes is not None:
-        r.notes = body.notes
-
-    await log_action(db, current_user.id, "remediation_updated", "remediation", str(r.id), details)
-
-    if newly_assigned is not None:
-        await notif_svc.notify_remediation_assigned(db, r, current_user, newly_assigned.id)
-
-    # Send notifications for status changes
-    if "new_status" in details:
-        await notif_svc.notify_remediation_status_change(
-            db,
-            r,
-            current_user,
-            details["old_status"],
-            details["new_status"],
-        )
-        # Creator and assignee already got the status notification above.
-        await sub_svc.broadcast_subscription_event(
-            db,
-            None,
-            cve_id=r.cve_id,
-            kind="remediation",
-            params={"status": details["new_status"]},
-            actor_id=current_user.id,
-            exclude_user_ids=[uid for uid in (r.created_by, r.assigned_to) if uid],
-            scope=[(r.namespace, r.cluster_name)],
-        )
-
+    await rem_svc.update_remediation(db, current_user, r, body)
     await db.commit()
     await db.refresh(r, ["creator", "assignee", "resolver"])
     return _build_response(r)

@@ -307,6 +307,7 @@ _NOTIFICATION_SUMMARY_ROWS: tuple[tuple[tuple[str, ...], str, str], ...] = (
     (("remediation_overdue",), "Überfällige Behebungen", "/remediations?overdue=1"),
     (("remediation_created", "remediation_assigned"), "Ihnen zugewiesene Behebungen", "/remediations?mine=1"),
     (("remediation_status",), "Statusänderungen bei Behebungen", "/remediations"),
+    (("remediation_target_date_changed",), "Geänderte Zieldaten von Behebungen", "/remediations"),
     (("suppression_requested",), "Angefragte Unterdrückungsregeln", "/suppression-rules"),
     (("suppression_status",), "Entscheidungen zu Ihren Unterdrückungsregeln", "/suppression-rules"),
     (("escalation",), "Neue Eskalationen", "/escalations"),

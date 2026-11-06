@@ -28,6 +28,7 @@ import {
   FIXABLE_COLOR,
 } from "../tokens";
 import { formatDate } from "../utils/format";
+import { RemediationEditModal } from "./RemediationEditModal";
 import { UserPicker } from "./UserPicker";
 import type { UserSearchResult } from "../api/auth";
 
@@ -242,6 +243,7 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
+  const [showEdit, setShowEdit] = useState(false)
 
   // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
   useEffect(() => {
@@ -253,13 +255,13 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const canResolve = item.status === RemediationStatus.in_progress
   const canWontFix = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
   const canReopen = item.status === RemediationStatus.wont_fix
-  const canAssign = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
+  const canEdit = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
 
-  function handleAssign(user: UserSearchResult) {
+  function changeAssignee(assignedTo: string | null) {
     // Assignment does not change item.status, so the status-keyed reset effect above
     // never fires for it; reset here or every action button stays disabled.
     updateMutation.mutate(
-      { assigned_to: user.id },
+      { assigned_to: assignedTo },
       { onSuccess: () => updateMutation.reset() },
     )
   }
@@ -315,7 +317,8 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
           <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{item.wont_fix_reason}</p>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <RemediationEditModal item={item} isOpen={showEdit} onClose={() => setShowEdit(false)} />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
         {canProgress && (
           <Button variant="secondary" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'in_progress' })}>
             {t('cveDetail.start')}
@@ -326,14 +329,24 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
             {t('cveDetail.markResolvedBtn')}
           </Button>
         )}
-        {canAssign && (
+        {canEdit && (
+          <Button variant="link" size="sm" isDisabled={mutationBusy} onClick={() => setShowEdit(true)}>
+            {t('common.edit')}
+          </Button>
+        )}
+        {canEdit && (
           <UserPicker
             variant="link"
             label={item.assigned_to ? t('cveDetail.reassign') : t('cveDetail.assign')}
             title={t('cveDetail.assign')}
             isAriaDisabled={mutationBusy}
-            onSelect={handleAssign}
+            onSelect={(user) => changeAssignee(user.id)}
           />
+        )}
+        {canEdit && item.assigned_to && (
+          <Button variant="link" size="sm" isDisabled={mutationBusy} onClick={() => changeAssignee(null)}>
+            {t('cveDetail.unassign')}
+          </Button>
         )}
         {canWontFix && !showWontFix && (
           <Button variant="link" size="sm" isDanger isDisabled={mutationBusy} onClick={() => setShowWontFix(true)}>

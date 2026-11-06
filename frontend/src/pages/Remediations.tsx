@@ -20,8 +20,10 @@ import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { OutlinedQuestionCircleIcon } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { formatDate } from '../utils/format'
+import { RemediationEditModal } from '../components/RemediationEditModal'
 import { TableSkeleton } from '../components/TableSkeleton'
 import { useToast } from '../components/ToastContext'
+import { UserPicker } from '../components/UserPicker'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -273,7 +275,7 @@ export function Remediations() {
                   <Th>{t('remediations.dueDate')}</Th>
                   <Th>{t('remediations.created')}</Th>
                   <Th>{t('remediations.createdBy')}</Th>
-                  <Th width={10}>{t('common.actions')}</Th>
+                  <Th width={15}>{t('common.actions')}</Th>
                 </Tr>
               </Thead>
               <Tbody>
@@ -323,6 +325,7 @@ function RemediationRow({
   const scopedLink = useScopedLink()
   const { addToast } = useToast()
   const updateMutation = useUpdateRemediation(item.id)
+  const [showEdit, setShowEdit] = useState(false)
 
   // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
   useEffect(() => {
@@ -333,11 +336,26 @@ function RemediationRow({
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
   const canReopen = item.status === RemediationStatus.wont_fix
+  const canEdit = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
 
   function changeStatus(status: string) {
     updateMutation.mutate(
       { status },
       { onSuccess: () => addToast(t('toast.remediationUpdated')) },
+    )
+  }
+
+  function changeAssignee(assignedTo: string | null) {
+    // Assignment does not change item.status, so the status-keyed reset effect above
+    // never fires for it; reset here or every action button stays disabled.
+    updateMutation.mutate(
+      { assigned_to: assignedTo },
+      {
+        onSuccess: () => {
+          updateMutation.reset()
+          addToast(t('toast.remediationUpdated'))
+        },
+      },
     )
   }
 
@@ -361,6 +379,23 @@ function RemediationRow({
       </Td>
       <Td>
         {item.assigned_to_name ?? <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>}
+        {canEdit && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 12, marginTop: 2 }}>
+            <UserPicker
+              variant="link"
+              isInline
+              label={item.assigned_to ? t('cveDetail.reassign') : t('cveDetail.assign')}
+              title={t('cveDetail.assign')}
+              isAriaDisabled={mutationBusy}
+              onSelect={(user) => changeAssignee(user.id)}
+            />
+            {item.assigned_to && (
+              <Button variant="link" size="sm" isInline isDisabled={mutationBusy} onClick={() => changeAssignee(null)}>
+                {t('cveDetail.unassign')}
+              </Button>
+            )}
+          </div>
+        )}
       </Td>
       <Td>
         {item.target_date ? (
@@ -381,22 +416,38 @@ function RemediationRow({
       <Td>
         <span style={{ fontSize: 12 }}>{item.created_by_name}</span>
       </Td>
-      <Td style={{ whiteSpace: 'nowrap' }}>
-        {canProgress && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('in_progress')}>
-            {t('remediations.start')}
-          </Button>
+      <Td>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+          {canProgress && (
+            <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('in_progress')}>
+              {t('remediations.start')}
+            </Button>
+          )}
+          {canResolve && (
+            <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('resolved')}>
+              {t('remediations.markResolved')}
+            </Button>
+          )}
+          {canReopen && (
+            <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('open')}>
+              {t('remediations.reopen')}
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="link" size="sm" isDisabled={mutationBusy} onClick={() => setShowEdit(true)}>
+              {t('common.edit')}
+            </Button>
+          )}
+        </div>
+        {updateMutation.isError && (
+          <Alert variant="danger" isInline isPlain title={getErrorMessage(updateMutation.error)} />
         )}
-        {canResolve && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('resolved')}>
-            {t('remediations.markResolved')}
-          </Button>
-        )}
-        {canReopen && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('open')}>
-            {t('remediations.reopen')}
-          </Button>
-        )}
+        <RemediationEditModal
+          item={item}
+          isOpen={showEdit}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => addToast(t('toast.remediationUpdated'))}
+        />
       </Td>
     </Tr>
   )

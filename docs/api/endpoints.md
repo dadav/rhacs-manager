@@ -417,6 +417,10 @@ Status transitions:
 
 Special rules:
 
+- An omitted field stays unchanged. An explicit `null` clears `assigned_to`, `target_date`, or `notes`.
+- `assigned_to`, `target_date`, and `notes` can only change when the current or requested status is `open` or `in_progress`; otherwise the request fails with `400`.
+- A changed `target_date` cannot be in the past (`400`). Sending an unchanged past date is allowed.
+- A changed `target_date` notifies the creator and the assignee, excluding the acting user and a user assigned in the same request.
 - Only `sec_team` can set `verified`.
 - `wont_fix` requires `wont_fix_reason`. The backend stores it in the response field of the same name and leaves `notes` unchanged.
 - Moving back to `open` or `in_progress` clears prior resolution or verification timestamps when reopening from `resolved`, `verified`, or `wont_fix`. Reopening also clears `wont_fix_reason` and keeps `notes`; the audit log retains the reason.
