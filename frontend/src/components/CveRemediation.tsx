@@ -176,21 +176,20 @@ export function CveRemediationSection({
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.assigneeOptional')}</label>
                 <div style={{ marginTop: 4 }}>
-                  {assignee ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                  {assignee && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 8 }}>
                       <span>{assignee.display_name}</span>
                       <span style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>@{assignee.username}</span>
                       <Button variant="link" size="sm" isInline onClick={() => setAssignee(null)}>
                         {t('common.remove')}
                       </Button>
                     </div>
-                  ) : (
-                    <UserPicker
-                      placeholder={t('riskAcceptance.searchUser')}
-                      ariaLabel={t('cveDetail.assigneeOptional')}
-                      onSelect={setAssignee}
-                    />
                   )}
+                  <UserPicker
+                    label={t('riskAcceptance.selectUser')}
+                    title={t('cveDetail.assigneeOptional')}
+                    onSelect={setAssignee}
+                  />
                 </div>
               </div>
               <div>
@@ -243,7 +242,6 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const updateMutation = useUpdateRemediation(item.id)
   const [showWontFix, setShowWontFix] = useState(false)
   const [wontFixReason, setWontFixReason] = useState('')
-  const [showAssign, setShowAssign] = useState(false)
 
   // Reset mutation once refetched data arrives (status changed), so the next action button is enabled
   useEffect(() => {
@@ -262,12 +260,7 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
     // never fires for it; reset here or every action button stays disabled.
     updateMutation.mutate(
       { assigned_to: user.id },
-      {
-        onSuccess: () => {
-          setShowAssign(false)
-          updateMutation.reset()
-        },
-      },
+      { onSuccess: () => updateMutation.reset() },
     )
   }
 
@@ -327,10 +320,14 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
             {t('cveDetail.markResolvedBtn')}
           </Button>
         )}
-        {canAssign && !showAssign && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} onClick={() => setShowAssign(true)}>
-            {item.assigned_to ? t('cveDetail.reassign') : t('cveDetail.assign')}
-          </Button>
+        {canAssign && (
+          <UserPicker
+            variant="link"
+            label={item.assigned_to ? t('cveDetail.reassign') : t('cveDetail.assign')}
+            title={t('cveDetail.assign')}
+            isAriaDisabled={mutationBusy}
+            onSelect={handleAssign}
+          />
         )}
         {canWontFix && !showWontFix && (
           <Button variant="link" size="sm" isDanger isDisabled={mutationBusy} onClick={() => setShowWontFix(true)}>
@@ -343,20 +340,6 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
           </Button>
         )}
       </div>
-      {showAssign && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <UserPicker
-              placeholder={t('riskAcceptance.searchUser')}
-              ariaLabel={t('cveDetail.assign')}
-              onSelect={handleAssign}
-            />
-          </div>
-          <Button variant="link" size="sm" onClick={() => setShowAssign(false)}>
-            {t('common.cancel')}
-          </Button>
-        </div>
-      )}
       {updateMutation.isError && (
         <Alert variant="danger" isInline title={getErrorMessage(updateMutation.error)} style={{ marginTop: 8 }} />
       )}

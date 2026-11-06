@@ -35,6 +35,7 @@ vi.mock('../hooks/useScope', () => ({
 
 vi.mock('../api/auth', () => ({
   useUserSearch: () => ({
+    isLoading: false,
     data: [{ id: 'teammate-1', username: 'teammate', full_name: 'Team Mate', display_name: 'Team Mate' }],
   }),
 }))
@@ -96,10 +97,10 @@ describe('RemediationCard assignment', () => {
     const { rerenderWith } = renderCard(makeItem())
 
     fireEvent.click(screen.getByRole('button', { name: 'cveDetail.assign' }))
-    fireEvent.focus(screen.getByRole('textbox', { name: 'cveDetail.assign' }))
-    fireEvent.mouseDown(screen.getByRole('option'))
+    fireEvent.mouseDown(await screen.findByRole('option'))
 
     await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { assigned_to: 'teammate-1' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 
     // Refetched item: assignee changed, status unchanged.
     rerenderWith(makeItem({ assigned_to: 'teammate-1', assigned_to_name: 'Team Mate' }))
@@ -111,6 +112,17 @@ describe('RemediationCard assignment', () => {
 
     fireEvent.click(startButton)
     await waitFor(() => expect(mockPatch).toHaveBeenLastCalledWith('/remediations/rem-1', { status: 'in_progress' }))
+  })
+
+  it('shows a failed assignment after the modal has closed', async () => {
+    mockPatch.mockRejectedValue(new Error('assign failed'))
+    renderCard(makeItem())
+
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.assign' }))
+    fireEvent.mouseDown(await screen.findByRole('option'))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText(/assign failed/)).toBeInTheDocument()
   })
 })
 
@@ -159,6 +171,20 @@ describe('CveRemediationSection multi-namespace create', () => {
       notes: null,
       assigned_to: null,
     }))
+  })
+
+  it('keeps the assignee trigger mounted and focused after selecting a user', async () => {
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'cveDetail.startRemediationBtn' }))
+    const trigger = screen.getByRole('button', { name: 'riskAcceptance.selectUser' })
+    trigger.focus()
+    fireEvent.click(trigger)
+    fireEvent.mouseDown(await screen.findByRole('option'))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByText('@teammate')).toBeInTheDocument()
+    await waitFor(() => expect(document.activeElement).toBe(trigger))
   })
 
   it('select all covers only namespaces without an existing remediation', async () => {

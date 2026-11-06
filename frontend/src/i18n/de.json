@@ -513,7 +513,7 @@
     "assignedTo": "Zugewiesen an",
     "assignReviewer": "Reviewer zuweisen",
     "currentlyAssigned": "Aktuell zugewiesen",
-    "searchUser": "Benutzer suchen...",
+    "selectUser": "Person auswählen",
     "expiresOn": "Läuft ab",
     "justificationRequired": "Begründung erforderlich.",
     "cveIdMissing": "CVE-ID fehlt.",
@@ -1027,11 +1027,13 @@
     "tooltip": "Aktive Betrachter: {{users}}"
   },
   "mentionPicker": {
-    "title": "Person erwähnen",
+    "title": "Person erwähnen"
+  },
+  "userPicker": {
     "searchLabel": "Personen suchen",
     "searchPlaceholder": "Name oder Benutzername",
     "noResults": "Keine passenden Personen gefunden",
-    "keyboardHint": "Tab / Umschalt+Tab oder Pfeiltasten: auswählen, Enter: einfügen, Esc: abbrechen"
+    "keyboardHint": "Tab / Umschalt+Tab oder Pfeiltasten: bewegen, Enter: auswählen, Esc: abbrechen"
   },
   "mySettings": {
     "title": "Persönliche Einstellungen",

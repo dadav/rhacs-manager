@@ -502,9 +502,9 @@ function RiskAcceptanceView({ id }: { id: string }) {
 
                   {/* Assign reviewer */}
                   <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
-                      {t('riskAcceptance.assignReviewer')}
-                    </label>
+                    {assignReviewer.isError && (
+                      <Alert variant="danger" isInline title={getErrorMessage(assignReviewer.error)} style={{ marginBottom: 12 }} />
+                    )}
                     {ra.assigned_to_name && (
                       <div style={{ fontSize: 13, marginBottom: 8, color: 'var(--pf-t--global--text--color--regular)' }}>
                         {t('riskAcceptance.currentlyAssigned')}: <strong>{ra.assigned_to_name}</strong>
@@ -512,8 +512,8 @@ function RiskAcceptanceView({ id }: { id: string }) {
                     )}
                     <UserPicker
                       userRole="sec_team"
-                      placeholder={t('riskAcceptance.searchUser')}
-                      ariaLabel={t('riskAcceptance.assignReviewer')}
+                      label={ra.assigned_to_name ? t('cveDetail.reassign') : t('riskAcceptance.assignReviewer')}
+                      title={t('riskAcceptance.assignReviewer')}
                       onSelect={(user) => assignReviewer.mutate(user.id)}
                     />
                   </div>

@@ -104,7 +104,7 @@ Risk acceptances are requested from a specific CVE, not from a blank form on the
 2. Select the scope: `all`, `namespace`, `image`, or `deployment`. When the CVE affects exactly one of your namespaces, that namespace is preselected. Below the scope, the form shows whether the current selection is approved immediately or needs security-team review.
 3. Submit the justification and, optionally, an expiry date.
 4. Track the record on **Risk Acceptances**.
-5. Scopes that stay within a single namespace are approved immediately. Scopes with mode `all` or spanning several namespaces are reviewed by `sec_team`, which approves or rejects them.
+5. Scopes that stay within a single namespace are approved immediately. Scopes with mode `all` or spanning several namespaces are reviewed by `sec_team`, which approves or rejects them. A `sec_team` member can assign a reviewer from the same search dialog as `@` mentions; it only lists `sec_team` users.
 6. If rejected or previously approved, the original creator can edit and resubmit it. The same rule applies on resubmission: a single-namespace scope is approved immediately, any other scope goes back to `requested`.
 7. Approved requests expire automatically when `expires_at` is reached.
 
@@ -123,7 +123,7 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 1. Start from a CVE detail page and choose **Start remediation**.
 2. Tick one or more affected namespaces (or **Select all**) and set an optional assignee, target date, or notes. One remediation is created per selected namespace; namespaces that already have a remediation for the CVE are not offered.
-3. Assign or reassign an `open` or `in_progress` remediation from its card. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
+3. Assign or reassign an `open` or `in_progress` remediation from its card. Assignees are picked in the same search dialog as `@` mentions. The new assignee gets an in-app notification (assigning yourself is silent). On **Remediations**, **Assigned to me** filters the list to your own work.
 4. Move the remediation through the lifecycle: `open`, `in_progress`, `resolved`. `resolved` is the terminal success state.
 5. If the work is intentionally not going to happen, use `wont_fix` and provide a reason.
 6. Reopen when needed:

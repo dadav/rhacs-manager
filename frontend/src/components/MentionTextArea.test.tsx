@@ -196,12 +196,12 @@ describe('MentionTextArea picker', () => {
 
   it('keeps a fixed list size regardless of the result count', async () => {
     const { search } = await openPicker()
-    const list = screen.getByTestId('mention-picker-list')
+    const list = screen.getByTestId('user-picker-list')
     expect(list).toHaveStyle({ height: '320px' })
     expect(screen.getAllByRole('option')).toHaveLength(2)
 
     fireEvent.change(search, { target: { value: 'nobody' } })
-    expect(await screen.findByText('mentionPicker.noResults')).toBeTruthy()
-    expect(screen.getByTestId('mention-picker-list')).toHaveStyle({ height: '320px' })
+    expect(await screen.findByText('userPicker.noResults')).toBeTruthy()
+    expect(screen.getByTestId('user-picker-list')).toHaveStyle({ height: '320px' })
   })
 })

@@ -513,7 +513,7 @@
     "assignedTo": "Assigned to",
     "assignReviewer": "Assign reviewer",
     "currentlyAssigned": "Currently assigned",
-    "searchUser": "Search user...",
+    "selectUser": "Select person",
     "expiresOn": "Expires on",
     "justificationRequired": "Justification required.",
     "cveIdMissing": "CVE ID is missing.",
@@ -1027,11 +1027,13 @@
     "tooltip": "Active viewers: {{users}}"
   },
   "mentionPicker": {
-    "title": "Mention a person",
+    "title": "Mention a person"
+  },
+  "userPicker": {
     "searchLabel": "Search people",
     "searchPlaceholder": "Name or username",
     "noResults": "No matching people found",
-    "keyboardHint": "Tab / Shift+Tab or arrow keys: select, Enter: insert, Esc: cancel"
+    "keyboardHint": "Tab / Shift+Tab or arrow keys: move, Enter: select, Esc: cancel"
   },
   "mySettings": {
     "title": "My settings",
