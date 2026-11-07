@@ -68,6 +68,27 @@ async def test_cve_outside_namespaces_is_404(team_member_client, cve_visible):
     assert presence._viewers == {}
 
 
+def _remediation_rows(mock_app_db, cve_id: str, namespace: str, cluster: str) -> None:
+    result = MagicMock()
+    result.all.return_value = [SimpleNamespace(cve_id=cve_id, namespace=namespace, cluster_name=cluster)]
+    mock_app_db.execute.return_value = result
+
+
+@pytest.mark.asyncio
+async def test_cve_no_longer_affected_with_visible_remediation_allowed(team_member_client, cve_visible, mock_app_db):
+    """A remediated CVE gone from StackRox stays reachable, like GET /cves/{id}."""
+    cve_visible.return_value = False
+    _remediation_rows(mock_app_db, "CVE-2026-4", "payments", "cluster-a")
+    assert (await _beat(team_member_client, "cve", "CVE-2026-4")).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cve_remediation_in_foreign_namespace_is_404(team_member_client, cve_visible, mock_app_db):
+    cve_visible.return_value = False
+    _remediation_rows(mock_app_db, "CVE-2026-5", "payments", "cluster-x")
+    assert (await _beat(team_member_client, "cve", "CVE-2026-5")).status_code == 404
+
+
 @pytest.mark.asyncio
 async def test_cve_sec_team_skips_probe(sec_team_client, cve_visible):
     assert (await _beat(sec_team_client, "cve", "CVE-2026-3")).status_code == 200

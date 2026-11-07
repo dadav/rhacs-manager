@@ -386,6 +386,8 @@
     "viewRiskAcceptance": "View risk acceptance",
     "editRiskAcceptance": "Edit risk acceptance",
     "backToList": "Back to list",
+    "noLongerAffectedTitle": "This CVE no longer affects your namespaces",
+    "noLongerAffectedBody": "StackRox no longer reports this CVE in your visible namespaces, for example after the fix. The CVE details are kept for reference. Comments and remediations remain available.",
     "componentsCount": "Affected Components ({{count}})",
     "deploymentsCount": "Affected Deployments ({{count}})",
     "deploymentFilterPlaceholder": "Filter by deployment, namespace, cluster or image...",

@@ -412,10 +412,18 @@ export function CveDetail() {
           )}
           <ViewerIndicator viewers={viewers} />
           <div style={{ marginLeft: "auto" }}>
-            <CveSubscribeButton cveId={cve.cve_id} />
+            <CveSubscribeButton cveId={cve.cve_id} allowSubscribe={!cve.no_longer_affected} />
           </div>
         </div>
       </PageSection>
+
+      {cve.no_longer_affected && (
+        <PageSection variant="default" style={{ paddingTop: 0 }}>
+          <Alert variant="info" isInline title={t('cveDetail.noLongerAffectedTitle')}>
+            <p>{t('cveDetail.noLongerAffectedBody')}</p>
+          </Alert>
+        </PageSection>
+      )}
 
       {cve.priority_reason && (
         <PageSection variant="default" style={{ paddingTop: 0 }}>
@@ -695,7 +703,7 @@ export function CveDetail() {
                         {t('cveDetail.riskAccepted')}
                       </span>
                     </div>
-                  ) : !isSecTeam ? (
+                  ) : !isSecTeam && !cve.no_longer_affected ? (
                     <Button
                       variant="primary"
                       isDisabled={
@@ -797,7 +805,7 @@ export function CveDetail() {
                         {t('cveDetail.viewSuppressionRule')}
                       </Button>
                     </div>
-                  ) : fpSuccess ? (
+                  ) : cve.no_longer_affected ? null : fpSuccess ? (
                     <div role="status" aria-live="polite">
                       <Alert
                         variant="success"

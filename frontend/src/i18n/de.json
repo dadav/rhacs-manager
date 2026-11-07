@@ -386,6 +386,8 @@
     "viewRiskAcceptance": "Zur Risikoakzeptanz",
     "editRiskAcceptance": "Risikoakzeptanz ändern",
     "backToList": "Zurück zur Liste",
+    "noLongerAffectedTitle": "Diese CVE betrifft Ihre Namespaces nicht mehr",
+    "noLongerAffectedBody": "StackRox meldet diese CVE in Ihren sichtbaren Namespaces nicht mehr, zum Beispiel nach der Behebung. Die CVE-Details bleiben zur Ansicht erhalten. Kommentare und Behebungen sind weiterhin verfügbar.",
     "componentsCount": "Betroffene Komponenten ({{count}})",
     "deploymentsCount": "Betroffene Deployments ({{count}})",
     "deploymentFilterPlaceholder": "Filtern nach Deployment, Namespace, Cluster oder Image…",

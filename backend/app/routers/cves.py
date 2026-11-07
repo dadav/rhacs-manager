@@ -37,13 +37,15 @@ from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
+from ..services.cve_access import has_visible_remediation
 from ..services.cve_filter_service import fetch_filtered_cves, resolve_view_thresholds
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.fix_rollup_service import build_fix_rollup
-from ..services.risk_acceptance_service import deployment_covered_by_scope
+from ..services.risk_acceptance_service import deployment_covered_by_scope, user_can_access_ra
 from ..stackrox import queries as sx
 from ..stackrox.decoder import decode_cve_protobuf
 from ..stackrox.vuln_origin import origin_name, origin_names
+from ._scope import narrow_namespaces
 
 router = APIRouter(prefix="/cves", tags=["cves"])
 
@@ -70,8 +72,6 @@ async def _visible_detail_pairs(
     wildcard users, otherwise ``current_user.namespaces``) and narrows it to the
     sidebar scope. Narrowing never widens: an out-of-scope filter yields ``[]``.
     """
-    from ._scope import narrow_namespaces
-
     if current_user.can_see_all_namespaces:
         all_ns = await sx.list_namespaces(sx_db)
         pairs = [(r["namespace"], r["cluster_name"]) for r in all_ns]
@@ -396,6 +396,24 @@ async def get_cve(
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveDetail:
+    # Every StackRox read below uses these pairs, so the detail never shows data
+    # outside the user's visibility or the selected sidebar scope.
+    has_scope = cluster is not None or namespace is not None
+    ns = await _visible_detail_pairs(current_user, sx_db, cluster, namespace)
+    cve_data = await sx.get_cve_detail(sx_db, cve_id, ns) if ns else None
+
+    # A CVE that no longer affects the visible scope stays reachable while the user
+    # can see a remediation for it (revisit after the fix). Only CVE-level facts are
+    # read org-wide then; every location-scoped read is skipped.
+    no_longer_affected = False
+    if not cve_data:
+        if not await has_visible_remediation(app_db, current_user, cve_id, cluster, namespace):
+            raise ApiError(404, "cve_not_found")
+        no_longer_affected = True
+        cve_data = await sx.get_cve_facts(sx_db, cve_id) or {"cve_id": cve_id}
+    # Without affected locations, workflow records are limited to what the user may see.
+    restrict_workflow = no_longer_affected and not current_user.can_see_all_namespaces
+
     prio_result = await app_db.execute(
         select(CvePriority).options(selectinload(CvePriority.setter)).where(CvePriority.cve_id == cve_id)
     )
@@ -415,27 +433,22 @@ async def get_cve(
     )
     ra_result = await app_db.execute(ra_query)
     active_acceptances = list(ra_result.scalars().all())
+    if restrict_workflow:
+        active_acceptances = [a for a in active_acceptances if user_can_access_ra(current_user, a)]
     # Ordered approved-first, then most recent (see ra_query), so the first row
     # is the one surfaced as the CVE-level status.
     acceptance = active_acceptances[0] if active_acceptances else None
 
     esc_result = await app_db.execute(select(Escalation).where(Escalation.cve_id == cve_id))
-    escalations = esc_result.scalars().all()
+    escalations = list(esc_result.scalars().all())
+    if restrict_workflow:
+        visible_pairs = set(narrow_namespaces(list(current_user.namespaces), cluster, namespace))
+        escalations = [e for e in escalations if (e.namespace, e.cluster_name) in visible_pairs]
     esc_dates: dict[int, datetime | None] = {1: None, 2: None, 3: None}
     for esc in escalations:
         cur = esc_dates.get(esc.level)
         if cur is None or esc.triggered_at < cur:
             esc_dates[esc.level] = esc.triggered_at
-
-    # Every StackRox read below uses these pairs, so the detail never shows data
-    # outside the user's visibility or the selected sidebar scope.
-    has_scope = cluster is not None or namespace is not None
-    ns = await _visible_detail_pairs(current_user, sx_db, cluster, namespace)
-    if not ns:
-        raise ApiError(404, "cve_not_found")
-    cve_data = await sx.get_cve_detail(sx_db, cve_id, ns)
-    if not cve_data:
-        raise ApiError(404, "cve_not_found")
 
     first_system_occurrence: datetime | None = None
     if current_user.can_see_all_namespaces:
@@ -461,8 +474,9 @@ async def get_cve(
                 for lvl, dt in deadlines.items():
                     esc_expected[lvl] = dt
 
-    # Fetch protobuf data for summary, references, and advisory
-    if current_user.can_see_all_namespaces and not has_scope:
+    # Fetch protobuf data for summary, references, and advisory. This is public
+    # CVE text, so a no-longer-affected detail may read it from any row.
+    if no_longer_affected or (current_user.can_see_all_namespaces and not has_scope):
         proto_row = await sx.get_cve_protobuf_data_all(sx_db, cve_id)
     else:
         proto_row = await sx.get_cve_protobuf_data(sx_db, cve_id, ns)
@@ -476,9 +490,13 @@ async def get_cve(
         advisory_name = proto_row.get("advisory_name") or None
         advisory_link = proto_row.get("advisory_link") or None
 
-    deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
-    components = await sx.get_affected_components_with_origin(sx_db, cve_id, ns)
-    origin_ratings = await sx.get_cve_origin_ratings(sx_db, cve_id, ns)
+    deployments: list[dict] = []
+    components: list[dict] = []
+    origin_ratings: list[dict] = []
+    if not no_longer_affected:
+        deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
+        components = await sx.get_affected_components_with_origin(sx_db, cve_id, ns)
+        origin_ratings = await sx.get_cve_origin_ratings(sx_db, cve_id, ns)
     contact_emails: list[str] = []
     if current_user.can_see_all_namespaces and deployments:
         ns_cluster_pairs = sorted(
@@ -581,6 +599,7 @@ async def get_cve(
         escalation_level2_expected=esc_expected[2],
         escalation_level3_expected=esc_expected[3],
         contact_emails=contact_emails,
+        no_longer_affected=no_longer_affected,
         affected_deployments_list=[
             AffectedDeployment(
                 deployment_id=str(d["deployment_id"]),

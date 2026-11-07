@@ -77,6 +77,7 @@
           "question": "Why does a CVE detail page say \"not found\"?",
           "answer": [
             "The detail page follows the cluster and namespace selected in the sidebar. If the CVE does not occur in that selection, for example because it has been fixed in the meantime, it is reported as not found. With no selection the page covers every namespace you can see.",
+            "If you can see a remediation for the CVE, the page stays reachable after the fix. It then shows the CVE details, your remediations, and the comments, and you can keep commenting.",
             "Your comments on that CVE stay readable under \"My comments\"."
           ]
         }

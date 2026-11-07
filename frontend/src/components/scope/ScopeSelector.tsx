@@ -121,6 +121,8 @@ export function ScopeSelector() {
       </Select>
       {showThresholdSwitch && thresholds && (
         <Tooltip
+          position="right"
+          flipBehavior={['right', 'bottom']}
           content={t('scope.ignoreThresholdsTooltip', {
             cvss: thresholds.min_cvss_score.toFixed(1),
             epss: (thresholds.min_epss_score * 100).toFixed(0),

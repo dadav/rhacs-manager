@@ -138,6 +138,7 @@ function makeCveDetail(overrides: Partial<CveDetailType> = {}): CveDetailType {
     escalation_level1_expected: null,
     escalation_level2_expected: null,
     escalation_level3_expected: null,
+    no_longer_affected: false,
     ...overrides,
   }
 }
@@ -233,6 +234,37 @@ describe('CveDetail', () => {
     render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
 
     expect(screen.getByRole('button', { name: /subscription.subscribe/ })).toBeInTheDocument()
+  })
+
+  it('offers the request actions while the CVE affects the user', () => {
+    mockUseCveDetail.mockReturnValue({ data: makeCveDetail(), isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(screen.queryByText('cveDetail.noLongerAffectedTitle')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'cveDetail.requestRiskAcceptance' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'cveDetail.requestFalsePositive' })).toBeInTheDocument()
+  })
+
+  it('shows a banner and hides request actions when the CVE no longer affects the user', () => {
+    const cve = makeCveDetail({
+      no_longer_affected: true,
+      affected_deployments: 0,
+      affected_deployments_list: [],
+      components: [],
+      contact_emails: [],
+    })
+    mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })
+
+    render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+
+    expect(screen.getByText('cveDetail.noLongerAffectedTitle')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'cveDetail.requestRiskAcceptance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'cveDetail.requestFalsePositive' })).not.toBeInTheDocument()
+    // Subscribing requires an affected deployment; the user is not subscribed, so no toggle.
+    expect(screen.queryByRole('button', { name: /subscription.subscribe/ })).not.toBeInTheDocument()
+    // Comments stay available.
+    expect(screen.getByText('cveDetail.noComments')).toBeInTheDocument()
   })
 
   it('shows error state when CVE not found', () => {

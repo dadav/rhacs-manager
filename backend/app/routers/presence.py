@@ -20,6 +20,7 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
 from ..models.risk_acceptance import RiskAcceptance
+from ..services.cve_access import has_visible_remediation
 from ..services.risk_acceptance_service import user_can_access_ra
 from ..stackrox import queries as sx
 
@@ -100,7 +101,9 @@ async def _check_access(
         return True
     if not current_user.has_namespaces:
         return False
-    return await sx.cve_visible_in_namespaces(sx_db, entity_id, current_user.namespaces)
+    if await sx.cve_visible_in_namespaces(sx_db, entity_id, current_user.namespaces):
+        return True
+    return await has_visible_remediation(app_db, current_user, entity_id)
 
 
 async def _require_access(

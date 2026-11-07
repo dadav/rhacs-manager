@@ -187,6 +187,8 @@ export interface CveDetail extends CveListItem {
   escalation_level1_expected: string | null
   escalation_level2_expected: string | null
   escalation_level3_expected: string | null
+  /** StackRox no longer reports the CVE in the visible scope; served because of a visible remediation. */
+  no_longer_affected: boolean
 }
 
 export interface EscalationContext {

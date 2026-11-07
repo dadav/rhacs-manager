@@ -1,6 +1,8 @@
 """Route-level tests for GET /api/cves and GET /api/cves/{cve_id}."""
 
-from unittest.mock import AsyncMock, patch
+from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -55,6 +57,7 @@ def patch_sx():
         mock_sx.get_cve_protobuf_data = AsyncMock(return_value=None)
         mock_sx.get_cve_protobuf_data_all = AsyncMock(return_value=None)
         mock_sx.get_first_system_occurrence = AsyncMock(return_value=None)
+        mock_sx.get_cve_facts = AsyncMock(return_value=None)
         yield mock_sx
 
 
@@ -339,6 +342,150 @@ async def test_get_cve_deployments_scope_outside_visibility_is_empty(team_member
     assert resp.status_code == 200
     assert resp.json() == []
     patch_sx.get_affected_deployments.assert_not_awaited()
+
+
+# -- Revisit after the fix: CVE no longer affects the visible scope --
+
+
+def _route_app_db(mock_app_db, *, remediations=(), acceptances=(), escalations=()) -> None:
+    """Answer app-DB queries by table: remediation pairs (``.all()``), RAs and escalations (``.scalars()``)."""
+
+    def _result(rows=(), scalar_rows=()) -> MagicMock:
+        result = MagicMock()
+        result.all.return_value = list(rows)
+        result.scalars.return_value.all.return_value = list(scalar_rows)
+        result.scalar_one_or_none.return_value = None
+        return result
+
+    async def _execute(stmt, *args, **kwargs):
+        sql = str(stmt)
+        if "FROM remediations" in sql:
+            return _result(
+                rows=[SimpleNamespace(cve_id="CVE-2024-0001", namespace=n, cluster_name=c) for n, c in remediations]
+            )
+        if "FROM risk_acceptances" in sql:
+            return _result(scalar_rows=acceptances)
+        if "FROM escalations" in sql:
+            return _result(scalar_rows=escalations)
+        return _result()
+
+    mock_app_db.execute.side_effect = _execute
+
+
+_FACTS = {
+    "cve_id": "CVE-2024-0001",
+    "severity": 4,
+    "cvss": 9.1,
+    "epss_probability": 0.4,
+    "impact_score": 5.9,
+    "published_on": datetime(2024, 1, 2),
+}
+
+
+async def test_get_cve_detail_no_longer_affected_with_visible_remediation(team_member_client, patch_sx, mock_app_db):
+    _route_app_db(mock_app_db, remediations=[("payments", "cluster-a")])
+    patch_sx.get_cve_facts.return_value = _FACTS
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["no_longer_affected"] is True
+    assert data["severity"] == 4
+    assert data["cvss"] == 9.1
+    assert data["epss_probability"] == 0.4
+    assert data["published_on"].startswith("2024-01-02")
+    assert data["affected_deployments_list"] == []
+    assert data["components"] == []
+    assert data["origin_ratings"] == []
+    assert data["affected_deployments"] == 0
+    assert data["first_seen"] is None
+    assert data["fixed_by"] is None
+    # Location-scoped StackRox reads are skipped; the CVE text comes from any row.
+    for name in ("get_affected_deployments", "get_affected_components_with_origin", "get_cve_origin_ratings"):
+        getattr(patch_sx, name).assert_not_awaited()
+    patch_sx.get_cve_protobuf_data.assert_not_awaited()
+    patch_sx.get_cve_protobuf_data_all.assert_awaited_once()
+    patch_sx.get_first_system_occurrence.assert_not_awaited()
+
+
+async def test_get_cve_detail_no_longer_affected_without_stackrox_rows(team_member_client, patch_sx, mock_app_db):
+    _route_app_db(mock_app_db, remediations=[("payments", "cluster-a")])
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["cve_id"] == "CVE-2024-0001"
+    assert data["no_longer_affected"] is True
+    assert data["severity"] == 0
+    assert data["cvss"] == 0
+
+
+@pytest.mark.parametrize(
+    "remediation_pair,query",
+    [
+        (("payments", "cluster-x"), ""),
+        (("secret-ns", "cluster-a"), ""),
+        (("payments", "cluster-a"), "?namespace=frontend&cluster=cluster-b"),
+    ],
+    ids=["foreign_cluster", "foreign_namespace", "outside_sidebar_scope"],
+)
+async def test_get_cve_detail_remediation_not_visible_returns_404(
+    remediation_pair, query, team_member_client, patch_sx, mock_app_db
+):
+    _route_app_db(mock_app_db, remediations=[remediation_pair])
+    patch_sx.get_cve_facts.return_value = _FACTS
+
+    resp = await team_member_client.get(f"/api/cves/CVE-2024-0001{query}")
+
+    assert resp.status_code == 404
+    patch_sx.get_cve_facts.assert_not_awaited()
+
+
+async def test_get_cve_detail_affected_is_not_flagged(team_member_client, patch_sx, mock_app_db):
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    assert resp.json()["no_longer_affected"] is False
+    patch_sx.get_cve_facts.assert_not_awaited()
+
+
+async def test_get_cve_detail_no_longer_affected_hides_foreign_workflow(team_member_client, patch_sx, mock_app_db):
+    """Without affected locations, other teams' RAs and escalations never leak into the detail."""
+    from app.models.risk_acceptance import RiskStatus
+
+    foreign_ra = SimpleNamespace(
+        id="ra-1",
+        status=RiskStatus.approved,
+        scope={"mode": "namespace", "targets": [{"cluster_name": "cluster-x", "namespace": "other"}]},
+        created_by="someone-else",
+        created_at=datetime(2024, 2, 1),
+        reviewed_at=datetime(2024, 2, 2),
+    )
+    foreign_esc = SimpleNamespace(
+        level=1, triggered_at=datetime(2024, 3, 1), namespace="other", cluster_name="cluster-x"
+    )
+    own_esc = SimpleNamespace(
+        level=2, triggered_at=datetime(2024, 3, 2), namespace="payments", cluster_name="cluster-a"
+    )
+    _route_app_db(
+        mock_app_db,
+        remediations=[("payments", "cluster-a")],
+        acceptances=[foreign_ra],
+        escalations=[foreign_esc, own_esc],
+    )
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["has_risk_acceptance"] is False
+    assert data["risk_acceptance_id"] is None
+    assert data["escalation_level1_at"] is None
+    assert data["escalation_level2_at"].startswith("2024-03-02")
 
 
 # -- origin (vulnerability feed, ACS 4.11.6+) --

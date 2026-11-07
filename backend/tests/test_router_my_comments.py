@@ -19,6 +19,7 @@ from app.database import Base
 from app.deps import get_app_db, get_current_user
 from app.models.cve_comment import CveComment
 from app.models.escalation import Escalation
+from app.models.remediation import Remediation, RemediationStatus
 from app.models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from app.models.user import User, UserRole
 from app.stackrox import queries as sx
@@ -45,6 +46,7 @@ async def store() -> AsyncGenerator[async_sessionmaker[AsyncSession]]:
         CveComment.__table__,
         RiskAcceptance.__table__,
         RiskAcceptanceComment.__table__,
+        Remediation.__table__,
     ]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
@@ -248,6 +250,47 @@ async def test_cve_detail_unavailable_keeps_thread_and_replies(app, store, visib
     assert row["detail_link"] is None
     assert row["replies_since"] == 1
     assert visible_cves["calls"] == [(["CVE-GONE"], [("payments", "cluster-a")])]
+
+
+async def _remediation(store, cve_id: str, namespace: str, cluster: str = "cluster-a") -> None:
+    async with store() as session:
+        session.add(
+            Remediation(
+                cve_id=cve_id,
+                namespace=namespace,
+                cluster_name=cluster,
+                status=RemediationStatus.resolved,
+                created_by=ME,
+                created_at=T0,
+                updated_at=T0,
+            )
+        )
+        await session.commit()
+
+
+async def test_remediated_cve_keeps_detail_link(app, store, visible_cves):
+    """StackRox no longer reports the CVE, but a visible remediation keeps the detail reachable."""
+    visible_cves["visible"] = set()
+    await _cve_comment(store, "CVE-FIXED", ME, T0)
+    await _remediation(store, "CVE-FIXED", "payments")
+
+    async with _client(app, store, _me()) as client:
+        [row] = (await _get(client))["items"]
+
+    assert row["detail_available"] is True
+    assert row["detail_link"] == "/vulnerabilities/CVE-FIXED"
+
+
+async def test_remediation_in_foreign_namespace_does_not_unlock_detail(app, store, visible_cves):
+    visible_cves["visible"] = set()
+    await _cve_comment(store, "CVE-FIXED", ME, T0)
+    await _remediation(store, "CVE-FIXED", "other-team")
+
+    async with _client(app, store, _me()) as client:
+        [row] = (await _get(client))["items"]
+
+    assert row["detail_available"] is False
+    assert row["detail_link"] is None
 
 
 async def test_all_namespace_user_probes_without_namespace_filter(app, store, visible_cves):

@@ -246,6 +246,62 @@ async def get_cve_origin_ratings(
     return ratings
 
 
+async def get_cve_facts(session: AsyncSession, cve_id: str) -> dict | None:
+    """CVE-level facts (scores, publication date) org-wide, without any location data.
+
+    Used when a CVE detail is reopened after it stopped affecting the caller's
+    namespaces. Reads ``image_cves_v2`` directly instead of ``CVE_ROWS_CTE`` so rows
+    of images no longer deployed still count. Severity/CVSS/EPSS take the
+    freshest-scan per-feed score (``feed_score``) when known, then MAX across feeds.
+    Returns None when StackRox has no row for the CVE.
+    """
+    sql = text("""
+        SELECT
+            ic.origin                       AS origin_code,
+            MAX(ic.severity)                AS severity,
+            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
+            MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
+            MIN(ic.cvebaseinfo_publishedon) AS published_on
+        FROM image_cves_v2 ic
+        WHERE ic.cvebaseinfo_cve = :cve_id
+        GROUP BY ic.origin
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id})
+    rows = [dict(row._mapping) for row in result]
+    if not rows:
+        return None
+
+    severity = 0
+    cvss = 0.0
+    epss = 0.0
+    impact = 0.0
+    published_dates = []
+    for row in rows:
+        score = feed_score(cve_id, row["origin_code"])
+        if score is not None:
+            row_severity, row_cvss, row_epss = score.severity, score.cvss, score.epss
+        else:
+            row_severity = row["severity"] or 0
+            row_cvss = float(row["cvss"] or 0)
+            row_epss = float(row["epss_probability"] or 0)
+        severity = max(severity, row_severity)
+        cvss = max(cvss, row_cvss)
+        epss = max(epss, row_epss)
+        impact = max(impact, float(row["impact_score"] or 0))
+        if row["published_on"] is not None:
+            published_dates.append(row["published_on"])
+
+    return {
+        "cve_id": cve_id,
+        "severity": severity,
+        "cvss": cvss,
+        "epss_probability": epss,
+        "impact_score": impact,
+        "published_on": min(published_dates) if published_dates else None,
+    }
+
+
 async def get_all_cves(
     session: AsyncSession,
     min_cvss: float = 0.0,

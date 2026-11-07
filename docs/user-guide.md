@@ -49,7 +49,7 @@ These action-first sections sit at the top of the dashboard.
 The normal workflow starts in **Vulnerabilities**.
 
 1. Open **Vulnerabilities** and apply filters such as severity, fixability, EPSS, namespace, cluster, component, data source, or risk status.
-2. Open a CVE detail page to review affected deployments, components, external references, escalation state, comments, and existing remediation or risk-acceptance records. The detail page follows the cluster and namespace selected in the sidebar: deployments, components, counts, and data sources only cover that scope. With no selection it covers every namespace you can see. If the CVE does not occur in the selected scope, the page reports it as not found.
+2. Open a CVE detail page to review affected deployments, components, external references, escalation state, comments, and existing remediation or risk-acceptance records. The detail page follows the cluster and namespace selected in the sidebar: deployments, components, counts, and data sources only cover that scope. With no selection it covers every namespace you can see. If the CVE does not occur in the selected scope, the page reports it as not found, unless you can see a remediation for it there (see below).
 3. Decide on the handling path:
    - Fix it now: create a remediation in **Remediations** from the CVE detail page.
    - Accept the risk temporarily: create a request in **Risk Acceptances** from the same CVE context.
@@ -137,6 +137,10 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 
 !!! note
     The scheduler can auto-mark an `open` or `in_progress` remediation as `resolved` if StackRox no longer reports that CVE in the namespace's deployments.
+
+### Revisiting a fixed CVE
+
+After a fix, StackRox no longer reports the CVE in your namespaces. As long as you can see a remediation for the CVE (any status, in a namespace you can currently see), its detail page stays reachable, for example from **Remediations** or **My comments**. A banner says the CVE no longer affects your namespaces. The page shows the CVE's own facts (severity, CVSS, EPSS, publication date, description, references), your remediations, and the comments, and you can keep commenting. Deployments, components, and counts are empty, and requesting a risk acceptance or a false positive is not offered. If StackRox has no data for the CVE at all, only the CVE ID, the external links, remediations, and comments are shown. If you lose access to the namespace, the page is not found again.
 
 ## False Positive Suppression
 
@@ -278,9 +282,8 @@ newest activity come first; **Only with new replies** narrows the list.
 
 - **Open** jumps to your latest comment on the CVE or risk-acceptance page.
 - **Expand** shows the whole discussion inline. This still works when the CVE no
-  longer affects any deployment in your namespaces (for example after it was
-  fixed): the CVE page then shows "not found", but the discussion stays readable
-  here.
+  longer affects any deployment in your namespaces and the CVE page is not
+  reachable (no visible remediation for it): the discussion stays readable here.
 - If you lost access to a risk acceptance, only your own comment is shown. No
   replies or reply counts are revealed.
 - Replying to your own comment resets the "new" counter for that discussion.

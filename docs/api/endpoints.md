@@ -27,7 +27,7 @@ Comment create/update requests accept **exactly one** representation:
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/api/cves` | Any | List CVEs (paginated/filterable) |
-| GET | `/api/cves/{cve_id}` | Any | CVE detail with deployments/components |
+| GET | `/api/cves/{cve_id}` | Any | CVE detail with deployments/components. When the CVE no longer affects the visible scope but the caller can see a remediation for it, returns CVE-level facts only with `no_longer_affected=true` (otherwise 404) |
 | GET | `/api/cves/{cve_id}/comments` | Any | List CVE comments |
 | POST | `/api/cves/{cve_id}/comments` | Any | Add CVE comment |
 | GET | `/api/cves/{cve_id}/deployments` | Any | Affected deployments |
@@ -275,8 +275,8 @@ on one CVE, or on one risk acceptance).
   endpoints (always true for CVEs, whose comments are global per CVE;
   `user_can_access_ra` for risk acceptances).
 - `detail_available` / `detail_link`: the detail page will load. For CVEs this
-  means the CVE still affects a deployment in the user's namespaces (the rule
-  `GET /api/cves/{cve_id}` applies).
+  means the CVE still affects a deployment in the user's namespaces, or the user
+  can see a remediation for it (the rule `GET /api/cves/{cve_id}` applies).
 - Risk acceptances the user can no longer access return `replies_since=0` and
   no `last_reply_*` fields.
 

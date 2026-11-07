@@ -194,6 +194,7 @@ Access control rules:
 - The detail timeline includes a dedicated `Veroeffentlicht` step sourced from `published_on`.
 - CVE detail includes Red Hat and NVD links for each CVE ID.
 - `contact_emails` in CVE detail should be deduplicated and include `DEFAULT_ESCALATION_EMAIL` as fallback when the user can see all namespaces.
+- Revisit after the fix: when StackRox no longer reports the CVE in the visible (narrowed) scope, CVE detail still answers if the user can see a remediation for it (`services/cve_access.py`, shared with presence and My Comments), flagged `no_longer_affected`. Then only CVE-level facts are read org-wide (`get_cve_facts` on `image_cves_v2` with `feed_score` overrides, plus the protobuf text); every location-scoped read is skipped, and RAs/escalations are limited to what the user can access.
 
 ### Comment mention rules
 

@@ -77,6 +77,7 @@
           "question": "Warum meldet die Detailseite einer CVE \"nicht gefunden\"?",
           "answer": [
             "Die Detailseite folgt der Cluster- und Namespace-Auswahl in der Seitenleiste. Kommt die CVE in dieser Auswahl nicht vor, etwa weil sie inzwischen behoben wurde, wird sie als nicht gefunden gemeldet. Ohne Auswahl umfasst die Seite alle Namespaces, die Sie sehen dürfen.",
+            "Wenn Sie eine Behebung für die CVE sehen dürfen, bleibt die Seite auch nach der Behebung erreichbar. Sie zeigt dann die CVE-Details, Ihre Behebungen und die Kommentare, und Sie können weiter kommentieren.",
             "Ihre Kommentare zu dieser CVE bleiben unter \"Meine Kommentare\" lesbar."
           ]
         }

@@ -33,6 +33,7 @@ from ..schemas.my_comments import MyCommentKind, MyCommentThread
 from ..stackrox import queries as sx
 from .comment_content import enrich_segments, mention_user_ids
 from .comment_service import escalation_context
+from .cve_access import visible_remediation_cve_ids
 from .risk_acceptance_service import user_can_access_ra
 
 logger = logging.getLogger(__name__)
@@ -179,9 +180,11 @@ async def list_my_comment_threads(
     ra_access = {ra_id: user_can_access_ra(current_user, ra) for ra_id, ra in ra_map.items()}
 
     # Detail availability mirrors get_cve: the CVE must still affect a deployment
-    # in the user's visible namespaces (all namespaces: no filter).
+    # in the user's visible namespaces (all namespaces: no filter), or the user
+    # can see a remediation for it.
     probe_namespaces = None if current_user.can_see_all_namespaces else list(current_user.namespaces)
     cve_detail_ok = await sx.cves_visible_in_namespaces(sx_db, list(cve_own.keys()), probe_namespaces)
+    cve_detail_ok |= await visible_remediation_cve_ids(app_db, current_user, list(cve_own.keys()))
 
     user_ids: set[str] = set()
     for own in (*cve_own.values(), *ra_own.values()):

@@ -4,13 +4,19 @@ import { useTranslation } from 'react-i18next'
 import { useCveSubscription, useSetCveSubscription } from '../api/subscriptions'
 import { getErrorMessage } from '../utils/errors'
 
-/** Toggle to follow a CVE ("Abonnieren"); notifications are configured in My Settings. */
-export function CveSubscribeButton({ cveId }: { cveId: string }) {
+/**
+ * Toggle to follow a CVE ("Abonnieren"); notifications are configured in My Settings.
+ * With `allowSubscribe=false` (CVE no longer affects the user) only unsubscribing is offered,
+ * since subscribing requires an affected deployment.
+ */
+export function CveSubscribeButton({ cveId, allowSubscribe = true }: { cveId: string; allowSubscribe?: boolean }) {
   const { t } = useTranslation()
   const { data, isLoading } = useCveSubscription(cveId)
   const setSubscription = useSetCveSubscription(cveId)
   const subscribed = data?.subscribed ?? false
   const busy = isLoading || setSubscription.isPending
+
+  if (!allowSubscribe && !subscribed) return null
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

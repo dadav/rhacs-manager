@@ -128,6 +128,9 @@ class CveDetail(CveListItem):
     escalation_level1_expected: datetime | None = None
     escalation_level2_expected: datetime | None = None
     escalation_level3_expected: datetime | None = None
+    # True when StackRox no longer reports the CVE in the visible scope and the
+    # detail is served because of a visible remediation (location fields empty).
+    no_longer_affected: bool = False
 
 
 class ImageCveGroup(BaseModel):
