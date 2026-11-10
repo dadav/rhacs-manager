@@ -1,6 +1,42 @@
 {
   "releases": [
     {
+      "version": "0.46.0",
+      "date": "2026-11-10",
+      "items": [
+        {
+          "id": "remediation-edit",
+          "kind": "feature",
+          "text": "Offene und laufende Behebungen lassen sich nun bearbeiten: Zieldatum verschieben oder entfernen, Notizen ändern, Zuweisung aufheben. Ein geändertes Zieldatum wird im Audit-Log festgehalten."
+        },
+        {
+          "id": "revisit-fixed-cve",
+          "kind": "feature",
+          "text": "Die Detailseite einer behobenen CVE bleibt erreichbar, solange Sie eine Behebung dazu sehen dürfen. Sie können dort weiter kommentieren."
+        },
+        {
+          "id": "remediation-reopen",
+          "kind": "feature",
+          "text": "Behobene Behebungen lassen sich nun wieder öffnen."
+        },
+        {
+          "id": "user-picker",
+          "kind": "improvement",
+          "text": "Personen wählen Sie nun überall im selben Suchdialog aus, der auch für Erwähnungen verwendet wird."
+        },
+        {
+          "id": "wont-fix-reason",
+          "kind": "fix",
+          "text": "Die Begründung für \"Wird nicht behoben\" überschreibt Ihre Notizen nicht mehr und wird getrennt angezeigt."
+        },
+        {
+          "id": "auto-resolve-note",
+          "kind": "fix",
+          "text": "Automatisch behobene Behebungen sind nun als solche gekennzeichnet; Ihre Notizen bleiben dabei unverändert."
+        }
+      ]
+    },
+    {
       "version": "0.45.3",
       "date": "2026-11-05",
       "items": [

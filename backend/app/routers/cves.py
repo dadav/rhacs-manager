@@ -411,8 +411,8 @@ async def get_cve(
             raise ApiError(404, "cve_not_found")
         no_longer_affected = True
         cve_data = await sx.get_cve_facts(sx_db, cve_id) or {"cve_id": cve_id}
-    # Without affected locations, workflow records are limited to what the user may see.
-    restrict_workflow = no_longer_affected and not current_user.can_see_all_namespaces
+    # Workflow records (risk acceptances, escalations) are limited to what the user may see.
+    restrict_workflow = not current_user.can_see_all_namespaces
 
     prio_result = await app_db.execute(
         select(CvePriority).options(selectinload(CvePriority.setter)).where(CvePriority.cve_id == cve_id)

@@ -1,6 +1,42 @@
 {
   "releases": [
     {
+      "version": "0.46.0",
+      "date": "2026-11-10",
+      "items": [
+        {
+          "id": "remediation-edit",
+          "kind": "feature",
+          "text": "Open and in-progress remediations can now be edited: move or remove the target date, change the notes, unassign. A changed target date is recorded in the audit log."
+        },
+        {
+          "id": "revisit-fixed-cve",
+          "kind": "feature",
+          "text": "The detail page of a fixed CVE stays reachable as long as you can see a remediation for it. You can keep commenting there."
+        },
+        {
+          "id": "remediation-reopen",
+          "kind": "feature",
+          "text": "Resolved remediations can now be reopened."
+        },
+        {
+          "id": "user-picker",
+          "kind": "improvement",
+          "text": "You now pick people everywhere in the same search dialog that is used for mentions."
+        },
+        {
+          "id": "wont-fix-reason",
+          "kind": "fix",
+          "text": "The reason for \"won't fix\" no longer overwrites your notes and is shown separately."
+        },
+        {
+          "id": "auto-resolve-note",
+          "kind": "fix",
+          "text": "Automatically resolved remediations are now labelled as such; your notes stay unchanged."
+        }
+      ]
+    },
+    {
       "version": "0.45.3",
       "date": "2026-11-05",
       "items": [

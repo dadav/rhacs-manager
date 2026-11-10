@@ -65,6 +65,7 @@ function makeItem(overrides: Partial<RemediationItem> = {}): RemediationItem {
     target_date: null,
     notes: null,
     wont_fix_reason: null,
+    auto_resolved: false,
     resolved_at: null,
     verified_at: null,
     created_at: '2026-09-01T00:00:00Z',
@@ -142,6 +143,25 @@ describe('RemediationCard assignment', () => {
   })
 })
 
+describe('RemediationCard reopening', () => {
+  beforeEach(() => {
+    mockPatch.mockReset()
+    mockPatch.mockResolvedValue({})
+  })
+
+  it.each([
+    [RemediationStatus.resolved, 'in_progress'],
+    [RemediationStatus.verified, 'in_progress'],
+    [RemediationStatus.wont_fix, 'open'],
+  ])('offers reopen on a %s remediation and sends %s', async (status, target) => {
+    renderCard(makeItem({ status }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.reopen' }))
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { status: target }))
+  })
+})
+
 describe('RemediationCard editing', () => {
   beforeEach(() => {
     mockPatch.mockReset()
@@ -183,6 +203,16 @@ describe('RemediationCard editing', () => {
 })
 
 describe('RemediationCard notes and won\'t-fix reason', () => {
+  it('labels automatic resolutions and hides the indicator after reopening', () => {
+    const { rerenderWith } = renderCard(makeItem({ status: RemediationStatus.resolved, auto_resolved: true }))
+
+    expect(screen.getByText('cveDetail.autoResolved')).toBeInTheDocument()
+
+    rerenderWith(makeItem({ status: RemediationStatus.in_progress }))
+
+    expect(screen.queryByText('cveDetail.autoResolved')).toBeNull()
+  })
+
   it('shows the note and the reason side by side, and only the note after a reopen', () => {
     const { rerenderWith } = renderCard(makeItem({
       status: RemediationStatus.wont_fix,

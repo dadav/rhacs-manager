@@ -129,14 +129,14 @@ Remediations are tracked on **Remediations** and are always namespace-scoped.
 6. If the work is intentionally not going to happen, use `wont_fix` and provide a reason. The reason is shown separately and your notes are kept. Reopening removes the reason from the card; the audit log retains it.
 7. Reopen when needed:
    - `in_progress` can move back to `open`
-   - `resolved` can move back to `in_progress`
+   - `resolved` can move back to `in_progress` with **Reopen** on its card or list row
    - `wont_fix` can move back to `open`
 
 !!! note
     Remediations are single-team daily work. The owning team resolves them itself; there is no sec-team verification step. The sec team audits remediation activity through the audit log and weekly digest. (`verified` remains a valid status only for historical records created before this change and can still be reopened.)
 
 !!! note
-    The scheduler can auto-mark an `open` or `in_progress` remediation as `resolved` if StackRox no longer reports that CVE in the namespace's deployments.
+    The scheduler can auto-mark an `open` or `in_progress` remediation as `resolved` if StackRox no longer reports that CVE in the namespace's deployments. Automatically resolved items are labelled as such on their card and list row, and their notes stay unchanged.
 
 ### Revisiting a fixed CVE
 
@@ -344,7 +344,7 @@ Events that otherwise only appear in the app can be summarized in **one email pe
 
 | Switch | Counted |
 | --- | --- |
-| Remediations | Remediations assigned to you, status changes, overdue remediations |
+| Remediations | Remediations assigned to you, status changes, changed target dates, overdue remediations |
 | Suppression rules | New requests, decisions on your rules |
 | Escalations | New escalations (security team) |
 | Risk acceptances: reviews, comments, expiry | Reviews assigned to you, team comments to the security team, your own acceptances expiring within 7 days |

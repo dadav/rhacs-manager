@@ -62,6 +62,8 @@ class RemediationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_overdue: bool = False
+    # Resolved by the scheduler because StackRox no longer reports the CVE there.
+    auto_resolved: bool = False
 
 
 class RemediationStats(BaseModel):

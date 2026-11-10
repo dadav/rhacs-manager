@@ -254,7 +254,11 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
   const canWontFix = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
-  const canReopen = item.status === RemediationStatus.wont_fix
+  // Backend transitions: wont_fix -> open, resolved/verified -> in_progress.
+  const reopenTarget =
+    item.status === RemediationStatus.wont_fix ? 'open'
+    : item.status === RemediationStatus.resolved || item.status === RemediationStatus.verified ? 'in_progress'
+    : null
   const canEdit = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
 
   function changeAssignee(assignedTo: string | null) {
@@ -305,6 +309,7 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
           </span>
         )}
         <span>{t('cveDetail.createdInfo', { date: formatDate(item.created_at, i18n.language), name: item.created_by_name })}</span>
+        {item.auto_resolved && <span>{t('cveDetail.autoResolved')}</span>}
       </div>
       {item.notes && (
         <p style={{ fontSize: 12, margin: '6px 0 0', color: 'var(--pf-t--global--text--color--regular)', whiteSpace: 'pre-wrap' }}>
@@ -353,8 +358,8 @@ export function RemediationCard({ item, remStatusLabels }: { item: RemediationIt
             {t('cveDetail.wontFix')}
           </Button>
         )}
-        {canReopen && (
-          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: 'open' })}>
+        {reopenTarget && (
+          <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => updateMutation.mutate({ status: reopenTarget })}>
             {t('cveDetail.reopen')}
           </Button>
         )}

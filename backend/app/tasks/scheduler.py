@@ -1,7 +1,7 @@
 """APScheduler background jobs: escalation checks, expiry checks, weekly digest."""
 
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, func, select
@@ -21,6 +21,7 @@ from ..models.risk_acceptance import RiskAcceptance, RiskStatus, expiring_risk_a
 from ..notifications import service as notif_svc
 from ..services import cve_subscription_service as sub_svc
 from ..services import notification_summary_service as summary_svc
+from ..services.audit_service import log_action
 from ..services.cve_filter_service import load_approved_suppression_rules
 from ..services.escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
@@ -568,11 +569,19 @@ async def run_remediation_auto_resolve() -> None:
                     [(remediation.namespace, remediation.cluster_name)],
                 )
                 if not deployments:
+                    old_status = remediation.status.value
                     remediation.status = RemediationStatus.resolved
                     remediation.resolved_at = datetime.now(UTC).replace(tzinfo=None)
-                    remediation.notes = (
-                        remediation.notes or ""
-                    ) + "\n[Automatisch behoben: CVE nicht mehr in Deployments gefunden]"
+                    # resolved_by stays NULL: that is what marks the resolution as automatic.
+                    remediation.resolved_by = None
+                    await log_action(
+                        app_session,
+                        None,
+                        "remediation_auto_resolved",
+                        "remediation",
+                        str(remediation.id),
+                        {"old_status": old_status, "new_status": RemediationStatus.resolved.value},
+                    )
                     logger.info(
                         "Auto-resolved remediation %s for CVE %s in %s/%s",
                         remediation.id,
@@ -631,7 +640,7 @@ async def _send_digest() -> None:
 
             # Remediation stats
             now = datetime.utcnow()
-            today_date = date.today()
+            today_date = now.date()
             seven_days_ago = now - timedelta(days=7)
 
             rem_open_result = await app_session.execute(

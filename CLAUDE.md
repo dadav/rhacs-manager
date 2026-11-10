@@ -194,6 +194,7 @@ Access control rules:
 - The detail timeline includes a dedicated `Veroeffentlicht` step sourced from `published_on`.
 - CVE detail includes Red Hat and NVD links for each CVE ID.
 - `contact_emails` in CVE detail should be deduplicated and include `DEFAULT_ESCALATION_EMAIL` as fallback when the user can see all namespaces.
+- For users without all-namespace visibility, CVE detail only reports risk acceptances they can access (`user_can_access_ra`) and escalations in their visible (narrowed) pairs, whether or not the CVE still affects them.
 - Revisit after the fix: when StackRox no longer reports the CVE in the visible (narrowed) scope, CVE detail still answers if the user can see a remediation for it (`services/cve_access.py`, shared with presence and My Comments), flagged `no_longer_affected`. Then only CVE-level facts are read org-wide (`get_cve_facts` on `image_cves_v2` with `feed_score` overrides, plus the protobuf text); every location-scoped read is skipped, and RAs/escalations are limited to what the user can access.
 
 ### Comment mention rules
@@ -239,7 +240,7 @@ Access control rules:
 - Expected path is `open -> in_progress -> resolved`. `resolved` is terminal (reopen to `in_progress` only).
 - Remediations are single-team daily ops; the owning team self-resolves and the sec team audits (no verification gate). Sec-team remediation notifications were removed; they consume the audit log and weekly digest instead.
 - `wont_fix` requires a reason, stored in `wont_fix_reason` and never in `notes`. Reopening clears it (the audit log keeps it) and leaves `notes` unchanged.
-- Auto-resolution runs when StackRox no longer reports the CVE in that namespace.
+- Auto-resolution runs when StackRox no longer reports the CVE in that namespace. It never touches `notes`, leaves `resolved_by` NULL (exposed as `auto_resolved`), and writes a `remediation_auto_resolved` audit entry.
 - `assigned_to`, `target_date`, and `notes` are editable only while the current or requested status is `open`/`in_progress` (`services/remediation_service.py`). In `PATCH`, an omitted field stays unchanged and an explicit `null` clears it (`model_fields_set`). Only a changed target date is checked against today, so an overdue item can still get a notes edit. A date change notifies creator and assignee.
 
 ### Badge URL rule

@@ -380,6 +380,35 @@ Behavior:
 | `assigned_to` | string | - | Exact assignee match |
 | `overdue` | bool | - | Post-filter for `target_date < today` and status `open` or `in_progress` |
 
+### Remediation response
+
+Create, get, and update endpoints return remediation records with an `auto_resolved` boolean. It is `true` only when the status is `resolved`, `resolved_at` is set, and `resolved_by` is null, including historic scheduler resolutions. Manual resolution and reopening return `false`.
+
+```json
+{
+  "id": "5a43f83c-4bd1-4f30-b628-7e683c05cf48",
+  "cve_id": "CVE-2025-1234",
+  "namespace": "payments",
+  "cluster_name": "cluster-a",
+  "status": "open",
+  "assigned_to": null,
+  "assigned_to_name": null,
+  "created_by": "alice",
+  "created_by_name": "Alice",
+  "resolved_by": null,
+  "resolved_by_name": null,
+  "target_date": null,
+  "notes": "Upgrade the affected base image.",
+  "wont_fix_reason": null,
+  "resolved_at": null,
+  "verified_at": null,
+  "created_at": "2026-11-10T12:00:00",
+  "updated_at": "2026-11-10T12:00:00",
+  "is_overdue": false,
+  "auto_resolved": false
+}
+```
+
 ### `GET /api/remediations/stats`
 
 Returns:
@@ -411,8 +440,8 @@ Status transitions:
 
 - `open` -> `in_progress`, `wont_fix`
 - `in_progress` -> `resolved`, `wont_fix`, `open`
-- `resolved` -> `verified`, `in_progress`
-- `verified` -> `in_progress`
+- `resolved` -> `in_progress`
+- `verified` -> `in_progress` (legacy records only)
 - `wont_fix` -> `open`
 
 Special rules:
@@ -421,9 +450,10 @@ Special rules:
 - `assigned_to`, `target_date`, and `notes` can only change when the current or requested status is `open` or `in_progress`; otherwise the request fails with `400`.
 - A changed `target_date` cannot be in the past (`400`). Sending an unchanged past date is allowed.
 - A changed `target_date` notifies the creator and the assignee, excluding the acting user and a user assigned in the same request.
-- Only `sec_team` can set `verified`.
-- `wont_fix` requires `wont_fix_reason`. The backend stores it in the response field of the same name and leaves `notes` unchanged.
+- `verified` cannot be set; it only exists on legacy records.
+- `wont_fix` requires a non-blank `wont_fix_reason`. The backend trims it, stores it in the response field of the same name, and leaves `notes` unchanged.
 - Moving back to `open` or `in_progress` clears prior resolution or verification timestamps when reopening from `resolved`, `verified`, or `wont_fix`. Reopening also clears `wont_fix_reason` and keeps `notes`; the audit log retains the reason.
+- The scheduler auto-resolve leaves `notes` unchanged, keeps `resolved_by` null, and writes a `remediation_auto_resolved` audit entry.
 
 ## Exports
 

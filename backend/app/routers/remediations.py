@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -48,7 +48,7 @@ def _build_response(r: Remediation) -> RemediationResponse:
 
     is_overdue = (
         r.target_date is not None
-        and r.target_date < date.today()
+        and r.target_date < datetime.utcnow().date()
         and r.status in (RemediationStatus.open, RemediationStatus.in_progress)
     )
 
@@ -72,6 +72,7 @@ def _build_response(r: Remediation) -> RemediationResponse:
         created_at=r.created_at,
         updated_at=r.updated_at,
         is_overdue=is_overdue,
+        auto_resolved=r.status == RemediationStatus.resolved and r.resolved_at is not None and r.resolved_by is None,
     )
 
 
@@ -164,7 +165,7 @@ async def list_remediations(
 
     # Post-filter for overdue
     if overdue is True:
-        today = date.today()
+        today = datetime.utcnow().date()
         remediations = [
             r
             for r in remediations
@@ -199,7 +200,7 @@ async def remediation_stats(
     result = await db.execute(base_query)
     all_remediations = result.scalars().all()
 
-    today = date.today()
+    today = datetime.utcnow().date()
     stats = RemediationStats()
     for r in all_remediations:
         match r.status:

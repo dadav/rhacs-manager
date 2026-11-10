@@ -572,6 +572,7 @@ export interface RemediationItem {
   target_date: string | null
   notes: string | null
   wont_fix_reason: string | null
+  auto_resolved: boolean
   resolved_at: string | null
   verified_at: string | null
   created_at: string

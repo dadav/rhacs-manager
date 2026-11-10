@@ -61,6 +61,7 @@ function makeItem(overrides: Partial<RemediationItem> = {}): RemediationItem {
     target_date: null,
     notes: null,
     wont_fix_reason: null,
+    auto_resolved: false,
     resolved_at: null,
     verified_at: null,
     created_at: '2026-09-01T00:00:00Z',
@@ -92,6 +93,18 @@ describe('Remediations row actions', () => {
     mockAddToast.mockReset()
   })
 
+  it.each([
+    [RemediationStatus.resolved, 'in_progress'],
+    [RemediationStatus.verified, 'in_progress'],
+    [RemediationStatus.wont_fix, 'open'],
+  ])('offers reopen on a %s remediation and sends %s', async (status, target) => {
+    renderPage(makeItem({ status }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'remediations.reopen' }))
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { status: target }))
+  })
+
   it('edits from the row and confirms with a toast', async () => {
     renderPage(makeItem())
 
@@ -101,6 +114,19 @@ describe('Remediations row actions', () => {
 
     await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/remediations/rem-1', { notes: 'New plan' }))
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('toast.remediationUpdated'))
+  })
+
+  it('labels an automatically resolved remediation', async () => {
+    renderPage(makeItem({ status: RemediationStatus.resolved, auto_resolved: true }))
+
+    expect(await screen.findByText('cveDetail.autoResolved')).toBeInTheDocument()
+  })
+
+  it('shows the reason for a wont_fix row', async () => {
+    const reason = 'Component is removed next sprint'
+    renderPage(makeItem({ status: RemediationStatus.wont_fix, wont_fix_reason: reason }))
+
+    expect(await screen.findByText(reason)).toHaveAttribute('title', reason)
   })
 
   it('keeps status actions usable after assigning from the row', async () => {

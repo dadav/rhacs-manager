@@ -39,6 +39,7 @@ function makeItem(overrides: Partial<RemediationItem> = {}): RemediationItem {
     target_date: '2026-11-20',
     notes: 'Original note',
     wont_fix_reason: null,
+    auto_resolved: false,
     resolved_at: null,
     verified_at: null,
     created_at: '2026-09-01T00:00:00Z',

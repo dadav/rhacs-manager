@@ -24,7 +24,7 @@ _ASSIGNEE_ID = "assignee-1"
 _NEW_ASSIGNEE_ID = "assignee-2"
 _NOTE = "Upgrade the base image"
 
-_TODAY = date.today()
+_TODAY = datetime.utcnow().date()
 _YESTERDAY = _TODAY - timedelta(days=1)
 _NEXT_WEEK = _TODAY + timedelta(days=7)
 _NEXT_MONTH = _TODAY + timedelta(days=30)
@@ -67,6 +67,8 @@ async def store(app: FastAPI, team_member_user: CurrentUser):
     async def add_remediation(
         status: RemediationStatus = RemediationStatus.open,
         target_date: date | None = _NEXT_WEEK,
+        resolved_at: datetime | None = None,
+        resolved_by: str | None = None,
     ) -> str:
         remediation_id = uuid4()
         async with session_factory() as session:
@@ -77,6 +79,8 @@ async def store(app: FastAPI, team_member_user: CurrentUser):
                     namespace="payments",
                     cluster_name="cluster-a",
                     status=status,
+                    resolved_at=resolved_at,
+                    resolved_by=resolved_by,
                     target_date=target_date,
                     notes=_NOTE,
                     created_by=_CREATOR_ID,
@@ -104,6 +108,57 @@ async def store(app: FastAPI, team_member_user: CurrentUser):
             yield client, add_remediation, notification_keys, mock_audit
 
     await engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("status", "has_timestamp", "resolved_by", "expected"),
+    [
+        (RemediationStatus.resolved, True, None, True),
+        (RemediationStatus.resolved, False, None, False),
+        (RemediationStatus.resolved, True, _ACTOR_ID, False),
+        (RemediationStatus.verified, True, None, False),
+        (RemediationStatus.open, False, None, False),
+    ],
+)
+async def test_auto_resolved_response_flag(store, status, has_timestamp, resolved_by, expected):
+    client, add_remediation, _, _ = store
+    url = await add_remediation(
+        status=status,
+        resolved_at=datetime.now(UTC).replace(tzinfo=None) if has_timestamp else None,
+        resolved_by=resolved_by,
+    )
+
+    response = await client.get(url)
+
+    assert response.status_code == 200
+    assert response.json()["auto_resolved"] is expected
+
+
+async def test_manual_resolution_is_not_automatic(store):
+    client, add_remediation, _, _ = store
+    url = await add_remediation(status=RemediationStatus.in_progress)
+
+    response = await client.patch(url, json={"status": "resolved"})
+
+    assert response.status_code == 200
+    assert response.json()["resolved_by"] == _ACTOR_ID
+    assert response.json()["auto_resolved"] is False
+    assert (await client.get(url)).json()["auto_resolved"] is False
+
+
+async def test_reopening_clears_automatic_resolution(store):
+    client, add_remediation, _, _ = store
+    url = await add_remediation(
+        status=RemediationStatus.resolved,
+        resolved_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+
+    response = await client.patch(url, json={"status": "in_progress"})
+
+    assert response.status_code == 200
+    assert response.json()["auto_resolved"] is False
+    assert response.json()["resolved_at"] is None
+    assert response.json()["notes"] == _NOTE
 
 
 async def test_change_date_audits_old_and_new_and_notifies_others(store):

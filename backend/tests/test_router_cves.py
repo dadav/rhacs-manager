@@ -488,6 +488,38 @@ async def test_get_cve_detail_no_longer_affected_hides_foreign_workflow(team_mem
     assert data["escalation_level2_at"].startswith("2024-03-02")
 
 
+async def test_get_cve_detail_affected_hides_foreign_workflow(team_member_client, patch_sx, mock_app_db):
+    """A still-affected detail shows only RAs and escalations of the user's own namespaces."""
+    from app.models.risk_acceptance import RiskStatus
+
+    foreign_ra = SimpleNamespace(
+        id="ra-1",
+        status=RiskStatus.approved,
+        scope={"mode": "namespace", "targets": [{"cluster_name": "cluster-x", "namespace": "other"}]},
+        created_by="someone-else",
+        created_at=datetime(2024, 2, 1),
+        reviewed_at=datetime(2024, 2, 2),
+    )
+    foreign_esc = SimpleNamespace(
+        level=1, triggered_at=datetime(2024, 3, 1), namespace="other", cluster_name="cluster-x"
+    )
+    own_esc = SimpleNamespace(
+        level=2, triggered_at=datetime(2024, 3, 2), namespace="payments", cluster_name="cluster-a"
+    )
+    _route_app_db(mock_app_db, acceptances=[foreign_ra], escalations=[foreign_esc, own_esc])
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["no_longer_affected"] is False
+    assert data["has_risk_acceptance"] is False
+    assert data["risk_acceptance_id"] is None
+    assert data["escalation_level1_at"] is None
+    assert data["escalation_level2_at"].startswith("2024-03-02")
+
+
 # -- origin (vulnerability feed, ACS 4.11.6+) --
 
 

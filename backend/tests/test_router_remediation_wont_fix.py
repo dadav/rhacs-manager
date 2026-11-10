@@ -115,6 +115,31 @@ async def test_wont_fix_without_reason_is_rejected(remediation_store):
     assert current["wont_fix_reason"] is None
 
 
+@pytest.mark.parametrize("reason", ["   ", "\t\n"])
+async def test_wont_fix_with_blank_reason_is_rejected(remediation_store, reason):
+    client, url, mock_audit = remediation_store
+
+    response = await client.patch(url, json={"status": "wont_fix", "wont_fix_reason": reason})
+
+    assert response.status_code == 400
+    current = (await client.get(url)).json()
+    assert current["status"] == "open"
+    assert current["notes"] == _NOTE
+    assert current["wont_fix_reason"] is None
+    mock_audit.assert_not_awaited()
+
+
+async def test_wont_fix_stores_and_audits_trimmed_reason(remediation_store):
+    client, url, mock_audit = remediation_store
+
+    response = await client.patch(url, json={"status": "wont_fix", "wont_fix_reason": f" \t{_REASON}\n "})
+
+    assert response.status_code == 200
+    assert response.json()["wont_fix_reason"] == _REASON
+    assert (await client.get(url)).json()["wont_fix_reason"] == _REASON
+    assert mock_audit.await_args.args[5]["wont_fix_reason"] == _REASON
+
+
 async def test_patch_with_notes_and_reason_stores_both(remediation_store):
     client, url, _ = remediation_store
 

@@ -186,7 +186,8 @@ def _apply_status(
     if new_status not in allowed:
         raise ApiError(400, "invalid_status_transition", old=remediation.status.value, new=new_status.value)
 
-    if new_status == RemediationStatus.wont_fix and not wont_fix_reason:
+    reason = wont_fix_reason.strip() if wont_fix_reason else None
+    if new_status == RemediationStatus.wont_fix and not reason:
         raise ApiError(400, "remediation_wontfix_requires_reason")
 
     old_status = remediation.status.value
@@ -205,8 +206,8 @@ def _apply_status(
         remediation.wont_fix_reason = None
 
     if new_status == RemediationStatus.wont_fix:
-        remediation.wont_fix_reason = wont_fix_reason
-        details["wont_fix_reason"] = wont_fix_reason
+        remediation.wont_fix_reason = reason
+        details["wont_fix_reason"] = reason
 
 
 async def update_remediation(
@@ -239,7 +240,7 @@ async def update_remediation(
     target_date_changed = "target_date" in sent and body.target_date != old_target_date
     if target_date_changed:
         # An unchanged past date is not checked, so an overdue item can still get a notes edit.
-        if body.target_date is not None and body.target_date < date.today():
+        if body.target_date is not None and body.target_date < datetime.utcnow().date():
             raise ApiError(400, "remediation_target_date_past")
         remediation.target_date = body.target_date
         details["old_target_date"] = old_target_date.isoformat() if old_target_date else None

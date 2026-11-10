@@ -335,7 +335,11 @@ function RemediationRow({
   const mutationBusy = updateMutation.isPending || updateMutation.isSuccess
   const canProgress = item.status === RemediationStatus.open
   const canResolve = item.status === RemediationStatus.in_progress
-  const canReopen = item.status === RemediationStatus.wont_fix
+  // Backend transitions: wont_fix -> open, resolved/verified -> in_progress.
+  const reopenTarget =
+    item.status === RemediationStatus.wont_fix ? 'open'
+    : item.status === RemediationStatus.resolved || item.status === RemediationStatus.verified ? 'in_progress'
+    : null
   const canEdit = item.status === RemediationStatus.open || item.status === RemediationStatus.in_progress
 
   function changeStatus(status: string) {
@@ -376,6 +380,17 @@ function RemediationRow({
       <Td>{item.cluster_name}/{item.namespace}</Td>
       <Td>
         <StatusBadge status={item.status} isOverdue={item.is_overdue} />
+        {item.auto_resolved && (
+          <div style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)' }}>{t('cveDetail.autoResolved')}</div>
+        )}
+        {item.wont_fix_reason && (
+          <div
+            title={item.wont_fix_reason}
+            style={{ fontSize: 11, color: 'var(--pf-t--global--text--color--subtle)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {item.wont_fix_reason}
+          </div>
+        )}
       </Td>
       <Td>
         {item.assigned_to_name ?? <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>-</span>}
@@ -428,8 +443,8 @@ function RemediationRow({
               {t('remediations.markResolved')}
             </Button>
           )}
-          {canReopen && (
-            <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus('open')}>
+          {reopenTarget && (
+            <Button variant="link" size="sm" isDisabled={mutationBusy} isLoading={mutationBusy} onClick={() => changeStatus(reopenTarget)}>
               {t('remediations.reopen')}
             </Button>
           )}
