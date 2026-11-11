@@ -507,3 +507,18 @@ async def test_reported_cve_is_not_duplicated_as_fixed(fixed_cve_context):
     assert len(items) == 1
     assert not items[0].no_longer_affected
     sx.get_cve_facts_bulk.assert_not_awaited()
+
+
+def test_scoped_cve_rule_locations_lists_only_namespace_scoped_targets():
+    from types import SimpleNamespace
+
+    from app.services.cve_filter_service import scoped_cve_rule_locations
+
+    scoped = SimpleNamespace(
+        cve_id="CVE-1",
+        scope={"mode": "namespace", "targets": [{"namespace": "a", "cluster_name": "c1"}]},
+    )
+    org_wide = SimpleNamespace(cve_id="CVE-2", scope={"mode": "all", "targets": []})
+    legacy = SimpleNamespace(cve_id="CVE-3", scope=None)
+
+    assert scoped_cve_rule_locations([scoped, org_wide, legacy]) == [("CVE-1", "a", "c1")]

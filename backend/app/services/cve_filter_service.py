@@ -140,6 +140,24 @@ def is_location_suppressed(
     return any(_matches_component_rule(rule, components) for rule in component_rules)
 
 
+def scoped_cve_rule_locations(cve_rules: list[SuppressionRule]) -> list[tuple[str, str, str]]:
+    """(cve_id, namespace, cluster_name) triples hidden by namespace-scoped CVE rules.
+
+    Org-wide rules (``mode == "all"`` or no scope) are not listed: they suppress the
+    CVE everywhere and are handled by the org-wide suppressed set.
+    """
+    locations: set[tuple[str, str, str]] = set()
+    for rule in cve_rules:
+        scope = rule.scope or {"mode": "all", "targets": []}
+        if not rule.cve_id or scope.get("mode") == "all":
+            continue
+        for target in scope.get("targets", []):
+            namespace, cluster_name = target.get("namespace"), target.get("cluster_name")
+            if namespace and cluster_name:
+                locations.add((rule.cve_id, namespace, cluster_name))
+    return sorted(locations)
+
+
 async def load_approved_suppression_rules(
     app_db: AsyncSession,
 ) -> tuple[list[SuppressionRule], list[SuppressionRule]]:

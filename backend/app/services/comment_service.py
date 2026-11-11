@@ -325,23 +325,29 @@ async def add_risk_acceptance_comment(
         creator_email = mail_svc.deliverable_address(
             acceptance.creator.email, user_id=acceptance.creator.id, purpose="risk_comment"
         )
+    # Primitives only: ORM attributes expire on commit and the mail goes out after it.
+    acceptance_id = str(acceptance.id)
+    acceptance_cve_id = acceptance.cve_id
+    creator_id = acceptance.creator.id if acceptance.creator else None
+
+    await db.commit()
+    await db.refresh(comment)
+
+    # Sent only after the comment is durable: a failed commit must not announce it.
     if creator_email is not None:
         try:
             await mail_svc.send_risk_comment_email(
                 creator_email,
-                acceptance.cve_id,
-                str(acceptance.id),
+                acceptance_cve_id,
+                acceptance_id,
                 current_user.display_name,
                 prepared.display_text(),
             )
         except Exception:
             logger.exception(
                 "Risk acceptance comment email delivery failed",
-                extra={"risk_acceptance_id": str(acceptance.id), "recipient_id": acceptance.creator.id},
+                extra={"risk_acceptance_id": acceptance_id, "recipient_id": creator_id},
             )
-
-    await db.commit()
-    await db.refresh(comment)
     return (
         CommentResponse(
             id=comment.id,

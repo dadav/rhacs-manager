@@ -19,7 +19,7 @@ from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import fetch_filtered_cves
-from ..services.risk_acceptance_service import scope_key, validate_and_resolve_scope
+from ..services.risk_acceptance_service import is_single_team_scope, scope_key, validate_and_resolve_scope
 from ..stackrox import queries as sx
 
 logger = logging.getLogger(__name__)
@@ -332,6 +332,8 @@ async def import_excel(
         groups[key].append(row)
 
     preview_items: list[dict] = []
+    # Wildcard users carry no explicit pairs: resolve their visibility once.
+    visible_pairs = await _resolve_namespaces(current_user, sx_db)
 
     for (cve_id, justification), group_rows in groups.items():
         errors: list[str] = []
@@ -355,7 +357,7 @@ async def import_excel(
 
         if not errors:
             try:
-                deployments = await sx.get_affected_deployments(sx_db, cve_id, current_user.namespaces)
+                deployments = await sx.get_affected_deployments(sx_db, cve_id, visible_pairs)
                 if not deployments:
                     errors.append(m["cve_not_found"])
                 else:
@@ -437,19 +439,25 @@ async def import_excel(
             )
             continue
 
+        # Same rule as the create endpoint: single-team scopes auto-approve.
+        single_team = is_single_team_scope(resolved_scope)
+
         ra = RiskAcceptance(
             cve_id=item["cve_id"],
-            status=RiskStatus.requested,
+            status=RiskStatus.approved if single_team else RiskStatus.requested,
             justification=item["justification_full"],
             scope=resolved_scope.model_dump(mode="json"),
             scope_key=sk,
             expires_at=datetime.fromisoformat(item["expires_at"]) if item.get("expires_at") else None,
             created_by=current_user.id,
+            reviewed_at=datetime.utcnow() if single_team else None,
         )
         app_db.add(ra)
         await app_db.flush()
 
         await log_action(app_db, current_user.id, "risk_acceptance_imported", "risk_acceptance", str(ra.id))
+        if single_team:
+            await log_action(app_db, current_user.id, "risk_acceptance_auto_approved", "risk_acceptance", str(ra.id))
         await sub_svc.broadcast_subscription_event(
             app_db,
             sx_db,

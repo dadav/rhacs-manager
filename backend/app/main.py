@@ -60,7 +60,7 @@ def _validate_production_config() -> None:
             "At least one must be set when DEV_MODE=false."
         )
     if not app_settings.management_email:
-        logger.warning("MANAGEMENT_EMAIL is not set — org-wide digest emails will not be sent")
+        logger.warning("MANAGEMENT_EMAIL is not set: digest emails need the management email from the settings page")
     if not app_settings.default_escalation_email:
         logger.warning("DEFAULT_ESCALATION_EMAIL is not set — fallback escalation contact missing")
 

@@ -410,15 +410,22 @@ async def get_snapshot_counts(
     min_epss: float,
     always_show_cve_ids: set[str],
     exclude_cve_ids: set[str],
+    exclude_locations: list[tuple[str, str, str]] | None = None,
 ) -> list[dict]:
     """Per-(cluster, namespace, severity) CVE counts plus org-wide '*' rows.
 
     count_total excludes suppressed CVEs; count_visible additionally applies the
     global CVSS/EPSS thresholds with the always-show bypass. The '*'/'*' rows are
     deduplicated across namespaces (a CVE in several namespaces counts once).
+
+    ``exclude_cve_ids`` are hidden everywhere. ``exclude_locations`` are
+    (cve_id, namespace, cluster_name) triples hidden only in that location
+    (namespace-scoped suppression rules); the CVE still counts elsewhere and in
+    the org-wide rows while another location reports it.
     """
     always_show = list(always_show_cve_ids)
     exclude = list(exclude_cve_ids)
+    locations = exclude_locations or []
 
     sql = text(f"""
         WITH {CVE_ROWS_CTE},
@@ -432,6 +439,17 @@ async def get_snapshot_counts(
             FROM deployments d
             JOIN cve_rows ic ON ic.deployments_id = d.id
             WHERE NOT (ic.cvebaseinfo_cve = ANY(:exclude))
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM unnest(
+                      CAST(:exclude_loc_cves AS text[]),
+                      CAST(:exclude_loc_namespaces AS text[]),
+                      CAST(:exclude_loc_clusters AS text[])
+                  ) AS loc(cve, namespace, cluster_name)
+                  WHERE loc.cve = ic.cvebaseinfo_cve
+                    AND loc.namespace = d.namespace
+                    AND loc.cluster_name = d.clustername
+              )
             GROUP BY d.clustername, d.namespace, ic.cvebaseinfo_cve
         ),
         per_ns AS (
@@ -473,6 +491,9 @@ async def get_snapshot_counts(
             "min_epss": min_epss,
             "always_show": always_show,
             "exclude": exclude,
+            "exclude_loc_cves": [loc[0] for loc in locations],
+            "exclude_loc_namespaces": [loc[1] for loc in locations],
+            "exclude_loc_clusters": [loc[2] for loc in locations],
             **await effective_score_params(),
         },
     )

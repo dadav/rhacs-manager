@@ -1,10 +1,12 @@
 """APScheduler background jobs: escalation checks, expiry checks, weekly digest."""
 
 import logging
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +24,7 @@ from ..notifications import service as notif_svc
 from ..services import cve_subscription_service as sub_svc
 from ..services import notification_summary_service as summary_svc
 from ..services.audit_service import log_action
-from ..services.cve_filter_service import load_approved_suppression_rules
+from ..services.cve_filter_service import load_approved_suppression_rules, scoped_cve_rule_locations
 from ..services.escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,21 @@ scheduler = AsyncIOScheduler(timezone="UTC")
 async def _get_settings(session) -> GlobalSettings | None:
     result = await session.execute(select(GlobalSettings).limit(1))
     return result.scalar_one_or_none()
+
+
+DEFAULT_DIGEST_DAY = 0  # Monday, the GlobalSettings.digest_day column default
+
+
+def effective_management_email(settings: GlobalSettings | None) -> str:
+    """Runtime setting from the UI, falling back to the MANAGEMENT_EMAIL env value."""
+    runtime_value = (settings.management_email or "").strip() if settings else ""
+    return runtime_value or app_settings.management_email.strip()
+
+
+def is_digest_day(settings: GlobalSettings | None, now: datetime) -> bool:
+    """Weekly digests run on the configured weekday (UTC); Monday without a settings row."""
+    digest_day = settings.digest_day if settings else DEFAULT_DIGEST_DAY
+    return now.weekday() == digest_day
 
 
 @instrument_job("expiry_check")
@@ -156,6 +173,32 @@ def _log_escalation_candidates(
     )
 
 
+@dataclass(frozen=True)
+class EscalationEmailJob:
+    """One escalation email to send after the escalation rows are committed."""
+
+    escalation_id: UUID
+    recipient: str
+    email_kwargs: dict
+
+
+async def _send_escalation_emails(jobs: list[EscalationEmailJob]) -> list[UUID]:
+    """Send each job, isolating failures. Returns the escalation ids whose email was sent."""
+    sent_ids: list[UUID] = []
+    for job in jobs:
+        try:
+            await mail_svc.send_escalation_email(job.recipient, **job.email_kwargs)
+        except Exception:
+            logger.exception(
+                "Failed to send escalation email for %s to %s",
+                job.email_kwargs.get("cve_id"),
+                job.recipient,
+            )
+            continue
+        sent_ids.append(job.escalation_id)
+    return sent_ids
+
+
 @instrument_job("escalation_check")
 async def run_escalation_check() -> None:
     """Check for CVEs that should be escalated based on age and settings.
@@ -218,6 +261,7 @@ async def run_escalation_check() -> None:
             )
             _log_escalation_candidates("escalation_check", cve_rows, candidate_rows, accepted_ids)
 
+            email_jobs: list[EscalationEmailJob] = []
             for row in candidate_rows:
                 now = datetime.utcnow()
 
@@ -272,7 +316,6 @@ async def run_escalation_check() -> None:
                     params={"level": level},
                     scope=[(ns_name, cluster)],
                 )
-                esc.notified = True
 
                 # Fetch affected deployments for email context
                 deploy_rows = await get_affected_deployments(
@@ -305,18 +348,14 @@ async def run_escalation_check() -> None:
                     recipient = contact.escalation_email
                 elif app_settings.default_escalation_email:
                     recipient = app_settings.default_escalation_email
-                elif app_settings.management_email:
-                    recipient = app_settings.management_email
+                elif effective_management_email(settings):
+                    recipient = effective_management_email(settings)
 
+                # ``notified`` stays False without a recipient or after a failed send.
                 if recipient:
-                    try:
-                        await mail_svc.send_escalation_email(recipient, **email_kwargs)
-                    except Exception:
-                        logger.exception(
-                            "Failed to send escalation email for %s to %s",
-                            row["cve_id"],
-                            recipient,
-                        )
+                    email_jobs.append(
+                        EscalationEmailJob(escalation_id=esc.id, recipient=recipient, email_kwargs=email_kwargs)
+                    )
 
         # Cleanup: remove escalations for CVEs that no longer pass thresholds
         # Collect all CVE IDs that are currently visible (pass thresholds or always-show)
@@ -334,6 +373,13 @@ async def run_escalation_check() -> None:
             )
 
         await app_session.commit()
+
+        # Emails go out only after the escalation rows are durable, so a failed
+        # commit can never cause the same email to be sent again on the next run.
+        sent_ids = await _send_escalation_emails(email_jobs)
+        if sent_ids:
+            await app_session.execute(update(Escalation).where(Escalation.id.in_(sent_ids)).values(notified=True))
+            await app_session.commit()
         logger.info("Escalation check complete")
 
 
@@ -468,8 +514,8 @@ async def run_escalation_warning() -> None:
                     recipient = contact.escalation_email
                 elif app_settings.default_escalation_email:
                     recipient = app_settings.default_escalation_email
-                elif app_settings.management_email:
-                    recipient = app_settings.management_email
+                elif effective_management_email(settings):
+                    recipient = effective_management_email(settings)
 
                 if recipient:
                     deploy_rows = await get_affected_deployments(
@@ -604,12 +650,12 @@ async def run_remediation_auto_resolve() -> None:
 
 async def _send_digest() -> None:
     """Core digest logic: gather stats and send email. Called by scheduled and manual triggers."""
-    if not app_settings.management_email:
-        logger.info("No management_email configured, skipping digest")
-        raise ValueError("Keine Management-E-Mail konfiguriert")
-
     async with AppSessionLocal() as app_session:
         settings = await _get_settings(app_session)
+        management_email = effective_management_email(settings)
+        if not management_email:
+            logger.info("No management_email configured, skipping digest")
+            raise ValueError("Keine Management-E-Mail konfiguriert")
         min_cvss = float(settings.min_cvss_score) if settings and settings.min_cvss_score else 0.0
         min_epss = float(settings.min_epss_score) if settings and settings.min_epss_score else 0.0
 
@@ -707,7 +753,7 @@ async def _send_digest() -> None:
                 "remediations_overdue": remediations_overdue,
                 "remediations_resolved_7d": remediations_resolved_7d,
             }
-            await mail_svc.send_weekly_digest(app_settings.management_email, stats)
+            await mail_svc.send_weekly_digest(management_email, stats)
 
 
 @instrument_job("weekly_digest")
@@ -716,8 +762,7 @@ async def run_weekly_digest() -> None:
     logger.info("Running weekly digest")
     async with AppSessionLocal() as app_session:
         settings = await _get_settings(app_session)
-        today = datetime.utcnow().weekday()
-        if settings and settings.digest_day != today:
+        if not is_digest_day(settings, datetime.now(UTC)):
             return
     try:
         await _send_digest()
@@ -771,7 +816,7 @@ async def run_team_digest() -> None:
 
     async with AppSessionLocal() as app_db:
         settings = await _get_settings(app_db)
-        if settings and settings.digest_day != datetime.now(UTC).weekday():
+        if not is_digest_day(settings, datetime.now(UTC)):
             return
     await run_team_digest_now()
 
@@ -812,7 +857,11 @@ async def run_cve_snapshot() -> None:
         org_user = SimpleNamespace(can_see_all_namespaces=True, has_namespaces=True, is_sec_team=True)
         suppressed, _ = await compute_suppression_sets(app_db, sx_db, org_user, [c["cve_id"] for c in all_cves], None)
 
-        rows = await sx.get_snapshot_counts(sx_db, min_cvss, min_epss, always_show, suppressed)
+        # Namespace-scoped CVE rules hide a CVE only in their target locations.
+        cve_rules, _ = await load_approved_suppression_rules(app_db)
+        rows = await sx.get_snapshot_counts(
+            sx_db, min_cvss, min_epss, always_show, suppressed, scoped_cve_rule_locations(cve_rules)
+        )
 
         # Idempotent per day: replace today's snapshot on re-run.
         await app_db.execute(delete(CveSnapshot).where(CveSnapshot.snapshot_date == today))

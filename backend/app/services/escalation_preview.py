@@ -107,10 +107,17 @@ async def compute_upcoming_escalations(
     )
     always_show |= {row[0] for row in active_ra_result}
 
-    # Get existing escalations to skip already-escalated levels
-    existing_result = await app_db.execute(select(Escalation.cve_id, Escalation.level))
+    # Existing escalations hide already-reached levels. Escalations are per
+    # (CVE, namespace, cluster), so only those inside the scope count: a level
+    # reached in another team's namespace must not hide the caller's upcoming one.
+    scope_set = None if namespaces is None else set(namespaces)
+    existing_result = await app_db.execute(
+        select(Escalation.cve_id, Escalation.level, Escalation.namespace, Escalation.cluster_name)
+    )
     existing_escalations: dict[str, set[int]] = {}
-    for cve_id, level in existing_result:
+    for cve_id, level, esc_namespace, esc_cluster in existing_result:
+        if scope_set is not None and (esc_namespace, esc_cluster) not in scope_set:
+            continue
         existing_escalations.setdefault(cve_id, set()).add(level)
 
     # Get CVEs from StackRox (filtered by thresholds)

@@ -292,15 +292,19 @@ async def _upcoming_escalations(
         return await compute_upcoming_escalations(sx_db, app_db, namespaces, settings)
 
 
-async def _ra_pipeline() -> RiskAcceptancePipeline:
+async def _ra_pipeline(current_user: CurrentUser) -> RiskAcceptancePipeline:
+    """Risk acceptances per status. Sec team counts all; other users count only
+    those they can access, so ``requested`` matches ``stat_open_risk_acceptances``."""
     async with AppSessionLocal() as db:
-        counts = {}
-        for st in ["requested", "approved", "rejected", "expired"]:
-            result = await db.execute(
-                select(func.count(RiskAcceptance.id)).where(RiskAcceptance.status == RiskStatus[st])
-            )
-            counts[st] = result.scalar() or 0
-        return RiskAcceptancePipeline(**counts)
+        result = await db.execute(select(RiskAcceptance))
+        rows = result.scalars().all()
+    counts = {"requested": 0, "approved": 0, "rejected": 0, "expired": 0}
+    for ra in rows:
+        if ra.status.value not in counts:
+            continue
+        if current_user.is_sec_team or user_can_access_ra(current_user, ra):
+            counts[ra.status.value] += 1
+    return RiskAcceptancePipeline(**counts)
 
 
 async def _mttr_by_severity(
@@ -513,7 +517,7 @@ async def dashboard(
         _sx_fixability_breakdown(ns_list_for_queries, min_cvss, min_epss, always_show, suppressed_cve_ids),
         _cve_history(ns_list_for_queries, use_visible_counts=not (current_user.is_sec_team or ignore_thresholds)),
         _upcoming_escalations(upcoming_ns, settings),
-        _ra_pipeline(),
+        _ra_pipeline(current_user),
         _mttr_by_severity(ns_list_for_queries) if current_user.is_sec_team else _empty_mttr(),
     )
 

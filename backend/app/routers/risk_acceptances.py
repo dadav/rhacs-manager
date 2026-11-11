@@ -364,18 +364,8 @@ async def review_risk_acceptance(
     creator_email = None
     if ra.creator and await notif_prefs.wants(db, ra.creator.id, "risk_acceptance", "email"):
         creator_email = mail_svc.deliverable_address(ra.creator.email, user_id=ra.creator.id, purpose="risk_status")
-    if creator_email is not None:
-        try:
-            await mail_svc.send_risk_status_email(
-                creator_email,
-                ra.cve_id,
-                str(ra.id),
-                ra.status.value,
-                current_user.display_name,
-                body.comment,
-            )
-        except Exception:
-            logger.exception("Failed to send risk status email for RA %s", ra.id)
+    # Primitives only: ORM attributes expire on commit and the mail goes out after it.
+    status_email_args = (ra.cve_id, str(ra.id), ra.status.value, current_user.display_name, body.comment)
 
     # The creator already got the status notification above.
     await sub_svc.broadcast_subscription_event(
@@ -390,6 +380,13 @@ async def review_risk_acceptance(
         scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
     )
     await db.commit()
+
+    # Sent only after the review is durable: a failed commit must not announce it.
+    if creator_email is not None:
+        try:
+            await mail_svc.send_risk_status_email(creator_email, *status_email_args)
+        except Exception:
+            logger.exception("Failed to send risk status email for RA %s", status_email_args[1])
     return await _single_ra_response(ra, db)
 
 

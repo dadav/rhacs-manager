@@ -60,9 +60,10 @@ def _user_can_see_badge(user: CurrentUser, badge: BadgeToken) -> bool:
     # Explicit single-namespace badge.
     if badge.namespace and badge.cluster_name:
         return (badge.namespace, badge.cluster_name) in user_ns
-    # Legacy namespace-only badge without stored pairs.
+    # Legacy namespace-only badge without stored pairs: a namespace name can exist
+    # on several clusters, so it is never matched by name. Only its creator sees it.
     if badge.namespace and not badge.scope_namespaces:
-        return any(ns == badge.namespace for ns, _ in user_ns)
+        return badge.created_by == user.id
     # Multi-namespace scoped badge: every scoped pair must be visible (subset).
     if badge.scope_namespaces:
         scope = {(entry[0], entry[1]) for entry in badge.scope_namespaces}

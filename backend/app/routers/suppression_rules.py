@@ -282,18 +282,6 @@ async def update_suppression_rule(
         rule.scope = resolved_scope.model_dump(mode="json")
         rule.scope_key = new_scope_key
 
-    # If team member updates an approved/rejected rule, reset to requested
-    reset_to_requested = False
-    if not current_user.is_sec_team and rule.status in (
-        SuppressionStatus.approved,
-        SuppressionStatus.rejected,
-    ):
-        rule.status = SuppressionStatus.requested
-        rule.reviewed_by = None
-        rule.reviewed_at = None
-        rule.review_comment = None
-        reset_to_requested = True
-
     await log_action(
         db,
         current_user.id,
@@ -301,12 +289,6 @@ async def update_suppression_rule(
         "suppression_rule",
         str(rule.id),
     )
-
-    # Notify sec team if status was reset to requested
-    if reset_to_requested:
-        creator_result = await db.execute(select(User).where(User.id == current_user.id))
-        creator = creator_result.scalar_one()
-        await notify_suppression_requested(db, rule, creator)
 
     await db.commit()
     await db.refresh(rule)

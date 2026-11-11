@@ -113,3 +113,30 @@ async def test_sec_team_filter_without_match_resolves_to_empty_scope(monkeypatch
     user = make_current_user(is_sec_team=True, has_all_namespaces=True, namespaces=[])
 
     assert await router._upcoming_namespaces(user, AsyncMock(), None, "zzz") == []
+
+
+def _app_db_with_escalation(row):
+    """execute() results in call order: approved RAs, priorities, requested RAs, escalations."""
+    db = AsyncMock()
+    db.execute.side_effect = [[], [], [], [row]]
+    return db
+
+
+@pytest.mark.asyncio
+async def test_escalation_in_foreign_namespace_does_not_hide_upcoming_level(monkeypatch):
+    _patch_stackrox(monkeypatch, [])
+    app_db = _app_db_with_escalation(("CVE-ORG", 1, "a", "c1"))
+
+    upcoming = await svc.compute_upcoming_escalations(AsyncMock(), app_db, [("b", "c1")], SETTINGS)
+
+    assert [(u.cve_id, u.next_level) for u in upcoming] == [("CVE-ORG", 1)]
+
+
+@pytest.mark.asyncio
+async def test_escalation_in_own_namespace_hides_reached_level(monkeypatch):
+    _patch_stackrox(monkeypatch, [])
+    app_db = _app_db_with_escalation(("CVE-ORG", 1, "a", "c1"))
+
+    upcoming = await svc.compute_upcoming_escalations(AsyncMock(), app_db, [("a", "c1")], SETTINGS)
+
+    assert upcoming == []

@@ -187,3 +187,16 @@ async def test_wildcard_namespace_badge_hidden_from_partially_scoped_user(app, m
     resp = await client.get("/api/badges")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_legacy_namespace_only_badge_is_not_matched_by_name():
+    """A namespace name can exist on several clusters: a legacy row without pairs
+    is visible to a scoped user only when they created it."""
+    from app.routers.badges import _user_can_see_badge
+
+    legacy = _mock_badge(namespace="payments")
+    other_user = make_current_user(namespaces=[("payments", "cluster-a")], user_id="someone-else")
+    creator = make_current_user(namespaces=[("payments", "cluster-a")], user_id="dev-user-1")
+
+    assert _user_can_see_badge(other_user, legacy) is False
+    assert _user_can_see_badge(creator, legacy) is True
