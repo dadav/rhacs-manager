@@ -236,3 +236,15 @@ async def test_cve_list_passes_deployment_id_filter(team_member_client: httpx.As
 
     assert resp.status_code == 200
     assert fetch.await_args.kwargs["deployment_id"] == "dep-123"
+
+
+async def test_fixed_cve_without_components_produces_no_rollup_rows(team_member_client):
+    fixed = _cve("CVE-FIXED").model_copy(update={"no_longer_affected": True, "remediation_status": "remediated"})
+    with (
+        patch("app.services.fix_rollup_service.fetch_filtered_cves", AsyncMock(return_value=[fixed])),
+        patch("app.services.fix_rollup_service.sx.get_component_cve_rows", AsyncMock(return_value=[])),
+    ):
+        resp = await team_member_client.get("/api/cves/fixes?show_remediated=true")
+    assert resp.status_code == 200
+    assert resp.json()["items"] == []
+    assert resp.json()["total"] == 0

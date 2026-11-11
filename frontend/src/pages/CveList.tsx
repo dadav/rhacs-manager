@@ -490,12 +490,14 @@ export function CveList() {
               />
             </ToolbarItem>
             <ToolbarItem>
-              <Checkbox
-                id="filter-show-remediated"
-                label={t('cves.filterShowRemediated')}
-                isChecked={urlShowRemediated}
-                onChange={(_, checked) => updateParams({ show_remediated: checked ? '1' : null })}
-              />
+              <Tooltip content={t('cves.filterShowRemediatedHint')}>
+                <Checkbox
+                  id="filter-show-remediated"
+                  label={t('cves.filterShowRemediated')}
+                  isChecked={urlShowRemediated}
+                  onChange={(_, checked) => updateParams({ show_remediated: checked ? '1' : null })}
+                />
+              </Tooltip>
             </ToolbarItem>
             <ToolbarItem>
               <Button
@@ -887,7 +889,7 @@ export function CveList() {
                             </Tooltip>
                           )}
                           {cve.remediation_status === 'remediated' && (
-                            <Tooltip content={t('cves.badgeRemediatedTooltip')}>
+                            <Tooltip content={t(cve.no_longer_affected ? 'cves.badgeFixedTooltip' : 'cves.badgeRemediatedTooltip')}>
                               <span style={{
                                 marginLeft: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
                                 background: 'rgba(108, 108, 108, 0.18)', color: '#6c6c6c',
@@ -901,12 +903,12 @@ export function CveList() {
                           {formatCvss(cve.cvss)}
                         </Td>
                         <Td><EpssBadge value={cve.epss_probability} /></Td>
-                        <Td style={{ textAlign: 'right' }}>{cve.affected_deployments}</Td>
+                        <Td style={{ textAlign: 'right' }}>{cve.no_longer_affected ? '-' : cve.affected_deployments}</Td>
                         <Td>
                           {cve.fixable ? <span style={{ color: FIXABLE_COLOR }}>✓</span> : <span style={{ color: SEVERITY_COLORS.unknown }}>✗</span>}
                         </Td>
                         <Td style={{ fontSize: 11, color: SEVERITY_COLORS.unknown }}>
-                          {formatDate(cve.first_seen, i18n.language)}
+                          {cve.no_longer_affected ? '-' : formatDate(cve.first_seen, i18n.language)}
                         </Td>
                       </Tr>
                     ))}

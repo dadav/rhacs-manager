@@ -7,11 +7,13 @@ pair check uses the request-scoped visibility, so revoked namespaces drop out.
 Callers: CVE detail, presence, and My Comments.
 """
 
-from sqlalchemy import select
+from collections.abc import Iterable
+
+from sqlalchemy import Row, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser
-from ..models.remediation import Remediation
+from ..models.remediation import Remediation, RemediationStatus
 
 
 async def visible_remediation_cve_ids(
@@ -35,6 +37,16 @@ async def visible_remediation_cve_ids(
     )
     rows = (await app_db.execute(query)).all()
 
+    return _visible_cve_ids(rows, current_user, cluster, namespace)
+
+
+def _visible_cve_ids(
+    rows: Iterable[Row],
+    current_user: CurrentUser,
+    cluster: str | None,
+    namespace: str | None,
+    restrict_pairs: list[tuple[str, str]] | None = None,
+) -> set[str]:
     visible_pairs = None if current_user.can_see_all_namespaces else set(current_user.namespaces)
     result: set[str] = set()
     for row in rows:
@@ -45,8 +57,29 @@ async def visible_remediation_cve_ids(
             continue
         if visible_pairs is not None and (row.namespace, row.cluster_name) not in visible_pairs:
             continue
+        if restrict_pairs is not None and (row.namespace, row.cluster_name) not in restrict_pairs:
+            continue
         result.add(row.cve_id)
     return result
+
+
+async def fixed_remediation_cve_ids(
+    app_db: AsyncSession,
+    current_user: CurrentUser,
+    cluster: str | None = None,
+    namespace: str | None = None,
+    restrict_pairs: list[tuple[str, str]] | None = None,
+) -> set[str]:
+    """CVEs with a resolved remediation in the caller's narrowed visible scope."""
+    if not current_user.can_see_all_namespaces and not current_user.has_namespaces:
+        return set()
+    if restrict_pairs == []:
+        return set()
+    query = select(Remediation.cve_id, Remediation.namespace, Remediation.cluster_name).where(
+        Remediation.status.in_([RemediationStatus.resolved, RemediationStatus.verified])
+    )
+    rows = (await app_db.execute(query)).all()
+    return _visible_cve_ids(rows, current_user, cluster, namespace, restrict_pairs)
 
 
 async def has_visible_remediation(

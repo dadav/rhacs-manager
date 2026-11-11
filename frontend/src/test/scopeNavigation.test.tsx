@@ -60,11 +60,11 @@ vi.mock('../components/dashboard/NamespaceBreakdown', () => ({
     <button onClick={() => onBarClick('payments', 3)}>namespace-drilldown</button>
   ),
 }))
+vi.mock('../components/charts/NewCvesBarChart', () => ({ NewCvesBarChart: () => null }))
 vi.mock('../components/charts/TrendLine', () => ({ TrendLine: () => null }))
 vi.mock('../components/charts/EpssRiskMatrix', () => ({ EpssRiskMatrix: () => null }))
 vi.mock('../components/charts/ImageCveTimeline', () => ({ ImageCveTimeline: () => null }))
 vi.mock('../components/dashboard/FixabilityDonut', () => ({ FixabilityDonut: () => null }))
-vi.mock('../components/dashboard/FixFirstList', () => ({ FixFirstList: () => null }))
 
 function LocationProbe() {
   const location = useLocation()
@@ -178,7 +178,7 @@ function makeDashboard(): DashboardData {
     cves_per_namespace: [{ namespace: 'payments', cluster_name: 'cluster-a', critical: 1, high: 1, medium: 1, low: 1, total: 4 }],
     priority_cves: [],
     high_epss_cves: [],
-    cve_trend: [],
+    cve_trend: [{ date: '2026-11-09', critical: 0, important: 0, moderate: 0, low: 0 }],
     epss_matrix: [],
     cluster_heatmap: [],
     aging_distribution: [],
@@ -186,7 +186,13 @@ function makeDashboard(): DashboardData {
     fixability_breakdown: { fixable: 0, unfixable: 0 },
     cve_history: [],
     mttr_by_severity: [],
-    fix_first_cves: [],
+    fix_first_cves: [{
+      cve_id: 'CVE-FIX-FIRST', severity: Severity.IMPORTANT, cvss: 8.1, epss_probability: 0.8,
+      impact_score: 5, fixable: true, fixed_by: '3.0.9', affected_images: 1, affected_deployments: 2,
+      first_seen: null, published_on: null, origins: [], has_priority: true, priority_level: 'high',
+      priority_deadline: null, component_names: [], has_risk_acceptance: false, risk_acceptance_status: null,
+      risk_acceptance_id: null, is_suppressed: false, suppression_requested: false,
+    }],
   } as unknown as DashboardData
 }
 
@@ -262,4 +268,17 @@ describe('scope-preserving navigation', () => {
 
     expect(currentLocation()).toBe('/vulnerabilities?ns=payments&severity=3&ignore_thresholds=1')
   })
+})
+
+
+it('fix-first CVEs keep scope and show availability without versions or components', () => {
+  renderAt('/?cluster=cluster-a&ns=payments&ignore_thresholds=1', <Dashboard />)
+  const link = screen.getByRole('link', { name: 'CVE-FIX-FIRST' })
+  const row = link.closest('tr')!
+  expect(row.cells).toHaveLength(5)
+  expect(row).toHaveTextContent('dashboard.fixFirstFixAvailable')
+  expect(row).not.toHaveTextContent('3.0.9')
+  expect(screen.queryByText('dashboard.fixFirstComponent')).not.toBeInTheDocument()
+  fireEvent.click(link)
+  expect(currentLocation()).toBe('/vulnerabilities/CVE-FIX-FIRST?cluster=cluster-a&ns=payments&ignore_thresholds=1')
 })

@@ -22,6 +22,7 @@ from ..routers._scope import narrow_namespaces
 from ..schemas.cve import CveListItem, SeverityLevel, VulnOrigin
 from ..stackrox import queries as sx
 from ..stackrox.vuln_origin import origin_names
+from .cve_access import fixed_remediation_cve_ids
 from .cve_subscription_service import subscribed_cve_ids
 
 logger = logging.getLogger(__name__)
@@ -226,6 +227,7 @@ def _build_cve_item(
         affected_images=int(c.get("affected_images", 0)),
         affected_deployments=int(c.get("affected_deployments", 0)),
         first_seen=c.get("first_seen"),
+        no_longer_affected=c.get("no_longer_affected", False),
         published_on=c.get("published_on"),
         fix_available_since=c.get("fix_available_since"),
         operating_system=c.get("operating_system"),
@@ -421,6 +423,48 @@ async def compute_remediation_status(
     return statuses
 
 
+async def _fixed_cve_items(
+    app_db: AsyncSession,
+    sx_db: AsyncSession,
+    current_user: CurrentUser,
+    existing_ids: set[str],
+    priorities: dict,
+    acceptances: dict,
+    ns_for_components: list[tuple[str, str]],
+    cluster: str | None,
+    namespace: str | None,
+    restrict_namespaces: list[tuple[str, str]] | None,
+) -> list[CveListItem]:
+    candidates = (
+        await fixed_remediation_cve_ids(app_db, current_user, cluster, namespace, restrict_pairs=restrict_namespaces)
+        - existing_ids
+    )
+    if not candidates:
+        return []
+    # Membership ignores score thresholds: hidden findings are still affected.
+    affected = await sx.get_cve_namespace_cluster_map(sx_db, sorted(candidates), ns_for_components or None)
+    fixed_ids = sorted(cve_id for cve_id in candidates if not affected.get(cve_id))
+    facts = await sx.get_cve_facts_bulk(sx_db, fixed_ids)
+    items = [
+        _build_cve_item(
+            {
+                **facts.get(cve_id, {}),
+                "cve_id": cve_id,
+                "affected_images": 0,
+                "affected_deployments": 0,
+                "first_seen": None,
+                "fixable": False,
+                "no_longer_affected": True,
+            },
+            priorities,
+            acceptances,
+        )
+        for cve_id in fixed_ids
+    ]
+    logger.info("fixed_cves_added", extra={"user_id": current_user.id, "count": len(items)})
+    return items
+
+
 async def fetch_filtered_cves(
     current_user: CurrentUser,
     app_db: AsyncSession,
@@ -543,6 +587,22 @@ async def fetch_filtered_cves(
     if not show_suppressed:
         items = [i for i in items if not i.is_suppressed]
 
+    if show_remediated and remediation_status in (None, "remediated"):
+        items.extend(
+            await _fixed_cve_items(
+                app_db,
+                sx_db,
+                current_user,
+                set(cve_ids_all),
+                priorities,
+                acceptances,
+                ns_for_components,
+                cluster,
+                namespace,
+                restrict_namespaces,
+            )
+        )
+
     if items:
         subscribed = await subscribed_cve_ids(app_db, current_user.id)
         for item in items:
@@ -555,7 +615,9 @@ async def fetch_filtered_cves(
         item_cve_ids = [i.cve_id for i in items]
         rem_statuses = await compute_remediation_status(app_db, sx_db, item_cve_ids, ns_for_components or None)
         for item in items:
-            item.remediation_status = rem_statuses.get(item.cve_id, "unremediated")
+            item.remediation_status = (
+                "remediated" if item.no_longer_affected else rem_statuses.get(item.cve_id, "unremediated")
+            )
 
         # Hide fully-resolved CVEs by default. An explicit remediation_status filter
         # (which already narrows the list) or the show_remediated toggle overrides this.

@@ -1,6 +1,7 @@
 """Decode protobuf-serialized ImageCVEV2 data from the StackRox central DB."""
 
 import logging
+import re
 
 from google.protobuf.message import DecodeError
 
@@ -15,6 +16,13 @@ _SOURCE_NAMES = {
     2: "OSV",
     3: "NVD",
 }
+
+
+def _clean_summary(raw: str) -> str | None:
+    text = re.sub(r"<br\s*/?>", "\n", raw, flags=re.IGNORECASE)
+    text = text.replace("\r\n", "\n").replace("\t", " ").replace("\u00a0", " ")
+    text = "\n".join(line.strip() for line in text.split("\n"))
+    return re.sub(r"\n{3,}", "\n\n", text).strip() or None
 
 
 def decode_cve_protobuf(data: bytes) -> dict:
@@ -42,7 +50,7 @@ def decode_cve_protobuf(data: bytes) -> dict:
     ]
 
     return {
-        "summary": info.summary or None,
+        "summary": _clean_summary(info.summary),
         "link": info.link or None,
         "references": references,
         "cvss_metric_urls": cvss_metric_urls,

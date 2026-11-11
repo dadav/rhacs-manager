@@ -3,41 +3,13 @@ import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { Link } from "react-router";
 import { useScopedLink } from "../../hooks/useScope";
 import { useTranslation } from "react-i18next";
-import type { ComponentFix, FixFirstItem } from "../../types";
+import type { CveListItem } from "../../types";
 import { SeverityBadge } from "../common/SeverityBadge";
 import { EpssBadge } from "../common/EpssBadge";
 import { ChartCardTitle } from "./ChartCardTitle";
 
 interface FixFirstListProps {
-  data: FixFirstItem[];
-}
-
-// Show at most this many component upgrades per CVE; the rest collapse into "+N".
-const MAX_COMPONENTS_SHOWN = 2;
-
-function ComponentUpgrades({ fixes }: { fixes: ComponentFix[] }) {
-  const { t } = useTranslation();
-  const shown = fixes.slice(0, MAX_COMPONENTS_SHOWN);
-  const hidden = fixes.length - shown.length;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
-      {shown.map((f) => (
-        <span key={`${f.component_name}@${f.component_version}`} style={{ whiteSpace: "nowrap" }}>
-          <strong>{f.component_name}</strong> {f.component_version}
-          {f.fixed_by && (
-            <span style={{ color: "var(--pf-t--global--text--color--status--success--default)" }}>
-              {" "}&rarr; {f.fixed_by}
-            </span>
-          )}
-        </span>
-      ))}
-      {hidden > 0 && (
-        <span style={{ color: "var(--pf-t--global--text--color--subtle)" }}>
-          {t("dashboard.fixFirstMoreComponents", { count: hidden })}
-        </span>
-      )}
-    </div>
-  );
+  data: CveListItem[];
 }
 
 export function FixFirstList({ data }: FixFirstListProps) {
@@ -62,7 +34,6 @@ export function FixFirstList({ data }: FixFirstListProps) {
                 <Th style={{ textAlign: "right" }}>
                   {t("dashboard.fixFirstDeployments")}
                 </Th>
-                <Th>{t("dashboard.fixFirstComponent")}</Th>
                 <Th>{t("dashboard.fixFirstFix")}</Th>
               </Tr>
             </Thead>
@@ -92,20 +63,9 @@ export function FixFirstList({ data }: FixFirstListProps) {
                     {cve.affected_deployments}
                   </Td>
                   <Td>
-                    {cve.component_fixes.length > 0 ? (
-                      <ComponentUpgrades fixes={cve.component_fixes} />
-                    ) : (
-                      <span style={{ color: "var(--pf-t--global--text--color--subtle)" }}>-</span>
-                    )}
-                  </Td>
-                  <Td>
                     {cve.fixable ? (
                       <Label color="green" isCompact>
-                        {cve.fixed_by
-                          ? t("dashboard.fixFirstFixedBy", {
-                              version: cve.fixed_by,
-                            })
-                          : t("dashboard.fixFirstFixAvailable")}
+                        {t("dashboard.fixFirstFixAvailable")}
                       </Label>
                     ) : (
                       <Label color="grey" isCompact>

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { CveList } from './CveList'
 import type { Paginated, CveListItem, FixRollupItem, FixRollupResponse, ImageCveGroup } from '../types'
 import { Severity } from '../types'
@@ -373,3 +373,34 @@ describe('CveList', () => {
     })
   })
 })
+
+describe('fixed CVEs', () => {
+  it('renders a grey FIX row with empty location and first-seen cells', () => {
+    mockUseCves.mockReturnValue({
+      data: { items: [makeCve({ no_longer_affected: true, remediation_status: 'remediated', affected_deployments: 0, affected_images: 0, first_seen: null, fixable: false })], total: 1, page: 1, page_size: 50 },
+      isLoading: false, error: null,
+    })
+    render(<CveList />, { wrapper: createWrapper('/vulnerabilities?show_remediated=1') })
+    const link = screen.getByRole('link', { name: 'CVE-2024-0001' })
+    const row = link.closest('tr')!
+    expect(link).toHaveAttribute('href', '/vulnerabilities/CVE-2024-0001')
+    expect(within(row).getByText('cves.badgeRemediated')).toBeInTheDocument()
+    expect(within(row).getAllByText('-')).toHaveLength(2)
+    expect(row).toHaveStyle({ opacity: '0.55' })
+    expect(within(row).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('stores the toggle in the URL as show_remediated=1', () => {
+    mockUseCves.mockReturnValue({ data: { items: [], total: 0 }, isLoading: false, error: null })
+    render(<><CveList /><LocationProbe /></>, { wrapper: createWrapper() })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'cves.filterShowRemediated' }))
+    expect(screen.getByTestId('location').textContent).toContain('show_remediated=1')
+    expect(mockUseCves.mock.lastCall?.[0].show_remediated).toBe(true)
+  })
+})
+
+function LocationProbe() {
+  const location = useLocation()
+  return <span data-testid="location">{location.search}</span>
+}

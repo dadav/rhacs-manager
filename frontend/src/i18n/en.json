@@ -161,7 +161,6 @@
     "fixFirstSeverity": "Severity",
     "fixFirstDeployments": "Deployments",
     "fixFirstFix": "Fix",
-    "fixFirstFixedBy": "Fix: {{version}}",
     "fixFirstFixAvailable": "Fix available",
     "fixFirstNoFix": "No fix",
     "priorityCves": "Prioritized CVEs",
@@ -199,13 +198,14 @@
       "clusterHeatmap": "Shows CVE distribution across clusters by severity. Clusters with many critical CVEs should be reviewed first.",
       "mttr": "Security-team audit metric: the average time in days from when a CVE was first seen to resolution, grouped by severity. Captures the full exposure window. Only completed, manually tracked remediations are included.",
       "aging": "Shows how long CVEs have been present in your environment (since first seen in your images). Old, unaddressed CVEs represent increased risk and should be prioritized.",
-      "trend": "Shows the number of newly discovered CVEs per day over the last 90 days, broken down by severity. Only CVEs first seen within this period are included. CVEs known for longer still appear in the CVE list but not in this chart.",
+      "trend": "Shows the number of newly discovered CVEs per week over the last 90 days, broken down by severity. Only CVEs first seen within this period are included. CVEs known for longer still appear in the CVE list but not in this chart.",
       "cveHistory": "Shows the actual number of visible CVEs per day, broken down by severity. Falling lines mean real progress. Note: for teams with multiple namespaces the same CVE may be counted once per namespace.",
-      "fixFirst": "The most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher - an image update resolves them directly.",
+      "fixFirst": "The most important CVEs for your team, ordered by security-team priority, fix availability, exploitation probability (EPSS), and severity. Open the CVE detail page for components and fix versions.",
       "cvesPerNamespace": "Shows the top 10 namespaces with the most CVEs, broken down by severity. Helps identify which namespaces need the most attention."
     },
-    "fixFirstComponent": "Component",
-    "fixFirstMoreComponents": "+{{count}} more"
+    "trendWeekOf": "Week of {{date}}",
+    "trendEmpty": "No newly discovered CVEs in this period.",
+    "trendTotal": "Total"
   },
   "cves": {
     "title": "Vulnerabilities",
@@ -329,7 +329,9 @@
       "suse": "SUSE",
       "other": "Other",
       "unknown": "Unknown"
-    }
+    },
+    "badgeFixedTooltip": "Fixed - StackRox no longer reports this CVE in your visible namespaces.",
+    "filterShowRemediatedHint": "Also shows CVEs marked as remediated or no longer reported after remediation."
   },
   "cveDetail": {
     "published": "Published",

@@ -246,60 +246,58 @@ async def get_cve_origin_ratings(
     return ratings
 
 
-async def get_cve_facts(session: AsyncSession, cve_id: str) -> dict | None:
-    """CVE-level facts (scores, publication date) org-wide, without any location data.
+async def get_cve_facts_bulk(session: AsyncSession, cve_ids: list[str]) -> dict[str, dict]:
+    """Org-wide CVE facts without locations, using freshest per-feed scores.
 
-    Used when a CVE detail is reopened after it stopped affecting the caller's
-    namespaces. Reads ``image_cves_v2`` directly instead of ``CVE_ROWS_CTE`` so rows
-    of images no longer deployed still count. Severity/CVSS/EPSS take the
-    freshest-scan per-feed score (``feed_score``) when known, then MAX across feeds.
-    Returns None when StackRox has no row for the CVE.
+    Read image_cves_v2 directly so images no longer deployed still count.
     """
+    if not cve_ids:
+        return {}
     sql = text("""
         SELECT
-            ic.origin                       AS origin_code,
+            ic.cvebaseinfo_cve              AS cve_id,
+            ic.origin                      AS origin_code,
             MAX(ic.severity)                AS severity,
-            MAX(COALESCE(ic.cvss, 0))       AS cvss,
+            MAX(COALESCE(ic.cvss, 0))        AS cvss,
             MAX(COALESCE(ic.cvebaseinfo_epss_epssprobability, 0)) AS epss_probability,
             MAX(COALESCE(ic.impactscore, 0)) AS impact_score,
             MIN(ic.cvebaseinfo_publishedon) AS published_on
         FROM image_cves_v2 ic
-        WHERE ic.cvebaseinfo_cve = :cve_id
-        GROUP BY ic.origin
+        WHERE ic.cvebaseinfo_cve = ANY(:cve_ids)
+        GROUP BY ic.cvebaseinfo_cve, ic.origin
     """)
-    result = await session.execute(sql, {"cve_id": cve_id})
-    rows = [dict(row._mapping) for row in result]
-    if not rows:
-        return None
-
-    severity = 0
-    cvss = 0.0
-    epss = 0.0
-    impact = 0.0
-    published_dates = []
-    for row in rows:
+    result = await session.execute(sql, {"cve_ids": cve_ids})
+    facts: dict[str, dict] = {}
+    for result_row in result:
+        row = result_row._mapping
+        cve_id = row["cve_id"]
+        item = facts.setdefault(
+            cve_id,
+            {
+                "cve_id": cve_id,
+                "severity": 0,
+                "cvss": 0.0,
+                "epss_probability": 0.0,
+                "impact_score": 0.0,
+                "published_on": None,
+            },
+        )
         score = feed_score(cve_id, row["origin_code"])
-        if score is not None:
-            row_severity, row_cvss, row_epss = score.severity, score.cvss, score.epss
-        else:
-            row_severity = row["severity"] or 0
-            row_cvss = float(row["cvss"] or 0)
-            row_epss = float(row["epss_probability"] or 0)
-        severity = max(severity, row_severity)
-        cvss = max(cvss, row_cvss)
-        epss = max(epss, row_epss)
-        impact = max(impact, float(row["impact_score"] or 0))
-        if row["published_on"] is not None:
-            published_dates.append(row["published_on"])
+        item["severity"] = max(item["severity"], score.severity if score else row["severity"] or 0)
+        item["cvss"] = max(item["cvss"], score.cvss if score else float(row["cvss"] or 0))
+        item["epss_probability"] = max(
+            item["epss_probability"], score.epss if score else float(row["epss_probability"] or 0)
+        )
+        item["impact_score"] = max(item["impact_score"], float(row["impact_score"] or 0))
+        published = row["published_on"]
+        if published is not None and (item["published_on"] is None or published < item["published_on"]):
+            item["published_on"] = published
+    return facts
 
-    return {
-        "cve_id": cve_id,
-        "severity": severity,
-        "cvss": cvss,
-        "epss_probability": epss,
-        "impact_score": impact,
-        "published_on": min(published_dates) if published_dates else None,
-    }
+
+async def get_cve_facts(session: AsyncSession, cve_id: str) -> dict | None:
+    """CVE-level facts for a revisited detail, or None if StackRox has no rows."""
+    return (await get_cve_facts_bulk(session, [cve_id])).get(cve_id)
 
 
 async def get_all_cves(

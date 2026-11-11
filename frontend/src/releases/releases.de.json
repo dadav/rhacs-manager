@@ -1,6 +1,37 @@
 {
   "releases": [
     {
+      "version": "0.47.0",
+      "date": "2026-11-11",
+      "items": [
+        {
+          "id": "show-fixed-cves",
+          "kind": "feature",
+          "text": "Der Schalter \"Behobene anzeigen\" in der Schwachstellenliste zeigt nun auch CVEs, die nach der Behebung nicht mehr gemeldet werden. Diese Zeilen sind ausgegraut und führen zur Detailseite."
+        },
+        {
+          "id": "loading-line",
+          "kind": "feature",
+          "text": "Eine dezente Ladelinie unter der Kopfzeile zeigt an, wenn nach einer Filter- oder Bereichsänderung Daten geladen werden."
+        },
+        {
+          "id": "new-cves-weekly",
+          "kind": "improvement",
+          "text": "Das Diagramm \"Neu entdeckte CVEs\" zeigt nun gestapelte Balken pro Woche statt überlappender Flächen und ist dadurch leichter lesbar."
+        },
+        {
+          "id": "fix-first-slim",
+          "kind": "improvement",
+          "text": "Die Übersicht \"Was zuerst beheben?\" ist kompakter. Komponenten und Fix-Versionen finden Sie auf der CVE-Detailseite."
+        },
+        {
+          "id": "cve-description-whitespace",
+          "kind": "fix",
+          "text": "CVE-Beschreibungen beginnen nicht mehr mit Leerzeichen oder eingerückten Zeilen."
+        }
+      ]
+    },
+    {
       "version": "0.46.0",
       "date": "2026-11-10",
       "items": [

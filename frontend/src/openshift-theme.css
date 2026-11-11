@@ -33,6 +33,8 @@
   background-color: #1b1d21 !important;
   color: #ffffff;
   border-bottom: 1px solid #3c3f42;
+  /* Positioning context for .global-loading-bar */
+  position: relative;
 }
 
 /* ── Page sidebar: dark nav panel, like OpenShift Console ────────────── */
@@ -371,4 +373,35 @@
 
 :root:not(.pf-v6-theme-dark) .pf-v6-c-page__sidebar .pf-v6-c-menu-toggle:hover {
   color: #151515;
+}
+
+.global-loading-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.global-loading-bar::after {
+  content: '';
+  display: block;
+  width: 30%;
+  height: 100%;
+  background-color: var(--pf-t--global--color--brand--default);
+  animation: global-loading-slide 1.2s linear infinite;
+}
+
+@keyframes global-loading-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(334%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-loading-bar::after {
+    width: 100%;
+    animation: none;
+  }
 }

@@ -1,6 +1,37 @@
 {
   "releases": [
     {
+      "version": "0.47.0",
+      "date": "2026-11-11",
+      "items": [
+        {
+          "id": "show-fixed-cves",
+          "kind": "feature",
+          "text": "The \"Show remediated\" switch in the vulnerability list now also shows CVEs that are no longer reported after the fix. These rows are greyed out and link to the detail page."
+        },
+        {
+          "id": "loading-line",
+          "kind": "feature",
+          "text": "A subtle loading line below the header shows when data is loading after a filter or scope change."
+        },
+        {
+          "id": "new-cves-weekly",
+          "kind": "improvement",
+          "text": "The \"Newly discovered CVEs\" chart now shows stacked bars per week instead of overlapping areas, which makes it easier to read."
+        },
+        {
+          "id": "fix-first-slim",
+          "kind": "improvement",
+          "text": "The \"What to fix first\" overview is more compact. Components and fix versions are on the CVE detail page."
+        },
+        {
+          "id": "cve-description-whitespace",
+          "kind": "fix",
+          "text": "CVE descriptions no longer start with spaces or indented lines."
+        }
+      ]
+    },
+    {
       "version": "0.46.0",
       "date": "2026-11-10",
       "items": [

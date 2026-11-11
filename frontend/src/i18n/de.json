@@ -161,7 +161,6 @@
     "fixFirstSeverity": "Schweregrad",
     "fixFirstDeployments": "Deployments",
     "fixFirstFix": "Fix",
-    "fixFirstFixedBy": "Fix: {{version}}",
     "fixFirstFixAvailable": "Fix verfügbar",
     "fixFirstNoFix": "Kein Fix",
     "priorityCves": "Priorisierte CVEs",
@@ -199,13 +198,14 @@
       "clusterHeatmap": "Zeigt die Verteilung von CVEs nach Cluster und Schweregrad. Cluster mit vielen kritischen CVEs sollten zuerst überprüft werden.",
       "mttr": "Audit-Kennzahl des Sicherheitsteams: die durchschnittliche Zeit in Tagen vom ersten Auftreten eines CVE bis zur Behebung, gruppiert nach Schweregrad. Erfasst das gesamte Expositionsfenster. Nur abgeschlossene, manuell erfasste Remediations werden berücksichtigt.",
       "aging": "Zeigt, wie lange CVEs bereits in Ihrer Umgebung erkannt sind (seit dem ersten Auftreten in Ihren Images). Alte, unbehandelte CVEs stellen ein erhöhtes Risiko dar und sollten priorisiert werden.",
-      "trend": "Zeigt die Anzahl neu entdeckter CVEs pro Tag in den letzten 90 Tagen, aufgeschlüsselt nach Schweregrad. Es werden nur CVEs berücksichtigt, die erstmals innerhalb dieses Zeitraums aufgetreten sind. Bereits länger bekannte CVEs erscheinen hier nicht, sind aber in der CVE-Liste weiterhin sichtbar.",
+      "trend": "Zeigt die Anzahl neu entdeckter CVEs pro Woche in den letzten 90 Tagen, aufgeschlüsselt nach Schweregrad. Es werden nur CVEs berücksichtigt, die erstmals innerhalb dieses Zeitraums aufgetreten sind. Bereits länger bekannte CVEs erscheinen hier nicht, sind aber in der CVE-Liste weiterhin sichtbar.",
       "cveHistory": "Zeigt die tatsächliche Anzahl sichtbarer CVEs pro Tag, aufgeschlüsselt nach Schweregrad. Sinkende Linien bedeuten echten Fortschritt. Hinweis: Bei Teams mit mehreren Namespaces kann dieselbe CVE mehrfach gezählt werden (einmal pro Namespace).",
-      "fixFirst": "Die wichtigsten CVEs für Ihr Team, sortiert nach Priorität des Sicherheitsteams, Ausnutzungswahrscheinlichkeit (EPSS) und Schweregrad. CVEs mit verfügbarem Fix stehen weiter oben - ein Image-Update behebt sie direkt.",
+      "fixFirst": "Die wichtigsten CVEs für Ihr Team, sortiert nach Security-Team-Priorität, Verfügbarkeit eines Fixes, Ausnutzungswahrscheinlichkeit (EPSS) und Schweregrad. Komponenten und Fix-Versionen finden Sie auf der CVE-Detailseite.",
       "cvesPerNamespace": "Zeigt die Top 10 Namespaces mit den meisten CVEs, aufgeschlüsselt nach Schweregrad. Hilft zu erkennen, welche Namespaces die meiste Aufmerksamkeit benötigen."
     },
-    "fixFirstComponent": "Komponente",
-    "fixFirstMoreComponents": "+{{count}} weitere"
+    "trendWeekOf": "Woche ab {{date}}",
+    "trendEmpty": "Keine neu entdeckten CVEs in diesem Zeitraum.",
+    "trendTotal": "Gesamt"
   },
   "cves": {
     "title": "Schwachstellen",
@@ -329,7 +329,9 @@
       "suse": "SUSE",
       "other": "Sonstige",
       "unknown": "Unbekannt"
-    }
+    },
+    "badgeFixedTooltip": "Behoben - StackRox meldet diese CVE in Ihren sichtbaren Namespaces nicht mehr.",
+    "filterShowRemediatedHint": "Zeigt auch CVEs, die als behoben markiert sind oder nach der Behebung nicht mehr gemeldet werden."
   },
   "cveDetail": {
     "published": "Veröffentlicht",

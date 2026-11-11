@@ -82,6 +82,8 @@ export interface CveListItem {
   suppression_requested: boolean
   remediation_status?: string | null
   is_subscribed?: boolean
+  /** StackRox no longer reports the CVE in the visible scope; served because of a visible remediation. */
+  no_longer_affected?: boolean
 }
 
 export enum SuppressionStatus {
@@ -187,8 +189,6 @@ export interface CveDetail extends CveListItem {
   escalation_level1_expected: string | null
   escalation_level2_expected: string | null
   escalation_level3_expected: string | null
-  /** StackRox no longer reports the CVE in the visible scope; served because of a visible remediation. */
-  no_longer_affected: boolean
 }
 
 export interface EscalationContext {
@@ -412,17 +412,7 @@ export interface DashboardData {
   fixability_breakdown: FixabilityCount
   cve_history: CveHistoryPoint[]
   mttr_by_severity: MttrSeverity[]
-  fix_first_cves: FixFirstItem[]
-}
-
-export interface ComponentFix {
-  component_name: string
-  component_version: string
-  fixed_by: string | null
-}
-
-export interface FixFirstItem extends CveListItem {
-  component_fixes: ComponentFix[]
+  fix_first_cves: CveListItem[]
 }
 
 export interface EpssMatrixPoint {

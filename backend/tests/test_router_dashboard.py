@@ -1,9 +1,12 @@
 """Route-level tests for GET /api/dashboard."""
 
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+
+from app.routers.dashboard import bucket_trend_weekly
 
 DASHBOARD_EXPECTED_KEYS = {
     "stat_total_cves",
@@ -56,11 +59,6 @@ def _patch_sx_queries():
     mock_sx.get_fixability_breakdown.return_value = {"fixable": 1, "unfixable": 0}
     mock_sx.get_snapshot_counts.return_value = []
     mock_sx.list_namespaces.return_value = []
-    mock_sx.get_cve_component_fixes.return_value = {
-        "CVE-2024-0001": [
-            {"component_name": "openssl", "component_version": "3.0.7", "fixed_by": "3.0.9"},
-        ],
-    }
     return mock_sx
 
 
@@ -218,14 +216,12 @@ async def test_dashboard_fix_first_includes_actionable_cve(sec_team_client: http
     assert [c["cve_id"] for c in data["fix_first_cves"]] == ["CVE-2024-0001"]
 
 
-async def test_dashboard_fix_first_lists_component_upgrades(team_member_client: httpx.AsyncClient, sx_mock):
-    """Fix-first rows name the component version to upgrade, scoped to the user's namespaces."""
+async def test_dashboard_fix_first_has_plain_cve_rows(team_member_client: httpx.AsyncClient, sx_mock):
     resp = await team_member_client.get("/api/dashboard")
     row = resp.json()["fix_first_cves"][0]
-    assert row["component_fixes"] == [{"component_name": "openssl", "component_version": "3.0.7", "fixed_by": "3.0.9"}]
-    _, cve_ids, namespaces = sx_mock.get_cve_component_fixes.await_args.args
-    assert cve_ids == ["CVE-2024-0001"]
-    assert set(namespaces) == {("payments", "cluster-a"), ("frontend", "cluster-b")}
+    assert row["fixable"] is True
+    assert "component_fixes" not in row
+    sx_mock.get_cve_component_fixes.assert_not_awaited()
 
 
 async def test_dashboard_ignore_thresholds_drops_floor_for_team_member(team_member_client: httpx.AsyncClient, sx_mock):
@@ -250,3 +246,34 @@ async def test_dashboard_default_keeps_visible_counts_for_team_member(team_membe
 
     assert resp.status_code == 200
     assert history.call_args.kwargs["use_visible_counts"] is True
+
+
+def test_weekly_trend_zero_fills_and_preserves_sums_across_year_boundary():
+    rows = [
+        {"date": "2025-12-28", "critical": 2, "important": 1},
+        {"date": "2025-12-29", "critical": 3, "moderate": 4},
+        {"date": "2026-01-04", "low": 5},
+        {"date": "2026-01-05", "important": 6},
+    ]
+    buckets = bucket_trend_weekly(rows, date(2026, 1, 12), days=22)
+    assert [b["date"] for b in buckets] == ["2025-12-15", "2025-12-22", "2025-12-29", "2026-01-05", "2026-01-12"]
+    assert buckets[2] == {"date": "2025-12-29", "critical": 3, "important": 0, "moderate": 4, "low": 5}
+    for key in ("critical", "important", "moderate", "low"):
+        assert sum(b[key] for b in buckets) == sum(r.get(key, 0) for r in rows)
+        assert buckets[0][key] == buckets[-1][key] == 0
+    assert all(date.fromisoformat(b["date"]).weekday() == 0 for b in buckets)
+
+
+def test_weekly_trend_empty_input_keeps_entire_window():
+    buckets = bucket_trend_weekly([], date(2026, 11, 11))
+    assert buckets[0]["date"] == "2026-08-10"
+    assert buckets[-1]["date"] == "2026-11-09"
+    assert len(buckets) == 14
+    assert all(b[key] == 0 for b in buckets for key in ("critical", "important", "moderate", "low"))
+
+
+async def test_dashboard_trend_returns_weekly_zero_filled_buckets(team_member_client, sx_mock):
+    resp = await team_member_client.get("/api/dashboard")
+    trend = resp.json()["cve_trend"]
+    assert len(trend) in (13, 14)
+    assert all(date.fromisoformat(b["date"]).weekday() == 0 for b in trend)

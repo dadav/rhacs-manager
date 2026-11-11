@@ -32,7 +32,7 @@ These action-first sections sit at the top of the dashboard.
 
 - **Prioritized CVEs** shows CVEs manually prioritized by the security team.
 - **High exploitation risk (EPSS)** highlights the CVEs with the highest exploit probability.
-- **What to fix first** is a ranked, plain-language table of the most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher because an image update resolves them directly. Each row shows the affected deployment count, the affected component versions with the version that fixes them (for example `openssl 3.0.7 → 3.0.9`), and the fix version when known.
+- **What to fix first** is a ranked, plain-language table of the most important CVEs for your team, ordered by security-team priority, exploitation probability (EPSS), and severity. CVEs with an available fix rank higher because an image update resolves them directly. Each row shows the CVE, severity, EPSS, affected deployment count, and whether a fix is available. Open the CVE detail page for components and fix versions.
 
 ### Charts
 
@@ -40,7 +40,7 @@ These action-first sections sit at the top of the dashboard.
 - **Cluster Heatmap** compares clusters by severity distribution so you can spot hotspots quickly.
 - **CVE Aging Distribution** groups CVEs by age based on `first_seen`, which helps identify long-running backlog.
 - **CVE totals over time** is a real trend: it charts the actual number of visible CVEs per day (by severity) from a daily snapshot, so a falling line means genuine progress. History accrues from the day snapshots start being recorded; until at least two days exist the card shows a hint instead of a chart. For teams spanning multiple namespaces the same CVE may be counted once per namespace.
-- **Newly discovered CVEs** is a histogram of CVEs by their first-seen date over the last 90 days. It answers "what arrived recently", not "how big is the backlog" (use **CVE totals over time** for that).
+- **Newly discovered CVEs** shows weekly stacked bars by severity for CVEs first seen over the last 90 days. Weeks start on Monday, including empty weeks. It answers "what arrived recently", not "how big is the backlog" (use **CVE totals over time** for that).
 - **Mean Time to Remediate by Severity** is a security-team audit metric and is shown only to `sec_team`. It averages the time from first-seen to resolution across completed, manually tracked remediations.
 - **Risk Acceptance Pipeline** is visible only to `sec_team` and links directly to `requested`, `approved`, `rejected`, and `expired` views.
 
@@ -57,6 +57,8 @@ The normal workflow starts in **Vulnerabilities**.
 
 !!! tip
     Prioritized CVEs and CVEs with active risk acceptances stay visible even when they fall below the configured CVSS or EPSS thresholds.
+
+**Show remediated** also lists CVEs no longer reported anywhere in your selected scope when a resolved (or legacy verified) remediation exists in a namespace and cluster you can see. These rows have a grey FIX badge and no affected deployment count or first-seen date. They bypass score thresholds and suppression; CVEs still reported below the thresholds are not considered fixed. Their links reopen the CVE detail page.
 
 ### Data sources
 

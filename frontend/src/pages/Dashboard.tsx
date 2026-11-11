@@ -20,6 +20,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useScope, buildScopedTo } from "../hooks/useScope";
 import { EpssRiskMatrix } from "../components/charts/EpssRiskMatrix";
 import { SeverityDonut } from "../components/charts/SeverityDonut";
+import { NewCvesBarChart } from "../components/charts/NewCvesBarChart";
 import { TrendLine } from "../components/charts/TrendLine";
 import { STATUS_COLORS } from "../tokens";
 
@@ -412,7 +413,7 @@ export function Dashboard() {
                 helpKey="dashboard.help.trend"
               />
               <CardBody>
-                <TrendLine data={data.cve_trend} />
+                <NewCvesBarChart data={data.cve_trend} />
               </CardBody>
             </Card>
           </GridItem>

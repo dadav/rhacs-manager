@@ -1,3 +1,4 @@
+import { GlobalLoadingBar } from "./components/GlobalLoadingBar";
 import {
   Nav,
   NavGroup,
@@ -262,6 +263,7 @@ export function App() {
           <LogoutButton />
         </div>
       </MastheadContent>
+      <GlobalLoadingBar />
     </Masthead>
   );
 

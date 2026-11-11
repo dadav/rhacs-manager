@@ -23,6 +23,21 @@ export const CHART_SEVERITY_COLORS = {
   0: "#8a8d90",
 } as const;
 
+export const TREND_SEVERITY_KEYS = ['low', 'moderate', 'important', 'critical'] as const;
+export const TREND_LEGEND_ORDER = ['critical', 'important', 'moderate', 'low'] as const;
+export const TREND_SEVERITY_COLORS = {
+  critical: CHART_SEVERITY_COLORS[4],
+  important: CHART_SEVERITY_COLORS[3],
+  moderate: CHART_SEVERITY_COLORS[2],
+  low: CHART_SEVERITY_COLORS[1],
+} as const;
+export const TREND_SEVERITY_LABEL_KEY = {
+  critical: 'severity.4',
+  important: 'severity.3',
+  moderate: 'severity.2',
+  low: 'severity.1',
+} as const;
+
 // Stat card accent colors
 export const STAT_ACCENT = {
   danger: "#c9190b",

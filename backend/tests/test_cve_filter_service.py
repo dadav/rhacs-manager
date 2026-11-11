@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.models.remediation import RemediationStatus
 from app.models.suppression_rule import SuppressionStatus, SuppressionType
 from app.schemas.cve import SeverityLevel
@@ -411,3 +413,97 @@ class TestComputeRemediationStatus:
         ]
         result = await _status(rems, {"CVE-1": {("c1", "ns1"), ("c1", "ns2")}}, ["CVE-1"])
         assert result == {"CVE-1": "in_progress"}
+
+
+@pytest.fixture
+async def fixed_cve_context(monkeypatch):
+    from app.services import cve_filter_service as svc
+
+    from .conftest import make_current_user
+    from .test_cve_access import remediation_store
+
+    user = make_current_user(namespaces=[("payments", "cluster-a")])
+    settings = SimpleNamespace(min_cvss_score=7.0, min_epss_score=0.5)
+    monkeypatch.setattr(svc, "_get_settings", AsyncMock(return_value=settings))
+    monkeypatch.setattr(svc, "compute_suppression_sets", AsyncMock(return_value=({"CVE-FIXED"}, set())))
+    monkeypatch.setattr(svc, "subscribed_cve_ids", AsyncMock(return_value={"CVE-FIXED"}))
+    sx = SimpleNamespace(
+        get_cves_for_namespaces=AsyncMock(return_value=[]),
+        get_cve_component_map=AsyncMock(return_value={}),
+        get_cve_namespace_cluster_map=AsyncMock(return_value={}),
+        get_cve_facts_bulk=AsyncMock(return_value={}),
+    )
+    monkeypatch.setattr(svc, "sx", sx)
+    async with remediation_store() as real_db:
+
+        async def execute(query):
+            if "FROM remediations" in str(query):
+                return await real_db.execute(query)
+            return SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: []))
+
+        db = AsyncMock()
+        db.execute.side_effect = execute
+        yield svc, user, db, sx
+
+
+async def test_fixed_rows_only_when_switch_is_on(fixed_cve_context):
+    svc, user, db, sx = fixed_cve_context
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock()) == []
+    sx.get_cve_facts_bulk.assert_not_awaited()
+    items = await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True)
+    assert [i.cve_id for i in items] == ["CVE-FIXED"]
+    item = items[0]
+    assert item.no_longer_affected is True
+    assert item.remediation_status == "remediated"
+    assert (item.affected_images, item.affected_deployments, item.first_seen, item.fixable) == (0, 0, None, False)
+    assert (item.severity, item.cvss, item.epss_probability) == (0, 0, 0)
+    assert item.is_subscribed is True
+    assert item.is_suppressed is False
+    assert sx.get_cves_for_namespaces.await_args.args[2:4] == (7.0, 0.5)
+    sx.get_cve_facts_bulk.assert_awaited_once()
+
+
+async def test_still_reported_below_thresholds_is_not_fixed(fixed_cve_context):
+    svc, user, db, sx = fixed_cve_context
+    sx.get_cve_namespace_cluster_map.return_value = {"CVE-FIXED": {("cluster-a", "payments")}}
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True) == []
+    assert sx.get_cve_namespace_cluster_map.await_args.args[2] == [("payments", "cluster-a")]
+
+
+@pytest.mark.parametrize("status", ["in_progress", "unremediated"])
+async def test_nonterminal_filter_does_not_load_fixed_rows(fixed_cve_context, status):
+    svc, user, db, sx = fixed_cve_context
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, remediation_status=status) == []
+    sx.get_cve_facts_bulk.assert_not_awaited()
+
+
+@pytest.mark.parametrize("cve_id", ["CVE-WONT", "CVE-FOREIGN", "CVE-OPEN"])
+async def test_wont_fix_open_and_foreign_remediations_are_not_listed(fixed_cve_context, cve_id):
+    svc, user, db, _ = fixed_cve_context
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, search=cve_id) == []
+
+
+async def test_fixed_rows_obey_later_filters_and_restricted_scope(fixed_cve_context):
+    svc, user, db, sx = fixed_cve_context
+    sx.get_cve_facts_bulk.return_value = {"CVE-FIXED": {"severity": 3, "cvss": 8.0, "epss_probability": 0.1}}
+    items = await svc.fetch_filtered_cves(
+        user, db, AsyncMock(), show_remediated=True, remediation_status="remediated", subscribed_only=True, severity=3
+    )
+    assert [i.cve_id for i in items] == ["CVE-FIXED"]
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, severity=4) == []
+    assert (
+        await svc.fetch_filtered_cves(
+            user, db, AsyncMock(), show_remediated=True, restrict_namespaces=[("frontend", "cluster-b")]
+        )
+        == []
+    )
+
+
+async def test_reported_cve_is_not_duplicated_as_fixed(fixed_cve_context):
+    svc, user, db, sx = fixed_cve_context
+    sx.get_cves_for_namespaces.return_value = [{"cve_id": "CVE-FIXED", "severity": 3}]
+    sx.get_cve_namespace_cluster_map.return_value = {"CVE-FIXED": {("cluster-a", "payments")}}
+    items = await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, show_suppressed=True)
+    assert len(items) == 1
+    assert not items[0].no_longer_affected
+    sx.get_cve_facts_bulk.assert_not_awaited()

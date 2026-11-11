@@ -177,6 +177,7 @@ Access control rules:
 - CVSS and EPSS thresholds are conjunctive for non-sec-team visibility.
 - Any user can opt out of the global thresholds per request with `ignore_thresholds=true` (frontend: `ignore_thresholds=1` URL param carried in `ScopeParams` by `useScope`). This is a view-only noise filter opt-out; it never widens namespace visibility. Interactive endpoints resolve the floor through `resolve_view_thresholds` in `services/cve_filter_service.py`; background jobs (alerts, digests, escalations, snapshots) and badges keep reading `GlobalSettings` directly.
 - Manually prioritized CVEs and CVEs with active risk acceptances bypass threshold filtering.
+- Fixed CVEs appear in `/cves` only with `show_remediated`: a resolved or legacy verified remediation must exist in a visible pair, and StackRox must no longer report the CVE anywhere in the selected scope regardless of thresholds. These rows bypass thresholds and suppression and carry `no_longer_affected=true`.
 - Prioritized CVEs must always sort to the top in `/cves`, regardless of selected sort column.
 - Dashboard chart datasets must apply the same visibility logic as `stat_total_cves`.
 - Severity distribution must classify each visible CVE exactly once so the bucket sum matches `stat_total_cves`.
