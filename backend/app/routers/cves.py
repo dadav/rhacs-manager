@@ -37,7 +37,7 @@ from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
-from ..services.cve_access import has_visible_remediation
+from ..services.cve_access import has_visible_remediation, user_can_access_cve
 from ..services.cve_filter_service import fetch_filtered_cves, resolve_view_thresholds
 from ..services.escalation_rules import level_deadlines, pick_matching_rule
 from ..services.fix_rollup_service import build_fix_rollup
@@ -628,12 +628,25 @@ async def get_cve(
     )
 
 
+async def _require_cve_access(
+    cve_id: str,
+    current_user: CurrentUser,
+    app_db: AsyncSession,
+    sx_db: AsyncSession,
+) -> None:
+    """Comments are readable and writable only for CVEs the caller may open."""
+    if not await user_can_access_cve(app_db, sx_db, current_user, cve_id):
+        raise ApiError(404, "cve_not_found")
+
+
 @router.get("/{cve_id}/comments", response_model=list[CveCommentResponse])
 async def list_cve_comments(
     cve_id: str,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> list[CveCommentResponse]:
+    await _require_cve_access(cve_id, current_user, app_db, sx_db)
     result = await app_db.execute(select(CveComment).where(CveComment.cve_id == cve_id).order_by(CveComment.created_at))
     comments = result.scalars().all()
 
@@ -681,6 +694,7 @@ async def add_cve_comment(
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveCommentResponse:
+    await _require_cve_access(cve_id, current_user, app_db, sx_db)
     response, email_jobs = await comment_service.add_cve_comment(
         app_db,
         cve_id=cve_id,
@@ -702,7 +716,9 @@ async def update_cve_comment(
     background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> CveCommentResponse:
+    await _require_cve_access(cve_id, current_user, app_db, sx_db)
     response, email_jobs = await comment_service.update_cve_comment(
         app_db,
         cve_id=cve_id,

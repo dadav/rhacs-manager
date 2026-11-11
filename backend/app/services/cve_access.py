@@ -4,7 +4,7 @@ StackRox drops a CVE from a namespace once it is fixed there. The owning team mu
 still be able to reopen the CVE detail (read it, comment), so a remediation in a
 (namespace, cluster) pair the caller can see now keeps the detail reachable. The
 pair check uses the request-scoped visibility, so revoked namespaces drop out.
-Callers: CVE detail, presence, and My Comments.
+Callers: CVE detail, presence, My Comments, and the CVE comment endpoints.
 """
 
 from collections.abc import Iterable
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser
 from ..models.remediation import Remediation, RemediationStatus
+from ..stackrox import queries as sx
 
 
 async def visible_remediation_cve_ids(
@@ -90,3 +91,23 @@ async def has_visible_remediation(
     namespace: str | None = None,
 ) -> bool:
     return cve_id in await visible_remediation_cve_ids(app_db, current_user, [cve_id], cluster, namespace)
+
+
+async def user_can_access_cve(
+    app_db: AsyncSession,
+    sx_db: AsyncSession,
+    current_user: CurrentUser,
+    cve_id: str,
+) -> bool:
+    """Same visibility rule as ``GET /cves/{cve_id}`` without a sidebar scope.
+
+    True when the CVE affects a deployment in a visible pair, or the user can see
+    a remediation for it. Thresholds do not apply.
+    """
+    if current_user.can_see_all_namespaces:
+        return True
+    if not current_user.has_namespaces:
+        return False
+    if await sx.cve_visible_in_namespaces(sx_db, cve_id, current_user.namespaces):
+        return True
+    return await has_visible_remediation(app_db, current_user, cve_id)

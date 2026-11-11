@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from app.routers import presence
+from app.services import cve_access
 
 RA_ID = str(uuid4())
 VISIBLE_SCOPE = {"mode": "namespace", "targets": [{"cluster_name": "cluster-a", "namespace": "payments"}]}
@@ -23,7 +24,7 @@ def _reset_presence_state(monkeypatch):
 @pytest.fixture
 def cve_visible(monkeypatch) -> AsyncMock:
     probe = AsyncMock(return_value=True)
-    monkeypatch.setattr(presence.sx, "cve_visible_in_namespaces", probe)
+    monkeypatch.setattr(cve_access.sx, "cve_visible_in_namespaces", probe)
     return probe
 
 

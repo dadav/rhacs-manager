@@ -283,7 +283,7 @@ async def _empty_mttr() -> list[MttrSeverity]:
 
 
 async def _upcoming_escalations(
-    namespaces: list[tuple[str, str]],
+    namespaces: list[tuple[str, str]] | None,
     settings: GlobalSettings | None,
 ) -> list:
     if not settings:
@@ -490,7 +490,7 @@ async def dashboard(
         open_ra = sum(1 for ra in open_ra_rows.scalars().all() if user_can_access_ra(current_user, ra))
 
     # Run all chart queries + upcoming escalations + RA pipeline concurrently
-    upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else []
+    upcoming_ns = namespaces if (has_scope or not current_user.can_see_all_namespaces) else None
     (
         sev_dist,
         ns_counts,

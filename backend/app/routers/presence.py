@@ -20,9 +20,8 @@ from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
 from ..models.risk_acceptance import RiskAcceptance
-from ..services.cve_access import has_visible_remediation
+from ..services.cve_access import user_can_access_cve
 from ..services.risk_acceptance_service import user_can_access_ra
-from ..stackrox import queries as sx
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +96,7 @@ async def _check_access(
         return ra is not None and user_can_access_ra(current_user, ra)
 
     # entity_type == "cve": same visibility rule as GET /cves/{cve_id}
-    if current_user.can_see_all_namespaces:
-        return True
-    if not current_user.has_namespaces:
-        return False
-    if await sx.cve_visible_in_namespaces(sx_db, entity_id, current_user.namespaces):
-        return True
-    return await has_visible_remediation(app_db, current_user, entity_id)
+    return await user_can_access_cve(app_db, sx_db, current_user, entity_id)
 
 
 async def _require_access(

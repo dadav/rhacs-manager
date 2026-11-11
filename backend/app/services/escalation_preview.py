@@ -67,7 +67,7 @@ def _anchors_by_cve(location_rows: list[dict]) -> dict[str, dict]:
 async def compute_upcoming_escalations(
     sx_db: AsyncSession,
     app_db: AsyncSession,
-    namespaces: list[tuple[str, str]],
+    namespaces: list[tuple[str, str]] | None,
     settings: GlobalSettings,
 ) -> list[UpcomingEscalation]:
     """Compute CVEs approaching escalation thresholds within warning_days window.
@@ -75,10 +75,13 @@ async def compute_upcoming_escalations(
     Args:
         sx_db: StackRox DB session (read-only).
         app_db: App DB session.
-        namespaces: User's namespace scope. Empty list = all (sec team).
+        namespaces: Visible (namespace, cluster) pairs. None = org-wide; an empty
+            list means nothing is visible and never widens to org-wide.
         settings: GlobalSettings with escalation_rules and escalation_warning_days.
     """
     if not settings.escalation_rules:
+        return []
+    if namespaces is not None and not namespaces:
         return []
 
     warning_days = settings.escalation_warning_days
@@ -111,7 +114,7 @@ async def compute_upcoming_escalations(
         existing_escalations.setdefault(cve_id, set()).add(level)
 
     # Get CVEs from StackRox (filtered by thresholds)
-    if namespaces:
+    if namespaces is not None:
         cves = await sx.get_cves_for_namespaces(sx_db, namespaces, min_cvss, min_epss, always_show)
     else:
         cves = await sx.get_all_cves(sx_db, min_cvss, min_epss, always_show)
@@ -123,7 +126,11 @@ async def compute_upcoming_escalations(
     # approved suppression rules exist.
     cve_rules, component_rules = await load_approved_suppression_rules(app_db)
     if cve_rules or component_rules:
-        scope_pairs = namespaces or [(r["namespace"], r["cluster_name"]) for r in await sx.list_namespaces(sx_db)]
+        scope_pairs = (
+            namespaces
+            if namespaces is not None
+            else [(r["namespace"], r["cluster_name"]) for r in await sx.list_namespaces(sx_db)]
+        )
         location_rows = await sx.get_cves_by_namespace_detail(sx_db, scope_pairs, min_cvss, min_epss, always_show)
         anchors = _anchors_by_cve(escalation_candidate_rows(location_rows, accepted_ids, cve_rules, component_rules))
         cves = [{**cve, **anchors[cve["cve_id"]]} for cve in cves if cve["cve_id"] in anchors]

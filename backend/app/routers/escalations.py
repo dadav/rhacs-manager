@@ -157,7 +157,11 @@ async def _upcoming_namespaces(
     cluster: str | None,
     namespace: str | None,
 ) -> list[tuple[str, str]] | None:
-    """Resolve namespace scope for upcoming escalations. None means 'no access'."""
+    """Resolve the pair scope for upcoming escalations.
+
+    None means org-wide; an empty list means nothing is visible (no namespaces, or
+    the filter matches none of them).
+    """
     if current_user.can_see_all_namespaces:
         if cluster or namespace:
             from ..stackrox import queries as sx
@@ -168,8 +172,6 @@ async def _upcoming_namespaces(
                 cluster,
                 namespace,
             )
-        return []  # empty = all for all-ns users
-    if not current_user.has_namespaces:
         return None
     return narrow_namespaces(current_user.namespaces, cluster, namespace)
 
@@ -187,9 +189,6 @@ async def list_upcoming_escalations(
         return []
 
     namespaces = await _upcoming_namespaces(current_user, sx_db, cluster, namespace)
-    if namespaces is None:
-        return []
-
     return await compute_upcoming_escalations(sx_db, app_db, namespaces, settings)
 
 
@@ -212,9 +211,6 @@ async def search_upcoming_escalations(
         return UpcomingSearchResponse(items=[], total=0, page=page, page_size=page_size)
 
     namespaces = await _upcoming_namespaces(current_user, sx_db, cluster, namespace)
-    if namespaces is None:
-        return UpcomingSearchResponse(items=[], total=0, page=page, page_size=page_size)
-
     items = await compute_upcoming_escalations(sx_db, app_db, namespaces, settings)
 
     paged, total = filter_upcoming_escalations(
