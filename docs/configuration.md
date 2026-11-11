@@ -27,7 +27,7 @@ Application configuration is environment-driven via `backend/app/config.py` (Pyd
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DEV_MODE` | `true` | Enable local auth bypass |
+| `DEV_MODE` | `false` | Enable local auth bypass. `just dev` sets it to `true` |
 | `DEV_USER_ID` | `dev-user-1` | Dev user ID |
 | `DEV_USER_NAME` | `Dev User` | Dev **username** (stable identity, used for `@mention` fallback) |
 | `DEV_USER_FULL_NAME` | `""` | Optional dev **full name** shown in the UI. Empty falls back to the username |
@@ -87,6 +87,9 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 | `GROUP_CACHE_TTL_SECONDS` | `60` | OpenShift user-group cache TTL |
 | `KUBE_API_URL` | `https://kubernetes.default.svc` | OpenShift/Kubernetes API base URL |
 | `ALL_NAMESPACES_GROUPS` | `""` | Comma-separated OpenShift groups that should receive wildcard `*` namespace access |
+| `LISTEN_ADDR` | `:8081` | Address the injector listens on |
+| `UPSTREAM_ADDR` | `http://localhost:8080` | Upstream (nginx) the injector forwards requests to |
+| `TRUST_FORWARDED_GROUPS` | `false` | Trust the inbound `X-Forwarded-Groups` header as a fallback. See [Spoke deployment](deployment/spoke.md) |
 
 ## SMTP
 
@@ -107,11 +110,13 @@ The spoke `auth-header-injector` reads Kubernetes namespace annotations and forw
 |----------|---------|-------------|
 | `APP_BASE_URL` | `http://localhost:5173` | Base URL used in links and badge URLs |
 | `BADGE_BASE_URL` | `""` | Public base URL prepended to badge SVG paths; empty means the API returns relative badge paths |
-| `SECRET_KEY` | `dev-secret-key-change-in-production` | App signing key |
-| `MANAGEMENT_EMAIL` | `""` | Recipient for weekly digest |
+| `SECRET_KEY` | `""` | App signing key. With `DEV_MODE=false` the backend refuses to start when it is empty or a known placeholder |
+| `MANAGEMENT_EMAIL` | `""` | Recipient for the weekly digest and last escalation fallback. Used when the runtime setting `management_email` is empty |
 | `DEFAULT_ESCALATION_EMAIL` | `""` | Fallback escalation recipient for namespaces without explicit annotation |
 | `TEAM_NOTIFICATION_ACTIVE_DAYS` | `30` | Team notifications (weekly team digest, new relevant CVE alerts) only go to users who signed in within this many days |
 | `SCHEDULER_ENABLED` | `true` | Run the background job scheduler in this process. See [Background Scheduler](#background-scheduler). |
+| `CORS_ORIGINS` | `[]` | Allowed CORS origins as a JSON list. Empty means only `APP_BASE_URL` in production |
+| `MAX_NAMESPACE_COUNT` | `500` | Safety limit for the number of namespace pairs accepted from `X-Forwarded-Namespaces` |
 | `LOG_LEVEL` | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `LOG_FORMAT` | `text` | `text` prints `LEVEL:logger:message key=value ...`; `json` prints one JSON object per line with `ts`, `level`, `logger`, `msg`, optional `exc`, and structured fields nested under `extra`. The Helm chart sets `json` via `backend.env.logFormat` for the backend and worker. |
 
@@ -136,6 +141,9 @@ The scheduled jobs (all times UTC):
 | `cve_snapshot` | 02:00 | Store daily per-namespace CVE counts for the dashboard trend |
 | `team_cve_alerts` | 02:30 | In-app alerts for CVEs newly above the thresholds or prioritized in a team member's namespaces, plus the opt-in CVE alert summary email (at most one per user per day, counts only). The first run only records a baseline, separately for in-app and email conditions |
 | `team_digest` | 07:15 | Weekly opt-in team digest email per user (only on the configured `digest_day`) |
+| `cve_subscription_diff` | hourly at :10 | Detect changes on followed CVEs and notify their subscribers |
+| `cve_subscription_email` | 07:20 | Opt-in daily summary email for followed CVEs (at most one per user per day, counts only) |
+| `notification_summary` | 09:15 | Opt-in daily summary email for in-app notifications (at most one per user per day, counts only) |
 
 ### Deployment: one worker, never the API
 
@@ -165,8 +173,9 @@ Security team users manage runtime behavior via API/UI. Values are stored in `gl
 | `min_epss_score` | `0.0` | Minimum EPSS threshold |
 | `escalation_rules` | Built-in defaults | Rule set for level escalation |
 | `escalation_warning_days` | `3` | Lead time for the upcoming-escalation preview and pre-escalation warning emails |
+| `fix_overdue_threshold_days` | `30` | Days after a fix became available before a CVE counts as fix-overdue |
 | `digest_day` | `0` | Weekly digest day (`0` = Monday) |
-| `management_email` | `""` | Digest recipient (runtime override) |
+| `management_email` | `""` | Digest recipient and last escalation fallback. Overrides the `MANAGEMENT_EMAIL` environment variable; when empty the environment value is used |
 
 ### Default Escalation Rules
 

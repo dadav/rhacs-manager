@@ -39,7 +39,9 @@ spec:
           image: "{{ .Values.worker.image.repository }}:{{ include "rhacs-manager.imageTag" (dict "tag" .Values.worker.image.tag "chart" .Chart) }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.backend.service.targetPort }}
+            # Named so the worker PodMonitor can scrape /metrics (scheduler job metrics).
+            - name: http
+              containerPort: {{ .Values.backend.service.targetPort }}
           envFrom:
             - secretRef:
                 name: {{ .Values.backend.secret.name }}

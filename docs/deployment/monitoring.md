@@ -1,6 +1,6 @@
 # Monitoring & Metrics
 
-The backend exposes Prometheus metrics on the same port as the API. Metrics are unauthenticated — restrict access via NetworkPolicy if required.
+The backend and the worker expose Prometheus metrics on the same port as the API. Metrics are unauthenticated — restrict access via NetworkPolicy if required.
 
 ## Endpoint
 
@@ -38,12 +38,22 @@ Current `job` labels:
 - `team_cve_alerts`
 - `team_digest`
 - `cve_snapshot`
+- `cve_subscription_diff`
+- `cve_subscription_email`
+- `notification_summary`
 
 Series for each job are pre-registered at startup so they appear in `/metrics` before the first invocation.
 
+Only the **worker** runs the scheduler, so these series carry real values only on the worker's `/metrics` endpoint. The backend pods expose the same series names with no runs.
+
 ## Helm Configuration
 
-The Helm chart deploys a Prometheus Operator `ServiceMonitor` that scrapes `/metrics` on the backend Service's existing `http` port. It is gated by `backend.monitoring.enabled` (default `true`).
+The Helm chart deploys two Prometheus Operator resources, both gated by `backend.monitoring.enabled` (default `true`):
+
+- a `ServiceMonitor` that scrapes `/metrics` on the backend Service's existing `http` port (HTTP request metrics)
+- a `PodMonitor` that scrapes `/metrics` on the worker pod (scheduler job metrics). The worker has no Service, and the `PodMonitor` is only created when `worker.enabled` is `true`
+
+Both share the scrape settings below.
 
 ```yaml
 backend:
@@ -59,7 +69,7 @@ backend:
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `backend.monitoring.enabled` | `true` | Create the `ServiceMonitor` |
+| `backend.monitoring.enabled` | `true` | Create the backend `ServiceMonitor` and the worker `PodMonitor` |
 | `backend.monitoring.serviceMonitor.additionalLabels` | `{}` | Extra labels (e.g. for non-default Prometheus Operator `releaseSelectors`; not required on OpenShift User Workload Monitoring) |
 | `backend.monitoring.serviceMonitor.interval` | `30s` | Scrape interval |
 | `backend.monitoring.serviceMonitor.scrapeTimeout` | `10s` | Scrape timeout |
@@ -76,4 +86,4 @@ The default `additionalLabels: {}` works with OpenShift User Workload Monitoring
 oc -n openshift-monitoring get configmap cluster-monitoring-config -o yaml
 ```
 
-The `enableUserWorkload: true` flag must be set. The `ServiceMonitor` is then picked up automatically from the `rhacs-manager` namespace.
+The `enableUserWorkload: true` flag must be set. The `ServiceMonitor` and `PodMonitor` are then picked up automatically from the `rhacs-manager` namespace.

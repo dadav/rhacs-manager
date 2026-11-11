@@ -28,8 +28,10 @@ Comment create/update requests accept **exactly one** representation:
 |--------|------|------|-------------|
 | GET | `/api/cves` | Any | List CVEs (paginated/filterable) |
 | GET | `/api/cves/{cve_id}` | Any | CVE detail with deployments/components. When the CVE no longer affects the visible scope but the caller can see a remediation for it, returns CVE-level facts only with `no_longer_affected=true` (otherwise 404) |
-| GET | `/api/cves/{cve_id}/comments` | Any | List CVE comments |
-| POST | `/api/cves/{cve_id}/comments` | Any | Add CVE comment |
+| GET | `/api/cves/{cve_id}/comments` | Any | List CVE comments. 404 unless the caller may open the CVE detail (same rule as `GET /api/cves/{cve_id}`) |
+| POST | `/api/cves/{cve_id}/comments` | Any | Add CVE comment. Same visibility rule |
+| PATCH | `/api/cves/{cve_id}/comments/{comment_id}` | Author | Edit own comment. Same visibility rule |
+| DELETE | `/api/cves/{cve_id}/comments/{comment_id}` | Author | Delete own comment (allowed even after losing access to the CVE) |
 | GET | `/api/cves/{cve_id}/deployments` | Any | Affected deployments |
 | GET | `/api/cves/{cve_id}/subscription` | Any | Whether the caller follows the CVE (`{cve_id, subscribed}`) |
 | PUT | `/api/cves/{cve_id}/subscription` | Any | Follow the CVE (idempotent); 404 unless it affects a deployment the caller can see; 400 `too_many_subscriptions` above 500 |
@@ -95,7 +97,7 @@ Response includes stat cards and chart data:
 | GET | `/api/risk-acceptances/{id}` | Any | Get one record |
 | PUT | `/api/risk-acceptances/{id}` | `team_member` | Resubmit approved/rejected request |
 | PATCH | `/api/risk-acceptances/{id}` | `sec_team` | Approve/reject requested record |
-| DELETE | `/api/risk-acceptances/{id}` | `team_member` | Delete own requested record |
+| DELETE | `/api/risk-acceptances/{id}` | Any | Delete a record: creators their own (any status), `sec_team` any record |
 | POST | `/api/risk-acceptances/{id}/comments` | Any | Add comment |
 | GET | `/api/risk-acceptances/{id}/comments` | Any | List comments |
 
@@ -583,6 +585,7 @@ Confirm response (`confirm=true`):
     }
   ],
   "escalation_warning_days": 3,
+  "fix_overdue_threshold_days": 30,
   "digest_day": 0,
   "management_email": "security-team@example.com"
 }

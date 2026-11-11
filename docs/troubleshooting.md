@@ -60,7 +60,7 @@ If users can reach the spoke route but the hub API responds with authentication 
 - The backend requires `X-Forwarded-User` in spoke mode.
 - Namespace scope comes from `X-Forwarded-Namespaces`.
 - Group-based role mapping depends on `X-Forwarded-Groups`.
-- The auth-header-injector prefers `X-Forwarded-Access-Token` so it can resolve groups via the OpenShift user API; it falls back to existing `X-Forwarded-Groups` only when no groups were resolved from the API.
+- The auth-header-injector prefers `X-Forwarded-Access-Token` so it can resolve groups via the OpenShift user API; it falls back to existing `X-Forwarded-Groups` only when no groups were resolved from the API and `TRUST_FORWARDED_GROUPS=true` is set (off by default, the header is stripped otherwise).
 - Intermittent `503` responses with `Retry-After: 5` come from the injector when the OpenShift user API call fails. Check the injector logs for `failed to fetch user info`.
 
 ### Namespace annotation format

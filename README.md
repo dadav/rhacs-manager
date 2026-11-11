@@ -85,7 +85,7 @@ just lint
 
 | RHACS Version | Status |
 | ------------- | ------ |
-| 4.10.x        | Tested |
+| 4.11.6+       | Tested |
 
 RHACS Manager reads directly from the StackRox Central database. Schema changes in future RHACS versions may require query updates. If you encounter issues with a newer version, please open an issue.
 

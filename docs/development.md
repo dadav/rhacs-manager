@@ -66,7 +66,7 @@ just check
 
 # individual commands:
 just test           # backend tests
-just lint           # frontend lint
+just lint           # frontend lint + backend ruff
 just build-frontend # frontend type-check + build
 ```
 
@@ -97,16 +97,15 @@ The project uses [just](https://github.com/casey/just) as a command runner. All 
 | `just dev-backend user '*'` | Start only the backend (team_member user) with wildcard all-namespace visibility |
 | `just dev-frontend` | Start only the frontend dev server |
 | `just test` | Run backend tests (`uv run pytest`) |
-| `just lint` | Run frontend linter |
+| `just lint` | Run frontend linter (`tsc -b` + eslint) and backend `ruff check` |
 | `just build-frontend` | TypeScript check + Vite build |
-| `just check` | Run all checks (test + lint + build-frontend) |
+| `just check` | Run all checks (backend tests, frontend tests, lint, frontend build, docs build) |
 | `just install` | Install all dependencies (backend + frontend) |
 | `just migrate` | Run Alembic migrations |
 | `just migrate-new "message"` | Create a new Alembic migration |
 | `just migrate-status` | Show current migration status |
 | `just build-backend-image` | Build backend container image |
 | `just build-frontend-image` | Build frontend hub container image |
-| `just build-spoke-image` | Build frontend spoke container image |
 
 ## Dev Server Sessions
 
