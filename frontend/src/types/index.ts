@@ -260,8 +260,8 @@ export type MyCommentKind = 'cve' | 'risk_acceptance' | 'escalation'
 
 // One row per thread the current user commented in (GET /comments/mine).
 // thread_available: the comment thread can be read. detail_available: the
-// CVE/RA detail page will load (a CVE that left the user's namespaces 404s
-// there while its global comment thread stays readable).
+// CVE/RA detail page will load. For CVEs both follow the CVE detail visibility
+// rule, so a CVE that left the user's namespaces has neither.
 export interface MyCommentThread {
   kind: MyCommentKind
   cve_id: string

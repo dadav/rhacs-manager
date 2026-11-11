@@ -28,6 +28,41 @@
           "id": "cve-description-whitespace",
           "kind": "fix",
           "text": "CVE descriptions no longer start with spaces or indented lines."
+        },
+        {
+          "id": "comment-visibility",
+          "kind": "fix",
+          "text": "Comments on a CVE are now visible only to people who may also open the CVE detail page."
+        },
+        {
+          "id": "upcoming-escalation-scope",
+          "kind": "fix",
+          "text": "The upcoming escalations preview now shows no entries for a filter without matches, instead of entries outside your namespaces."
+        },
+        {
+          "id": "import-auto-approve",
+          "kind": "fix",
+          "text": "Risk acceptances imported from Excel for a single namespace are now approved automatically, like manually created ones. The import also works with access to all namespaces."
+        },
+        {
+          "id": "management-email-setting",
+          "kind": "fix",
+          "text": "The management email saved in the settings is now used for the weekly digest and as escalation fallback."
+        },
+        {
+          "id": "export-matches-list",
+          "kind": "fix",
+          "text": "PDF and Excel exports now apply every filter of the vulnerability list, for example remediation status, age and deployment."
+        },
+        {
+          "id": "fresh-lists-after-changes",
+          "kind": "fix",
+          "text": "After changes to priorities, risk acceptances, remediations and suppression rules, the vulnerability list and the dashboard refresh immediately."
+        },
+        {
+          "id": "scope-kept-on-navigation",
+          "kind": "fix",
+          "text": "The selected scope is kept when you open notifications or move between a CVE and a risk acceptance."
         }
       ]
     },

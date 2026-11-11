@@ -28,6 +28,41 @@
           "id": "cve-description-whitespace",
           "kind": "fix",
           "text": "CVE-Beschreibungen beginnen nicht mehr mit Leerzeichen oder eingerückten Zeilen."
+        },
+        {
+          "id": "comment-visibility",
+          "kind": "fix",
+          "text": "Kommentare zu einer CVE sind nur noch für Personen sichtbar, die auch die CVE-Detailseite öffnen dürfen."
+        },
+        {
+          "id": "upcoming-escalation-scope",
+          "kind": "fix",
+          "text": "Die Vorschau anstehender Eskalationen zeigt bei einem Filter ohne Treffer keine Einträge mehr an, statt Einträge außerhalb Ihrer Namespaces."
+        },
+        {
+          "id": "import-auto-approve",
+          "kind": "fix",
+          "text": "Per Excel importierte Risikoakzeptanzen für einen einzelnen Namespace werden nun wie manuell angelegte automatisch genehmigt. Der Import funktioniert auch mit Zugriff auf alle Namespaces."
+        },
+        {
+          "id": "management-email-setting",
+          "kind": "fix",
+          "text": "Die in den Einstellungen hinterlegte Management-E-Mail wird nun für den Wochenbericht und als Eskalations-Fallback verwendet."
+        },
+        {
+          "id": "export-matches-list",
+          "kind": "fix",
+          "text": "PDF- und Excel-Exporte berücksichtigen nun alle Filter der Schwachstellenliste, zum Beispiel Behebungsstatus, Alter und Deployment."
+        },
+        {
+          "id": "fresh-lists-after-changes",
+          "kind": "fix",
+          "text": "Nach Änderungen an Prioritäten, Risikoakzeptanzen, Behebungen und Unterdrückungsregeln aktualisieren sich Schwachstellenliste und Dashboard sofort."
+        },
+        {
+          "id": "scope-kept-on-navigation",
+          "kind": "fix",
+          "text": "Der gewählte Bereich bleibt erhalten, wenn Sie Benachrichtigungen öffnen oder zwischen CVE und Risikoakzeptanz wechseln."
         }
       ]
     },

@@ -8,6 +8,7 @@ All endpoints are prefixed with `/api`.
 |--------|------|------|-------------|
 | GET | `/api/auth/me` | Any authenticated user | Current user profile |
 | GET | `/api/auth/users/search` | Any authenticated user | Type-ahead user search for mention/assignee pickers |
+| PATCH | `/api/auth/onboarding` | Any authenticated user | Mark the onboarding tour as completed for the caller |
 
 `GET /api/auth/me` includes `has_all_namespaces` so the frontend can distinguish wildcard visibility from `sec_team`. It also returns `full_name` (nullable, from the identity provider) and `display_name` (the trimmed `full_name`, falling back to `username`).
 
@@ -274,13 +275,13 @@ on one CVE, or on one risk acceptance).
 - `kind` is `escalation` only for sec-team users whose latest own comment in the
   thread is escalation-scoped; `escalation_context` is sec-team only.
 - `thread_available`: the thread is readable through the existing comment
-  endpoints (always true for CVEs, whose comments are global per CVE;
+  endpoints (for CVEs the same rule as `detail_available`;
   `user_can_access_ra` for risk acceptances).
 - `detail_available` / `detail_link`: the detail page will load. For CVEs this
   means the CVE still affects a deployment in the user's namespaces, or the user
   can see a remediation for it (the rule `GET /api/cves/{cve_id}` applies).
-- Risk acceptances the user can no longer access return `replies_since=0` and
-  no `last_reply_*` fields.
+- CVE threads and risk acceptances the user can no longer access return
+  `replies_since=0` and no `last_reply_*` fields.
 
 ## Notifications
 
@@ -581,7 +582,10 @@ Confirm response (`confirm=true`):
       "epss_threshold": 0,
       "days_to_level1": 7,
       "days_to_level2": 14,
-      "days_to_level3": 21
+      "days_to_level3": 21,
+      "days_to_level1_after_fix_available": 3,
+      "days_to_level2_after_fix_available": null,
+      "days_to_level3_after_fix_available": null
     }
   ],
   "escalation_warning_days": 3,
@@ -590,6 +594,8 @@ Confirm response (`confirm=true`):
   "management_email": "security-team@example.com"
 }
 ```
+
+The `days_to_levelN_after_fix_available` fields are optional (`null` or omitted disables them). When set, a level falls due at the earlier of `first_seen + days_to_levelN` and `fix_available_since + days_to_levelN_after_fix_available`.
 
 ## Namespaces
 
@@ -604,6 +610,19 @@ Wildcard all-namespace users receive the full namespace list from this endpoint.
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | `/api/audit-log` | `sec_team` | Paginated audit entries |
+| GET | `/api/audit-log/filters` | `sec_team` | Distinct `actions` and `entity_types` present in the log, for filter dropdowns |
+| GET | `/api/audit-log/export` | `sec_team` | Download the filtered log (`search`, `action`, `entity_type`, `date_from`, `date_to`, `lang`) |
+
+## Presence
+
+Shows who else is viewing a CVE or risk acceptance. State is kept in memory per backend process.
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| POST | `/api/presence/heartbeat` | Any | Register the caller as a viewer. Body: `{entity_type, entity_id}` with `entity_type` `cve` or `risk_acceptance` |
+| GET | `/api/presence/viewers` | Any | Other current viewers (`entity_type`, `entity_id` query params) |
+
+Both routes return 404 unless the caller may open the entity (the CVE detail rule, or `user_can_access_ra`). A viewer drops out 30 seconds after the last heartbeat.
 
 ## Dev-only Endpoints
 
@@ -613,6 +632,8 @@ These routes are available only when `DEV_MODE=true`.
 |--------|------|------|-------------|
 | POST | `/api/dev/trigger-escalation-check` | Any dev user | Trigger escalation check job |
 | POST | `/api/dev/trigger-weekly-digest` | Any dev user | Trigger digest job |
+| POST | `/api/dev/trigger-team-cve-alerts` | Any dev user | Run the daily team CVE alert diff now |
+| POST | `/api/dev/trigger-team-digest` | Any dev user | Send the team digest now, skipping the weekday check |
 | POST | `/api/dev/trigger-cve-subscription-diff` | Any dev user | Run the hourly CVE subscription diff now |
 | POST | `/api/dev/trigger-cve-subscription-email` | Any dev user | Send the daily subscription summary emails now |
 | POST | `/api/dev/trigger-notification-summary` | Any dev user | Send the daily notification summary emails now |

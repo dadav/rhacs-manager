@@ -1104,7 +1104,7 @@
     "detailUnavailable": "Detailseite nicht mehr verfügbar",
     "detailUnavailableHint": "Die Schwachstelle betrifft keine Deployments in Ihren Namespaces mehr. Die Diskussion bleibt hier lesbar.",
     "threadUnavailable": "Kein Zugriff mehr",
-    "threadUnavailableHint": "Sie haben keinen Zugriff mehr auf diese Risikoakzeptanz. Nur Ihr eigener Kommentar wird angezeigt.",
+    "threadUnavailableHint": "Sie haben keinen Zugriff mehr auf diesen Eintrag. Es wird nur Ihr eigener Kommentar angezeigt.",
     "riskAcceptanceLabel": "Risikoakzeptanz zu {{cve}}",
     "escalationLabel": "{{cve}} · {{cluster}}/{{namespace}} (Stufe {{level}})",
     "showThread": "Diskussion anzeigen",

@@ -205,8 +205,10 @@ async def list_my_comment_threads(
 
     for cve_id, own in cve_own.items():
         esc = esc_map.get(own.escalation_id) if own.escalation_id is not None else None
-        reply = cve_replies.get(cve_id)
         detail_ok = cve_id in cve_detail_ok
+        # CVE comments follow the CVE detail visibility rule: without access the
+        # thread is not readable, so the overview reports no reply activity either.
+        reply = cve_replies.get(cve_id) if detail_ok else None
         threads.append(
             MyCommentThread(
                 kind="escalation" if esc is not None else "cve",
@@ -220,7 +222,7 @@ async def list_my_comment_threads(
                 replies_since=reply.count if reply else 0,
                 last_reply_at=reply.created_at if reply else None,
                 last_reply_by_name=_reply_name(reply) if reply else None,
-                thread_available=True,
+                thread_available=detail_ok,
                 detail_available=detail_ok,
                 detail_link=f"/vulnerabilities/{cve_id}" if detail_ok else None,
             )

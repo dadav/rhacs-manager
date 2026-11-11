@@ -191,6 +191,14 @@ describe('Escalations', () => {
     })
   })
 
+  it('keeps the page params from the URL on first render', () => {
+    render(<Escalations />, { wrapper: wrapper('/?page=3&up_page=2') })
+
+    expect(screen.getByTestId('location-search').textContent).toBe('?page=3&up_page=2')
+    expect(mockUseActive.mock.calls.at(-1)?.[0]).toMatchObject({ page: 3 })
+    expect(mockUseUpcoming.mock.calls.at(-1)?.[0]).toMatchObject({ page: 2 })
+  })
+
   it('clear all removes active filters and explicitly selects all contact states', async () => {
     render(<Escalations />, { wrapper: wrapper('/?level=2&email_status=notified&contact=contacted&page=3') })
     const clearButtons = screen.getAllByText('common.clearAll')

@@ -237,7 +237,7 @@ async def test_own_newer_comment_resets_replies(app, store, visible_cves):
         assert row["last_reply_at"] is None
 
 
-async def test_cve_detail_unavailable_keeps_thread_and_replies(app, store, visible_cves):
+async def test_cve_without_access_hides_thread_and_replies(app, store, visible_cves):
     visible_cves["visible"] = set()
     await _cve_comment(store, "CVE-GONE", ME, T0)
     await _cve_comment(store, "CVE-GONE", ALICE, T0 + timedelta(minutes=1))
@@ -245,10 +245,10 @@ async def test_cve_detail_unavailable_keeps_thread_and_replies(app, store, visib
     async with _client(app, store, _me()) as client:
         [row] = (await _get(client))["items"]
 
-    assert row["thread_available"] is True
+    assert row["thread_available"] is False
     assert row["detail_available"] is False
     assert row["detail_link"] is None
-    assert row["replies_since"] == 1
+    assert row["replies_since"] == 0
     assert visible_cves["calls"] == [(["CVE-GONE"], [("payments", "cluster-a")])]
 
 
