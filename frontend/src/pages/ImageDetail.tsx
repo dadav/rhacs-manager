@@ -107,9 +107,9 @@ export function ImageDetail() {
   const decodedId = imageId ? decodeURIComponent(imageId) : ''
   const navigate = useNavigate()
   const { t, i18n } = useTranslation()
-  const { ignoreThresholds, scopeSearchString } = useScope()
+  const { scopeParams, scopeSearchString } = useScope()
   const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString)
-  const { data: image, isLoading, error } = useImageDetail(decodedId, { ignoreThresholds })
+  const { data: image, isLoading, error } = useImageDetail(decodedId, scopeParams)
 
   if (isLoading) {
     return (

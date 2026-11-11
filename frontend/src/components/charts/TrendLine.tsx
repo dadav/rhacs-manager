@@ -14,7 +14,7 @@ export function TrendLine({ data }: Props) {
   if (!data.length) {
     return (
       <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6a6e73', fontSize: 13 }}>
-        Keine Daten verfügbar
+        {t('common.noData')}
       </div>
     )
   }

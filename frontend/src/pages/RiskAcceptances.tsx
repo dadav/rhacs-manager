@@ -190,7 +190,7 @@ export function RiskAcceptances() {
                     <Button
                       variant="secondary"
                       size="sm"
-                      component={(props: object) => <Link {...props} to={`/risk-acceptances/${ra.id}`} />}
+                      component={(props: object) => <Link {...props} to={scopedLink(`/risk-acceptances/${ra.id}`)} />}
                     >
                       {t('common.details')}
                     </Button>

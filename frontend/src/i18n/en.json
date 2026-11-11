@@ -208,6 +208,7 @@
     "trendTotal": "Total"
   },
   "cves": {
+    "viewMode": "View",
     "title": "Vulnerabilities",
     "description": "All CVEs affecting your deployments, filterable by severity, EPSS, and fixability.",
     "helpLabel": "Help for vulnerabilities",

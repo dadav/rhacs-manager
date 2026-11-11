@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { CvePriority, PriorityLevel } from '../types'
+import { invalidateCveViews } from './invalidate'
 
 export const priorityKeys = {
   list: ['priorities', 'list'] as const,
@@ -26,7 +27,10 @@ export function useCreatePriority() {
   return useMutation({
     mutationFn: (data: { cve_id: string; priority: PriorityLevel; reason: string; deadline?: string | null }) =>
       api.post<CvePriority>('/priorities', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: priorityKeys.list }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['priorities'] })
+      invalidateCveViews(qc)
+    },
   })
 }
 
@@ -35,7 +39,10 @@ export function useUpdatePriority() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: { priority?: PriorityLevel; reason?: string; deadline?: string | null } }) =>
       api.patch<CvePriority>(`/priorities/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: priorityKeys.list }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['priorities'] })
+      invalidateCveViews(qc)
+    },
   })
 }
 
@@ -43,6 +50,9 @@ export function useDeletePriority() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/priorities/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: priorityKeys.list }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['priorities'] })
+      invalidateCveViews(qc)
+    },
   })
 }

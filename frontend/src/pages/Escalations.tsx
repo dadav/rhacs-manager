@@ -132,6 +132,8 @@ export function Escalations() {
     setUpSearchInput(urlUpSearch)
   }, [urlUpSearch])
   useEffect(() => {
+    // Only a changed search resets the page; on first render the URL page must survive.
+    if (debouncedUpSearch === urlUpSearch) return
     updateParams({ up_search: debouncedUpSearch || null }, 'up_page')
   }, [debouncedUpSearch])
 
@@ -174,6 +176,7 @@ export function Escalations() {
     setActiveSearchInput(urlActiveSearch)
   }, [urlActiveSearch])
   useEffect(() => {
+    if (debouncedActiveSearch === urlActiveSearch) return
     updateParams({ search: debouncedActiveSearch || null }, 'page')
   }, [debouncedActiveSearch])
 

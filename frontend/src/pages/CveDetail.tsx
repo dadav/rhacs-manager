@@ -710,7 +710,7 @@ export function CveDetail() {
                         cve.risk_acceptance_status === RiskStatus.requested
                       }
                       onClick={() =>
-                        navigate(`/risk-acceptances/neu?cve=${cve.cve_id}`)
+                        navigate(scopedLink(`/risk-acceptances/neu?cve=${cve.cve_id}`))
                       }
                     >
                       {t('cveDetail.requestRiskAcceptance')}
@@ -738,7 +738,7 @@ export function CveDetail() {
                             variant="secondary"
                             onClick={() =>
                               navigate(
-                                `/risk-acceptances/${cve.risk_acceptance_id}`,
+                                scopedLink(`/risk-acceptances/${cve.risk_acceptance_id}`),
                               )
                             }
                           >
@@ -753,7 +753,7 @@ export function CveDetail() {
                               variant="secondary"
                               onClick={() =>
                                 navigate(
-                                  `/risk-acceptances/${cve.risk_acceptance_id}?edit=1`,
+                                  scopedLink(`/risk-acceptances/${cve.risk_acceptance_id}?edit=1`),
                                 )
                               }
                             >
@@ -786,7 +786,7 @@ export function CveDetail() {
                       <Button
                         variant="link"
                         size="sm"
-                        onClick={() => navigate("/suppression-rules")}
+                        onClick={() => navigate(scopedLink("/suppression-rules"))}
                       >
                         {t('cveDetail.viewSuppressionRule')}
                       </Button>
@@ -799,7 +799,7 @@ export function CveDetail() {
                       <Button
                         variant="link"
                         size="sm"
-                        onClick={() => navigate("/suppression-rules")}
+                        onClick={() => navigate(scopedLink("/suppression-rules"))}
                         style={{ marginLeft: 8 }}
                       >
                         {t('cveDetail.viewSuppressionRule')}
@@ -1207,7 +1207,7 @@ export function CveDetail() {
                                         color: "var(--pf-t--global--text--color--subtle)",
                                         borderRadius: 4,
                                       }}
-                                      aria-label="Actions"
+                                      aria-label={t('common.actions')}
                                     >
                                       <EllipsisVIcon />
                                     </button>

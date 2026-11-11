@@ -22,6 +22,13 @@ interface ExportFilters {
   component?: string
   origin?: string
   risk_status?: string
+  remediation_status?: string
+  show_remediated?: boolean
+  age_min?: number
+  age_max?: number
+  deployment?: string
+  deployment_id?: string
+  fix_overdue?: boolean
 }
 
 function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {

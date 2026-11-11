@@ -107,11 +107,12 @@ interface ImageFilterParams {
   image_name?: string
 }
 
-export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterParams = {}) {
+export function useCvesByImage(scope: ScopeParams = {}, filters: ImageFilterParams = {}, enabled = true) {
   const merged = { ...filters, ...scopeApiParams(scope) }
   return useQuery({
     queryKey: ['cves', 'by-image', merged],
     queryFn: () => api.get<ImageCveGroup[]>(`/cves/by-image${buildQuery(merged)}`),
+    enabled,
     placeholderData: keepPreviousData,
   })
 }

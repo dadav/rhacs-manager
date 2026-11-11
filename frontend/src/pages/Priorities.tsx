@@ -210,7 +210,7 @@ export function Priorities() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        component={(props: object) => <Link {...props} to={`/priorities/${p.id}`} />}
+                        component={(props: object) => <Link {...props} to={scopedLink(`/priorities/${p.id}`)} />}
                       >
                         {t('common.details')}
                       </Button>

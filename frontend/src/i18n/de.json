@@ -208,6 +208,7 @@
     "trendTotal": "Gesamt"
   },
   "cves": {
+    "viewMode": "Ansicht",
     "title": "Schwachstellen",
     "description": "Alle CVEs Ihrer Deployments, filterbar nach Schweregrad, EPSS und Behebbarkeit.",
     "helpLabel": "Hilfe zu Schwachstellen",

@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { api } from './client'
 import type { RemediationItem, RemediationStats } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
+import { invalidateCveViews } from './invalidate'
 
 export const remediationKeys = {
   list: (params: Record<string, unknown>) => ['remediations', 'list', params] as const,
@@ -82,6 +83,7 @@ export function useCreateRemediations() {
     }) => api.post<RemediationItem[]>('/remediations/batch', body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remediations'] })
+      invalidateCveViews(qc)
     },
   })
 }
@@ -98,6 +100,7 @@ export function useUpdateRemediation(id: string) {
     }) => api.patch<RemediationItem>(`/remediations/${id}`, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remediations'] })
+      invalidateCveViews(qc)
     },
   })
 }
@@ -108,6 +111,7 @@ export function useDeleteRemediation() {
     mutationFn: (id: string) => api.delete(`/remediations/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['remediations'] })
+      invalidateCveViews(qc)
     },
   })
 }

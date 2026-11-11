@@ -49,6 +49,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
   const { t } = useTranslation()
   const { addToast } = useToast()
   const navigate = useNavigate()
+  const scopedLink = useScopedLink()
   const createRA = useCreateRiskAcceptance()
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(cveId)
   const [justification, setJustification] = useState('')
@@ -90,7 +91,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
         expires_at: expiresAt || null,
       })
       addToast(t('toast.riskAcceptanceCreated'))
-      navigate(`/risk-acceptances/${ra.id}`)
+      navigate(scopedLink(`/risk-acceptances/${ra.id}`))
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -100,7 +101,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink('/risk-acceptances'))} style={{ cursor: 'pointer' }}>
             {t('riskAcceptance.title')}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{t('riskAcceptance.new')}</BreadcrumbItem>
@@ -148,7 +149,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
                 <Button type="submit" variant="primary" isLoading={createRA.isPending}>
                   {t('riskAcceptance.submit')}
                 </Button>
-                <Button variant="link" onClick={() => navigate('/risk-acceptances')}>
+                <Button variant="link" onClick={() => navigate(scopedLink('/risk-acceptances'))}>
                   {t('common.cancel')}
                 </Button>
               </div>
@@ -164,6 +165,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
   const { t } = useTranslation()
   const { addToast } = useToast()
   const navigate = useNavigate()
+  const scopedLink = useScopedLink()
   const { data: ra, isLoading: isRaLoading, error: raError } = useRiskAcceptance(raId)
   const { data: cve, isLoading: isCveLoading, error: cveError } = useCveDetail(ra?.cve_id ?? '')
   const updateRA = useUpdateRiskAcceptance(raId)
@@ -206,7 +208,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
         expires_at: expiresAt || null,
       })
       addToast(t('toast.riskAcceptanceUpdated'))
-      navigate(`/risk-acceptances/${raId}`)
+      navigate(scopedLink(`/risk-acceptances/${raId}`))
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -220,10 +222,10 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink('/risk-acceptances'))} style={{ cursor: 'pointer' }}>
             {t('riskAcceptance.title')}
           </BreadcrumbItem>
-          <BreadcrumbItem onClick={() => navigate(`/risk-acceptances/${raId}`)} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink(`/risk-acceptances/${raId}`))} style={{ cursor: 'pointer' }}>
             {ra.cve_id}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{t('riskAcceptance.edit')}</BreadcrumbItem>
@@ -270,7 +272,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
                 <Button type="submit" variant="primary" isLoading={updateRA.isPending}>
                   {t('riskAcceptance.submitEdit')}
                 </Button>
-                <Button variant="link" onClick={() => navigate(`/risk-acceptances/${raId}`)}>
+                <Button variant="link" onClick={() => navigate(scopedLink(`/risk-acceptances/${raId}`))}>
                   {t('common.cancel')}
                 </Button>
               </div>
@@ -284,7 +286,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
 
 export function RiskAcceptanceDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
+  const scopedLink = useScopedLink()
   const [searchParams] = useSearchParams()
 
   // New form mode
@@ -399,7 +401,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
     <>
       <PageSection variant="default">
         <Breadcrumb>
-          <BreadcrumbItem onClick={() => navigate('/risk-acceptances')} style={{ cursor: 'pointer' }}>
+          <BreadcrumbItem onClick={() => navigate(scopedLink('/risk-acceptances'))} style={{ cursor: 'pointer' }}>
             {t('riskAcceptance.title')}
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{ra.cve_id}</BreadcrumbItem>
@@ -432,7 +434,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                       try {
                         await cancelRA.mutateAsync()
                         addToast(t('toast.riskAcceptanceCancelled'))
-                        navigate('/risk-acceptances')
+                        navigate(scopedLink('/risk-acceptances'))
                       } catch (err) {
                         setCancelError(getErrorMessage(err))
                       }

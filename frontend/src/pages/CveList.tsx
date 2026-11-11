@@ -253,7 +253,11 @@ export function CveList() {
     origin: urlOrigin || undefined,
     image_name: urlImageName || undefined,
   }
-  const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(scopeOverrides, imageFilters)
+  const { data: imageData, isLoading: imageLoading, error: imageError } = useCvesByImage(
+    scopeOverrides,
+    imageFilters,
+    urlViewMode === 'image',
+  )
   // Component view sorts server-side; fall back to its default column when the URL
   // carries a sort column from another view.
   const componentSortBy: ComponentSortColumn = (COMPONENT_SORT_COLUMNS as readonly string[]).includes(urlSortBy)
@@ -284,7 +288,14 @@ export function CveList() {
     component: debouncedComponent || undefined,
     origin: urlOrigin || undefined,
     risk_status: urlRiskStatus || undefined,
+    // Keep in sync with `params`: the export must contain exactly the filtered list.
     remediation_status: urlRemediationStatus || undefined,
+    show_remediated: urlShowRemediated || undefined,
+    age_min: urlAgeMin ? Number(urlAgeMin) : undefined,
+    age_max: urlAgeMax ? Number(urlAgeMax) : undefined,
+    deployment: urlDeployment || undefined,
+    deployment_id: urlDeploymentId || undefined,
+    fix_overdue: urlFixOverdue || undefined,
   }
 
   async function handleExport(type: 'pdf' | 'excel') {

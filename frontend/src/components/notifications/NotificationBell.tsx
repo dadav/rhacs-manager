@@ -15,6 +15,7 @@ import {
 } from '@patternfly/react-core'
 import { TrashIcon } from '@patternfly/react-icons'
 import { useNavigate } from 'react-router'
+import { useScopedLink } from '../../hooks/useScope'
 import {
   useUnreadCount,
   useNotifications,
@@ -54,6 +55,7 @@ export function NotificationBell() {
   const [confirmClear, setConfirmClear] = useState(false)
   const [actionError, setActionError] = useState<{ title: string; detail: string } | null>(null)
   const navigate = useNavigate()
+  const scopedLink = useScopedLink()
   const toggleRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -78,15 +80,12 @@ export function NotificationBell() {
     markRead.mutate(notification.id)
     closeDrawer()
     if (notification.link) {
+      // Keep the sidebar scope; params already in the link win. The hash anchor
+      // (e.g. #comment-<id>) is re-attached after the query string.
       const hashIndex = notification.link.indexOf('#')
-      if (hashIndex >= 0) {
-        navigate({
-          pathname: notification.link.slice(0, hashIndex),
-          hash: notification.link.slice(hashIndex),
-        })
-      } else {
-        navigate(notification.link)
-      }
+      const target = hashIndex >= 0 ? notification.link.slice(0, hashIndex) : notification.link
+      const hash = hashIndex >= 0 ? notification.link.slice(hashIndex) : ''
+      navigate(`${scopedLink(target)}${hash}`)
     }
   }
 

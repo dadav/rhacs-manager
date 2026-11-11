@@ -129,7 +129,7 @@ export function ExcelImportModal({ isOpen, onClose }: Props) {
               accept=".xlsx"
             />
 
-            {loading && <Spinner aria-label="Laden" style={{ margin: '16px 0' }} />}
+            {loading && <Spinner aria-label={t('common.loading')} style={{ margin: '16px 0' }} />}
 
             {preview && !loading && (
               <div style={{ marginTop: 16 }}>

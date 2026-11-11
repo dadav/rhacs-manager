@@ -3,6 +3,7 @@ import { api } from './client'
 import { invalidateMyComments } from './comments'
 import type { CommentInput, RiskAcceptance, RiskComment, RiskScope } from '../types'
 import type { ScopeParams } from '../hooks/useScope'
+import { invalidateCveViews } from './invalidate'
 
 export const raKeys = {
   list: (status?: string, scope: ScopeParams = {}) => ['risk-acceptances', 'list', status, scope] as const,
@@ -49,7 +50,10 @@ export function useCreateRiskAcceptance() {
       scope: RiskScope
       expires_at?: string | null
     }) => api.post<RiskAcceptance>('/risk-acceptances', data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['risk-acceptances'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
+      invalidateCveViews(qc)
+    },
   })
 }
 
@@ -60,6 +64,7 @@ export function useReviewRiskAcceptance(id: string) {
       api.patch<RiskAcceptance>(`/risk-acceptances/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
+      invalidateCveViews(qc)
     },
   })
 }
@@ -74,7 +79,7 @@ export function useUpdateRiskAcceptance(id: string) {
     }) => api.put<RiskAcceptance>(`/risk-acceptances/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
-      qc.invalidateQueries({ queryKey: ['cves'] })
+      invalidateCveViews(qc)
     },
   })
 }
@@ -85,7 +90,7 @@ export function useCancelRiskAcceptance(id: string) {
     mutationFn: () => api.delete(`/risk-acceptances/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['risk-acceptances'] })
-      qc.invalidateQueries({ queryKey: ['cves'] })
+      invalidateCveViews(qc)
     },
   })
 }
