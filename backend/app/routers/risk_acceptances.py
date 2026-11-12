@@ -170,6 +170,7 @@ async def create_risk_acceptance(
 @router.get("", response_model=list[RiskAcceptanceResponse])
 async def list_risk_acceptances(
     status: str | None = Query(None),
+    cve_id: str | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
@@ -182,6 +183,9 @@ async def list_risk_acceptances(
             query = query.where(RiskAcceptance.status == RiskStatus[status])
         except KeyError:
             raise ApiError(400, "invalid_status", status=status) from None
+
+    if cve_id is not None:
+        query = query.where(RiskAcceptance.cve_id == cve_id)
 
     result = await db.execute(query)
     all_ras = result.scalars().all()

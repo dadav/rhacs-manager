@@ -181,6 +181,7 @@ async def create_suppression_rule(
 @router.get("", response_model=list[SuppressionRuleResponse])
 async def list_suppression_rules(
     status: str | None = Query(None),
+    cve_id: str | None = Query(None),
     type: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
@@ -199,6 +200,9 @@ async def list_suppression_rules(
             query = query.where(SuppressionRule.type == SuppressionType[type])
         except KeyError:
             raise ApiError(400, "invalid_type", type=type) from None
+
+    if cve_id is not None:
+        query = query.where(SuppressionRule.cve_id == cve_id)
 
     result = await db.execute(query)
     rules = list(result.scalars().all())

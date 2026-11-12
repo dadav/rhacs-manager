@@ -32,6 +32,7 @@ API_KEY = "test-api-key"
 ALICE_HEADERS = {
     "X-Forwarded-User": "alice",
     "X-Forwarded-Full-Name": "Alice Team",
+    "X-Forwarded-Email": "alice@example.com",
     "X-Forwarded-Groups": "payments-devs",
     "X-Forwarded-Namespaces": "payments:cluster-a",
     "X-Forwarded-Namespace-Emails": "payments:cluster-a=payments@example.com",
@@ -41,6 +42,7 @@ ALICE_HEADERS = {
 BOB_HEADERS = {
     "X-Forwarded-User": "bob",
     "X-Forwarded-Full-Name": "Bob Security",
+    "X-Forwarded-Email": "bob@example.com",
     "X-Forwarded-Groups": "sec-team,admins",
     "X-Forwarded-Namespaces": "*",
     "X-Forwarded-Namespace-Emails": "",
@@ -147,6 +149,7 @@ async def test_two_callers_forward_their_own_identity(live_server, mode):
         for name in FORWARDED_HEADER_NAMES:
             assert request.headers[name] == caller_headers[name], name
         assert request.headers["x-api-key"] == API_KEY
+        assert request.headers["accept-language"] == "en"
 
 
 @pytest.mark.parametrize("mode", PROTOCOL_MODES)

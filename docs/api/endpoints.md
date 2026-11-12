@@ -94,7 +94,7 @@ Response includes stat cards and chart data:
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | POST | `/api/risk-acceptances` | `team_member` | Create request |
-| GET | `/api/risk-acceptances` | Any | List accessible records |
+| GET | `/api/risk-acceptances` | Any | List accessible records; filters: `status`, `cve_id`, `cluster`, `namespace` |
 | GET | `/api/risk-acceptances/{id}` | Any | Get one record |
 | PUT | `/api/risk-acceptances/{id}` | `team_member` | Resubmit approved/rejected request |
 | PATCH | `/api/risk-acceptances/{id}` | `sec_team` | Approve/reject requested record |
@@ -113,7 +113,7 @@ Targets are validated against affected deployments for that CVE.
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | POST | `/api/suppression-rules` | Any | Create a suppression rule (team members: `requested`, sec team: `approved`) |
-| GET | `/api/suppression-rules` | Any | List all rules |
+| GET | `/api/suppression-rules` | Any | List rules; filters: `status`, `type`, `cve_id` |
 | GET | `/api/suppression-rules/{id}` | Any | Get one rule |
 | PUT | `/api/suppression-rules/{id}` | Creator (`requested` only) or `sec_team` | Update reason/reference and, for CVE rules, scope |
 | PATCH | `/api/suppression-rules/{id}` | `sec_team` | Approve or reject a `requested` rule |
@@ -163,6 +163,7 @@ A CVE rule limited to specific namespaces:
 |-----------|------|---------|-------|
 | `status` | string | - | `requested`, `approved`, `rejected` |
 | `type` | string | - | `component`, `cve` |
+| `cve_id` | string | - | Exact CVE identifier; matches CVE rules, not component rules |
 
 ### `PATCH /api/suppression-rules/{id}` Body
 

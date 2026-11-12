@@ -6,7 +6,7 @@ RHACS Manager includes an optional [Model Context Protocol (MCP)](https://modelc
 
 The MCP server runs as an additional sidecar container in the frontend pod, reusing the existing `oauth-proxy → auth-header-injector` authentication chain. Nginx exposes a `/mcp` endpoint that proxies to the local MCP server, which translates MCP tool calls into RHACS Manager backend API requests.
 
-This architecture ensures namespace resolution always happens on the cluster where the namespaces live — critical for spoke deployments where namespace annotations are local to the spoke.
+This architecture ensures namespace resolution always happens on the cluster where the namespaces live; critical for spoke deployments where namespace annotations are local to the spoke.
 
 ```mermaid
 graph LR
@@ -20,9 +20,11 @@ graph LR
     F --> H[App DB]
 ```
 
+The MCP server forwards `X-Forwarded-Email` only when non-empty, preserving the backend's stored email when the injector has no address. Every backend request sends `Accept-Language: en` so tool errors are in English.
+
 The auth-header-injector resolves the user's namespace scope from Kubernetes namespace annotations and injects `X-Forwarded-Namespaces` headers. Nginx forwards these to the MCP server, which then includes them (along with an `X-Api-Key`) when calling the backend.
 
-The MCP server runs streamable HTTP in **stateless mode** (`stateless_http=True`): every request is self-contained and derives its auth context from the forwarded headers, with no in-memory session keyed by `Mcp-Session-Id`. This is required because the frontend pod runs with multiple replicas behind a Service without session affinity — consecutive MCP requests may land on different pods. Clients speaking MCP protocol `2026-07-28` are sessionless by design, so the flag only matters for older (handshake-era) clients.
+The MCP server runs streamable HTTP in **stateless mode** (`stateless_http=True`): every request is self-contained and derives its auth context from the forwarded headers, with no in-memory session keyed by `Mcp-Session-Id`. This is required because the frontend pod runs with multiple replicas behind a Service without session affinity; consecutive MCP requests may land on different pods. Clients speaking MCP protocol `2026-07-28` are sessionless by design, so the flag only matters for older (handshake-era) clients.
 
 ## Configuration
 
@@ -42,37 +44,50 @@ The MCP server is configured via environment variables:
 
 ### Read-only tools (always available)
 
-| Tool                           | Description                                                                                                                                                       |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_security_overview`        | Dashboard summary: headline stats (`stat_*`, including `stat_fix_overdue_cves`), severity distribution, top priority and high-EPSS CVEs, fixability, aging buckets, and risk-acceptance pipeline counts. Chart-only series (CVE/fixability trend, EPSS scatter, cluster heatmap, MTTR breakdown) are stripped to keep the payload compact. |
-| `search_cves`                  | Search and filter CVEs across visible namespaces. Supports `search`, `severity`, `fixable`, `namespace`, `cluster`, `component`, `deployment`, `cvss_min`, `epss_min`, `age_min/age_max`, `prioritized_only`, `risk_status`, `remediation_status`, `fix_overdue` (RHACS 4.10), and pagination. Results include `fix_available_since`. |
-| `get_cves_by_image`            | List container images grouped by CVE burden — totals, severity breakdown, max CVSS/EPSS, fixable counts, affected deployments, namespaces, clusters. Filterable by cluster, namespace, severity, fixability, CVSS floor, component, or image name. |
-| `get_cve_detail`               | Full CVE detail with scores, components, the affected deployments (`affected_deployments_list` — the blast radius, with per-deployment risk-acceptance/remediation/suppression flags), timeline, Red Hat / NVD links, and risk-acceptance status. Includes the RHACS 4.10 fields `fix_available_since` and (for sec-team callers) `first_system_occurrence`. |
-| `get_image_layers`             | Containerfile (Dockerfile) layer instructions for an image plus metadata and CVE summary. Useful after `get_cve_detail` to identify which layer introduced a vulnerable component. |
-| `list_risk_acceptances`        | List risk acceptances filtered by status (`requested`, `approved`, `rejected`, `expired`) or CVE.                                                                 |
-| `list_remediations`            | List remediation records filtered by status (`open`, `in_progress`, `resolved`, `verified`, `wont_fix`), CVE, or namespace.                                       |
-| `get_escalations`              | List escalations for visible CVEs. Default (`upcoming=false`) returns escalations already triggered (level, namespace, cluster, triggered timestamp, notification state); `upcoming=true` returns CVEs approaching escalation deadlines. Rules can be anchored on `first_seen` or, for RHACS 4.10, on `fix_available_since`. |
-| `get_settings`                 | Current global settings. Sec-team callers get the full payload (thresholds, escalation rules with the RHACS 4.10 `days_to_levelN_after_fix_available` anchors, `fix_overdue_threshold_days`, digest schedule, management email); other callers fall back to public thresholds. |
-| `get_my_info`                  | Current user identity, role, and visible namespaces.                                                                                                              |
+| Tool | Description and parameters |
+| --- | --- |
+| `get_security_overview` | Dashboard counts, severity distribution, priority and high-EPSS CVEs, ranked `fix_first_cves`, fixability, aging, and risk-acceptance pipeline. Filters: `cluster`, `namespace`, `ignore_thresholds`. Chart-only fields `cve_trend`, `cve_history`, `epss_matrix`, `cluster_heatmap`, and `mttr_by_severity` are stripped. |
+| `search_cves` | Filters: `search`, `severity`, `fixable`, `namespace`, `cluster`, `component`, `deployment`, `cvss_min`, `epss_min`, `age_min`, `age_max`, `prioritized_only`, `risk_status`, `remediation_status`, `fix_overdue`, `origin`, `show_remediated`, `show_suppressed`, `subscribed_only`, `ignore_thresholds`. Supports `sort_by`, `sort_desc`, `page`, `page_size` (default 20, max 200). |
+| `get_cves_by_image` | Images grouped by CVE burden: totals, severity breakdown, max CVSS/EPSS, fixable counts, affected deployments, namespaces, and clusters. Filters: `cluster`, `namespace`, `search`, `severity`, `fixable`, `cvss_min`, `epss_min`, `component`, `image_name`, `origin`, `ignore_thresholds`. |
+| `get_cve_detail` | Takes `cve_id`, optional `cluster` and `namespace` to narrow visibility. Includes `origin_ratings`, `is_subscribed`, `no_longer_affected`, components, timeline, links, risk acceptance, and `affected_deployments_list` with per-location remediation/suppression/acceptance flags. Includes `fix_available_since` and, for sec-team callers, `first_system_occurrence`. |
+| `get_image_layers` | Takes `image_id` (StackRox UUID or digest), optional `cluster`, `namespace`, `ignore_thresholds`. Returns Containerfile instructions, metadata, and CVE summary. Use image IDs from CVE detail. |
+| `get_fix_recommendations` | Component upgrade roll-up from `/api/cves/fixes`. Filters: `cluster`, `namespace`, `component`, `severity`, `fixable_only`, `prioritized_only`, `image_id`, `ignore_thresholds`; `page`, `page_size` (default 10, max 200). Keeps version choices and counts, caps each row's `cves` and `images` at 10. |
+| `list_risk_acceptances` | Filters: `status` (`requested`, `approved`, `rejected`, `expired`), `cve_id`, `cluster`, `namespace`; `page`, `page_size` (default 20). |
+| `list_remediations` | Filters: `status` (`open`, `in_progress`, `resolved`, `verified`, `wont_fix`), `cve_id`, `namespace`, `cluster`, `overdue`, `assigned_to` (user ID); `page`, `page_size` (default 20). `overdue=true` selects overdue open/in-progress records; false leaves all records. |
+| `list_suppression_rules` | Filters: `status` (`requested`, `approved`, `rejected`), `type` (`component`, `cve`), `cve_id`; `page`, `page_size` (default 20). `cve_id` matches CVE-specific rules, not component rules that may also affect the CVE. |
+| `get_escalations` | `upcoming=false` uses `/api/escalations/active/search`, with `level` and `contact_status` (`needs_action`, `contacted`, sec team only). `upcoming=true` uses `/api/escalations/upcoming/search`, with `next_level`, `severity`, `days_max`. Both accept `search`, `cluster`, `namespace`, `page`, `page_size` (default 20, max 100). Mode-specific filters apply only to their corresponding endpoint. |
+| `get_settings` | Sec-team callers receive full settings including thresholds, escalation rules, `days_to_levelN_after_fix_available` anchors, `fix_overdue_threshold_days`, digest schedule, and management email. Other callers receive public thresholds. |
+| `get_my_info` | Current user identity, role, and visible namespaces. |
+
+Severity and CVSS come from the vulnerability feed, not NVD. `origin` accepts `other`, `osv`, `alpine`, `amazon`, `debian`, `oracle`, `photon`, `red_hat`, `suse`, and `ubuntu`. CVE detail exposes per-feed `origin_ratings`. Search results expose `origins`, `is_subscribed`, and `no_longer_affected`; `show_remediated=true` includes previously remediated CVEs no longer affecting the selected scope.
+
+`ignore_thresholds=true` is a view-only noise filter opt-out and never widens namespace visibility. Subscriptions do not bypass thresholds. Search sorting supports `severity` (default), `cvss`, `epss_probability`, `affected_deployments`, `first_seen`, `published_on`, and `fix_available_since`; `sort_desc` defaults to true and prioritized CVEs always sort first. Use the EPSS-driven `impact_score` and dashboard `fix_first_cves` when advising what to fix first.
+
+Risk acceptances, remediations, and suppression rules return an `items`, `total`, `page`, `page_size` envelope. The sidecar fetches the backend's filtered plain list and slices it locally; it does not send pagination parameters to those endpoints. Escalations use backend pagination. Active escalation responses include `contact_counts` and per-row `contacted` for sec-team callers only.
+
+Fix recommendations preserve `target_version`, `fix_versions`, `target_uncertain`, all counts, and the envelope's `visible_cves` and `unmapped_cves`. `cves_truncated` and `images_truncated` count omitted entries per row. When `target_uncertain=true`, present **all `fix_versions`**, not only `target_version`: incomparable scanner versions mean the target may not fix every CVE.
 
 ### Write tools (disabled in readonly mode)
 
-| Tool                        | Description                                                                                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `create_risk_acceptance`    | Document that a **real** vulnerability is consciously accepted without an immediate fix, with justification and scope (`all`, `namespace`, `image`, or `deployment`). Single-namespace scopes auto-approve; `all`/multi-namespace scopes go to sec-team review. |
-| `request_cve_suppression`   | Request suppression of a CVE that is a **false positive or not applicable** (finding is wrong/irrelevant), with a reason and scope (`all` or `namespace`). Team-member requests await sec-team review; sec-team callers approve directly. Use this instead of `create_risk_acceptance` when the vulnerability does not actually apply. |
-| `create_remediation`        | Start tracking remediation for a CVE in a namespace/cluster.                                                                                                 |
-| `update_remediation_status` | Progress a remediation through its workflow (`open`, `in_progress`, `resolved`, `wont_fix`). `resolved` is terminal (reopen to `in_progress` only) and there is no verification step. `wont_fix` requires a reason. (`verified` is accepted only as a legacy filter value, not a settable target.) |
+| Tool | Description and parameters |
+| --- | --- |
+| `create_risk_acceptance` | Accept a real vulnerability without an immediate fix: `cve_id`, `justification`, `scope_mode`, `scope_targets`, optional `expires_at`. Single-namespace scopes auto-approve; `all`/multi-namespace scopes require sec-team review. |
+| `request_cve_suppression` | Request suppression of a false positive or inapplicable finding: `cve_id`, `reason`, `scope_mode`, `scope_targets`, optional `reference_url`. Team-member requests await review; sec-team callers approve directly. |
+| `create_remediation` | Takes `cve_id`, `targets` (1 to 200 objects with `cluster_name` and `namespace`), optional `assigned_to` (user ID), `target_date` (`YYYY-MM-DD`), `notes`. Always uses `POST /api/remediations/batch`, creates all targets or none, and returns a list. |
+| `update_remediation` | Replaces `update_remediation_status`. Takes `remediation_id`; optional `status`, `reason` (sent as `wont_fix_reason`), `assigned_to`, `target_date`, `notes`, `clear_fields`. Omitted or null arguments leave fields unchanged; `clear_fields` sends explicit nulls for `assigned_to`, `target_date`, or `notes`. At least one change is required; setting and clearing the same field is rejected. |
+| `set_cve_subscription` | Takes `cve_id` and `subscribed`. Uses PUT to subscribe, DELETE to unsubscribe; returns `cve_id` and `subscribed`. Subscribing requires a visible affected deployment and allows at most 500 subscriptions per user. Both operations are idempotent; unsubscribing remains allowed after access is lost. |
+
+Remediation status follows `open` → `in_progress` → `resolved`; resolved records can only reopen to `in_progress`. `wont_fix` requires `reason`; `verified` is only a legacy list filter. Assignee, target date, and notes are editable only while the current or requested status is `open` or `in_progress`.
 
 ## Prompts
 
-The MCP server also registers named workflow prompts. Prompts are templates that seed the conversation with the right tool sequence — they don't call the backend themselves; the LLM drives the tool invocations once the prompt is resolved. They are available in both readonly and read-write mode.
+Prompts seed the conversation with a tool sequence. The LLM calls the tools after the prompt is resolved. All prompts remain available in readonly mode.
 
-| Prompt                    | Arguments              | Workflow                                                                                                                                                                |
-| ------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `triage_namespace`        | `namespace`, `cluster?` | Walks through prioritized CVEs → fix-overdue CVEs → upcoming escalations → in-flight remediations for one namespace, then summarises the next concrete actions.        |
-| `investigate_cve`         | `cve_id`               | Deep-dive on a single CVE: detail (including the affected-deployments blast radius) → image layer that introduced the component → existing risk acceptances and remediations → recommended next action.   |
-| `weekly_security_review`  | (none)                 | Compiles a weekly status report: security overview → upcoming escalations → pending risk-acceptance reviews → remediation work in flight.                              |
+| Prompt | Arguments | Workflow |
+| --- | --- | --- |
+| `triage_namespace` | `namespace`, optional `cluster` | Prioritized CVEs → overdue fixes → upcoming escalations → existing remediations → component fix recommendations. Carries cluster scope through every step. |
+| `investigate_cve` | `cve_id` | CVE detail and blast radius → image layers → risk acceptances and remediations → CVE-specific suppression rules. |
+| `weekly_security_review` | None | Dashboard → paginated upcoming escalations → pending risk-acceptance reviews → remediation work in flight. |
 
 ## Local Development
 
@@ -93,7 +108,7 @@ The MCP server will be available at `http://localhost:8001/mcp`.
 
 ## Helm Deployment
 
-The MCP server runs as a sidecar container in the frontend pod using its own dedicated lightweight image (`rhacs-manager-mcp-server`). When enabled, the frontend pod grows from 3 containers (oauth-proxy, auth-header-injector, nginx) to 4 (adding mcp-server). The MCP endpoint is exposed at `/mcp` on the existing frontend Route — no additional Services or Routes are needed.
+The MCP server runs as a sidecar container in the frontend pod using its own dedicated lightweight image (`rhacs-manager-mcp-server`). When enabled, the frontend pod grows from 3 containers (oauth-proxy, auth-header-injector, nginx) to 4 (adding mcp-server). The MCP endpoint is exposed at `/mcp` on the existing frontend Route; no additional Services or Routes are needed.
 
 ### Hub Mode
 
@@ -121,7 +136,7 @@ spoke:
     readonly: true
 ```
 
-In spoke mode, the MCP server uses the same `HUB_API_URL` and `SPOKE_API_KEY` from the spoke secret to reach the hub backend — identical to how the spoke frontend proxies `/api/` requests.
+In spoke mode, the MCP server uses the same `HUB_API_URL` and `SPOKE_API_KEY` from the spoke secret to reach the hub backend; identical to how the spoke frontend proxies `/api/` requests.
 
 ### Cluster Trusted CA Bundle
 
@@ -191,7 +206,7 @@ The oauth-proxy authenticates the user via OpenShift OAuth, the auth-header-inje
 
 ## Plain HTTP
 
-By default the MCP endpoint is only reachable through the oauth-proxy HTTPS port (8443). If you need a plain HTTP port — for example when TLS is terminated at an external load balancer or ingress — enable `plainHttp`:
+By default the MCP endpoint is only reachable through the oauth-proxy HTTPS port (8443). If you need a plain HTTP port; for example when TLS is terminated at an external load balancer or ingress; enable `plainHttp`:
 
 ```yaml
 # Hub
@@ -212,7 +227,7 @@ spoke:
 
 Traffic on the plain HTTP port still flows through the full oauth-proxy authentication chain, so `X-Forwarded-*` headers are set correctly. The only difference is that TLS is not used on the Service port itself.
 
-Enabling `plainHttp` also configures `--openshift-delegate-urls` on oauth-proxy, which allows bearer token authentication in addition to the cookie-based OAuth flow. This is required for service-to-service clients like OpenShift Lightspeed, which forward the end user's bearer token with each request. The delegate URL performs a SubjectAccessReview checking that the user can create `selfsubjectaccessreviews` — a permission every authenticated OpenShift user has by default.
+Enabling `plainHttp` also configures `--openshift-delegate-urls` on oauth-proxy, which allows bearer token authentication in addition to the cookie-based OAuth flow. This is required for service-to-service clients like OpenShift Lightspeed, which forward the end user's bearer token with each request. The delegate URL performs a SubjectAccessReview checking that the user can create `selfsubjectaccessreviews`; a permission every authenticated OpenShift user has by default.
 
 When using plain HTTP with OLS, the `additionalCAConfigMapRef` is no longer needed:
 
@@ -228,6 +243,6 @@ mcpServers:
 
 ## Readonly Mode
 
-When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `request_cve_suppression`, `create_remediation`, `update_remediation_status`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations. Read-only tools and prompts remain available.
+When `MCP_READONLY=true`, write tools (`create_risk_acceptance`, `request_cve_suppression`, `create_remediation`, `update_remediation`, `set_cve_subscription`) are not registered. They will not appear in the tool list, preventing the AI assistant from attempting any mutations. Read-only tools and prompts remain available.
 
 This is recommended for initial rollouts or environments where AI-driven changes are not yet approved.

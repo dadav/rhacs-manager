@@ -15,6 +15,11 @@
           "text": "A subtle loading line below the header shows when data is loading after a filter or scope change."
         },
         {
+          "id": "mcp-new-tools",
+          "kind": "feature",
+          "text": "The AI assistant (MCP server) can now fetch upgrade recommendations per component, list suppression rules, and follow or unfollow CVEs for you."
+        },
+        {
           "id": "new-cves-weekly",
           "kind": "improvement",
           "text": "The \"Newly discovered CVEs\" chart now shows stacked bars per week instead of overlapping areas, which makes it easier to read."
@@ -23,6 +28,11 @@
           "id": "fix-first-slim",
           "kind": "improvement",
           "text": "The \"What to fix first\" overview is more compact. Components and fix versions are on the CVE detail page."
+        },
+        {
+          "id": "mcp-remediation-and-filters",
+          "kind": "improvement",
+          "text": "The AI assistant (MCP server) can now change the target date, notes and assignee of remediations and create remediations for several namespaces at once. Queries can also be narrowed to a cluster and namespace, filtered by vulnerability feed, and run without the global thresholds. Escalations are grouped as in the escalation view and returned page by page."
         },
         {
           "id": "cve-description-whitespace",
@@ -63,6 +73,11 @@
           "id": "scope-kept-on-navigation",
           "kind": "fix",
           "text": "The selected scope is kept when you open notifications or move between a CVE and a risk acceptance."
+        },
+        {
+          "id": "mcp-list-filters",
+          "kind": "fix",
+          "text": "The AI assistant (MCP server) now filters risk acceptances by CVE correctly and returns risk acceptances and remediations page by page. Previously these inputs were ignored. Error messages now reach the assistant in English, and your email address is also stored when you first sign in through the assistant."
         }
       ]
     },

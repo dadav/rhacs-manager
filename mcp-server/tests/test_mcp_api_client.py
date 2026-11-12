@@ -2,13 +2,14 @@
 
 import json
 import logging
+from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
-from mcp_server.api_client import AuthContext, BackendError, RhacsManagerClient
+from mcp_server.api_client import AuthContext, BackendError, RhacsManagerClient, _paginate_list
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def auth():
     )
 
 
-def _mock_response(data: dict, status_code: int = 200) -> httpx.Response:
+def _mock_response(data: dict | list, status_code: int = 200) -> httpx.Response:
     """Build a fake httpx.Response."""
     return httpx.Response(
         status_code=status_code,
@@ -144,12 +145,12 @@ class TestGetRequests:
             assert "search" not in call_params
             assert "severity" not in call_params
             assert "fixable" not in call_params
-            assert "fix_overdue" not in call_params
-            assert "prioritized_only" not in call_params
+            assert call_params["fix_overdue"] is False
+            assert call_params["prioritized_only"] is False
             assert call_params["page"] == 1
             assert call_params["page_size"] == 20
 
-    async def test_search_cves_4_10_filters(self, client, auth):
+    async def test_search_cves_workflow_filters(self, client, auth):
         mock_resp = _mock_response({"items": [], "total": 0})
         instance = _mock_client(mock_resp)
 
@@ -181,20 +182,20 @@ class TestGetRequests:
             assert p["remediation_status"] == "open"
 
     async def test_list_risk_acceptances_params(self, client, auth):
-        mock_resp = _mock_response({"items": []})
+        mock_resp = _mock_response([])
         instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
             MockClient.return_value = instance
 
-            await client.list_risk_acceptances(auth, status="pending", cve_id="CVE-2024-5678")
+            await client.list_risk_acceptances(auth, status="requested", cve_id="CVE-2024-5678")
 
             call_params = instance.request.call_args[1]["params"]
-            assert call_params["status"] == "pending"
+            assert call_params["status"] == "requested"
             assert call_params["cve_id"] == "CVE-2024-5678"
 
     async def test_list_remediations_params(self, client, auth):
-        mock_resp = _mock_response({"items": []})
+        mock_resp = _mock_response([])
         instance = _mock_client(mock_resp)
 
         with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
@@ -227,18 +228,13 @@ class TestPostRequests:
             assert call_args[1]["json"] == data
 
     async def test_create_remediation(self, client, auth):
-        mock_resp = _mock_response({"id": "rem-1"}, status_code=201)
-        instance = _mock_client(mock_resp)
-
-        with patch("mcp_server.api_client.httpx.AsyncClient") as MockClient:
-            MockClient.return_value = instance
-
-            data = {"cve_id": "CVE-2024-1234", "namespace": "payments", "cluster_name": "cluster-a"}
+        instance = _mock_client(_mock_response([{"id": "rem-1"}], status_code=201))
+        with patch("mcp_server.api_client.httpx.AsyncClient", return_value=instance):
+            data = {"cve_id": "CVE-2024-1234", "targets": [{"namespace": "payments", "cluster_name": "cluster-a"}]}
             result = await client.create_remediation(auth, data)
-
-            assert json.loads(result) == {"id": "rem-1"}
-            instance.request.assert_called_once()
-            assert instance.request.call_args[1]["headers"]["X-Forwarded-User"] == "testuser"
+        assert json.loads(result) == [{"id": "rem-1"}]
+        assert instance.request.call_args.args == ("POST", "/api/remediations/batch")
+        assert instance.request.call_args.kwargs["json"] == data
 
     async def test_create_suppression_rule(self, client, auth):
         mock_resp = _mock_response({"id": "sup-1"}, status_code=201)
@@ -368,7 +364,7 @@ class TestDashboardTrim:
             "cve_trend": [{"date": "2026-05-01", "count": 1}],
             "epss_matrix": [[0.5, 7.0]],
             "cluster_heatmap": [{"cluster": "cluster-a"}],
-            "fixable_trend": [{"date": "2026-05-01", "fixable": 10}],
+            "cve_history": [{"date": "2026-05-01", "total": 10}],
             "mttr_by_severity": [{"severity": 4, "mttr_days": 7}],
         }
         instance = _mock_client(_mock_response(full_payload))
@@ -381,7 +377,8 @@ class TestDashboardTrim:
         assert "cve_trend" not in trimmed
         assert "epss_matrix" not in trimmed
         assert "cluster_heatmap" not in trimmed
-        assert "fixable_trend" not in trimmed
+        assert "cve_history" not in trimmed
+        assert "fixable_trend" not in client._DASHBOARD_CHART_FIELDS
         assert "mttr_by_severity" not in trimmed
         # Headline stats and ranked lists survive.
         assert trimmed["stat_total_cves"] == 42
@@ -423,7 +420,7 @@ class TestCvesByImage:
             MockClient.return_value = instance
             await client.get_cves_by_image(auth)
 
-        assert instance.request.call_args[1]["params"] is None
+        assert instance.request.call_args[1]["params"] == {"ignore_thresholds": False}
 
 
 class TestEscalationsAndSettings:
@@ -437,8 +434,13 @@ class TestEscalationsAndSettings:
             await client.list_escalations(auth, cluster="cluster-a", namespace="payments")
 
             call_args = instance.request.call_args
-            assert call_args[0] == ("GET", "/api/escalations")
-            assert call_args[1]["params"] == {"cluster": "cluster-a", "namespace": "payments"}
+            assert call_args[0] == ("GET", "/api/escalations/active/search")
+            assert call_args[1]["params"] == {
+                "cluster": "cluster-a",
+                "namespace": "payments",
+                "page": 1,
+                "page_size": 20,
+            }
 
     async def test_list_escalations_no_filters(self, client, auth):
         mock_resp = _mock_response([])
@@ -449,7 +451,7 @@ class TestEscalationsAndSettings:
 
             await client.list_escalations(auth)
 
-            assert instance.request.call_args[1]["params"] is None
+            assert instance.request.call_args[1]["params"] == {"page": 1, "page_size": 20}
 
     async def test_get_upcoming_escalations(self, client, auth):
         mock_resp = _mock_response([])
@@ -461,8 +463,8 @@ class TestEscalationsAndSettings:
             await client.get_upcoming_escalations(auth, namespace="payments")
 
             call_args = instance.request.call_args
-            assert call_args[0] == ("GET", "/api/escalations/upcoming")
-            assert call_args[1]["params"] == {"namespace": "payments"}
+            assert call_args[0] == ("GET", "/api/escalations/upcoming/search")
+            assert call_args[1]["params"] == {"namespace": "payments", "page": 1, "page_size": 20}
 
     async def test_get_settings_sec_team_path(self, client, auth):
         mock_resp = _mock_response({"min_cvss_score": 0.0, "escalation_rules": []})
@@ -517,3 +519,259 @@ class TestBaseUrlHandling:
     def test_no_trailing_slash(self):
         c = RhacsManagerClient(base_url="http://backend:8000")
         assert c.base_url == "http://backend:8000"
+
+
+@pytest.mark.parametrize("email", ["", "person@example.com"])
+@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "PUT", "DELETE"])
+async def test_identity_and_language_headers_on_every_request(client, auth, email, method):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json={})
+
+    client._client = httpx.AsyncClient(base_url=client.base_url, transport=httpx.MockTransport(respond))
+    try:
+        await client._request(method, "/api/test", replace(auth, forwarded_email=email))
+    finally:
+        await client.aclose()
+    headers = requests[0].headers
+    assert headers["accept-language"] == "en"
+    assert headers["x-forwarded-user"] == "testuser"
+    if email:
+        assert headers["x-forwarded-email"] == email
+    else:
+        assert "x-forwarded-email" not in headers
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "expected_path"),
+    [
+        ("get_cve", ("../settings",), b"/api/cves/..%2Fsettings"),
+        ("get_image_detail", ("quay.io/image@sha256:abc?x#y",), b"/api/images/quay.io%2Fimage%40sha256%3Aabc%3Fx%23y"),
+        ("update_remediation", ("../settings", {"notes": "edit"}), b"/api/remediations/..%2Fsettings"),
+        ("set_cve_subscription", ("../settings", True), b"/api/cves/..%2Fsettings/subscription"),
+        ("set_cve_subscription", ("../settings", False), b"/api/cves/..%2Fsettings/subscription"),
+    ],
+)
+async def test_path_parameters_quoted_on_wire(client, auth, method, args, expected_path):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json={})
+
+    client._client = httpx.AsyncClient(base_url=client.base_url, transport=httpx.MockTransport(respond))
+    try:
+        await getattr(client, method)(auth, *args)
+    finally:
+        await client.aclose()
+    assert requests[0].url.raw_path.split(b"?")[0] == expected_path
+
+
+@pytest.mark.parametrize(
+    ("items", "page", "size", "expected"),
+    [
+        ([1, 2, 3, 4, 5], 1, 2, [1, 2]),
+        ([1, 2, 3, 4, 5], 2, 2, [3, 4]),
+        ([1, 2, 3, 4, 5], 3, 2, [5]),
+        ([1, 2, 3, 4, 5], 4, 2, []),
+        ([], 1, 20, []),
+    ],
+)
+def test_paginate_list(items, page, size, expected):
+    assert json.loads(_paginate_list(json.dumps(items), page, size)) == {
+        "items": expected,
+        "total": len(items),
+        "page": page,
+        "page_size": size,
+    }
+
+
+@pytest.mark.parametrize(("page", "size"), [(0, 1), (-1, 1), (1, 0), (1, -1)])
+def test_paginate_list_rejects_invalid_pages(page, size):
+    with pytest.raises(ToolError, match="at least 1"):
+        _paginate_list("[]", page, size)
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "filters"),
+    [
+        (
+            "list_risk_acceptances",
+            "/api/risk-acceptances",
+            {
+                "status": "approved",
+                "cve_id": "CVE-2024-1234",
+                "cluster": "cluster-a",
+                "namespace": "payments",
+            },
+        ),
+        (
+            "list_remediations",
+            "/api/remediations",
+            {
+                "status": "open",
+                "cve_id": "CVE-2024-1234",
+                "cluster": "cluster-a",
+                "namespace": "payments",
+                "overdue": False,
+                "assigned_to": "user-1",
+            },
+        ),
+        (
+            "list_suppression_rules",
+            "/api/suppression-rules",
+            {
+                "status": "approved",
+                "type": "cve",
+                "cve_id": "CVE-2024-1234",
+            },
+        ),
+    ],
+)
+async def test_plain_list_endpoints_paginate_locally(client, auth, method, path, filters):
+    instance = _mock_client(_mock_response([{"id": i} for i in range(5)]))
+    with patch("mcp_server.api_client.httpx.AsyncClient", return_value=instance):
+        result = await getattr(client, method)(auth, **filters, page=2, page_size=2)
+    assert instance.request.call_args.args == ("GET", path)
+    assert instance.request.call_args.kwargs["params"] == filters
+    assert json.loads(result) == {"items": [{"id": 2}, {"id": 3}], "total": 5, "page": 2, "page_size": 2}
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "params"),
+    [
+        ("get_dashboard", (), {"cluster": "a", "namespace": "n", "ignore_thresholds": True}),
+        (
+            "search_cves",
+            (),
+            {
+                "origin": "red_hat",
+                "show_remediated": True,
+                "show_suppressed": True,
+                "subscribed_only": True,
+                "ignore_thresholds": True,
+                "sort_by": "epss_probability",
+                "sort_desc": False,
+            },
+        ),
+        ("get_cves_by_image", (), {"epss_min": 0.0, "origin": "osv", "ignore_thresholds": True}),
+        ("get_cve", ("CVE-2024-1234",), {"cluster": "a", "namespace": "n"}),
+        ("get_image_detail", ("image-1",), {"cluster": "a", "namespace": "n", "ignore_thresholds": True}),
+        (
+            "list_escalations",
+            (),
+            {
+                "cluster": "a",
+                "namespace": "n",
+                "search": "CVE",
+                "level": 2,
+                "contact_status": "needs_action",
+                "page": 3,
+                "page_size": 100,
+            },
+        ),
+        (
+            "get_upcoming_escalations",
+            (),
+            {
+                "cluster": "a",
+                "namespace": "n",
+                "search": "CVE",
+                "next_level": 3,
+                "severity": "critical",
+                "days_max": 7,
+                "page": 2,
+                "page_size": 50,
+            },
+        ),
+        (
+            "get_fix_recommendations",
+            (),
+            {
+                "cluster": "a",
+                "namespace": "n",
+                "component": "openssl",
+                "severity": "important",
+                "fixable_only": True,
+                "prioritized_only": True,
+                "image_id": "image-1",
+                "ignore_thresholds": True,
+                "page": 2,
+                "page_size": 10,
+            },
+        ),
+    ],
+)
+async def test_new_parameters_forwarded(client, auth, method, args, params):
+    instance = _mock_client(_mock_response({"items": []}))
+    with patch("mcp_server.api_client.httpx.AsyncClient", return_value=instance):
+        await getattr(client, method)(auth, *args, **params)
+    sent = instance.request.call_args.kwargs["params"]
+    expected = dict(params)
+    if "severity" in expected:
+        expected["severity"] = {"critical": 4, "important": 3}[expected["severity"]]
+    assert sent.items() >= expected.items()
+
+
+@pytest.mark.parametrize("count", [0, 9, 10, 13])
+async def test_fix_recommendations_trim_only_details(client, auth, count):
+    row = {
+        "component_name": "openssl",
+        "component_version": "1.0",
+        "operating_system": "rhel",
+        "target_version": "2.0",
+        "fix_versions": ["2.0", "vendor-next"],
+        "target_uncertain": True,
+        "total_cves": count,
+        "fixable_cves": count,
+        "prioritized_cves": 1,
+        "critical_cves": 2,
+        "max_severity": 4,
+        "max_cvss": 9.0,
+        "max_epss": 0.8,
+        "affected_images": count,
+        "affected_deployments": 30,
+        "namespaces": ["payments"],
+        "cves": [{"cve_id": f"CVE-2024-{i}"} for i in range(count)],
+        "images": [{"image_id": str(i), "image_name": f"image-{i}"} for i in range(count + 1)],
+    }
+    payload = {"items": [row], "total": 30, "page": 1, "page_size": 10, "visible_cves": 50, "unmapped_cves": 3}
+    instance = _mock_client(_mock_response(payload))
+    with patch("mcp_server.api_client.httpx.AsyncClient", return_value=instance):
+        result = json.loads(await client.get_fix_recommendations(auth))
+    assert instance.request.call_args.args == ("GET", "/api/cves/fixes")
+    expected_row = dict(
+        row,
+        cves=row["cves"][:10],
+        images=row["images"][:10],
+        cves_truncated=max(0, count - 10),
+        images_truncated=max(0, count + 1 - 10),
+    )
+    assert result == dict(payload, items=[expected_row])
+
+
+@pytest.mark.parametrize(("subscribed", "method"), [(True, "PUT"), (False, "DELETE")])
+async def test_set_subscription(client, auth, subscribed, method):
+    payload = {"cve_id": "CVE-2024-1234", "subscribed": subscribed}
+    instance = _mock_client(_mock_response(payload))
+    with patch("mcp_server.api_client.httpx.AsyncClient", return_value=instance):
+        result = await client.set_cve_subscription(auth, "CVE-2024-1234", subscribed)
+    assert instance.request.call_args.args == (method, "/api/cves/CVE-2024-1234/subscription")
+    assert instance.request.call_args.kwargs["json"] is None
+    assert json.loads(result) == payload
+
+
+async def test_invalid_backend_json_is_tool_error(client, auth):
+    response = httpx.Response(200, text="not JSON", request=httpx.Request("GET", "http://test"))
+    with (
+        patch("mcp_server.api_client.httpx.AsyncClient", return_value=_mock_client(response)),
+        pytest.raises(ToolError, match="invalid JSON for GET /api/auth/me"),
+    ):
+        await client.get_me(auth)
+
+
+def test_paginate_list_rejects_unexpected_response_shape():
+    with pytest.raises(ToolError, match="unexpected list response"):
+        _paginate_list('{"items": []}', 1, 20)

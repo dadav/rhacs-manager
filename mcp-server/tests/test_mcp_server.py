@@ -26,6 +26,7 @@ def _make_ctx(headers: dict[str, str] | None = None) -> MagicMock:
 FORWARDED_HEADERS = {
     "x-forwarded-user": "testuser",
     "x-forwarded-full-name": "Test User",
+    "x-forwarded-email": "test@example.com",
     "x-forwarded-groups": "group-a,group-b",
     "x-forwarded-namespaces": "payments:cluster-a",
     "x-forwarded-namespace-emails": "payments:cluster-a=team@example.com",
@@ -41,6 +42,7 @@ class TestExtractAuth:
         auth = _extract_auth(ctx)
         assert auth.forwarded_user == "testuser"
         assert auth.forwarded_full_name == "Test User"
+        assert auth.forwarded_email == "test@example.com"
         assert auth.forwarded_groups == "group-a,group-b"
         assert auth.forwarded_namespaces == "payments:cluster-a"
         assert auth.forwarded_namespace_emails == "payments:cluster-a=team@example.com"
@@ -85,6 +87,7 @@ class TestExtractAuth:
         assert auth.forwarded_namespaces == ""
         assert auth.forwarded_namespace_emails == ""
         assert auth.forwarded_cluster == ""
+        assert auth.forwarded_email == ""
 
     def test_wildcard_namespaces(self):
         from mcp_server.server import _extract_auth
@@ -105,13 +108,16 @@ READ_ONLY_TOOLS = {
     "get_my_info",
     "get_escalations",
     "get_settings",
+    "get_fix_recommendations",
+    "list_suppression_rules",
 }
 
 WRITE_TOOLS = {
     "create_risk_acceptance",
     "create_remediation",
-    "update_remediation_status",
+    "update_remediation",
     "request_cve_suppression",
+    "set_cve_subscription",
 }
 
 
@@ -196,8 +202,8 @@ class TestToolClientWiring:
         from mcp_server.server import client, list_risk_acceptances
 
         client.list_risk_acceptances = AsyncMock(return_value='{"items": []}')
-        await list_risk_acceptances(mock_ctx, status="pending", cve_id="CVE-2024-1234")
-        assert client.list_risk_acceptances.call_args[1]["status"] == "pending"
+        await list_risk_acceptances(mock_ctx, status="requested", cve_id="CVE-2024-1234")
+        assert client.list_risk_acceptances.call_args[1]["status"] == "requested"
         assert client.list_risk_acceptances.call_args[1]["cve_id"] == "CVE-2024-1234"
 
     async def test_list_remediations_forwards_filters(self, mock_ctx):
@@ -215,7 +221,7 @@ class TestToolClientWiring:
         assert isinstance(client.get_me.call_args[0][0], AuthContext)
         assert "testuser" in result
 
-    async def test_search_cves_forwards_4_10_filters(self, mock_ctx):
+    async def test_search_cves_forwards_workflow_filters(self, mock_ctx):
         from mcp_server.server import client, search_cves
 
         client.search_cves = AsyncMock(return_value='{"items": []}')
@@ -283,6 +289,127 @@ class TestToolClientWiring:
         assert kwargs["fixable"] is True
         assert kwargs["image_name"] == "quay.io/app"
 
+    @pytest.mark.parametrize(
+        ("tool_name", "client_method", "params"),
+        [
+            ("get_security_overview", "get_dashboard", {"cluster": "a", "namespace": "n", "ignore_thresholds": True}),
+            (
+                "search_cves",
+                "search_cves",
+                {
+                    "origin": "red_hat",
+                    "show_remediated": True,
+                    "show_suppressed": True,
+                    "subscribed_only": True,
+                    "ignore_thresholds": True,
+                    "sort_by": "epss_probability",
+                    "sort_desc": False,
+                },
+            ),
+            ("get_cves_by_image", "get_cves_by_image", {"epss_min": 0.3, "origin": "osv", "ignore_thresholds": True}),
+            ("get_cve_detail", "get_cve", {"cve_id": "CVE-2024-1234", "cluster": "a", "namespace": "n"}),
+            ("get_image_layers", "get_image_detail", {"image_id": "image-1", "ignore_thresholds": True}),
+            (
+                "list_risk_acceptances",
+                "list_risk_acceptances",
+                {"cve_id": "CVE-2024-1234", "cluster": "a", "namespace": "n"},
+            ),
+            ("list_remediations", "list_remediations", {"cluster": "a", "overdue": True, "assigned_to": "user-1"}),
+            (
+                "list_suppression_rules",
+                "list_suppression_rules",
+                {
+                    "status": "approved",
+                    "type": "cve",
+                    "cve_id": "CVE-2024-1234",
+                    "page": 2,
+                    "page_size": 3,
+                },
+            ),
+            (
+                "get_fix_recommendations",
+                "get_fix_recommendations",
+                {
+                    "cluster": "a",
+                    "namespace": "n",
+                    "component": "openssl",
+                    "severity": "critical",
+                    "fixable_only": True,
+                    "prioritized_only": True,
+                    "image_id": "image-1",
+                    "ignore_thresholds": True,
+                    "page": 2,
+                    "page_size": 10,
+                },
+            ),
+            (
+                "get_escalations",
+                "list_escalations",
+                {
+                    "search": "CVE",
+                    "level": 2,
+                    "contact_status": "contacted",
+                    "page": 3,
+                    "page_size": 100,
+                },
+            ),
+            (
+                "get_escalations",
+                "get_upcoming_escalations",
+                {
+                    "upcoming": True,
+                    "search": "CVE",
+                    "next_level": 3,
+                    "severity": "important",
+                    "days_max": 7,
+                    "page": 2,
+                    "page_size": 50,
+                },
+            ),
+        ],
+    )
+    async def test_new_parameters_reach_client(self, mock_ctx, tool_name, client_method, params):
+        import mcp_server.server as server
+
+        backend_call = AsyncMock(return_value='{"items": []}')
+        setattr(server.client, client_method, backend_call)
+        tool = server.mcp._tool_manager._tools[tool_name]
+        result = await tool.run(arguments=params, context=mock_ctx)
+        assert json.loads(result) == {"items": []}
+        assert backend_call.call_args.args[0].forwarded_email == "test@example.com"
+        expected = {key: value for key, value in params.items() if key not in ("upcoming", "cve_id", "image_id")}
+        assert backend_call.call_args.kwargs.items() >= expected.items()
+        if tool_name == "get_cve_detail":
+            assert backend_call.call_args.args[1] == params["cve_id"]
+        elif tool_name == "get_image_layers":
+            assert backend_call.call_args.args[1] == params["image_id"]
+        else:
+            for field in ("cve_id", "image_id"):
+                if field in params:
+                    assert backend_call.call_args.kwargs[field] == params[field]
+        if tool_name == "get_escalations":
+            inactive = {"level", "contact_status"} if params.get("upcoming") else {"next_level", "severity", "days_max"}
+            assert not inactive.intersection(backend_call.call_args.kwargs)
+
+    @pytest.mark.parametrize(
+        ("tool_name", "params"),
+        [
+            ("get_escalations", {"page_size": 101}),
+            ("get_escalations", {"page": 0}),
+            ("get_fix_recommendations", {"page_size": 201}),
+            ("search_cves", {"origin": "nvd"}),
+            ("get_cves_by_image", {"origin": "unknown"}),
+            ("list_remediations", {"page": 0}),
+            ("list_risk_acceptances", {"page_size": 0}),
+            ("list_suppression_rules", {"status": "expired"}),
+        ],
+    )
+    async def test_read_tool_argument_validation(self, mock_ctx, tool_name, params):
+        import mcp_server.server as server
+
+        with pytest.raises(ToolError):
+            await server.mcp._tool_manager._tools[tool_name].run(arguments=params, context=mock_ctx)
+
 
 PROMPT_NAMES = {"triage_namespace", "investigate_cve", "weekly_security_review"}
 
@@ -324,6 +451,7 @@ class TestPromptRendering:
         assert "fix_overdue" in text
         assert "get_escalations" in text
         assert "list_remediations" in text
+        assert 'get_fix_recommendations(namespace="payments")' in text
 
     def test_triage_namespace_with_cluster_includes_cluster(self):
         from mcp_server.server import triage_namespace
@@ -332,6 +460,8 @@ class TestPromptRendering:
         text = messages[0].content.text
         assert "cluster-a" in text
         assert 'cluster="cluster-a"' in text
+        assert 'list_remediations(namespace="payments", cluster="cluster-a")' in text
+        assert 'get_fix_recommendations(namespace="payments", cluster="cluster-a")' in text
 
     def test_triage_namespace_without_cluster_omits_cluster_arg(self):
         from mcp_server.server import triage_namespace
@@ -350,6 +480,7 @@ class TestPromptRendering:
         assert "get_image_layers" in text
         assert "list_risk_acceptances" in text
         assert "list_remediations" in text
+        assert 'list_suppression_rules(cve_id="CVE-2024-1234")' in text
 
     def test_weekly_security_review_lists_tools(self):
         from mcp_server.server import weekly_security_review
@@ -357,6 +488,7 @@ class TestPromptRendering:
         text = weekly_security_review()[0].content.text
         assert "get_security_overview" in text
         assert "get_escalations" in text
+        assert "page through the results" in text
         assert "list_risk_acceptances" in text
         assert "list_remediations" in text
 
@@ -422,35 +554,51 @@ class TestWriteToolWiring:
         assert payload["scope"]["targets"] == []
 
     async def test_create_remediation_builds_payload(self, mock_ctx):
-        import mcp_server.server
+        import mcp_server.server as server
 
-        mcp_server.server.client.create_remediation = AsyncMock(return_value='{"id": "rem-1"}')
-
-        tool_fn = mcp_server.server.mcp._tool_manager._tools["create_remediation"].fn
-
-        await tool_fn(
-            mock_ctx,
-            cve_id="CVE-2024-1234",
-            namespace="payments",
-            cluster_name="cluster-a",
-            notes="Upgrading openssl",
+        server.client.create_remediation = AsyncMock(return_value='[{"id": "rem-1"}, {"id": "rem-2"}]')
+        tool = server.mcp._tool_manager._tools["create_remediation"]
+        targets = [
+            {"cluster_name": "cluster-a", "namespace": "payments"},
+            {"cluster_name": "cluster-b", "namespace": "frontend"},
+        ]
+        result = await tool.run(
+            arguments={
+                "cve_id": "CVE-2024-1234",
+                "targets": targets,
+                "notes": "Upgrading openssl",
+            },
+            context=mock_ctx,
         )
+        auth, payload = server.client.create_remediation.call_args.args
+        assert isinstance(auth, AuthContext)
+        assert payload == {"cve_id": "CVE-2024-1234", "targets": targets, "notes": "Upgrading openssl"}
+        assert json.loads(result) == [{"id": "rem-1"}, {"id": "rem-2"}]
 
-        call_auth = mcp_server.server.client.create_remediation.call_args[0][0]
-        assert isinstance(call_auth, AuthContext)
-        payload = mcp_server.server.client.create_remediation.call_args[0][1]
-        assert payload["cve_id"] == "CVE-2024-1234"
-        assert payload["namespace"] == "payments"
-        assert payload["cluster_name"] == "cluster-a"
-        assert payload["notes"] == "Upgrading openssl"
-        assert "assigned_to" not in payload
+    @pytest.mark.parametrize(
+        "targets",
+        [
+            [],
+            [{"namespace": "n", "cluster_name": "c"}] * 201,
+            [{"namespace": "", "cluster_name": "c"}],
+            [{"namespace": "n"}],
+        ],
+    )
+    async def test_create_remediation_validates_targets(self, mock_ctx, targets):
+        import mcp_server.server as server
 
-    async def test_update_remediation_status_builds_payload(self, mock_ctx):
+        server.client.create_remediation = AsyncMock()
+        tool = server.mcp._tool_manager._tools["create_remediation"]
+        with pytest.raises(ToolError):
+            await tool.run(arguments={"cve_id": "CVE-2024-1234", "targets": targets}, context=mock_ctx)
+        server.client.create_remediation.assert_not_called()
+
+    async def test_update_remediation_builds_payload(self, mock_ctx):
         import mcp_server.server
 
         mcp_server.server.client.update_remediation = AsyncMock(return_value='{"status": "wont_fix"}')
 
-        tool_fn = mcp_server.server.mcp._tool_manager._tools["update_remediation_status"].fn
+        tool_fn = mcp_server.server.mcp._tool_manager._tools["update_remediation"].fn
 
         await tool_fn(
             mock_ctx,
@@ -466,12 +614,12 @@ class TestWriteToolWiring:
         assert payload["status"] == "wont_fix"
         assert payload["wont_fix_reason"] == "Component will be removed next sprint"
 
-    async def test_update_remediation_status_omits_reason_when_none(self, mock_ctx):
+    async def test_update_remediation_omits_reason_when_none(self, mock_ctx):
         import mcp_server.server
 
         mcp_server.server.client.update_remediation = AsyncMock(return_value='{"status": "in_progress"}')
 
-        tool_fn = mcp_server.server.mcp._tool_manager._tools["update_remediation_status"].fn
+        tool_fn = mcp_server.server.mcp._tool_manager._tools["update_remediation"].fn
 
         await tool_fn(
             mock_ctx,
@@ -526,3 +674,70 @@ class TestWriteToolWiring:
         assert payload["scope"]["mode"] == "all"
         assert payload["scope"]["targets"] == []
         assert payload["reference_url"] == "https://vendor.example/vex/CVE-2024-5678"
+
+    @pytest.mark.parametrize(
+        ("fields", "expected"),
+        [
+            ({"notes": "Plan"}, {"notes": "Plan"}),
+            ({"clear_fields": ["notes", "notes"]}, {"notes": None}),
+            ({"notes": ""}, {"notes": ""}),
+            ({"status": "in_progress", "assigned_to": None}, {"status": "in_progress"}),
+            (
+                {"assigned_to": "user-1", "target_date": "2030-01-01", "notes": "Plan"},
+                {"assigned_to": "user-1", "target_date": "2030-01-01", "notes": "Plan"},
+            ),
+            (
+                {"clear_fields": ["assigned_to", "target_date", "notes"]},
+                {"assigned_to": None, "target_date": None, "notes": None},
+            ),
+            (
+                {"status": "in_progress", "notes": "Plan", "clear_fields": ["assigned_to"]},
+                {"status": "in_progress", "notes": "Plan", "assigned_to": None},
+            ),
+        ],
+    )
+    async def test_update_remediation_partial_fields(self, mock_ctx, fields, expected):
+        import mcp_server.server as server
+
+        server.client.update_remediation = AsyncMock(return_value='{"id": "rem-1"}')
+        tool = server.mcp._tool_manager._tools["update_remediation"]
+        await tool.run(arguments={"remediation_id": "rem-1", **fields}, context=mock_ctx)
+        assert server.client.update_remediation.call_args.args[2] == expected
+
+    @pytest.mark.parametrize("fields", [{}, {"notes": None}, {"clear_fields": []}])
+    async def test_update_remediation_empty_change_is_tool_error(self, mock_ctx, fields):
+        import mcp_server.server as server
+
+        server.client.update_remediation = AsyncMock()
+        tool = server.mcp._tool_manager._tools["update_remediation"]
+        with pytest.raises(ToolError, match="at least one field"):
+            await tool.fn(mock_ctx, remediation_id="rem-1", **fields)
+        server.client.update_remediation.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            {"clear_fields": ["status"]},
+            {"notes": "Plan", "clear_fields": ["notes"]},
+        ],
+    )
+    async def test_update_remediation_rejects_invalid_clearing(self, mock_ctx, fields):
+        import mcp_server.server as server
+
+        server.client.update_remediation = AsyncMock()
+        tool = server.mcp._tool_manager._tools["update_remediation"]
+        with pytest.raises(ToolError):
+            await tool.run(arguments={"remediation_id": "rem-1", **fields}, context=mock_ctx)
+        server.client.update_remediation.assert_not_called()
+
+    @pytest.mark.parametrize("subscribed", [True, False])
+    async def test_set_cve_subscription(self, mock_ctx, subscribed):
+        import mcp_server.server as server
+
+        server.client.set_cve_subscription = AsyncMock(return_value=json.dumps({"subscribed": subscribed}))
+        tool = server.mcp._tool_manager._tools["set_cve_subscription"]
+        result = await tool.run(arguments={"cve_id": "CVE-2024-1234", "subscribed": subscribed}, context=mock_ctx)
+        args = server.client.set_cve_subscription.call_args.args
+        assert args[1:] == ("CVE-2024-1234", subscribed)
+        assert args[0].forwarded_user == "testuser"
+        assert json.loads(result) == {"subscribed": subscribed}

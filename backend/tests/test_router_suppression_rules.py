@@ -182,3 +182,84 @@ async def test_team_member_cannot_delete_others_rule(app, mock_app_db, patch_aud
     rule_id = rule.id
     resp = await client.delete(f"/api/suppression-rules/{rule_id}")
     assert resp.status_code == 403
+
+
+@pytest.fixture
+async def suppression_store(app, sec_team_user, monkeypatch, patch_sx):
+    from sqlalchemy import JSON
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.deps import get_app_db, get_current_user
+    from app.models.suppression_rule import SuppressionRule, SuppressionStatus, SuppressionType
+    from app.models.user import User, UserRole
+
+    monkeypatch.setattr(SuppressionRule.__table__.c.scope, "type", JSON())
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(User.__table__.create)
+        await connection.run_sync(SuppressionRule.__table__.create)
+
+    async with session_factory() as session:
+        session.add(
+            User(
+                id=sec_team_user.id,
+                username="secadmin",
+                email="sec@example.com",
+                role=UserRole.sec_team,
+            )
+        )
+        await session.flush()
+        for name, cve_id, status in [
+            ("matching", "CVE-2024-0001", "approved"),
+            ("rejected", "CVE-2024-0001", "rejected"),
+            ("other", "CVE-2024-0002", "approved"),
+            ("component", None, "approved"),
+        ]:
+            session.add(
+                SuppressionRule(
+                    type=SuppressionType.cve if cve_id else SuppressionType.component,
+                    cve_id=cve_id,
+                    status=SuppressionStatus[status],
+                    scope_key=name,
+                    component_name=None if cve_id else "openssl",
+                    reason=name,
+                    created_by=sec_team_user.id,
+                )
+            )
+        await session.commit()
+
+    async def override_app_db():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_app_db] = override_app_db
+    app.dependency_overrides[get_current_user] = lambda: sec_team_user
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            yield client
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("params", "expected"),
+    [
+        ({}, {"matching", "rejected", "other", "component"}),
+        ({"cve_id": "CVE-2024-0001"}, {"matching", "rejected"}),
+        ({"cve_id": "CVE-2024-0001", "status": "approved", "type": "cve"}, {"matching"}),
+        ({"cve_id": "CVE-2024-0001", "type": "component"}, set()),
+        ({"cve_id": "CVE-2024-9999"}, set()),
+        ({"cve_id": ""}, set()),
+    ],
+)
+async def test_cve_filter_combines_with_status_and_type(suppression_store, params, expected):
+    response = await suppression_store.get("/api/suppression-rules", params=params)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert {row["reason"] for row in data} == expected
+    for row in data:
+        assert row["created_by_name"] == "secadmin"
+        assert row["matched_cve_count"] == (0 if row["type"] == "component" else 1)

@@ -15,6 +15,11 @@
           "text": "Eine dezente Ladelinie unter der Kopfzeile zeigt an, wenn nach einer Filter- oder Bereichsänderung Daten geladen werden."
         },
         {
+          "id": "mcp-new-tools",
+          "kind": "feature",
+          "text": "Der KI-Assistent (MCP-Server) kann nun Upgrade-Empfehlungen pro Komponente abrufen, Unterdrückungsregeln auflisten und CVEs für Sie abonnieren oder ein Abonnement beenden."
+        },
+        {
           "id": "new-cves-weekly",
           "kind": "improvement",
           "text": "Das Diagramm \"Neu entdeckte CVEs\" zeigt nun gestapelte Balken pro Woche statt überlappender Flächen und ist dadurch leichter lesbar."
@@ -23,6 +28,11 @@
           "id": "fix-first-slim",
           "kind": "improvement",
           "text": "Die Übersicht \"Was zuerst beheben?\" ist kompakter. Komponenten und Fix-Versionen finden Sie auf der CVE-Detailseite."
+        },
+        {
+          "id": "mcp-remediation-and-filters",
+          "kind": "improvement",
+          "text": "Der KI-Assistent (MCP-Server) kann bei Behebungen nun Zieldatum, Notizen und Zuweisung ändern und Behebungen für mehrere Namespaces auf einmal anlegen. Abfragen lassen sich zudem auf Cluster und Namespace eingrenzen, nach Schwachstellen-Feed filtern und ohne die globalen Schwellenwerte ausführen. Eskalationen werden wie in der Eskalationsansicht zusammengefasst und seitenweise geliefert."
         },
         {
           "id": "cve-description-whitespace",
@@ -63,6 +73,11 @@
           "id": "scope-kept-on-navigation",
           "kind": "fix",
           "text": "Der gewählte Bereich bleibt erhalten, wenn Sie Benachrichtigungen öffnen oder zwischen CVE und Risikoakzeptanz wechseln."
+        },
+        {
+          "id": "mcp-list-filters",
+          "kind": "fix",
+          "text": "Der KI-Assistent (MCP-Server) filtert Risikoakzeptanzen nun korrekt nach CVE und liefert Risikoakzeptanzen und Behebungen seitenweise. Zuvor wurden diese Angaben ignoriert. Fehlermeldungen erreichen den Assistenten nun auf Englisch, und Ihre E-Mail-Adresse wird auch bei der ersten Anmeldung über den Assistenten übernommen."
         }
       ]
     },
