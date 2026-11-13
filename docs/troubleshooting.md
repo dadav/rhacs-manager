@@ -46,6 +46,19 @@ Emails to users are skipped (in-app notification only) when the stored address i
 - If the identity has an email, look for `failed to resolve identity email` in the auth-header-injector logs. A `forbidden` error means the injector ClusterRole lacks `get` on `identities`.
 - A stored address is updated on the user's next request after the injector resolves it.
 
+## Session Expired / 403 After Inactivity
+
+If the OpenShift OAuth proxy session expires, API requests receive its HTML sign-in page with HTTP 403. The app shows one blocking **Session expired** dialog (**Sitzung abgelaufen** in German), even if your name is still visible in the masthead. Choose **Log in again** (**Neu anmelden**) to sign in and return to the same page, including its filters and anchor. There is no automatic redirect; signing in reloads the page and discards unsaved input. Backend JSON 403 permission errors still appear as ordinary errors and do not open this dialog.
+
+Session validity depends on both proxy revalidation and OpenShift OAuth limits:
+
+- Hub: `frontend.oauthProxy.cookieRefresh`, default `12h`.
+- Spoke: `spoke.oauthProxy.cookieRefresh`, default `12h`.
+- The refresh interval controls when the proxy revalidates the OpenShift token. It does not guarantee a session of that length or impose a fixed maximum session age: a valid session can be refreshed, while an expired or invalid token ends it.
+- OpenShift OAuth token lifetime (`spec.tokenConfig.accessTokenMaxAgeSeconds`) and the configured inactivity timeout (`spec.tokenConfig.accessTokenInactivityTimeout`, or an OAuth client override) bound token validity. The Helm chart cannot extend these cluster or client limits. Ask a cluster administrator to review them if sessions expire too soon.
+
+See the [OAuth proxy authentication and redirect implementation](https://github.com/openshift/oauth-proxy/blob/release-4.22/oauthproxy.go) and [OpenShift OAuth configuration](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/authentication_and_authorization/configuring-internal-oauth).
+
 ## Spoke Proxy Authentication Failures
 
 If users can reach the spoke route but the hub API responds with authentication errors, check the spoke header path first.

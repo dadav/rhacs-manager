@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { api } from './client'
+import { isSessionExpired, resetSessionExpiredForTests, SessionExpiredError } from '../utils/sessionExpiry'
 
 describe('api client', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
+    resetSessionExpiredForTests()
     globalThis.fetch = vi.fn()
   })
 
   afterEach(() => {
     globalThis.fetch = originalFetch
+    resetSessionExpiredForTests()
   })
 
   it('GET sends correct request', async () => {
@@ -62,6 +65,26 @@ describe('api client', () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(mockResponse as Response)
 
     await expect(api.get('/broken')).rejects.toThrow('HTTP 500')
+  })
+
+  it('marks an HTML 403 as session expired', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response('<html>Sign in</html>', {
+      status: 403,
+      headers: { 'Content-Type': 'text/html' },
+    }))
+
+    await expect(api.get('/auth/me')).rejects.toThrow(SessionExpiredError)
+    expect(isSessionExpired()).toBe(true)
+  })
+
+  it('preserves JSON 403 permission errors without expiring the session', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response(JSON.stringify({ detail: 'Security team only' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    }))
+
+    await expect(api.get('/settings')).rejects.toThrow('Security team only')
+    expect(isSessionExpired()).toBe(false)
   })
 
   it('PATCH sends correct method', async () => {

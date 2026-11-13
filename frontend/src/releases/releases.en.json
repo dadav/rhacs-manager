@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.48.0",
+      "date": "2026-11-13",
+      "items": [
+        {
+          "id": "session-expired-dialog",
+          "kind": "improvement",
+          "text": "When your session has expired after a longer period of inactivity, a \"Session expired\" notice now appears instead of a 403 error. \"Log in again\" takes you back to the same page after signing in. Unsaved input is lost in the process."
+        }
+      ]
+    },
+    {
       "version": "0.47.0",
       "date": "2026-11-11",
       "items": [

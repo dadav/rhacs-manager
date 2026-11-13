@@ -257,6 +257,7 @@ Access control rules:
 - Keep route-level components in `frontend/src/pages/`.
 - `bun run lint` runs `tsc -b` (the root `tsconfig.json` only has project references, so a bare `tsc --noEmit` checks nothing).
 - Shared API requests should go through `frontend/src/api/client.ts`.
+- Every fetch path must run the session-expiry check from `frontend/src/utils/sessionExpiry.ts`.
 - In-app links and `navigate()` targets into CVE, image, dashboard, or list views must go through `useScopedLink()` / `buildScopedTo` from `frontend/src/hooks/useScope.ts`, so the sidebar scope (`cluster`, `ns`) and `ignore_thresholds` survive navigation. Params already in the target win (drilldowns override the sidebar scope). The CVE list reads its namespace filter from `ns`, not `namespace`.
 - Keep translations aligned in `frontend/src/i18n/de.json` and `frontend/src/i18n/en.json`.
 - The UI is German-first, but English translations also exist.

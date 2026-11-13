@@ -8,15 +8,32 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import './i18n/index'
 import { App } from './App'
+import { SessionExpiredModal } from './components/SessionExpiredModal'
 import { ToastProvider } from './components/ToastContext'
+import { SessionExpiredError, subscribeSessionExpired } from './utils/sessionExpiry'
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => !(error instanceof SessionExpiredError) && failureCount < 1,
       staleTime: 30_000,
     },
   },
+})
+
+subscribeSessionExpired(() => {
+  void queryClient.cancelQueries()
+  const defaults = queryClient.getDefaultOptions()
+  // Hook-level polling intervals override these defaults.
+  queryClient.setDefaultOptions({
+    ...defaults,
+    queries: {
+      ...defaults.queries,
+      refetchInterval: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  })
 })
 
 const root = document.getElementById('root')
@@ -28,6 +45,7 @@ createRoot(root).render(
       <BrowserRouter>
         <ToastProvider>
           <App />
+          <SessionExpiredModal />
         </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>

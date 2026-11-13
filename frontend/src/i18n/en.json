@@ -9,6 +9,11 @@
     "switchLanguage": "Switch language",
     "showHelp": "Show help",
     "logout": "Log out",
+    "sessionExpired": {
+      "title": "Session expired",
+      "body": "Your session has expired. Please log in again.",
+      "relogin": "Log in again"
+    },
     "skipToContent": "Skip to content",
     "mySettings": "My settings"
   },

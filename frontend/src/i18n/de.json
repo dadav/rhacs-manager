@@ -9,6 +9,11 @@
     "switchLanguage": "Sprache wechseln",
     "showHelp": "Hilfe anzeigen",
     "logout": "Abmelden",
+    "sessionExpired": {
+      "title": "Sitzung abgelaufen",
+      "body": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+      "relogin": "Neu anmelden"
+    },
     "skipToContent": "Zum Inhalt springen",
     "mySettings": "Persönliche Einstellungen"
   },

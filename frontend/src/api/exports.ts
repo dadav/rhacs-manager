@@ -1,5 +1,6 @@
 import i18n from '../i18n'
 import { extractApiError } from '../utils/errors'
+import { throwIfSessionExpired } from '../utils/sessionExpiry'
 import { scopeApiParams, type ScopeParams } from '../hooks/useScope'
 
 const BASE = '/api'
@@ -44,6 +45,7 @@ function buildExportQuery(filters: ExportFilters, scope: ScopeParams): string {
 
 export async function fetchBlob(url: string): Promise<Blob> {
   const res = await fetch(url, { headers: langHeaders() })
+  throwIfSessionExpired(res)
   if (!res.ok) {
     throw new Error(await extractApiError(res))
   }
@@ -111,6 +113,7 @@ export async function importExcel(
     body: formData,
   })
 
+  throwIfSessionExpired(res)
   if (!res.ok) {
     throw new Error(await extractApiError(res))
   }

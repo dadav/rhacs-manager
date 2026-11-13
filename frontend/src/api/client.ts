@@ -1,5 +1,6 @@
 import i18n from '../i18n'
 import { extractApiError } from '../utils/errors'
+import { throwIfSessionExpired } from '../utils/sessionExpiry'
 
 const BASE = '/api'
 
@@ -14,6 +15,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   })
 
+  throwIfSessionExpired(res)
   if (!res.ok) {
     throw new Error(await extractApiError(res))
   }

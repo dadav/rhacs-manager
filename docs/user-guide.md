@@ -4,6 +4,8 @@ This guide follows the day-to-day workflows in the RHACS CVE Manager UI. Page na
 
 See [Configuration](configuration.md) for threshold and notification settings, and [Security Model](security.md) for the namespace and RBAC rules behind what each user can see.
 
+If the **Session expired** dialog appears after inactivity, choose **Log in again** to return to the same page after authentication. The app waits for you to choose the button; signing in reloads the page and discards unsaved input.
+
 ## Roles at a Glance
 
 | User type | What they can do |

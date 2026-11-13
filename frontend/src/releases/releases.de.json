@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.48.0",
+      "date": "2026-11-13",
+      "items": [
+        {
+          "id": "session-expired-dialog",
+          "kind": "improvement",
+          "text": "Wenn Ihre Sitzung nach längerer Inaktivität abgelaufen ist, erscheint nun ein Hinweis \"Sitzung abgelaufen\" statt einer Fehlermeldung 403. Über \"Neu anmelden\" gelangen Sie nach der Anmeldung zurück auf dieselbe Seite. Nicht gespeicherte Eingaben gehen dabei verloren."
+        }
+      ]
+    },
+    {
       "version": "0.47.0",
       "date": "2026-11-11",
       "items": [
