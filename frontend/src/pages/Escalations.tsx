@@ -26,6 +26,8 @@ import {
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatEpssPercent } from '../utils/format'
 import { EscalationLevelBadge } from '../components/common/EscalationLevelBadge'
+import { SeverityBadge } from '../components/common/SeverityBadge'
+import { EpssBadge } from '../components/common/EpssBadge'
 import { TableSkeleton } from '../components/TableSkeleton'
 import { MentionTextArea, contentToApi, contentIsEmpty, type ComposerSegment } from '../components/MentionTextArea'
 import { Fragment, useEffect, useRef, useState } from 'react'
@@ -45,6 +47,21 @@ import type { ActiveEscalationRow } from '../types'
 
 const PER_PAGE = 20
 const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
+type LabelColor = 'blue' | 'green' | 'orange' | 'grey'
+const REMEDIATION_LABEL_COLORS: Record<string, LabelColor> = {
+  open: 'orange',
+  in_progress: 'blue',
+  resolved: 'green',
+  verified: 'green',
+  wont_fix: 'grey',
+}
+const REMEDIATION_STATUS_KEYS: Record<string, string> = {
+  open: 'remediations.statusOpen',
+  in_progress: 'remediations.statusInProgress',
+  resolved: 'remediations.statusResolved',
+  verified: 'remediations.statusVerified',
+  wont_fix: 'remediations.statusWontFix',
+}
 
 export function Escalations() {
   const scopedLink = useScopedLink()
@@ -156,6 +173,8 @@ export function Escalations() {
   // =========================================================================
   const activeLevel = searchParams.get('level') || ''
   const emailStatus = searchParams.get('email_status') || ''
+  const rawRemediation = searchParams.get('remediation')
+  const remediationFilter = rawRemediation === 'with' || rawRemediation === 'without' ? rawRemediation : ''
   const rawContact = searchParams.get('contact')
   // Sec-team default is "needs action"; regular users always see all rows.
   const contactFilter = isSecTeam ? (rawContact ?? 'needs_action') : 'all'
@@ -178,6 +197,7 @@ export function Escalations() {
     level: activeLevel || undefined,
     email_status: isSecTeam ? emailStatus || undefined : undefined,
     contact_status: contactFilter === 'all' ? undefined : contactFilter,
+    has_remediation: remediationFilter ? String(remediationFilter === 'with') : undefined,
     cluster: scopeParams.cluster,
     namespace: scopeParams.namespace,
   })
@@ -187,7 +207,7 @@ export function Escalations() {
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     setRemovedIds(new Set())
-  }, [activeLevel, emailStatus, rawContact, debouncedActiveSearch, activePage, scopeParams.cluster, scopeParams.namespace])
+  }, [activeLevel, emailStatus, remediationFilter, rawContact, debouncedActiveSearch, activePage, scopeParams.cluster, scopeParams.namespace])
 
   const activeItems = (active.data?.items ?? []).filter(r => !removedIds.has(r.id))
   const activeTotal = active.data?.total ?? 0
@@ -199,7 +219,7 @@ export function Escalations() {
         ? counts?.needs_action ?? 0
         : 0
   const hasElectiveActiveFilters = Boolean(
-    debouncedActiveSearch || activeLevel || emailStatus || contactFilter !== 'needs_action',
+    debouncedActiveSearch || activeLevel || emailStatus || remediationFilter || contactFilter !== 'needs_action',
   )
 
   const activeLabels: string[] = []
@@ -207,6 +227,10 @@ export function Escalations() {
   if (isSecTeam && emailStatus)
     activeLabels.push(
       `${t('escalations.emailStatus')}: ${emailStatus === 'notified' ? t('escalations.emailSent') : t('escalations.emailPending')}`,
+    )
+  if (remediationFilter)
+    activeLabels.push(
+      `${t('escalations.remediation')}: ${remediationFilter === 'with' ? t('escalations.remediationWith') : t('escalations.remediationWithout')}`,
     )
   if (isSecTeam && contactFilter !== 'needs_action')
     activeLabels.push(
@@ -221,6 +245,7 @@ export function Escalations() {
         next.delete('search')
         next.delete('level')
         next.delete('email_status')
+        next.delete('remediation')
         next.delete('page')
         // Clear-all explicitly selects all contact states for sec users.
         if (isSecTeam) next.set('contact', 'all')
@@ -268,7 +293,7 @@ export function Escalations() {
     }
   }
 
-  const activeColSpan = isSecTeam ? 7 : 4
+  const activeColSpan = isSecTeam ? 10 : 7
 
   return (
     <>
@@ -537,6 +562,26 @@ export function Escalations() {
                     </FormSelect>
                   </ToolbarFilter>
                 )}
+                <ToolbarFilter
+                  labels={
+                    remediationFilter
+                      ? [remediationFilter === 'with' ? t('escalations.remediationWith') : t('escalations.remediationWithout')]
+                      : []
+                  }
+                  deleteLabel={() => updateParams({ remediation: null }, 'page')}
+                  categoryName={t('escalations.remediation')}
+                >
+                  <FormSelect
+                    value={remediationFilter}
+                    onChange={(_e, v) => updateParams({ remediation: v || null }, 'page')}
+                    aria-label={t('escalations.remediation')}
+                    style={FORM_SELECT_STYLE}
+                  >
+                    <FormSelectOption value="" label={t('escalations.remediationAll')} />
+                    <FormSelectOption value="with" label={t('escalations.remediationWith')} />
+                    <FormSelectOption value="without" label={t('escalations.remediationWithout')} />
+                  </FormSelect>
+                </ToolbarFilter>
                 {isSecTeam && (
                   <ToolbarFilter
                     labels={
@@ -583,8 +628,11 @@ export function Escalations() {
                       {isSecTeam && <Th screenReaderText={t('escalations.expandRow')} />}
                       <Th>{t('cves.cveId')}</Th>
                       <Th>{t('cves.namespace')}</Th>
+                      <Th>{t('cves.severity')}</Th>
+                      <Th>{t('cves.epss')}</Th>
                       <Th>{t('escalations.level')}</Th>
                       <Th>{t('escalations.triggeredAt')}</Th>
+                      <Th>{t('escalations.remediation')}</Th>
                       {isSecTeam && <Th>{t('escalations.emailStatus')}</Th>}
                       {isSecTeam && <Th>{t('escalations.contactStatus')}</Th>}
                     </Tr>
@@ -618,11 +666,41 @@ export function Escalations() {
                             <Td>
                               {e.cluster_name}/{e.namespace}
                             </Td>
+                            <Td>{e.severity != null ? <SeverityBadge severity={e.severity} /> : '–'}</Td>
+                            <Td>{e.epss_probability != null ? <EpssBadge value={e.epss_probability} /> : '–'}</Td>
                             <Td>
                               <EscalationLevelBadge level={e.level} />
                             </Td>
                             <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                               {formatDate(e.triggered_at, i18n.language)}
+                            </Td>
+                            <Td style={{ fontSize: 12 }}>
+                              {e.remediation_status ? (
+                                <>
+                                  <Label isCompact color={REMEDIATION_LABEL_COLORS[e.remediation_status] ?? 'grey'}>
+                                    {REMEDIATION_STATUS_KEYS[e.remediation_status]
+                                      ? t(REMEDIATION_STATUS_KEYS[e.remediation_status])
+                                      : e.remediation_status}
+                                  </Label>
+                                  {(e.remediation_assignee_name || e.remediation_target_date) && (
+                                    <div style={{ color: 'var(--pf-t--global--text--color--subtle)', marginTop: 2 }}>
+                                      {[
+                                        e.remediation_assignee_name,
+                                        e.remediation_target_date &&
+                                          t('escalations.remediationDue', {
+                                            date: formatDate(e.remediation_target_date, i18n.language),
+                                          }),
+                                      ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
+                                  {t('escalations.remediationNone')}
+                                </span>
+                              )}
                             </Td>
                             {isSecTeam && (
                               <Td style={{ fontSize: 12 }}>

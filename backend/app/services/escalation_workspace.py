@@ -12,16 +12,18 @@ dashboard's matching active count lives here so the semantics stay in one place.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, tuple_
+from sqlalchemy import Select, exists, func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import CurrentUser
 from ..i18n import ApiError
 from ..models.cve_comment import CveComment
 from ..models.escalation import Escalation
+from ..models.remediation import Remediation
+from ..models.user import User
 from ..notifications import service as notif_svc
 from ..schemas.cve import CveCommentResponse, EscalationContext
 from . import comment_service
@@ -42,6 +44,13 @@ class WorkspaceRow:
     contacted: bool
 
 
+@dataclass(frozen=True)
+class RemediationContext:
+    status: str
+    assignee_name: str | None
+    target_date: date | None
+
+
 def _filtered_current_rows(
     *,
     can_see_all: bool,
@@ -51,6 +60,7 @@ def _filtered_current_rows(
     search: str | None = None,
     level: int | None = None,
     email_status: str | None = None,
+    has_remediation: bool | None = None,
 ) -> Select:
     """Build a subquery of current rows with a `contacted` flag.
 
@@ -125,6 +135,15 @@ def _filtered_current_rows(
     elif email_status == "pending":
         base = base.where(ranked.c.notified.is_(False))
 
+    if has_remediation is not None:
+        # Remediations are unique per (cve_id, namespace, cluster_name), the same key as a case.
+        remediation_exists = exists().where(
+            Remediation.cve_id == ranked.c.cve_id,
+            Remediation.namespace == ranked.c.namespace,
+            Remediation.cluster_name == ranked.c.cluster_name,
+        )
+        base = base.where(remediation_exists if has_remediation else ~remediation_exists)
+
     return base.subquery()
 
 
@@ -141,6 +160,7 @@ async def search_active_workspace(
     contact_status: str | None,
     page: int,
     page_size: int,
+    has_remediation: bool | None = None,
 ) -> tuple[list[WorkspaceRow], int, dict[str, int]]:
     """Return (rows, total_after_contact_filter, contact_counts).
 
@@ -154,6 +174,7 @@ async def search_active_workspace(
         search=search,
         level=level,
         email_status=email_status,
+        has_remediation=has_remediation,
     )
 
     # Contact-state counts: after all filters except contact_status.
@@ -188,6 +209,28 @@ async def search_active_workspace(
         for r in rows_result
     ]
     return rows, total, contact_counts
+
+
+async def load_remediation_context(
+    db: AsyncSession, rows: list[WorkspaceRow]
+) -> dict[tuple[str, str, str], RemediationContext]:
+    """Remediation state per (cve_id, namespace, cluster_name) for the given queue rows."""
+    if not rows:
+        return {}
+    keys = sorted({(r.cve_id, r.namespace, r.cluster_name) for r in rows})
+    result = await db.execute(
+        select(Remediation, User)
+        .outerjoin(User, User.id == Remediation.assigned_to)
+        .where(tuple_(Remediation.cve_id, Remediation.namespace, Remediation.cluster_name).in_(keys))
+    )
+    context: dict[tuple[str, str, str], RemediationContext] = {}
+    for remediation, assignee in result:
+        context[(remediation.cve_id, remediation.namespace, remediation.cluster_name)] = RemediationContext(
+            status=remediation.status.value,
+            assignee_name=assignee.display_name if assignee is not None else None,
+            target_date=remediation.target_date,
+        )
+    return context
 
 
 async def count_active_workspace(

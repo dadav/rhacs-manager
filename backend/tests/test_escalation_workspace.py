@@ -17,7 +17,13 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base
 from app.models.cve_comment import CveComment
 from app.models.escalation import Escalation
-from app.services.escalation_workspace import count_active_workspace, search_active_workspace
+from app.models.remediation import Remediation, RemediationStatus
+from app.models.user import User, UserRole
+from app.services.escalation_workspace import (
+    count_active_workspace,
+    load_remediation_context,
+    search_active_workspace,
+)
 
 BASE_TIME = datetime(2026, 1, 1, 12, 0, 0)
 
@@ -30,7 +36,11 @@ async def db() -> AsyncSession:
         poolclass=StaticPool,
     )
     async with engine.begin() as conn:
-        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=[Escalation.__table__, CveComment.__table__]))
+        await conn.run_sync(
+            lambda c: Base.metadata.create_all(
+                c, tables=[User.__table__, Escalation.__table__, CveComment.__table__, Remediation.__table__]
+            )
+        )
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
     async with session_maker() as session:
         yield session
@@ -289,3 +299,73 @@ async def test_count_active_workspace_matches_dashboard(db: AsyncSession):
 
     n = await count_active_workspace(db, can_see_all=False, namespaces=[("ns1", "c1")])
     assert n == 1
+
+
+async def _add_remediation(db: AsyncSession, *, cve_id: str, cluster_name: str, namespace: str, assigned_to=None):
+    rem = Remediation(
+        id=uuid4(),
+        cve_id=cve_id,
+        cluster_name=cluster_name,
+        namespace=namespace,
+        status=RemediationStatus.in_progress,
+        assigned_to=assigned_to,
+        created_by="creator",
+        target_date=BASE_TIME.date(),
+    )
+    db.add(rem)
+    await db.flush()
+    return rem
+
+
+async def _add_user(db: AsyncSession, user_id: str, username: str, full_name: str | None) -> None:
+    db.add(
+        User(
+            id=user_id,
+            username=username,
+            email=f"{username}@example.com",
+            role=UserRole.team_member,
+            full_name=full_name,
+        )
+    )
+    await db.flush()
+
+
+@pytest.mark.asyncio
+async def test_has_remediation_filter_matches_exact_case_and_keeps_counts_consistent(db: AsyncSession):
+    await _add_user(db, "creator", "creator", None)
+    with_rem = await _add_escalation(
+        db, cve_id="CVE-1", cluster_name="c1", namespace="ns", level=1, triggered_at=BASE_TIME
+    )
+    # Same CVE and namespace name on another cluster: must not inherit the remediation.
+    await _add_escalation(db, cve_id="CVE-1", cluster_name="c2", namespace="ns", level=1, triggered_at=BASE_TIME)
+    await _add_remediation(db, cve_id="CVE-1", cluster_name="c1", namespace="ns")
+    await _add_comment(db, cve_id="CVE-1", escalation_id=with_rem.id)
+
+    rows, total, counts = await _search(db, has_remediation=True)
+    assert [(r.cluster_name) for r in rows] == ["c1"]
+    assert total == 1
+    assert counts == {"needs_action": 0, "contacted": 1}
+
+    rows, total, counts = await _search(db, has_remediation=False)
+    assert [(r.cluster_name) for r in rows] == ["c2"]
+    assert counts == {"needs_action": 1, "contacted": 0}
+
+    rows, total, _ = await _search(db)
+    assert total == 2
+
+
+@pytest.mark.asyncio
+async def test_load_remediation_context_uses_display_name(db: AsyncSession):
+    await _add_user(db, "creator", "creator", None)
+    await _add_user(db, "u1", "jdoe", "Jane Doe")
+    await _add_escalation(db, cve_id="CVE-1", cluster_name="c1", namespace="ns", level=1, triggered_at=BASE_TIME)
+    await _add_escalation(db, cve_id="CVE-2", cluster_name="c1", namespace="ns", level=1, triggered_at=BASE_TIME)
+    await _add_remediation(db, cve_id="CVE-1", cluster_name="c1", namespace="ns", assigned_to="u1")
+    rows, _, _ = await _search(db)
+
+    context = await load_remediation_context(db, rows)
+
+    assert set(context) == {("CVE-1", "ns", "c1")}
+    item = context[("CVE-1", "ns", "c1")]
+    assert (item.status, item.assignee_name, item.target_date) == ("in_progress", "Jane Doe", BASE_TIME.date())
+    assert await load_remediation_context(db, []) == {}

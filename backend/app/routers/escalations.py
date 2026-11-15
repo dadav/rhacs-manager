@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 from uuid import UUID
 
@@ -13,8 +14,15 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..schemas.cve import CveCommentCreate, CveCommentResponse
 from ..services.escalation_preview import UpcomingEscalation, compute_upcoming_escalations, filter_upcoming_escalations
-from ..services.escalation_workspace import add_current_escalation_comment, search_active_workspace
+from ..services.escalation_workspace import (
+    add_current_escalation_comment,
+    load_remediation_context,
+    search_active_workspace,
+)
+from ..stackrox import queries as sx
 from ._scope import narrow_namespaces
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/escalations", tags=["escalations"])
 
@@ -69,6 +77,14 @@ class ActiveEscalationRow(BaseModel):
     triggered_at: str
     notified: bool
     contacted: bool | None
+    # CVE-level scores; None when StackRox could not be read or no longer knows the CVE.
+    severity: int | None = None
+    cvss: float | None = None
+    epss_probability: float | None = None
+    # Remediation of this exact (cve, namespace, cluster) case; status None means none exists.
+    remediation_status: str | None = None
+    remediation_assignee_name: str | None = None
+    remediation_target_date: str | None = None
 
 
 class ContactCounts(BaseModel):
@@ -99,10 +115,12 @@ async def search_active_escalations(
     level: int | None = Query(None, ge=1, le=3),
     email_status: Literal["notified", "pending"] | None = Query(None),
     contact_status: Literal["needs_action", "contacted"] | None = Query(None),
+    has_remediation: bool | None = Query(None),
     cluster: str | None = Query(None),
     namespace: str | None = Query(None),
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> ActiveSearchResponse:
     can_see_all = current_user.can_see_all_namespaces
     if not can_see_all and not current_user.has_namespaces:
@@ -128,22 +146,45 @@ async def search_active_escalations(
         contact_status=contact_status if current_user.is_sec_team else None,
         page=page,
         page_size=page_size,
+        has_remediation=has_remediation,
     )
 
+    remediations = await load_remediation_context(db, rows)
+    facts: dict[str, dict] = {}
+    try:
+        facts = await sx.get_cve_facts_bulk(sx_db, sorted({r.cve_id for r in rows}))
+    except Exception:
+        # Scores are triage context only; the queue must still load without StackRox.
+        logger.warning(
+            "Active escalation queue: StackRox score read failed, returning rows without scores",
+            extra={"row_count": len(rows)},
+            exc_info=True,
+        )
+
+    def _row(r) -> ActiveEscalationRow:
+        fact = facts.get(r.cve_id)
+        remediation = remediations.get((r.cve_id, r.namespace, r.cluster_name))
+        return ActiveEscalationRow(
+            id=str(r.id),
+            cve_id=r.cve_id,
+            namespace=r.namespace,
+            cluster_name=r.cluster_name,
+            level=r.level,
+            triggered_at=r.triggered_at.isoformat(),
+            notified=r.notified,
+            contacted=r.contacted if current_user.is_sec_team else None,
+            severity=fact["severity"] if fact else None,
+            cvss=fact["cvss"] if fact else None,
+            epss_probability=fact["epss_probability"] if fact else None,
+            remediation_status=remediation.status if remediation else None,
+            remediation_assignee_name=remediation.assignee_name if remediation else None,
+            remediation_target_date=(
+                remediation.target_date.isoformat() if remediation and remediation.target_date else None
+            ),
+        )
+
     return ActiveSearchResponse(
-        items=[
-            ActiveEscalationRow(
-                id=str(r.id),
-                cve_id=r.cve_id,
-                namespace=r.namespace,
-                cluster_name=r.cluster_name,
-                level=r.level,
-                triggered_at=r.triggered_at.isoformat(),
-                notified=r.notified,
-                contacted=r.contacted if current_user.is_sec_team else None,
-            )
-            for r in rows
-        ],
+        items=[_row(r) for r in rows],
         total=total,
         page=page,
         page_size=page_size,

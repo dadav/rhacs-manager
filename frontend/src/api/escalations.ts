@@ -44,6 +44,7 @@ export interface ActiveSearchParams {
   level?: string
   email_status?: string
   contact_status?: string
+  has_remediation?: string
   cluster?: string
   namespace?: string
 }

@@ -79,6 +79,69 @@ async def test_active_search_team_member_ok(team_member_client: httpx.AsyncClien
     assert search_workspace.await_args.kwargs["contact_status"] is None
 
 
+async def test_active_search_adds_scores_and_remediation(sec_team_client: httpx.AsyncClient):
+    from datetime import date
+
+    from app.services.escalation_workspace import RemediationContext, WorkspaceRow
+
+    row = WorkspaceRow(
+        id=uuid4(),
+        cve_id="CVE-2024-1",
+        namespace="payments",
+        cluster_name="cluster-a",
+        level=3,
+        triggered_at=datetime(2026, 1, 1),
+        notified=True,
+        contacted=False,
+    )
+    context = {("CVE-2024-1", "payments", "cluster-a"): RemediationContext("in_progress", "Jane Doe", date(2026, 2, 1))}
+    facts = {"CVE-2024-1": {"severity": 3, "cvss": 8.3, "epss_probability": 0.99}}
+    with (
+        patch(
+            "app.routers.escalations.search_active_workspace",
+            new=AsyncMock(return_value=([row], 1, {"needs_action": 1, "contacted": 0})),
+        ) as search_workspace,
+        patch("app.routers.escalations.load_remediation_context", new=AsyncMock(return_value=context)),
+        patch("app.routers.escalations.sx.get_cve_facts_bulk", new=AsyncMock(return_value=facts)),
+    ):
+        resp = await sec_team_client.get("/api/escalations/active/search?has_remediation=true")
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert (item["severity"], item["cvss"], item["epss_probability"]) == (3, 8.3, 0.99)
+    assert item["remediation_status"] == "in_progress"
+    assert item["remediation_assignee_name"] == "Jane Doe"
+    assert item["remediation_target_date"] == "2026-02-01"
+    assert search_workspace.await_args.kwargs["has_remediation"] is True
+
+
+async def test_active_search_survives_stackrox_failure(sec_team_client: httpx.AsyncClient):
+    from app.services.escalation_workspace import WorkspaceRow
+
+    row = WorkspaceRow(
+        id=uuid4(),
+        cve_id="CVE-2024-1",
+        namespace="payments",
+        cluster_name="cluster-a",
+        level=1,
+        triggered_at=datetime(2026, 1, 1),
+        notified=False,
+        contacted=False,
+    )
+    with (
+        patch(
+            "app.routers.escalations.search_active_workspace",
+            new=AsyncMock(return_value=([row], 1, {"needs_action": 1, "contacted": 0})),
+        ),
+        patch("app.routers.escalations.load_remediation_context", new=AsyncMock(return_value={})),
+        patch("app.routers.escalations.sx.get_cve_facts_bulk", new=AsyncMock(side_effect=RuntimeError("down"))),
+    ):
+        resp = await sec_team_client.get("/api/escalations/active/search")
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert item["severity"] is None and item["epss_probability"] is None
+    assert item["remediation_status"] is None
+
+
 async def test_active_search_rejects_invalid_statuses(sec_team_client: httpx.AsyncClient):
     invalid_email = await sec_team_client.get("/api/escalations/active/search?email_status=invalid")
     invalid_contact = await sec_team_client.get("/api/escalations/active/search?contact_status=invalid")

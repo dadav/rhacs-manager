@@ -530,6 +530,12 @@ export interface ActiveEscalationRow {
   triggered_at: string
   notified: boolean
   contacted: boolean | null
+  severity: number | null
+  cvss: number | null
+  epss_probability: number | null
+  remediation_status: string | null
+  remediation_assignee_name: string | null
+  remediation_target_date: string | null
 }
 
 export interface ContactCounts {

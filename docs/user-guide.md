@@ -213,6 +213,8 @@ CVE details also show the current level, triggered time and next level with its 
 
 Cases and warning records are removed when RHACS no longer reports the CVE at that exact cluster/namespace, even if another location remains affected. The existing threshold cleanup also applies. An empty location read skips location cleanup; a failed read skips cleanup entirely. Comments survive closure.
 
+The active list shows severity, EPSS and the remediation of each case (status, assignee, due date). Use the **Remediation** filter to list only cases with or without a remediation. Scores are CVE-level values; if RHACS cannot be read, the list still loads and the score columns stay empty.
+
 - Escalation rules are configured in **Settings**.
 - Each rule combines a minimum severity threshold with an EPSS threshold and three deadlines.
 - A CVE is eligible for a rule when both the severity threshold and the EPSS threshold are met. A threshold of `0` imposes no constraint.

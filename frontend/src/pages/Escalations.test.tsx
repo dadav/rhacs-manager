@@ -81,6 +81,12 @@ function makeRow(overrides: Partial<ActiveEscalationRow> = {}): ActiveEscalation
     triggered_at: '2026-01-01T00:00:00Z',
     notified: true,
     contacted: false,
+    severity: null,
+    cvss: null,
+    epss_probability: null,
+    remediation_status: null,
+    remediation_assignee_name: null,
+    remediation_target_date: null,
     ...overrides,
   }
 }
@@ -199,8 +205,40 @@ describe('Escalations', () => {
     expect(mockUseUpcoming.mock.calls.at(-1)?.[0]).toMatchObject({ page: 2 })
   })
 
+  it('sends the remediation filter and shows remediation context per row', () => {
+    mockUseActive.mockReturnValue({
+      data: activeResp({
+        items: [
+          makeRow({
+            severity: 3,
+            epss_probability: 0.99,
+            remediation_status: 'in_progress',
+            remediation_assignee_name: 'Jane Doe',
+            remediation_target_date: '2026-02-01',
+          }),
+          makeRow({ id: 'esc-2', cve_id: 'CVE-2024-0002' }),
+        ],
+        total: 2,
+      }),
+      isLoading: false,
+      error: null,
+    })
+    render(<Escalations />, { wrapper: wrapper('/?remediation=without') })
+
+    expect(mockUseActive.mock.calls.at(-1)?.[0]).toMatchObject({ has_remediation: 'false' })
+    expect(screen.getByText('remediations.statusInProgress')).toBeTruthy()
+    expect(screen.getByText(/Jane Doe/)).toBeTruthy()
+    // The row without a remediation and without scores falls back to plain markers.
+    expect(screen.getByText('escalations.remediationNone')).toBeTruthy()
+  })
+
+  it('ignores an unknown remediation filter value', () => {
+    render(<Escalations />, { wrapper: wrapper('/?remediation=bogus') })
+    expect(mockUseActive.mock.calls.at(-1)?.[0].has_remediation).toBeUndefined()
+  })
+
   it('clear all removes active filters and explicitly selects all contact states', async () => {
-    render(<Escalations />, { wrapper: wrapper('/?level=2&email_status=notified&contact=contacted&page=3') })
+    render(<Escalations />, { wrapper: wrapper('/?level=2&email_status=notified&remediation=with&contact=contacted&page=3') })
     const clearButtons = screen.getAllByText('common.clearAll')
     fireEvent.click(clearButtons.at(-1)!)
 
@@ -209,6 +247,7 @@ describe('Escalations', () => {
       expect(search).toContain('contact=all')
       expect(search).not.toContain('level=')
       expect(search).not.toContain('email_status=')
+      expect(search).not.toContain('remediation=')
       expect(search).not.toContain('page=')
     })
   })
