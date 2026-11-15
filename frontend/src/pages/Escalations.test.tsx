@@ -229,7 +229,7 @@ describe('Escalations', () => {
     expect(screen.getByText('remediations.statusInProgress')).toBeTruthy()
     expect(screen.getByText(/Jane Doe/)).toBeTruthy()
     // The row without a remediation and without scores falls back to plain markers.
-    expect(screen.getByText('escalations.remediationNone')).toBeTruthy()
+    expect(screen.getAllByText('–')).toHaveLength(3)
   })
 
   it('ignores an unknown remediation filter value', () => {

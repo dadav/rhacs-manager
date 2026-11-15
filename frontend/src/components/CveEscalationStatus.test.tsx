@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { CveEscalationStatus } from './CveEscalationStatus'
 import type { EscalationLocation } from '../types'
 
@@ -15,6 +15,8 @@ describe('CveEscalationStatus', () => {
     expect(screen.getByText('eu/team')).toBeInTheDocument()
     expect(screen.getByText('escalations.level1')).toBeInTheDocument()
     expect(screen.getByText('escalations.level2')).toBeInTheDocument()
+    expect(screen.queryByText('escalationStatus.explainer')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'escalationStatus.helpLabel' }))
     expect(screen.getByText('escalationStatus.explainer')).toBeInTheDocument()
     expect(screen.getByText(/1\/8\/2026/)).toBeInTheDocument()
   })
@@ -28,6 +30,6 @@ describe('CveEscalationStatus', () => {
   it('shows a non-escalated location without a configured deadline', () => {
     render(<CveEscalationStatus locations={[{ ...location, level: 0, triggered_at: null, next_level: null, next_level_at: null }]} />)
     expect(screen.getByText('escalationStatus.notTriggered')).toBeInTheDocument()
-    expect(screen.getByText('escalationStatus.noNext')).toBeInTheDocument()
+    expect(screen.getAllByText('–')).toHaveLength(2)
   })
 })

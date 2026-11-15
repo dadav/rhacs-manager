@@ -5,6 +5,8 @@ import {
   CardBody,
   Checkbox,
   CardTitle,
+  HelperText,
+  HelperTextItem,
   Label,
   Spinner,
   TextArea,
@@ -210,8 +212,15 @@ export function CveRemediationSection({
                   aria-label={t('cveDetail.targetDate')}
                   style={{ marginTop: 4 }}
                 />
-                {nextDeadline && <p>{t('escalationStatus.remediationDeadline', { date: formatDateTime(nextDeadline, i18n.language) })}</p>}
-                {targetAfterDeadline && <Alert isInline variant="warning" title={t('escalationStatus.targetAfterDeadline')} />}
+                {nextDeadline && (
+                  <HelperText style={{ marginTop: 4 }}>
+                    <HelperTextItem variant={targetAfterDeadline ? 'warning' : 'default'}>
+                      {t(targetAfterDeadline ? 'escalationStatus.targetAfterDeadline' : 'escalationStatus.remediationDeadline', {
+                        date: formatDateTime(nextDeadline, i18n.language),
+                      })}
+                    </HelperTextItem>
+                  </HelperText>
+                )}
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.notes')}</label>

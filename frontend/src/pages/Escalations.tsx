@@ -42,19 +42,11 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useScope, useScopedLink } from '../hooks/useScope'
 import { useToast } from '../components/ToastContext'
-import { BRAND_BLUE } from '../tokens'
+import { BRAND_BLUE, REMEDIATION_LABEL_COLORS } from '../tokens'
 import type { ActiveEscalationRow } from '../types'
 
 const PER_PAGE = 20
 const FORM_SELECT_STYLE: React.CSSProperties = { maxWidth: 200 }
-type LabelColor = 'blue' | 'green' | 'orange' | 'grey'
-const REMEDIATION_LABEL_COLORS: Record<string, LabelColor> = {
-  open: 'orange',
-  in_progress: 'blue',
-  resolved: 'green',
-  verified: 'green',
-  wont_fix: 'grey',
-}
 const REMEDIATION_STATUS_KEYS: Record<string, string> = {
   open: 'remediations.statusOpen',
   in_progress: 'remediations.statusInProgress',
@@ -697,9 +689,7 @@ export function Escalations() {
                                   )}
                                 </>
                               ) : (
-                                <span style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
-                                  {t('escalations.remediationNone')}
-                                </span>
+                                '–'
                               )}
                             </Td>
                             {isSecTeam && (

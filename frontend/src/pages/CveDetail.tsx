@@ -50,6 +50,7 @@ import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { CveLifecycleTimeline } from "../components/CveLifecycleTimeline";
 import { CveEscalationStatus } from "../components/CveEscalationStatus";
 import { CveFixGuidance } from "../components/CveFixGuidance";
+import { HelpPopover } from "../components/common/HelpPopover";
 import { CveRemediationSection } from "../components/CveRemediation";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
@@ -679,21 +680,26 @@ export function CveDetail() {
 
           <GridItem sm={12} md={6}>
             <Card>
-              <CardTitle>{t('cveDetail.actions')}</CardTitle>
+              <CardTitle>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {t('cveDetail.actions')}
+                  {!isSecTeam && !cve.no_longer_affected && (
+                    <HelpPopover label={t('cveDetail.actionGuideTitle')}>
+                      <div data-testid="action-guidance">
+                        <strong>{t('cveDetail.actionGuideRemediationLabel')}</strong> {t('cveDetail.actionGuideRemediation')}
+                        <br />
+                        <strong>{t('cveDetail.actionGuideRiskLabel')}</strong> {t('cveDetail.actionGuideRisk')}
+                        <br />
+                        <strong>{t('cveDetail.actionGuideFalsePositiveLabel')}</strong> {t('cveDetail.actionGuideFalsePositive')}
+                      </div>
+                    </HelpPopover>
+                  )}
+                </span>
+              </CardTitle>
               <CardBody>
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 12 }}
                 >
-                  {!isSecTeam && !cve.no_longer_affected && (
-                    <div data-testid="action-guidance" style={{ fontSize: 13 }}>
-                      <p style={{ fontWeight: 600, marginBottom: 4 }}>{t('cveDetail.actionGuideTitle')}</p>
-                      <ul style={{ margin: 0, paddingLeft: 18, color: "var(--pf-t--global--text--color--subtle)" }}>
-                        <li><strong>{t('cveDetail.actionGuideRemediationLabel')}</strong> {t('cveDetail.actionGuideRemediation')}</li>
-                        <li><strong>{t('cveDetail.actionGuideRiskLabel')}</strong> {t('cveDetail.actionGuideRisk')}</li>
-                        <li><strong>{t('cveDetail.actionGuideFalsePositiveLabel')}</strong> {t('cveDetail.actionGuideFalsePositive')}</li>
-                      </ul>
-                    </div>
-                  )}
                   {cve.risk_acceptance_status === RiskStatus.approved ? (
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 10 }}

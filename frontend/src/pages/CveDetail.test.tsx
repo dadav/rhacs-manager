@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { CveDetail } from './CveDetail'
@@ -244,6 +244,8 @@ describe('CveDetail', () => {
     expect(screen.queryByText('cveDetail.noLongerAffectedTitle')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'cveDetail.requestRiskAcceptance' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'cveDetail.requestFalsePositive' })).toBeInTheDocument()
+    expect(screen.queryByTestId('action-guidance')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'cveDetail.actionGuideTitle' }))
     expect(screen.getByTestId('action-guidance')).toHaveTextContent('cveDetail.actionGuideFalsePositive')
   })
 

@@ -131,7 +131,7 @@
           "answer": [
             "Beheben ist der Normalfall: Starten Sie auf der CVE-Detailseite eine Behebung, vor allem wenn bereits eine Fix-Version existiert.",
             "Eine Risikoakzeptanz ist für Fälle gedacht, in denen eine Behebung vorerst nicht möglich oder nicht nötig ist, zum Beispiel weil die betroffene Funktion nicht genutzt wird. Sie braucht eine Begründung und sollte ein Ablaufdatum haben.",
-            "Ein False Positive ist nur dann richtig, wenn der Scanner sich irrt, zum Beispiel weil die Komponente nicht im Image ist oder der Treffer zu einem anderen Produkt gehört. Die CVE-Detailseite nennt die drei Optionen neben den Aktionen, und das Formular für Risikoakzeptanzen bietet eine Vorlage für die Begründung."
+            "Ein False Positive ist nur dann richtig, wenn der Scanner sich irrt, zum Beispiel weil die Komponente nicht im Image ist oder der Treffer zu einem anderen Produkt gehört. Das Hilfesymbol an der Karte Aktionen auf der CVE-Detailseite fasst die drei Optionen zusammen, und das Formular für Risikoakzeptanzen bietet eine Vorlage für die Begründung."
           ]
         },
         {
