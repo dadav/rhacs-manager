@@ -684,6 +684,16 @@ export function CveDetail() {
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 12 }}
                 >
+                  {!isSecTeam && !cve.no_longer_affected && (
+                    <div data-testid="action-guidance" style={{ fontSize: 13 }}>
+                      <p style={{ fontWeight: 600, marginBottom: 4 }}>{t('cveDetail.actionGuideTitle')}</p>
+                      <ul style={{ margin: 0, paddingLeft: 18, color: "var(--pf-t--global--text--color--subtle)" }}>
+                        <li><strong>{t('cveDetail.actionGuideRemediationLabel')}</strong> {t('cveDetail.actionGuideRemediation')}</li>
+                        <li><strong>{t('cveDetail.actionGuideRiskLabel')}</strong> {t('cveDetail.actionGuideRisk')}</li>
+                        <li><strong>{t('cveDetail.actionGuideFalsePositiveLabel')}</strong> {t('cveDetail.actionGuideFalsePositive')}</li>
+                      </ul>
+                    </div>
+                  )}
                   {cve.risk_acceptance_status === RiskStatus.approved ? (
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 10 }}

@@ -244,6 +244,7 @@ describe('CveDetail', () => {
     expect(screen.queryByText('cveDetail.noLongerAffectedTitle')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'cveDetail.requestRiskAcceptance' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'cveDetail.requestFalsePositive' })).toBeInTheDocument()
+    expect(screen.getByTestId('action-guidance')).toHaveTextContent('cveDetail.actionGuideFalsePositive')
   })
 
   it('shows a banner and hides request actions when the CVE no longer affects the user', () => {
@@ -263,6 +264,7 @@ describe('CveDetail', () => {
     expect(screen.getByText('cveDetail.noLongerAffectedTitle')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'cveDetail.requestRiskAcceptance' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'cveDetail.requestFalsePositive' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('action-guidance')).not.toBeInTheDocument()
     // Subscribing requires an affected deployment; the user is not subscribed, so no toggle.
     expect(screen.queryByRole('button', { name: /subscription.subscribe/ })).not.toBeInTheDocument()
     // Comments stay available.

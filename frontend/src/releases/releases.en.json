@@ -5,6 +5,31 @@
       "date": "2026-11-13",
       "items": [
         {
+          "id": "cve-fix-guidance",
+          "kind": "feature",
+          "text": "CVE details now show the image and component path to fix, including embedded libraries and the number of CVEs in the same file."
+        },
+        {
+          "id": "cve-escalation-transparency",
+          "kind": "feature",
+          "text": "CVE details show the current and next escalation per namespace. Remediation forms warn when your target date is after the next escalation."
+        },
+        {
+          "id": "escalation-queue-context",
+          "kind": "feature",
+          "text": "The active escalations list now shows severity, EPSS and the remediation of each case, and can be filtered by cases with or without a remediation."
+        },
+        {
+          "id": "escalation-stale-cases",
+          "kind": "improvement",
+          "text": "Escalations are now closed per namespace as soon as the CVE is no longer reported there, even if other namespaces are still affected."
+        },
+        {
+          "id": "cve-decision-guidance",
+          "kind": "improvement",
+          "text": "CVE details explain when a remediation, a risk acceptance or a false positive fits. The risk acceptance form offers a template for the justification."
+        },
+        {
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "When your session has expired after a longer period of inactivity, a \"Session expired\" notice now appears instead of a 403 error. \"Log in again\" takes you back to the same page after signing in. Unsaved input is lost in the process."
@@ -15,16 +40,6 @@
       "version": "0.47.0",
       "date": "2026-11-11",
       "items": [
-        {
-          "id": "cve-escalation-transparency",
-          "kind": "feature",
-          "text": "CVE details show the current and next escalation per namespace. Remediation forms warn when your target date is after the next escalation."
-        },
-        {
-          "id": "cve-fix-guidance",
-          "kind": "feature",
-          "text": "CVE details now show the image and component path to fix, including embedded libraries and the number of CVEs in the same file."
-        },
         {
           "id": "show-fixed-cves",
           "kind": "feature",

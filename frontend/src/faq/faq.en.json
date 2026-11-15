@@ -127,10 +127,11 @@
       "entries": [
         {
           "id": "fix-or-accept",
-          "question": "Should I fix a CVE or accept the risk?",
+          "question": "Remediation, risk acceptance or false positive?",
           "answer": [
             "Fixing is the normal path: start a remediation from the CVE detail page, especially when a fix version already exists.",
-            "A risk acceptance is meant for cases where a fix is not possible or not needed for now, for example because the affected functionality is not used. It needs a justification and should have an expiry date."
+            "A risk acceptance is meant for cases where a fix is not possible or not needed for now, for example because the affected functionality is not used. It needs a justification and should have an expiry date.",
+            "A false positive is the right choice only when the scanner is wrong, for example the component is not in the image or the match belongs to another product. The CVE detail page lists the three options next to the actions, and the risk acceptance form offers a justification template."
           ]
         },
         {

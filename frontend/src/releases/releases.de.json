@@ -5,6 +5,31 @@
       "date": "2026-11-13",
       "items": [
         {
+          "id": "cve-fix-guidance",
+          "kind": "feature",
+          "text": "Auf der CVE-Detailseite sehen Sie das betroffene Image und den Komponentenpfad, einschließlich eingebetteter Bibliotheken und der Anzahl der CVEs in derselben Datei."
+        },
+        {
+          "id": "cve-escalation-transparency",
+          "kind": "feature",
+          "text": "Auf der CVE-Detailseite sehen Sie die aktuelle und nächste Eskalation je Namespace. Das Remediation-Formular weist Sie darauf hin, wenn Ihr Zieldatum nach der nächsten Eskalation liegt."
+        },
+        {
+          "id": "escalation-queue-context",
+          "kind": "feature",
+          "text": "Die Liste der aktiven Eskalationen zeigt jetzt Schweregrad, EPSS und die Behebung jedes Falls und lässt sich nach Fällen mit oder ohne Behebung filtern."
+        },
+        {
+          "id": "escalation-stale-cases",
+          "kind": "improvement",
+          "text": "Eskalationen werden jetzt pro Namespace geschlossen, sobald die CVE dort nicht mehr gemeldet wird, auch wenn andere Namespaces noch betroffen sind."
+        },
+        {
+          "id": "cve-decision-guidance",
+          "kind": "improvement",
+          "text": "Die CVE-Details erklären, wann eine Behebung, eine Risikoakzeptanz oder ein False Positive passt. Das Formular für Risikoakzeptanzen bietet eine Vorlage für die Begründung."
+        },
+        {
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "Wenn Ihre Sitzung nach längerer Inaktivität abgelaufen ist, erscheint nun ein Hinweis \"Sitzung abgelaufen\" statt einer Fehlermeldung 403. Über \"Neu anmelden\" gelangen Sie nach der Anmeldung zurück auf dieselbe Seite. Nicht gespeicherte Eingaben gehen dabei verloren."
@@ -15,16 +40,6 @@
       "version": "0.47.0",
       "date": "2026-11-11",
       "items": [
-        {
-          "id": "cve-escalation-transparency",
-          "kind": "feature",
-          "text": "Auf der CVE-Detailseite sehen Sie die aktuelle und nächste Eskalation je Namespace. Das Remediation-Formular weist Sie darauf hin, wenn Ihr Zieldatum nach der nächsten Eskalation liegt."
-        },
-        {
-          "id": "cve-fix-guidance",
-          "kind": "feature",
-          "text": "Auf der CVE-Detailseite sehen Sie das betroffene Image und den Komponentenpfad, einschließlich eingebetteter Bibliotheken und der Anzahl der CVEs in derselben Datei."
-        },
         {
           "id": "show-fixed-cves",
           "kind": "feature",

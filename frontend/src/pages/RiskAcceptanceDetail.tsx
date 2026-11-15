@@ -26,6 +26,7 @@ import { ViewerIndicator } from '../components/ViewerIndicator'
 import { UserPicker } from '../components/UserPicker'
 import { RiskScopeFields, buildRiskScope, defaultScopeSelection, scopeToSelection } from '../components/RiskScopeFields'
 import { getErrorMessage } from '../utils/errors'
+import { JustificationTemplateButton } from '../components/JustificationTemplateButton'
 import { formatDate, formatDateTime } from '../utils/format'
 import { useToast } from '../components/ToastContext'
 import { useEffect, useMemo, useState } from 'react'
@@ -120,6 +121,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
+                <JustificationTemplateButton justification={justification} onInsert={setJustification} />
                 <TextArea
                   value={justification}
                   onChange={(_, v) => setJustification(v)}
@@ -243,6 +245,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
+                <JustificationTemplateButton justification={justification} onInsert={setJustification} />
                 <TextArea
                   value={justification}
                   onChange={(_, v) => setJustification(v)}

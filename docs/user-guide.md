@@ -110,6 +110,8 @@ The image detail page shows the same component table for that image under **Vuln
 
 Risk acceptances are requested from a specific CVE, not from a blank form on the list page.
 
+The **Actions** card on the CVE detail page states which option fits: a remediation when a fix is planned or in progress, a risk acceptance when the component is present but not exploitable or a compensating control exists, and a false positive when the scanner is wrong. In the risk acceptance form, **Insert template** fills an empty justification with headings for exploitability, compensating controls and follow-up.
+
 1. Start from **Vulnerabilities** or the CVE detail page and choose **Request risk acceptance**.
 2. Select the scope: `all`, `namespace`, `image`, or `deployment`. When the CVE affects exactly one of your namespaces, that namespace is preselected. Below the scope, the form shows whether the current selection is approved immediately or needs security-team review.
 3. Submit the justification and, optionally, an expiry date.
