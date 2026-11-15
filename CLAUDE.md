@@ -169,7 +169,7 @@ Access control rules:
 - Wildcard all-namespace users are still `team_member`; they do not become sec team.
 - Wildcard all-namespace users still obey CVSS and EPSS threshold filtering (unless they opt out per request via `ignore_thresholds`, like any user).
 - Risk acceptances are visible if namespace scope overlaps or the user is the creator.
-- Escalations are namespace-scoped.
+- Escalations are namespace-scoped. Stale escalations and warnings are closed per location via `stale_escalation_ids`; empty StackRox location maps skip location cleanup and failed reads skip cleanup entirely.
 - Badges are scoped by creator plus optional namespace and cluster.
 
 ### Product behavior rules

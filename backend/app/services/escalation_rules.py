@@ -15,11 +15,28 @@ job, and the upcoming preview, so the preview never lists what will not fire.
 """
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
 from ..models.suppression_rule import SuppressionRule
 from .cve_filter_service import is_location_suppressed
 
 LEVELS: tuple[int, ...] = (1, 2, 3)
+
+
+def stale_escalation_ids(
+    escalations: list[tuple[UUID, str, str, str]],
+    visible_cve_ids: set[str],
+    accepted_cve_ids: set[str],
+    reported_locations: dict[str, set[tuple[str, str]]],
+) -> list[UUID]:
+    """Close stale cases, retaining location state when the StackRox map is empty."""
+    return [
+        row_id
+        for row_id, cve_id, namespace, cluster_name in escalations
+        if (cve_id not in visible_cve_ids and cve_id not in accepted_cve_ids)
+        or (reported_locations and (cluster_name, namespace) not in reported_locations.get(cve_id, set()))
+    ]
+
 
 # Mapping from rule field-name template to the cve-anchor key it offsets from.
 _ANCHORS: tuple[tuple[str, str], ...] = (

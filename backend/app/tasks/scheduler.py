@@ -25,7 +25,12 @@ from ..services import cve_subscription_service as sub_svc
 from ..services import notification_summary_service as summary_svc
 from ..services.audit_service import log_action
 from ..services.cve_filter_service import load_approved_suppression_rules, scoped_cve_rule_locations
-from ..services.escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
+from ..services.escalation_rules import (
+    escalation_candidate_rows,
+    level_deadlines,
+    pick_matching_rule,
+    stale_escalation_ids,
+)
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler(timezone="UTC")
@@ -357,20 +362,9 @@ async def run_escalation_check() -> None:
                         EscalationEmailJob(escalation_id=esc.id, recipient=recipient, email_kwargs=email_kwargs)
                     )
 
-        # Cleanup: remove escalations for CVEs that no longer pass thresholds
-        # Collect all CVE IDs that are currently visible (pass thresholds or always-show)
-        visible_cve_ids = {row["cve_id"] for row in cve_rows} | always_show
-
-        all_esc_result = await app_session.execute(select(Escalation.id, Escalation.cve_id))
-        stale_ids = [
-            esc_id for esc_id, cve_id in all_esc_result if cve_id not in visible_cve_ids and cve_id not in accepted_ids
-        ]
-        if stale_ids:
-            await app_session.execute(delete(Escalation).where(Escalation.id.in_(stale_ids)))
-            logger.info(
-                "Cleaned up %d stale escalations for CVEs below thresholds",
-                len(stale_ids),
-            )
+        await _cleanup_stale_escalations(
+            app_session, Escalation, {row["cve_id"] for row in cve_rows} | always_show, accepted_ids
+        )
 
         await app_session.commit()
 
@@ -381,6 +375,50 @@ async def run_escalation_check() -> None:
             await app_session.execute(update(Escalation).where(Escalation.id.in_(sent_ids)).values(notified=True))
             await app_session.commit()
         logger.info("Escalation check complete")
+
+
+async def _cleanup_stale_escalations(
+    app_session: AsyncSession,
+    model: type[Escalation] | type[EscalationWarning],
+    visible_cve_ids: set[str],
+    accepted_cve_ids: set[str],
+) -> None:
+    from ..stackrox.queries.mappings import get_cve_namespace_cluster_map
+
+    result = await app_session.execute(select(model.id, model.cve_id, model.namespace, model.cluster_name))
+    rows = list(result.all())
+    if not rows:
+        return
+    try:
+        async with StackRoxSessionLocal() as sx_session:
+            reported_locations = await get_cve_namespace_cluster_map(
+                sx_session, sorted({row.cve_id for row in rows}), namespaces=None
+            )
+    except Exception:
+        logger.warning(
+            "Skipping stale escalation cleanup after StackRox read failure",
+            extra={"table": model.__tablename__, "row_count": len(rows)},
+            exc_info=True,
+        )
+        return
+    if not reported_locations:
+        logger.warning(
+            "Skipping escalation location cleanup after empty StackRox read",
+            extra={"table": model.__tablename__, "row_count": len(rows)},
+        )
+    stale_ids = stale_escalation_ids(rows, visible_cve_ids, accepted_cve_ids, reported_locations)
+    if not stale_ids:
+        return
+    below_threshold = len(stale_escalation_ids(rows, visible_cve_ids, accepted_cve_ids, {}))
+    await app_session.execute(delete(model).where(model.id.in_(stale_ids)))
+    logger.info(
+        "Cleaned up stale escalation rows",
+        extra={
+            "table": model.__tablename__,
+            "below_threshold": below_threshold,
+            "location_gone": len(stale_ids) - below_threshold,
+        },
+    )
 
 
 @instrument_job("escalation_warning")
@@ -554,20 +592,9 @@ async def run_escalation_warning() -> None:
                     )
                 )
 
-        # Cleanup: drop warnings for CVEs no longer visible (below thresholds/accepted).
-        visible_cve_ids = {row["cve_id"] for row in cve_rows} | always_show
-        all_warn_result = await app_session.execute(select(EscalationWarning.id, EscalationWarning.cve_id))
-        stale_ids = [
-            warn_id
-            for warn_id, cve_id in all_warn_result
-            if cve_id not in visible_cve_ids and cve_id not in accepted_ids
-        ]
-        if stale_ids:
-            await app_session.execute(delete(EscalationWarning).where(EscalationWarning.id.in_(stale_ids)))
-            logger.info(
-                "Cleaned up %d stale escalation warnings for CVEs below thresholds",
-                len(stale_ids),
-            )
+        await _cleanup_stale_escalations(
+            app_session, EscalationWarning, {row["cve_id"] for row in cve_rows} | always_show, accepted_ids
+        )
 
         await app_session.commit()
         logger.info("Escalation warning check complete")
