@@ -196,9 +196,9 @@
         },
         {
           "id": "escalation-stop",
-          "question": "How do I keep a CVE from escalating?",
+          "question": "What stops an escalation?",
           "answer": [
-            "Fix the CVE so that RHACS no longer reports it in the namespace. CVEs with an approved risk acceptance are skipped during escalation checks, as are namespaces where an approved suppression rule hides the CVE as a false positive."
+            "Escalation stops when the CVE is fixed, a risk acceptance is approved, or a false positive is approved for the affected location. A remediation documents the work but does not pause escalation."
           ]
         }
       ]

@@ -22,7 +22,7 @@
   </table>
 
   <p style="margin:22px 0;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
-    Die folgende Schwachstelle wird in <strong style="color:#16161a">{{ days_until }} Tagen</strong> auf <strong style="color:#16161a">Stufe {{ level }}</strong> eskaliert, sofern sie bis dahin nicht behoben oder eine Risikoakzeptanz erstellt wird.
+    Die folgende Schwachstelle wird in <strong style="color:#16161a">{{ days_until }} Tagen</strong> auf <strong style="color:#16161a">Stufe {{ level }}</strong> eskaliert, sofern sie bis dahin nicht behoben oder eine Risikoakzeptanz oder eine passende Falsch-Positiv-Regel genehmigt wird.
   </p>
 
   <!-- CVE detail card -->
@@ -87,8 +87,10 @@
   {% endif %}
 
   <p style="margin:24px 0 20px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
-    Bitte beheben Sie die Schwachstelle rechtzeitig oder erstellen Sie eine Risikoakzeptanz, um die Eskalation zu vermeiden.
+    Bitte beheben Sie die Schwachstelle rechtzeitig oder lassen Sie eine Risikoakzeptanz oder eine passende Falsch-Positiv-Regel genehmigen, um die Eskalation zu vermeiden.
   </p>
+
+  {{ ui.escalation_guidance() }}
 
   {{ ui.button(link, "Schwachstelle ansehen") }}
 {% endblock %}

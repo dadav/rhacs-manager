@@ -16,6 +16,16 @@
       "date": "2026-11-11",
       "items": [
         {
+          "id": "cve-escalation-transparency",
+          "kind": "feature",
+          "text": "Auf der CVE-Detailseite sehen Sie die aktuelle und nächste Eskalation je Namespace. Das Remediation-Formular weist Sie darauf hin, wenn Ihr Zieldatum nach der nächsten Eskalation liegt."
+        },
+        {
+          "id": "cve-fix-guidance",
+          "kind": "feature",
+          "text": "Auf der CVE-Detailseite sehen Sie das betroffene Image und den Komponentenpfad, einschließlich eingebetteter Bibliotheken und der Anzahl der CVEs in derselben Datei."
+        },
+        {
           "id": "show-fixed-cves",
           "kind": "feature",
           "text": "Der Schalter \"Behobene anzeigen\" in der Schwachstellenliste zeigt nun auch CVEs, die nach der Behebung nicht mehr gemeldet werden. Diese Zeilen sind ausgegraut und führen zur Detailseite."

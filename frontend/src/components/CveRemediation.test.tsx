@@ -326,3 +326,26 @@ describe('CveRemediationSection multi-namespace create', () => {
     expect(screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:3' })).toBeDisabled()
   })
 })
+
+describe('remediation escalation deadlines', () => {
+  it('warns only for the selected namespace and allows a later target date', async () => {
+    mockGet.mockResolvedValue([])
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const pair = { cluster_name: 'eu', namespace: 'team' }
+    render(<QueryClientProvider client={queryClient}>
+      <CveRemediationSection cveId="CVE-1" deployments={[pair, { cluster_name: 'pu', namespace: 'team' }]} escalationLocations={[
+        { ...pair, level: 1, triggered_at: null, next_level: 2, next_level_at: '2099-01-10T00:00:00', stopped_reason: null },
+        { cluster_name: 'pu', namespace: 'team', level: 1, triggered_at: null, next_level: 2, next_level_at: '2099-01-20T00:00:00', stopped_reason: null },
+      ]} />
+    </QueryClientProvider>)
+    fireEvent.click(await screen.findByRole('button', { name: 'cveDetail.startRemediationBtn' }))
+    fireEvent.change(screen.getByLabelText('cveDetail.targetDate'), { target: { value: '2099-01-15' } })
+    expect(screen.queryByText('escalationStatus.remediationDeadline')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('pu/team'))
+    expect(screen.getByText('escalationStatus.remediationDeadline')).toBeInTheDocument()
+    expect(screen.queryByText('escalationStatus.targetAfterDeadline')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('eu/team'))
+    expect(screen.getByText('escalationStatus.targetAfterDeadline')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'cveDetail.createRemediationsBtn:2' })).toBeEnabled()
+  })
+})

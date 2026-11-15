@@ -1152,5 +1152,27 @@
       "fix": "Behoben",
       "security": "Sicherheit"
     }
+  },
+  "fixGuidance": {
+    "title": "Wo Sie beheben können",
+    "path": "Pfad im Image",
+    "embedded": "Eingebettet in {{file}}. Aktualisieren Sie dieses Artefakt; ein Update der Bibliothek allein entfernt diesen Befund nicht.",
+    "cvesInFile": "{{count}} CVEs in dieser Datei",
+    "image": "Image"
+  },
+  "escalationStatus": {
+    "title": "Eskalation je Standort",
+    "location": "Cluster / Namespace",
+    "current": "Aktuelle Stufe",
+    "triggered": "Ausgelöst am",
+    "next": "Nächste Eskalation",
+    "notTriggered": "Noch nicht eskaliert",
+    "level": "Stufe {{level}}",
+    "noNext": "Keine weitere Eskalation geplant",
+    "risk_accepted": "Beendet: Risikoakzeptanz genehmigt",
+    "suppressed": "Beendet: Falsch-Positiv-Regel genehmigt",
+    "explainer": "Die Eskalation endet, wenn die CVE behoben, eine Risikoakzeptanz genehmigt oder eine Falsch-Positiv-Regel für den betroffenen Standort genehmigt ist. Eine Remediation dokumentiert die Arbeit, pausiert die Eskalation aber nicht.",
+    "remediationDeadline": "Nächste Eskalation für die ausgewählten Namespaces: {{date}}.",
+    "targetAfterDeadline": "Ihr Zieldatum liegt nach der nächsten Eskalation. Eine Remediation pausiert die Eskalation nicht."
   }
 }

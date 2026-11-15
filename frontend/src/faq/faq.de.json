@@ -196,9 +196,9 @@
         },
         {
           "id": "escalation-stop",
-          "question": "Wie verhindere ich, dass eine CVE eskaliert?",
+          "question": "Was beendet eine Eskalation?",
           "answer": [
-            "Beheben Sie die CVE, sodass RHACS sie im Namespace nicht mehr meldet. CVEs mit einer genehmigten Risikoakzeptanz werden bei der Eskalationsprüfung übersprungen, ebenso Namespaces, in denen eine genehmigte Unterdrückungsregel die CVE als False Positive ausblendet."
+            "Die Eskalation endet, wenn die CVE behoben, eine Risikoakzeptanz genehmigt oder eine Falsch-Positiv-Regel für den betroffenen Standort genehmigt ist. Eine Remediation dokumentiert die Arbeit, pausiert die Eskalation aber nicht."
           ]
         }
       ]

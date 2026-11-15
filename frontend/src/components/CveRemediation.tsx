@@ -22,12 +22,12 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { useScope } from "../hooks/useScope";
 import { RemediationStatus } from "../types";
-import type { RemediationItem } from "../types";
+import type { EscalationLocation, RemediationItem } from "../types";
 import {
   REMEDIATION_LABEL_COLORS,
   FIXABLE_COLOR,
 } from "../tokens";
-import { formatDate } from "../utils/format";
+import { formatDate, formatDateTime } from "../utils/format";
 import { RemediationEditModal } from "./RemediationEditModal";
 import { UserPicker } from "./UserPicker";
 import type { UserSearchResult } from "../api/auth";
@@ -39,11 +39,13 @@ function namespaceKey(d: { namespace: string; cluster_name: string }): string {
 export function CveRemediationSection({
   cveId,
   deployments,
+  escalationLocations = [],
 }: {
   cveId: string
   deployments: { namespace: string; cluster_name: string }[]
+  escalationLocations?: EscalationLocation[]
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { isSecTeam } = useAuth()
   const { scopeParams } = useScope()
   const { data: remediations, isLoading } = useRemediationsByCve(cveId, scopeParams)
@@ -63,6 +65,12 @@ export function CveRemediationSection({
 
   // Derived from availableNs so a namespace that gained a remediation meanwhile is never submitted.
   const selectedTargets = availableNs.filter(d => selectedKeys.has(namespaceKey(d)))
+  const selectedNamespaceKeys = new Set(selectedTargets.map(namespaceKey))
+  const nextDeadline = escalationLocations
+    .filter(location => selectedNamespaceKeys.has(namespaceKey(location)) && location.next_level_at)
+    .map(location => location.next_level_at!)
+    .sort()[0]
+  const targetAfterDeadline = Boolean(nextDeadline && targetDate && targetDate > nextDeadline.slice(0, 10))
   const tooManySelected = selectedTargets.length > MAX_REMEDIATION_TARGETS
   const allSelected = availableNs.length > 0 && selectedTargets.length === availableNs.length
   const selectAllState: boolean | null = allSelected ? true : selectedTargets.length === 0 ? false : null
@@ -202,6 +210,8 @@ export function CveRemediationSection({
                   aria-label={t('cveDetail.targetDate')}
                   style={{ marginTop: 4 }}
                 />
+                {nextDeadline && <p>{t('escalationStatus.remediationDeadline', { date: formatDateTime(nextDeadline, i18n.language) })}</p>}
+                {targetAfterDeadline && <Alert isInline variant="warning" title={t('escalationStatus.targetAfterDeadline')} />}
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600 }}>{t('cveDetail.notes')}</label>

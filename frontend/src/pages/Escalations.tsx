@@ -25,6 +25,7 @@ import {
 } from '@patternfly/react-icons'
 import { getErrorMessage } from '../utils/errors'
 import { formatDate, formatEpssPercent } from '../utils/format'
+import { EscalationLevelBadge } from '../components/common/EscalationLevelBadge'
 import { TableSkeleton } from '../components/TableSkeleton'
 import { MentionTextArea, contentToApi, contentIsEmpty, type ComposerSegment } from '../components/MentionTextArea'
 import { Fragment, useEffect, useRef, useState } from 'react'
@@ -65,16 +66,6 @@ export function Escalations() {
     3: t('severity.3'),
     4: t('severity.4'),
   }
-  const LEVEL_LABEL_COLORS: Record<number, 'orange' | 'red' | 'purple'> = {
-    1: 'orange',
-    2: 'red',
-    3: 'purple',
-  }
-
-  function LevelBadge({ level }: { level: number }) {
-    return <Label color={LEVEL_LABEL_COLORS[level] ?? 'grey'}>{LEVEL_LABELS[level] ?? `Level ${level}`}</Label>
-  }
-
   // --- URL param helpers ---
   function updateParams(changes: Record<string, string | null>, pageKeyToReset?: string) {
     setSearchParams(
@@ -441,7 +432,7 @@ export function Escalations() {
                         <Td>{formatEpssPercent(u.epss_probability)}</Td>
                         <Td>{u.current_age_days}</Td>
                         <Td>
-                          <LevelBadge level={u.next_level} />
+                          <EscalationLevelBadge level={u.next_level} />
                         </Td>
                         <Td style={{ fontWeight: u.days_until_escalation <= 1 ? 700 : 400 }}>
                           {u.days_until_escalation}{' '}
@@ -628,7 +619,7 @@ export function Escalations() {
                               {e.cluster_name}/{e.namespace}
                             </Td>
                             <Td>
-                              <LevelBadge level={e.level} />
+                              <EscalationLevelBadge level={e.level} />
                             </Td>
                             <Td style={{ fontSize: 12, color: 'var(--pf-t--global--text--color--subtle)' }}>
                               {formatDate(e.triggered_at, i18n.language)}

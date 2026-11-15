@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
-from sqlalchemy import select, tuple_
+from sqlalchemy import or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,6 +22,7 @@ from ..schemas.common import PaginatedResponse
 from ..schemas.cve import (
     AffectedComponent,
     AffectedDeployment,
+    ComponentPlacement,
     CveCommentCreate,
     CveCommentResponse,
     CveCommentUpdate,
@@ -38,8 +39,8 @@ from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
 from ..services.cve_access import has_visible_remediation, user_can_access_cve
-from ..services.cve_filter_service import fetch_filtered_cves, resolve_view_thresholds
-from ..services.escalation_rules import level_deadlines, pick_matching_rule
+from ..services.cve_filter_service import fetch_filtered_cves, is_location_suppressed, resolve_view_thresholds
+from ..services.escalation_rules import escalation_locations, level_deadlines, pick_matching_rule
 from ..services.fix_rollup_service import build_fix_rollup
 from ..services.risk_acceptance_service import deployment_covered_by_scope, user_can_access_ra
 from ..stackrox import queries as sx
@@ -433,6 +434,7 @@ async def get_cve(
     )
     ra_result = await app_db.execute(ra_query)
     active_acceptances = list(ra_result.scalars().all())
+    escalation_risk_accepted = any(a.status == RiskStatus.approved for a in active_acceptances)
     if restrict_workflow:
         active_acceptances = [a for a in active_acceptances if user_can_access_ra(current_user, a)]
     # Ordered approved-first, then most recent (see ra_query), so the first row
@@ -456,6 +458,7 @@ async def get_cve(
         first_system_occurrence = await sx.get_first_system_occurrence(sx_db, cve_id)
 
     esc_expected: dict[int, datetime | None] = {1: None, 2: None, 3: None}
+    rule = None
     first_seen = cve_data.get("first_seen")
     fix_available_since = cve_data.get("fix_available_since")
     if first_seen or fix_available_since:
@@ -492,10 +495,12 @@ async def get_cve(
 
     deployments: list[dict] = []
     components: list[dict] = []
+    component_placements: list[dict] = []
     origin_ratings: list[dict] = []
     if not no_longer_affected:
         deployments = await sx.get_affected_deployments(sx_db, cve_id, ns)
         components = await sx.get_affected_components_with_origin(sx_db, cve_id, ns)
+        component_placements = await sx.get_cve_component_placements(sx_db, cve_id, ns)
         origin_ratings = await sx.get_cve_origin_ratings(sx_db, cve_id, ns)
     contact_emails: list[str] = []
     if current_user.can_see_all_namespaces and deployments:
@@ -536,12 +541,27 @@ async def get_cve(
 
     sup_result = await app_db.execute(
         select(SuppressionRule).where(
-            SuppressionRule.type == SuppressionType.cve,
-            SuppressionRule.cve_id == cve_id,
+            or_(SuppressionRule.type == SuppressionType.component, SuppressionRule.cve_id == cve_id),
             SuppressionRule.status == SuppressionStatus.approved,
         )
     )
-    suppression_scopes = [s.scope for s in sup_result.scalars().all()]
+    suppression_rules = list(sup_result.scalars().all())
+    cve_rules = [s for s in suppression_rules if s.type == SuppressionType.cve]
+    component_rules = [s for s in suppression_rules if s.type == SuppressionType.component]
+    components_by_pair: dict[tuple[str, str], set[tuple[str, str]]] = {}
+    for deployment in deployments:
+        pair = (deployment["namespace"], deployment["cluster_name"])
+        components_by_pair.setdefault(pair, set()).update(
+            (p["component_name"], p["component_version"])
+            for p in component_placements
+            if p["image_id"] == deployment["image_id"]
+        )
+    suppressed_pairs = {
+        pair
+        for pair, components_at_pair in components_by_pair.items()
+        if is_location_suppressed(cve_id, *pair, list(components_at_pair), cve_rules, component_rules)
+    }
+    deployments = [{**d, "is_suppressed": (d["namespace"], d["cluster_name"]) in suppressed_pairs} for d in deployments]
 
     def _ra_status_for(deployment: dict) -> str | None:
         if any(deployment_covered_by_scope(scope, deployment) for scope in approved_scopes):
@@ -566,6 +586,22 @@ async def get_cve(
         first_system_occurrence=first_system_occurrence,
         operating_system=cve_data.get("operating_system"),
         origins=[VulnOrigin(name) for name in origin_names(cve_data.get("origin_codes"))],
+        component_placements=[ComponentPlacement(**p) for p in component_placements],
+        escalation_locations=escalation_locations(
+            deployments,
+            [
+                {
+                    "cluster_name": e.cluster_name,
+                    "namespace": e.namespace,
+                    "level": e.level,
+                    "triggered_at": e.triggered_at,
+                }
+                for e in escalations
+            ],
+            rule,
+            fix_available_since=fix_available_since,
+            risk_accepted=escalation_risk_accepted,
+        ),
         origin_ratings=[
             CveOriginRating(
                 origin=_origin_or_none(r["origin_code"]),
@@ -611,7 +647,7 @@ async def get_cve(
                 first_seen=d.get("first_seen"),
                 risk_acceptance_status=_ra_status_for(d),
                 remediation_status=remediation_status_by_ns.get((d["namespace"], d["cluster_name"])),
-                is_suppressed=any(deployment_covered_by_scope(scope, d) for scope in suppression_scopes),
+                is_suppressed=d["is_suppressed"],
             )
             for d in deployments
         ],

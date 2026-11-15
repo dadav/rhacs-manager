@@ -19,6 +19,8 @@ SCHEMA_PROBE_TIMEOUT_SECONDS = 5.0
 REQUIRED_STACKROX_COLUMNS: list[tuple[str, str, str]] = [
     ("image_cves_v2", "imageidv2", "4.11.0"),
     ("image_component_v2", "imageidv2", "4.11.0"),
+    ("image_component_v2", "location", "4.11.0"),
+    ("image_component_v2", "source", "4.11.0"),
     ("images_v2", "scanstats_componentcount", "4.11.0"),
     ("images_v2", "scan_scantime", "4.11.0"),
     ("deployments_containers", "image_idv2", "4.11.0"),

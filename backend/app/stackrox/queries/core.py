@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..component_source import OS_SOURCE_CODE, embedded_in, source_name
 from ..effective_scores import effective_score_params, feed_score
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, ORIGINS_SQL, _namespace_filter, _row_with_fixed_by
 
@@ -192,6 +193,76 @@ async def get_affected_components_with_origin(
 ) -> list[dict]:
     """Like get_affected_components, plus the feed (``origin_code``) per row, for CVE detail."""
     return await _fetch_affected_components(session, cve_id, namespaces, include_origin=True)
+
+
+async def get_cve_component_placements(
+    session: AsyncSession,
+    cve_id: str,
+    namespaces: list[tuple[str, str]],
+) -> list[dict]:
+    """Visible image/component paths, with related CVEs only for non-OS files.
+
+    Two statements on purpose: a CTE referenced twice is materialized by
+    PostgreSQL, which turns ``cve_rows`` into a full scan (seconds instead of ms).
+    """
+    if not namespaces:
+        return []
+    ns_fragment, ns_params = _namespace_filter(namespaces)
+    score_params = await effective_score_params()
+    sql = text(f"""
+        WITH {CVE_ROWS_CTE}
+        SELECT ic.image_name_fullname AS image_name, ic.image_id,
+               comp.name AS component_name, comp.version AS component_version,
+               comp.location, comp.source AS source_code,
+               MIN(ic.deployments_id::text) AS probe_deployment_id,
+               BOOL_OR(COALESCE(ic.isfixable, false)) AS fixable,
+               {FIXED_BY_CANDIDATES_SQL}
+        FROM deployments d
+        JOIN cve_rows ic ON ic.deployments_id = d.id
+        JOIN image_component_v2 comp ON comp.id = ic.componentid
+        WHERE {ns_fragment} AND ic.cvebaseinfo_cve = :cve_id
+          AND comp.name IS NOT NULL
+        GROUP BY ic.image_name_fullname, ic.image_id, comp.name, comp.version, comp.location, comp.source
+        ORDER BY ic.image_name_fullname, ic.image_id, comp.name, comp.version, comp.location, comp.source
+    """)
+    result = await session.execute(sql, {"cve_id": cve_id, **ns_params, **score_params})
+    rows = [_row_with_fixed_by(row) for row in result]
+
+    # One deployment per image is enough: the image content is the same everywhere.
+    file_rows = [r for r in rows if r["source_code"] != OS_SOURCE_CODE and (r["location"] or "").strip()]
+    counts: dict[tuple[str, str], int] = {}
+    if file_rows:
+        counts_sql = text(f"""
+            WITH {CVE_ROWS_CTE}
+            SELECT ic.image_id, comp.location, COUNT(DISTINCT ic.cvebaseinfo_cve) AS cves_at_location
+            FROM cve_rows ic
+            JOIN image_component_v2 comp ON comp.id = ic.componentid
+            WHERE ic.deployments_id = ANY(CAST(:probe_deployment_ids AS uuid[]))
+              AND comp.location = ANY(:locations)
+              AND comp.source <> :os_source
+            GROUP BY ic.image_id, comp.location
+        """)
+        counts_result = await session.execute(
+            counts_sql,
+            {
+                "probe_deployment_ids": sorted({r["probe_deployment_id"] for r in file_rows}),
+                "locations": sorted({r["location"] for r in file_rows}),
+                "os_source": OS_SOURCE_CODE,
+                **score_params,
+            },
+        )
+        counts = {(row.image_id, row.location): row.cves_at_location for row in counts_result}
+
+    placements = []
+    for placement in rows:
+        placement.pop("probe_deployment_id")
+        code = placement.pop("source_code")
+        is_file = code != OS_SOURCE_CODE
+        placement["source"] = source_name(code)
+        placement["cves_at_location"] = counts.get((placement["image_id"], placement["location"])) if is_file else None
+        placement["embedded_in"] = embedded_in(placement["component_name"], placement["location"]) if is_file else None
+        placements.append(placement)
+    return placements
 
 
 async def get_cve_origin_ratings(

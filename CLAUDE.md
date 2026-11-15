@@ -192,6 +192,7 @@ Access control rules:
 
 ### CVE detail and workflow rules
 
+- Component paths come from `get_cve_component_placements`; `cves_at_location` is only meaningful for non-OS sources. Source codes follow StackRox SourceType at the vendored tag via `component_source.py`.
 - CVE payloads expose both `first_seen` and `published_on`.
 - The detail timeline includes a dedicated `Veroeffentlicht` step sourced from `published_on`.
 - CVE detail includes Red Hat and NVD links for each CVE ID.

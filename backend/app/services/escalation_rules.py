@@ -115,3 +115,54 @@ def escalation_candidate_rows(
             continue
         candidates.append(row)
     return candidates
+
+
+def escalation_locations(
+    deployments: list[dict],
+    escalations: list[dict],
+    rule: dict | None,
+    *,
+    fix_available_since: datetime | None,
+    risk_accepted: bool,
+) -> list[dict]:
+    """Explain the current and next level for each visible affected pair."""
+    grouped: dict[tuple[str, str], list[dict]] = {}
+    for deployment in deployments:
+        grouped.setdefault((deployment["cluster_name"], deployment["namespace"]), []).append(deployment)
+    current: dict[tuple[str, str], dict] = {}
+    for escalation in escalations:
+        pair = (escalation["cluster_name"], escalation["namespace"])
+        previous = current.get(pair)
+        if previous is None or (escalation["level"], escalation["triggered_at"]) > (
+            previous["level"],
+            previous["triggered_at"],
+        ):
+            current[pair] = escalation
+    locations = []
+    for (cluster_name, namespace), rows in sorted(grouped.items()):
+        escalation = current.get((cluster_name, namespace), {})
+        level = escalation.get("level", 0)
+        first_seen_dates = [row["first_seen"] for row in rows if row.get("first_seen") is not None]
+        deadlines = level_deadlines(
+            rule or {},
+            first_seen=min(first_seen_dates) if first_seen_dates else None,
+            fix_available_since=fix_available_since,
+        )
+        stopped_reason = None
+        if risk_accepted:
+            stopped_reason = "risk_accepted"
+        elif all(row.get("is_suppressed", False) for row in rows):
+            stopped_reason = "suppressed"
+        next_level = min((candidate for candidate in deadlines if candidate > level), default=None)
+        locations.append(
+            {
+                "cluster_name": cluster_name,
+                "namespace": namespace,
+                "level": level,
+                "triggered_at": escalation.get("triggered_at"),
+                "next_level": next_level,
+                "next_level_at": deadlines.get(next_level) if stopped_reason is None else None,
+                "stopped_reason": stopped_reason,
+            }
+        )
+    return locations

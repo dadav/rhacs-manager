@@ -1152,5 +1152,27 @@
       "fix": "Fixed",
       "security": "Security"
     }
+  },
+  "fixGuidance": {
+    "title": "Where to fix",
+    "path": "Path in image",
+    "embedded": "Embedded in {{file}}. Update that artifact; bumping the library alone does not remove this finding.",
+    "cvesInFile": "{{count}} CVEs in this file",
+    "image": "Image"
+  },
+  "escalationStatus": {
+    "title": "Escalation by location",
+    "location": "Cluster / namespace",
+    "current": "Current level",
+    "triggered": "Triggered at",
+    "next": "Next escalation",
+    "notTriggered": "Not yet escalated",
+    "level": "Level {{level}}",
+    "noNext": "No further escalation scheduled",
+    "risk_accepted": "Stopped: risk acceptance approved",
+    "suppressed": "Stopped: false positive approved",
+    "explainer": "Escalation stops when the CVE is fixed, a risk acceptance is approved, or a false positive is approved for the affected location. A remediation documents the work but does not pause escalation.",
+    "remediationDeadline": "Next escalation for the selected namespaces: {{date}}.",
+    "targetAfterDeadline": "Your target date is after the next escalation. A remediation does not pause escalation."
   }
 }

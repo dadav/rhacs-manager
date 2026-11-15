@@ -1,5 +1,6 @@
 import enum
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -57,6 +58,19 @@ class AffectedComponent(BaseModel):
     origin: VulnOrigin | None = None
 
 
+class ComponentPlacement(BaseModel):
+    image_name: str
+    image_id: str
+    component_name: str
+    component_version: str
+    source: str
+    location: str | None
+    embedded_in: str | None
+    fixable: bool
+    fixed_by: str | None
+    cves_at_location: int | None
+
+
 class CveOriginRating(BaseModel):
     """Severity/CVSS one feed assigns to a CVE. CVE-level values are the MAX across feeds."""
 
@@ -106,10 +120,22 @@ class CvssMetricUrl(BaseModel):
     url: str
 
 
+class EscalationLocation(BaseModel):
+    cluster_name: str
+    namespace: str
+    level: int
+    triggered_at: datetime | None
+    next_level: int | None
+    next_level_at: datetime | None
+    stopped_reason: Literal["risk_accepted", "suppressed"] | None
+
+
 class CveDetail(CveListItem):
     first_system_occurrence: datetime | None = None
     affected_deployments_list: list[AffectedDeployment] = []
     components: list[AffectedComponent] = []
+    component_placements: list[ComponentPlacement] = []
+    escalation_locations: list[EscalationLocation] = []
     origin_ratings: list[CveOriginRating] = []
     contact_emails: list[str] = Field(default_factory=list)
     summary: str | None = None

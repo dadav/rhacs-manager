@@ -148,6 +148,19 @@ export interface AffectedComponent {
   origin?: VulnOrigin | null
 }
 
+export interface ComponentPlacement {
+  image_name: string
+  image_id: string
+  component_name: string
+  component_version: string
+  source: string
+  location: string | null
+  embedded_in: string | null
+  fixable: boolean
+  fixed_by: string | null
+  cves_at_location: number | null
+}
+
 // Severity/CVSS one feed assigns; the CVE-level values are the highest across feeds.
 export interface CveOriginRating {
   origin: VulnOrigin | null
@@ -166,10 +179,22 @@ export interface CvssMetricUrl {
   url: string
 }
 
+export interface EscalationLocation {
+  cluster_name: string
+  namespace: string
+  level: number
+  triggered_at: string | null
+  next_level: number | null
+  next_level_at: string | null
+  stopped_reason: 'risk_accepted' | 'suppressed' | null
+}
+
 export interface CveDetail extends CveListItem {
   first_system_occurrence: string | null
   affected_deployments_list: AffectedDeployment[]
   components: AffectedComponent[]
+  component_placements: ComponentPlacement[]
+  escalation_locations: EscalationLocation[]
   origin_ratings: CveOriginRating[]
   contact_emails: string[]
   summary: string | null

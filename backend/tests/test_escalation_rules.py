@@ -143,3 +143,83 @@ class TestEscalationCandidateRows:
             ("CVE-1", "a", "c1"),
             ("CVE-2", "a", "c1"),
         ]
+
+
+class TestEscalationLocations:
+    def test_uses_each_pairs_earliest_deployment_and_current_highest_level(self):
+        from app.services.escalation_rules import escalation_locations
+
+        first = datetime(2026, 1, 1)
+        deployments = [
+            {"cluster_name": "a", "namespace": "team", "first_seen": first + timedelta(days=3)},
+            {"cluster_name": "a", "namespace": "team", "first_seen": first},
+            {"cluster_name": "b", "namespace": "team", "first_seen": first + timedelta(days=10)},
+        ]
+        escalations = [
+            {"cluster_name": "a", "namespace": "team", "level": 2, "triggered_at": first + timedelta(days=14)},
+            {"cluster_name": "a", "namespace": "team", "level": 1, "triggered_at": first + timedelta(days=7)},
+            {"cluster_name": "hidden", "namespace": "secret", "level": 3, "triggered_at": first},
+        ]
+        rows = escalation_locations(
+            deployments,
+            escalations,
+            {"days_to_level1": 7, "days_to_level3": 21},
+            fix_available_since=None,
+            risk_accepted=False,
+        )
+        assert len(rows) == 2
+        assert rows[0]["level"] == 2
+        assert rows[0]["triggered_at"] == first + timedelta(days=14)
+        assert rows[0]["next_level_at"] == first + timedelta(days=21)
+        assert rows[1]["level"] == 0
+        assert rows[1]["next_level_at"] == first + timedelta(days=17)
+
+    def test_fix_anchor_can_be_earlier_and_max_level_has_no_next(self):
+        from app.services.escalation_rules import escalation_locations
+
+        first = datetime(2026, 1, 1)
+        deployment = {"cluster_name": "a", "namespace": "team", "first_seen": first}
+        rule = {"days_to_level1": 30, "days_to_level1_after_fix_available": 2}
+        row = escalation_locations([deployment], [], rule, fix_available_since=first, risk_accepted=False)[0]
+        assert row["next_level_at"] == first + timedelta(days=2)
+        row = escalation_locations(
+            [deployment],
+            [{**deployment, "level": 3, "triggered_at": first}],
+            rule,
+            fix_available_since=first,
+            risk_accepted=False,
+        )[0]
+        assert row["next_level"] is None
+        assert row["next_level_at"] is None
+
+    def test_stopped_reasons_and_partial_suppression(self):
+        from app.services.escalation_rules import escalation_locations
+
+        deployment = {
+            "cluster_name": "a",
+            "namespace": "team",
+            "first_seen": datetime(2026, 1, 1),
+            "is_suppressed": True,
+        }
+        rule = {"days_to_level1": 7}
+        for accepted, expected in [(True, "risk_accepted"), (False, "suppressed")]:
+            row = escalation_locations([deployment], [], rule, fix_available_since=None, risk_accepted=accepted)[0]
+            assert row["stopped_reason"] == expected
+            assert row["next_level_at"] is None
+        row = escalation_locations(
+            [deployment, {**deployment, "is_suppressed": False}],
+            [],
+            rule,
+            fix_available_since=None,
+            risk_accepted=False,
+        )[0]
+        assert row["stopped_reason"] is None
+        assert row["next_level_at"] is not None
+
+    def test_no_rule_or_anchors_means_no_deadline(self):
+        from app.services.escalation_rules import escalation_locations
+
+        deployment = {"cluster_name": "a", "namespace": "team"}
+        for rule in (None, {"days_to_level1": 7}):
+            row = escalation_locations([deployment], [], rule, fix_available_since=None, risk_accepted=False)[0]
+            assert row["next_level_at"] is None

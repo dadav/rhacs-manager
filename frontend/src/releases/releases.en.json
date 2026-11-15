@@ -16,6 +16,16 @@
       "date": "2026-11-11",
       "items": [
         {
+          "id": "cve-escalation-transparency",
+          "kind": "feature",
+          "text": "CVE details show the current and next escalation per namespace. Remediation forms warn when your target date is after the next escalation."
+        },
+        {
+          "id": "cve-fix-guidance",
+          "kind": "feature",
+          "text": "CVE details now show the image and component path to fix, including embedded libraries and the number of CVEs in the same file."
+        },
+        {
           "id": "show-fixed-cves",
           "kind": "feature",
           "text": "The \"Show remediated\" switch in the vulnerability list now also shows CVEs that are no longer reported after the fix. These rows are greyed out and link to the detail page."

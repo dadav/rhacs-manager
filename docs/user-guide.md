@@ -66,10 +66,16 @@ The normal workflow starts in **Vulnerabilities**.
 
 RHACS gets vulnerability data from several feeds: Red Hat, OSV (language packages such as Go, npm, or Python), and the Linux distributions (Debian, Ubuntu, Alpine, Oracle Linux, and others). The same CVE is often reported by more than one feed, and the feeds do not always agree on how severe it is.
 
-- The CVE detail page lists the **Data sources** behind a CVE, and the components table shows the source of each finding. CVEs scanned before ACS 4.11.6 show the source as unknown until RHACS rescans the image.
+- The CVE detail page lists the **Data sources** behind a CVE, and the fallback components table shows the source of each finding. CVEs scanned before ACS 4.11.6 show the source as unknown until RHACS rescans the image.
 - When a CVE has more than one source, the **Rating per data source** card shows each source's severity and CVSS score. The severity and CVSS shown for the CVE are the highest of these.
 - Severity, CVSS, and EPSS are the same in every view and scope. RHACS stores them per image and only updates an image when it rescans it, so a cluster or namespace can still hold an older rating. RHACS Manager always uses the rating from the most recently scanned image. A changed rating appears within about 5 minutes after RHACS has rescanned at least one affected image.
 - The **Data source** filter under **Advanced filters** limits the list to CVEs with at least one finding from that source. **Other** also includes sources this version of RHACS Manager does not know by name yet. It applies to all three views and to PDF and Excel exports. The PDF lists it with the other active filters.
+
+### Where to fix a CVE
+
+The **Where to fix** card connects each component to its image, installed version, fix version and path inside the image. Image links keep your selected scope. If a library is embedded in another archive, update that containing artifact: changing a standalone library dependency may leave the embedded copy vulnerable. For example, SnakeYAML inside `jmx_prometheus_javaagent.jar` requires an updated agent artifact.
+
+The file label counts distinct CVEs reported in the same image at the same path. OS packages do not show this count because their path usually identifies a package database. If placement data is unavailable, the card shows the existing component table. Exports continue to list components without placement details.
 
 ### Showing CVEs below the global thresholds
 
@@ -202,6 +208,10 @@ The **False Positives** page manages suppression rules for CVEs that are incorre
 ## Escalations
 
 The **Escalations** page shows both active escalations and upcoming ones.
+
+CVE details also show the current level, triggered time and next level with its deadline for each visible affected cluster/namespace pair. Deadlines use that pair's earliest deployment `first_seen` and the CVE's fix availability date. Approved risk acceptance stops escalation for the CVE; approved false-positive rules stop it at covered locations. A remediation documents planned work but never pauses escalation. Its create form shows the earliest next escalation in your selected namespaces and warns if your target date is later.
+
+Cases and warning records are removed when RHACS no longer reports the CVE at that exact cluster/namespace, even if another location remains affected. The existing threshold cleanup also applies. An empty location read skips location cleanup; a failed read skips cleanup entirely. Comments survive closure.
 
 - Escalation rules are configured in **Settings**.
 - Each rule combines a minimum severity threshold with an EPSS threshold and three deadlines.

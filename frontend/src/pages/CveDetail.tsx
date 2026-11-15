@@ -48,6 +48,8 @@ import {
 } from "../components/MentionTextArea";
 import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { CveLifecycleTimeline } from "../components/CveLifecycleTimeline";
+import { CveEscalationStatus } from "../components/CveEscalationStatus";
+import { CveFixGuidance } from "../components/CveFixGuidance";
 import { CveRemediationSection } from "../components/CveRemediation";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
@@ -875,49 +877,15 @@ export function CveDetail() {
             </GridItem>
           )}
 
-          {cve.components.length > 0 && (
+          {((cve.component_placements?.length ?? 0) > 0 || cve.components.length > 0) && (
             <GridItem span={12}>
-              <Card>
-                <CardTitle>
-                  {t('cveDetail.componentsCount', { count: cve.components.length })}
-                </CardTitle>
-                <CardBody style={{ padding: 0 }}>
-                  <Table variant="compact">
-                    <Thead>
-                      <Tr>
-                        <Th>{t('cves.componentName')}</Th>
-                        <Th>{t('cves.componentVersion')}</Th>
-                        <Th>{t('cves.fixable')}</Th>
-                        <Th>{t('cves.fixVersion')}</Th>
-                        <Th>{t('cves.componentOrigin')}</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {cve.components.map((c, i) => (
-                        <Tr key={i}>
-                          <Td style={{ fontFamily: "monospace" }}>
-                            {c.component_name}
-                          </Td>
-                          <Td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                            {c.component_version}
-                          </Td>
-                          <Td>
-                            {c.fixable ? (
-                              <span style={{ color: FIXABLE_COLOR }}>✓</span>
-                            ) : (
-                              <span style={{ color: "#8a8d90" }}>✗</span>
-                            )}
-                          </Td>
-                          <Td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                            {c.fixed_by ?? "–"}
-                          </Td>
-                          <Td>{t(`cves.origin.${c.origin ?? "unknown"}`)}</Td>
-                        </Tr>
-                      ))}
-                    </Tbody>
-                  </Table>
-                </CardBody>
-              </Card>
+              <CveFixGuidance placements={cve.component_placements ?? []} components={cve.components} />
+            </GridItem>
+          )}
+
+          {(cve.escalation_locations?.length ?? 0) > 0 && (
+            <GridItem span={12}>
+              <CveEscalationStatus locations={cve.escalation_locations} />
             </GridItem>
           )}
 
@@ -1096,7 +1064,7 @@ export function CveDetail() {
               );
             })()}
           <GridItem span={12}>
-            <CveRemediationSection cveId={cve.cve_id} deployments={cve.affected_deployments_list} />
+            <CveRemediationSection cveId={cve.cve_id} deployments={cve.affected_deployments_list} escalationLocations={cve.escalation_locations ?? []} />
           </GridItem>
 
           <GridItem span={12}>

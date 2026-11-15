@@ -252,6 +252,8 @@ describe('CveDetail', () => {
       affected_deployments: 0,
       affected_deployments_list: [],
       components: [],
+    component_placements: [],
+    escalation_locations: [],
       contact_emails: [],
     })
     mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })

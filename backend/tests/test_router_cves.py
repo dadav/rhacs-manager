@@ -51,6 +51,7 @@ def patch_sx():
         mock_sx.get_affected_deployments = AsyncMock(return_value=[])
         mock_sx.get_affected_components = AsyncMock(return_value=[])
         mock_sx.get_affected_components_with_origin = AsyncMock(return_value=[])
+        mock_sx.get_cve_component_placements = AsyncMock(return_value=[])
         mock_sx.get_cve_origin_ratings = AsyncMock(return_value=[])
         mock_sx.get_cves_grouped_by_image = AsyncMock(return_value=[])
         mock_sx.get_cves_for_image = AsyncMock(return_value=[])
@@ -211,6 +212,7 @@ _SCOPED_DETAIL_QUERIES = (
     "get_cve_detail",
     "get_affected_deployments",
     "get_affected_components_with_origin",
+    "get_cve_component_placements",
     "get_cve_origin_ratings",
     "get_cve_protobuf_data",
 )
@@ -402,7 +404,12 @@ async def test_get_cve_detail_no_longer_affected_with_visible_remediation(team_m
     assert data["first_seen"] is None
     assert data["fixed_by"] is None
     # Location-scoped StackRox reads are skipped; the CVE text comes from any row.
-    for name in ("get_affected_deployments", "get_affected_components_with_origin", "get_cve_origin_ratings"):
+    for name in (
+        "get_affected_deployments",
+        "get_affected_components_with_origin",
+        "get_cve_component_placements",
+        "get_cve_origin_ratings",
+    ):
         getattr(patch_sx, name).assert_not_awaited()
     patch_sx.get_cve_protobuf_data.assert_not_awaited()
     patch_sx.get_cve_protobuf_data_all.assert_awaited_once()
@@ -602,3 +609,94 @@ async def test_list_cves_by_image_without_origin_passes_none(sec_team_client: ht
 
     assert resp.status_code == 200
     assert patch_sx.get_cves_grouped_by_image.call_args.kwargs["origin"] is None
+
+
+async def test_get_cve_detail_returns_component_placements(team_member_client, patch_sx):
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    placement = {
+        "image_name": "registry/app:1",
+        "image_id": "image-1",
+        "component_name": "org.yaml:snakeyaml",
+        "component_version": "1.16",
+        "source": "java",
+        "location": "camunda/javaagent/jmx_prometheus_javaagent.jar",
+        "embedded_in": "jmx_prometheus_javaagent.jar",
+        "fixable": True,
+        "fixed_by": "2.0",
+        "cves_at_location": 8,
+    }
+    patch_sx.get_cve_component_placements.return_value = [placement]
+    response = await team_member_client.get("/api/cves/CVE-2024-0001")
+    assert response.status_code == 200
+    assert response.json()["component_placements"] == [placement]
+    assert response.json()["components"] == []
+
+
+async def test_escalation_locations_stop_for_approved_risk_outside_visible_scope(
+    team_member_client, patch_sx, mock_app_db
+):
+    from app.models.risk_acceptance import RiskStatus
+
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+    foreign = SimpleNamespace(
+        status=RiskStatus.approved,
+        created_by="foreign",
+        scope={"mode": "namespace", "targets": [{"namespace": "other", "cluster_name": "elsewhere"}]},
+    )
+    _route_app_db(mock_app_db, acceptances=[foreign])
+    response = await team_member_client.get("/api/cves/CVE-2024-0001")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_risk_acceptance"] is False
+    assert data["escalation_locations"] == [
+        {
+            "cluster_name": "cluster-a",
+            "namespace": "payments",
+            "level": 0,
+            "triggered_at": None,
+            "next_level": None,
+            "next_level_at": None,
+            "stopped_reason": "risk_accepted",
+        }
+    ]
+
+
+async def test_escalation_locations_include_only_visible_affected_pairs(team_member_client, patch_sx, mock_app_db):
+    patch_sx.get_cve_detail.return_value = {**_make_cve_detail_row(), "first_seen": datetime(2026, 1, 1)}
+    patch_sx.get_affected_deployments.return_value = [
+        {**_deployment("payments", "cluster-a"), "first_seen": datetime(2026, 1, 3)},
+    ]
+    from app.models.escalation import Escalation
+    from app.models.global_settings import GlobalSettings
+
+    async def execute(statement):
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        result.scalars.return_value.all.return_value = []
+        entity = statement.column_descriptions[0]["entity"]
+        if entity is GlobalSettings:
+            result.scalar_one_or_none.return_value = SimpleNamespace(escalation_rules=[{"days_to_level2": 14}])
+        elif entity is Escalation:
+            result.scalars.return_value.all.return_value = [
+                SimpleNamespace(
+                    cluster_name="cluster-a", namespace="payments", level=1, triggered_at=datetime(2026, 1, 10)
+                ),
+                SimpleNamespace(cluster_name="hidden", namespace="secret", level=3, triggered_at=datetime(2026, 1, 5)),
+            ]
+        return result
+
+    mock_app_db.execute.side_effect = execute
+    response = await team_member_client.get("/api/cves/CVE-2024-0001")
+    assert response.status_code == 200
+    assert response.json()["escalation_locations"] == [
+        {
+            "cluster_name": "cluster-a",
+            "namespace": "payments",
+            "level": 1,
+            "triggered_at": "2026-01-10T00:00:00",
+            "next_level": 2,
+            "next_level_at": "2026-01-17T00:00:00",
+            "stopped_reason": None,
+        }
+    ]
