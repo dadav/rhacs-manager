@@ -48,6 +48,10 @@ def get_language() -> str:
 # code -> {lang: template}. Templates may use ``{name}`` placeholders filled
 # from ApiError(**params). Keep both languages in sync.
 MESSAGES: dict[str, dict[str, str]] = {
+    "pdf_export_busy": {
+        "de": "Es wird bereits ein PDF-Export erstellt. Bitte versuchen Sie es in Kürze erneut.",
+        "en": "A PDF export is already being generated. Please try again shortly.",
+    },
     # Generic
     "not_found": {"de": "Nicht gefunden", "en": "Not found"},
     "forbidden": {"de": "Kein Zugriff", "en": "Access denied"},

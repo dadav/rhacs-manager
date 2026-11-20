@@ -111,6 +111,7 @@ spec:
         - --provider=openshift
         - --openshift-service-account={{ .oauthProxy.serviceAccountName }}
         - --upstream=http://localhost:8081
+        - --upstream-timeout={{ add .proxyTimeoutSeconds 30 }}s
         - --tls-cert=/etc/tls/private/tls.crt
         - --tls-key=/etc/tls/private/tls.key
         - --cookie-secret={{ .oauthProxy.cookieSecret }}
@@ -141,6 +142,8 @@ spec:
       ports:
         - containerPort: 8081
       env:
+        - name: PROXY_TIMEOUT_SECONDS
+          value: {{ .proxyTimeoutSeconds | quote }}
         - name: UPSTREAM_ADDR
           value: "http://localhost:{{ .app.port }}"
         - name: CLUSTER_NAME

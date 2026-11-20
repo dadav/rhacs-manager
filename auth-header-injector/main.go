@@ -32,6 +32,7 @@ type config struct {
 	CacheTTLSeconds      int
 	KubeAPIURL           string
 	GroupCacheTTLSeconds int
+	ProxyTimeout         time.Duration
 	AllNamespacesGroups  []string // groups that get wildcard (*) namespace access
 	// TrustForwardedGroups allows falling back to the inbound X-Forwarded-Groups
 	// header when token-based group lookup yields nothing. Off by default: a client
@@ -51,6 +52,12 @@ func loadConfig() config {
 		CacheTTLSeconds:      300,
 		KubeAPIURL:           envOrDefault("KUBE_API_URL", "https://kubernetes.default.svc"),
 		GroupCacheTTLSeconds: 60,
+	}
+	var err error
+	c.ProxyTimeout, err = parseProxyTimeout(envOrDefault("PROXY_TIMEOUT_SECONDS", "180"))
+	if err != nil {
+		slog.Error("invalid proxy timeout", "error", err)
+		os.Exit(1)
 	}
 	if c.ClusterName == "" {
 		slog.Error("CLUSTER_NAME is required")
@@ -87,6 +94,24 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func parseProxyTimeout(value string) (time.Duration, error) {
+	seconds, err := strconv.ParseUint(value, 10, 32)
+	if err != nil || seconds == 0 {
+		return 0, fmt.Errorf("PROXY_TIMEOUT_SECONDS must be a positive integer, got %q", value)
+	}
+	return time.Duration(seconds) * time.Second, nil
+}
+
+func newProxyServer(cfg config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:        cfg.ListenAddr,
+		Handler:     handler,
+		ReadTimeout: 30 * time.Second,
+		// Allow nginx to finish its response before this connection expires.
+		WriteTimeout: cfg.ProxyTimeout + 15*time.Second,
+	}
 }
 
 // cacheStaleAfterRefreshes is how many refresh intervals the namespace cache may
@@ -663,12 +688,7 @@ func main() {
 
 	mux.HandleFunc("/", newProxyHandler(proxy, cache, tokenCache, cfg, fetchInfo))
 
-	server := &http.Server{
-		Addr:         cfg.ListenAddr,
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-	}
+	server := newProxyServer(cfg, mux)
 
 	slog.Info("listening", "addr", cfg.ListenAddr)
 	if err := server.ListenAndServe(); err != nil {

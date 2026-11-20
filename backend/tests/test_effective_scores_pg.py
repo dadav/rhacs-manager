@@ -252,6 +252,41 @@ async def test_foreign_namespaces_never_change_membership_or_counts(sx_session):
     assert len(components) == 1
 
 
+@pytest.mark.parametrize("scope", [TEAM_A, TEAM_B])
+async def test_export_batches_match_single_cve_queries(sx_session, scope):
+    ids = sorted({row[0] for row in V2_ROWS + LEGACY_ROWS} | {"CVE-ABSENT"})
+    for bulk_query, single_query in (
+        (sx.get_export_deployments, sx.get_affected_deployments),
+        (sx.get_export_components, sx.get_affected_components),
+    ):
+        batch = await bulk_query(sx_session, ids, scope)
+        for cve_id in ids:
+            single = await single_query(sx_session, cve_id, scope)
+            # The batch query adds deterministic tie breakers to the old order.
+            assert sorted(map(repr, batch.get(cve_id, []))) == sorted(map(repr, single))
+        assert set(batch) <= set(ids)
+
+
+async def test_export_batches_keep_cluster_scope_and_deduplicate_feeds(sx_session):
+    await sx_session.execute(text("UPDATE deployments SET namespace = 'team-a' WHERE clustername = 'eu'"))
+    ids = ["CVE-FEEDS", "CVE-B-ONLY", "CVE-LEGACY"]
+    deployments = await sx.get_export_deployments(sx_session, ids, TEAM_A)
+    components = await sx.get_export_components(sx_session, ids, TEAM_A)
+    assert deployments.keys() == components.keys() == {"CVE-FEEDS", "CVE-LEGACY"}
+    assert all(d["cluster_name"] == "tu" for rows in deployments.values() for d in rows)
+    assert len(components["CVE-FEEDS"]) == 1
+    assert components["CVE-FEEDS"][0]["component_name"] == "zlib"
+
+
+async def test_export_keeps_deployments_when_component_is_missing(sx_session):
+    await sx_session.execute(
+        text("UPDATE image_cves_v2 SET componentid = 'missing' WHERE cvebaseinfo_cve = 'CVE-STALE'")
+    )
+    assert await sx.get_export_components(sx_session, ["CVE-STALE"], TEAM_A) == {}
+    deployments = await sx.get_export_deployments(sx_session, ["CVE-STALE"], TEAM_A)
+    assert len(deployments["CVE-STALE"]) == 1
+
+
 async def test_severity_distribution_sums_to_list_count(sx_session):
     cves = await sx.get_cves_for_namespaces(sx_session, TEAM_A, 7.0, 0.1, set())
     buckets = await sx.get_severity_distribution(sx_session, TEAM_A, 7.0, 0.1, set(), set())

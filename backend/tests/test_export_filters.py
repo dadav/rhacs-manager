@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.routers import exports
+from app.services import cve_export_service as exports
 
 LIST_ONLY_FILTERS = {
     "remediation_status": "in_progress",

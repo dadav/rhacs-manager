@@ -245,13 +245,13 @@ async def test_pdf_export_uses_feed_agnostic_components(sec_team_client):
     )
     component = {"component_name": "openssl", "component_version": "1.0", "fixable": True, "fixed_by": "1.1"}
     with (
-        patch("app.routers.exports.fetch_filtered_cves", AsyncMock(return_value=[item])) as fetch,
-        patch("app.routers.exports.sx") as mock_sx,
-        patch("app.routers.exports.generate_cve_pdf", return_value=b"%PDF") as gen,
+        patch("app.services.cve_export_service.fetch_filtered_cves", AsyncMock(return_value=[item])) as fetch,
+        patch("app.services.cve_export_service.sx") as mock_sx,
+        patch("app.services.cve_export_service.generate_cve_pdf", return_value=b"%PDF") as gen,
     ):
         mock_sx.list_namespaces = AsyncMock(return_value=[{"namespace": "payments", "cluster_name": "cluster-a"}])
-        mock_sx.get_affected_deployments = AsyncMock(return_value=[])
-        mock_sx.get_affected_components = AsyncMock(return_value=[component])
+        mock_sx.get_export_deployments = AsyncMock(return_value={})
+        mock_sx.get_export_components = AsyncMock(return_value={item.cve_id: [component]})
         mock_sx.get_affected_components_with_origin = AsyncMock()
 
         resp = await sec_team_client.get("/api/exports/pdf?origin=debian")

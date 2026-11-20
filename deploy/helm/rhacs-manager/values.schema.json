@@ -2218,6 +2218,13 @@
       "title": "networkPolicy",
       "type": "object"
     },
+    "proxyTimeoutSeconds": {
+      "default": 180,
+      "description": "API response timeout in seconds. Injector, OAuth proxy and routes add 15s, 30s and 45s of reserve. Set the hub value at least as high as every spoke value.",
+      "minimum": 1,
+      "title": "proxyTimeoutSeconds",
+      "type": "integer"
+    },
     "route": {
       "additionalProperties": false,
       "description": "OpenShift Route configuration (hub mode).",

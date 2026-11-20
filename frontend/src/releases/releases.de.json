@@ -33,6 +33,16 @@
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "Wenn Ihre Sitzung nach längerer Inaktivität abgelaufen ist, erscheint nun ein Hinweis \"Sitzung abgelaufen\" statt einer Fehlermeldung 403. Über \"Neu anmelden\" gelangen Sie nach der Anmeldung zurück auf dieselbe Seite. Nicht gespeicherte Eingaben gehen dabei verloren."
+        },
+        {
+          "id": "export-timeouts",
+          "kind": "fix",
+          "text": "Große PDF- und Excel-Exporte werden deutlich schneller erstellt und brechen nicht mehr nach 30 Sekunden ab."
+        },
+        {
+          "id": "pdf-export-busy",
+          "kind": "fix",
+          "text": "Wird bereits ein PDF-Export erstellt, erscheint nun ein Hinweis, es in Kürze erneut zu versuchen, statt dass die Anwendung langsamer wird."
         }
       ]
     },

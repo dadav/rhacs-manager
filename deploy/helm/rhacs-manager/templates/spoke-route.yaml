@@ -3,6 +3,8 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: {{ .Values.spoke.route.name }}
+  annotations:
+    haproxy.router.openshift.io/timeout: {{ printf "%ds" (add .Values.proxyTimeoutSeconds 45) | quote }}
   namespace: {{ include "rhacs-manager.namespace" . }}
   labels:
     {{- include "rhacs-manager.labels" . | nindent 4 }}

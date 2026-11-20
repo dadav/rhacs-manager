@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from app.auth.middleware import CurrentUser
 from app.deps import get_app_db, get_current_user, get_stackrox_db
 from app.models.user import UserRole
+from app.services.cve_export_service import ExportRenderer
 from app.stackrox import effective_scores
 
 
@@ -48,6 +49,7 @@ def _build_app() -> FastAPI:
     from app.i18n import LanguageMiddleware
 
     test_app = FastAPI(lifespan=_noop_lifespan)
+    test_app.state.export_renderer = ExportRenderer()
     # Mirror production: localize ApiError messages from Accept-Language.
     test_app.add_middleware(LanguageMiddleware)
     for router_module in [

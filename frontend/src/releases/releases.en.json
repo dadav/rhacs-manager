@@ -33,6 +33,16 @@
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "When your session has expired after a longer period of inactivity, a \"Session expired\" notice now appears instead of a 403 error. \"Log in again\" takes you back to the same page after signing in. Unsaved input is lost in the process."
+        },
+        {
+          "id": "export-timeouts",
+          "kind": "fix",
+          "text": "Large PDF and Excel exports are generated considerably faster and no longer abort after 30 seconds."
+        },
+        {
+          "id": "pdf-export-busy",
+          "kind": "fix",
+          "text": "If a PDF export is already being generated, a notice now asks you to try again shortly instead of the application slowing down."
         }
       ]
     },

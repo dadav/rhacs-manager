@@ -43,6 +43,7 @@ spec:
       "port" 8080
       "resources" $feVals.resources
       "readinessProbe" $feVals.readinessProbe
+      "env" (list (dict "name" "PROXY_TIMEOUT_SECONDS" "value" (.Values.proxyTimeoutSeconds | toString)))
       "envFrom" (list (dict "secretRef" (dict "name" $secretName)))
     -}}
     {{- /* Build MCP sidecar container when enabled */}}
@@ -101,6 +102,7 @@ spec:
       "podAnnotations" $podAnnotations
       "oauthProxy" (merge (dict "cookieSecret" (required $cookieSecretMsg $oauthProxy.cookieSecret)) $oauthProxy)
       "authHeaderInjector" $authHeaderInjector
+      "proxyTimeoutSeconds" .Values.proxyTimeoutSeconds
       "app" $app
       "secretName" $secretName
       "imagePullSecrets" .Values.global.imagePullSecrets

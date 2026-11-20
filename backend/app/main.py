@@ -33,6 +33,7 @@ from .routers import (
     subscriptions,
     suppression_rules,
 )
+from .services.cve_export_service import ExportRenderer
 from .stackrox.effective_scores import run_refresh_loop
 from .stackrox.namespace_access import run_refresh_loop as run_namespace_access_refresh_loop
 from .stackrox.schema_check import SCHEMA_PROBE_TIMEOUT_SECONDS, probe_stackrox_schema
@@ -147,6 +148,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.state.export_renderer = ExportRenderer()
 
 # Pin request language from Accept-Language so ApiError messages localize.
 app.add_middleware(LanguageMiddleware)

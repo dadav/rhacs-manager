@@ -3,11 +3,72 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"testing"
 	"time"
 )
+
+func TestProxyTimeoutConfig(t *testing.T) {
+	t.Setenv("CLUSTER_NAME", "cluster-a")
+	t.Setenv("PROXY_TIMEOUT_SECONDS", "")
+	if got := loadConfig().ProxyTimeout; got != 180*time.Second {
+		t.Fatalf("default timeout = %v", got)
+	}
+	t.Setenv("PROXY_TIMEOUT_SECONDS", "240")
+	cfg := loadConfig()
+	server := newProxyServer(cfg, http.NotFoundHandler())
+	if server.WriteTimeout != 255*time.Second || server.ReadTimeout != 30*time.Second {
+		t.Fatalf("unexpected write/read timeouts: %v / %v", server.WriteTimeout, server.ReadTimeout)
+	}
+	for _, raw := range []string{"0", "-1", "1.5", "abc", "180s", "", "999999999999999999999"} {
+		if _, err := parseProxyTimeout(raw); err == nil {
+			t.Errorf("accepted invalid timeout %q", raw)
+		}
+	}
+}
+
+func TestProxyReturnsDelayedUpstreamResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		w.Write([]byte("export"))
+	}))
+	defer upstream.Close()
+	target, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	for _, legacy := range []bool{true, false} {
+		server := httptest.NewUnstartedServer(proxy)
+		server.Config = newProxyServer(config{ProxyTimeout: time.Second}, proxy)
+		if legacy {
+			// Scale the old deadline down so the regression test stays fast.
+			server.Config.WriteTimeout = 30 * time.Millisecond
+		}
+		server.Start()
+		response, err := server.Client().Get(server.URL)
+		server.Close()
+		if legacy {
+			if err == nil {
+				response.Body.Close()
+				t.Fatal("short write deadline unexpectedly returned a response")
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || response.StatusCode != http.StatusOK || string(body) != "export" {
+			t.Fatalf("delayed export failed: status=%d body=%q err=%v", response.StatusCode, body, err)
+		}
+	}
+}
 
 // recordingHandler is a stub upstream that captures the headers it receives.
 type recordingHandler struct {

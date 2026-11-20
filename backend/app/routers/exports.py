@@ -4,21 +4,21 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
-from ..exports.excel_generator import generate_cve_excel, parse_import_excel
-from ..exports.pdf_generator import generate_cve_pdf
+from ..exports.excel_generator import parse_import_excel
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..schemas.cve import VulnOrigin
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
-from ..services.cve_filter_service import fetch_filtered_cves
+from ..services.cve_export_service import load_export_rows, resolve_export_namespaces
 from ..services.risk_acceptance_service import is_single_team_scope, scope_key, validate_and_resolve_scope
 from ..stackrox import queries as sx
 
@@ -63,47 +63,9 @@ def _msg(lang: str) -> dict[str, str]:
     return _IMPORT_MESSAGES.get(lang, _IMPORT_MESSAGES["de"])
 
 
-def unique_image_names(deployments: list[dict]) -> list[str]:
-    """Sorted distinct non-empty image names of a CVE's affected deployments."""
-    return sorted({d["image_name"] for d in deployments if d.get("image_name")})
-
-
-def unique_component_labels(components: list[dict]) -> list[str]:
-    """Sorted distinct "name version" labels.
-
-    Component rows can repeat a (name, version) pair because the query's DISTINCT
-    also covers fixable/fixed_by; a missing version yields just the name.
-    """
-    labels = {
-        f"{c.get('component_name') or ''} {c.get('component_version') or ''}".strip()
-        for c in components
-        if c.get("component_name")
-    }
-    return sorted(labels)
-
-
-async def _resolve_namespaces(
-    current_user: CurrentUser,
-    sx_db: AsyncSession,
-    cluster: str | None = None,
-    namespace: str | None = None,
-) -> list[tuple[str, str]]:
-    """Resolve the namespace list for the current user, optionally filtered."""
-    from ._scope import narrow_namespaces
-
-    if current_user.can_see_all_namespaces:
-        all_ns = await sx.list_namespaces(sx_db)
-        ns_list = [(r["namespace"], r["cluster_name"]) for r in all_ns]
-    else:
-        if not current_user.has_namespaces:
-            return []
-        ns_list = list(current_user.namespaces)
-
-    return narrow_namespaces(ns_list, cluster, namespace)
-
-
 @router.get("/pdf")
 async def export_pdf(
+    request: Request,
     search: str | None = Query(None),
     severity: int | None = Query(None),
     fixable: bool | None = Query(None),
@@ -132,10 +94,11 @@ async def export_pdf(
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> Response:
-    items = await fetch_filtered_cves(
+    rows = await load_export_rows(
         current_user,
         app_db,
         sx_db,
+        export_format="pdf",
         search=search,
         severity=severity,
         fixable=fixable,
@@ -160,48 +123,6 @@ async def export_pdf(
         origin=origin,
         subscribed_only=subscribed_only,
     )
-
-    ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
-
-    # Enrich each CVE with deployments and components for the PDF
-    cve_dicts: list[dict] = []
-    for item in items:
-        deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
-        components = await sx.get_affected_components(sx_db, item.cve_id, ns_list)
-
-        cve_dicts.append(
-            {
-                "cve_id": item.cve_id,
-                "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-                "cvss": item.cvss,
-                "epss_probability": item.epss_probability,
-                "fixable": item.fixable,
-                "fixed_by": item.fixed_by,
-                "first_seen": item.first_seen,
-                "published_on": item.published_on,
-                "components": [
-                    {
-                        "component_name": c.get("component_name", ""),
-                        "component_version": c.get("component_version", ""),
-                        "fixable": c.get("fixable", False),
-                        "fixed_by": c.get("fixed_by"),
-                    }
-                    for c in components
-                ],
-                "deployments": [
-                    {
-                        "deployment_name": d.get("deployment_name", ""),
-                        "namespace": d.get("namespace", ""),
-                        "cluster_name": d.get("cluster_name", ""),
-                        "image_name": d.get("image_name", ""),
-                    }
-                    for d in deployments
-                ],
-                "priority_level": item.priority_level,
-                "priority_deadline": item.priority_deadline,
-                "risk_acceptance_status": item.risk_acceptance_status,
-            }
-        )
 
     now = datetime.utcnow()
     pdf_metadata = {
@@ -221,7 +142,9 @@ async def export_pdf(
             "namespace": namespace,
         },
     }
-    pdf_bytes = generate_cve_pdf(cve_dicts, metadata=pdf_metadata, lang=lang)
+    pdf_bytes = await run_in_threadpool(
+        request.app.state.export_renderer.render, "pdf", rows, metadata=pdf_metadata, lang=lang
+    )
     today = now.strftime("%Y-%m-%d")
     filename = "cve-report" if lang == "en" else "cve-bericht"
 
@@ -234,6 +157,7 @@ async def export_pdf(
 
 @router.get("/excel")
 async def export_excel(
+    request: Request,
     search: str | None = Query(None),
     severity: int | None = Query(None),
     fixable: bool | None = Query(None),
@@ -262,10 +186,11 @@ async def export_excel(
     app_db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
 ) -> Response:
-    items = await fetch_filtered_cves(
+    rows = await load_export_rows(
         current_user,
         app_db,
         sx_db,
+        export_format="excel",
         search=search,
         severity=severity,
         fixable=fixable,
@@ -291,32 +216,7 @@ async def export_excel(
         subscribed_only=subscribed_only,
     )
 
-    ns_list = await _resolve_namespaces(current_user, sx_db, cluster, namespace)
-
-    # Build one row per CVE (no deployment/namespace/cluster duplication)
-    excel_rows: list[dict] = []
-    for item in items:
-        components = await sx.get_affected_components(sx_db, item.cve_id, ns_list)
-        deployments = await sx.get_affected_deployments(sx_db, item.cve_id, ns_list)
-
-        excel_rows.append(
-            {
-                "cve_id": item.cve_id,
-                "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
-                "cvss": item.cvss,
-                "epss_probability": item.epss_probability,
-                "components": unique_component_labels(components),
-                "fixable": item.fixable,
-                "fixed_by": item.fixed_by,
-                "image_names": unique_image_names(deployments),
-                "first_seen": item.first_seen,
-                "published_on": item.published_on,
-                "priority_level": item.priority_level or "",
-                "risk_acceptance_status": item.risk_acceptance_status or "",
-            }
-        )
-
-    xlsx_bytes = generate_cve_excel(excel_rows, lang=lang)
+    xlsx_bytes = await run_in_threadpool(request.app.state.export_renderer.render, "excel", rows, lang=lang)
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
     return Response(
@@ -365,7 +265,7 @@ async def import_excel(
 
     preview_items: list[dict] = []
     # Wildcard users carry no explicit pairs: resolve their visibility once.
-    visible_pairs = await _resolve_namespaces(current_user, sx_db)
+    visible_pairs = await resolve_export_namespaces(current_user, sx_db)
 
     for (cve_id, justification), group_rows in groups.items():
         errors: list[str] = []

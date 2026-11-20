@@ -14,7 +14,7 @@ from app.exports.excel_generator import (
     generate_cve_excel,
     parse_import_excel,
 )
-from app.routers.exports import unique_component_labels, unique_image_names
+from app.services.cve_export_service import unique_component_labels, unique_image_names
 
 IMAGES = ["docker.io/library/nats:2.10.10", "quay.io/foo/bar:1.2", "registry.example/baz:3.0"]
 COMPONENTS = ["libssl 3.0.7", "openssl 3.0.7"]
