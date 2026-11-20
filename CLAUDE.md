@@ -246,6 +246,12 @@ Access control rules:
 - Auto-resolution runs when StackRox no longer reports the CVE in that namespace. It never touches `notes`, leaves `resolved_by` NULL (exposed as `auto_resolved`), and writes a `remediation_auto_resolved` audit entry.
 - `assigned_to`, `target_date`, and `notes` are editable only while the current or requested status is `open`/`in_progress` (`services/remediation_service.py`). In `PATCH`, an omitted field stays unchanged and an explicit `null` clears it (`model_fields_set`). Only a changed target date is checked against today, so an overdue item can still get a notes edit. A date change notifies creator and assignee.
 
+### CVE alias rules
+
+- Aliases (`cve_aliases`, `services/cve_alias_service.py`) are organization-wide names. CVE-bearing product responses carry an `aliases` list, filled via `enrich_aliases`/`load_aliases` only after the endpoint's own record-level visibility checks. Audit records and export document formats do not need aliases.
+- CVE `search` matches IDs and aliases through the shared helpers: `matches_cve_search` for Python filtering, `matching_alias_cve_ids` passed as `alias_cve_ids` for SQL. Alias-derived CVE IDs are only ANDed into already scoped filters and must never widen the authorized scope.
+- Only `require_sec_team` grants alias edits; wildcard all-namespace users cannot edit. Normalization and validation live in `normalize_aliases` (service, `ApiError` codes), not in the request schema.
+
 ### Badge URL rule
 
 - Badge responses return relative paths by default.

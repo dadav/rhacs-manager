@@ -49,3 +49,12 @@ def test_paginates_upcoming_results_and_preserves_total():
     items, total = _filter(page=2, page_size=2)
     assert total == 3
     assert [item.cve_id for item in items] == ["CVE-GAMMA"]
+
+
+def test_alias_search_applies_before_pagination_and_combines_with_filters():
+    items = [item.model_copy(update={"aliases": ["Heartbleed"]}) for item in ITEMS]
+    rows, total = filter_upcoming_escalations(
+        items, search="HEART", next_level=None, severity=4, days_max=None, page=2, page_size=1
+    )
+    assert total == 2
+    assert [row.cve_id for row in rows] == ["CVE-GAMMA"]

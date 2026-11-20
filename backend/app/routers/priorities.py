@@ -14,6 +14,7 @@ from ..notifications import service as notif_svc
 from ..schemas.priority import PriorityCreate, PriorityResponse, PriorityUpdate
 from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
+from ..services.cve_alias_service import enrich_aliases
 
 router = APIRouter(prefix="/priorities", tags=["priorities"])
 
@@ -40,7 +41,9 @@ async def list_priorities(
     result = await db.execute(
         select(CvePriority).options(selectinload(CvePriority.setter)).order_by(CvePriority.created_at.desc())
     )
-    return [_build_response(p) for p in result.scalars().all()]
+    responses = [_build_response(p) for p in result.scalars().all()]
+    await enrich_aliases(db, responses)
+    return responses
 
 
 @router.get("/{priority_id}", response_model=PriorityResponse)
@@ -55,7 +58,9 @@ async def get_priority(
     priority = result.scalar_one_or_none()
     if not priority:
         raise ApiError(404, "not_found")
-    return _build_response(priority)
+    response = _build_response(priority)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.post("", response_model=PriorityResponse, status_code=201)
@@ -93,7 +98,9 @@ async def create_priority(
     await log_action(db, current_user.id, "priority_created", "cve_priority", str(priority.id))
     await db.commit()
     await db.refresh(priority, ["setter"])
-    return _build_response(priority)
+    response = _build_response(priority)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.patch("/{priority_id}", response_model=PriorityResponse)
@@ -130,7 +137,9 @@ async def update_priority(
     await log_action(db, current_user.id, "priority_updated", "cve_priority", str(priority.id))
     await db.commit()
     await db.refresh(priority, ["setter"])
-    return _build_response(priority)
+    response = _build_response(priority)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.delete("/{priority_id}", status_code=204)

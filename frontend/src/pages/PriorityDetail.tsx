@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Breadcrumb,
@@ -72,10 +73,10 @@ export function PriorityDetail() {
           <BreadcrumbItem onClick={() => navigate('/priorities')} style={{ cursor: 'pointer' }}>
             {t('priorities.title')}
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{priority.cve_id}</BreadcrumbItem>
+          <BreadcrumbItem isActive>{priority.cve_id}<CveAliasBadges aliases={priority.aliases} /></BreadcrumbItem>
         </Breadcrumb>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <Title headingLevel="h1" size="xl" style={{ fontFamily: 'monospace' }}>{priority.cve_id}</Title>
+          <Title headingLevel="h1" size="xl" style={{ fontFamily: 'monospace' }}>{priority.cve_id}<CveAliasBadges aliases={priority.aliases} /></Title>
           <PriorityBadge level={priority.priority} />
           {me?.is_sec_team && (
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -121,7 +122,7 @@ export function PriorityDetail() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      [t('priorities.cveId'), <Link to={scopedLink(`/vulnerabilities/${priority.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>{priority.cve_id}</Link>],
+                      [t('priorities.cveId'), <Link to={scopedLink(`/vulnerabilities/${priority.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>{priority.cve_id}<CveAliasBadges aliases={priority.aliases} /></Link>],
                       [t('priorities.priority'), <PriorityBadge level={priority.priority} />],
                       [t('priorities.setBy'), priority.set_by_name],
                       [t('priorities.deadline'), formatDate(priority.deadline, i18n.language)],

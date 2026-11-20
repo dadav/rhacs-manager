@@ -6,7 +6,7 @@ matches none of the caller's pairs must never widen to org-wide data.
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -38,7 +38,9 @@ ORG_CVE = {
 
 def _app_db():
     db = AsyncMock()
-    db.execute.side_effect = [[], [], [], []]
+    aliases = MagicMock()
+    aliases.scalars.return_value.all.return_value = []
+    db.execute.side_effect = [[], [], [], [], aliases]
     return db
 
 
@@ -118,7 +120,9 @@ async def test_sec_team_filter_without_match_resolves_to_empty_scope(monkeypatch
 def _app_db_with_escalation(row):
     """execute() results in call order: approved RAs, priorities, requested RAs, escalations."""
     db = AsyncMock()
-    db.execute.side_effect = [[], [], [], [row]]
+    aliases = MagicMock()
+    aliases.scalars.return_value.all.return_value = []
+    db.execute.side_effect = [[], [], [], [row], aliases]
     return db
 
 

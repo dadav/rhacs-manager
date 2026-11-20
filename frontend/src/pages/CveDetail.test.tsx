@@ -34,11 +34,12 @@ vi.mock('../api/remediations', () => ({
   useRemediationsByCve: () => ({ data: [], isLoading: false }),
 }))
 
+let mockIsSecTeam = false
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: '1', username: 'testuser', email: 'test@example.com', role: 'team_member', is_sec_team: false, onboarding_completed: true, namespaces: [] },
     isLoading: false,
-    isSecTeam: false,
+    isSecTeam: mockIsSecTeam,
     isAuthenticated: true,
     namespaces: [],
     hasNamespaces: false,
@@ -160,6 +161,7 @@ function createWrapper(cveId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockIsSecTeam = false
   mockScopeSearchString = ''
   mockScopeParams = {}
   mockUseCveComments.mockReturnValue({ data: [], isLoading: false })
@@ -339,4 +341,15 @@ describe('CveDetail', () => {
     expect(screen.getByText('cveDetail.originsUnknown')).toBeInTheDocument()
     expect(screen.getByText('cves.origin.unknown')).toBeInTheDocument()
   })
+})
+
+
+it('shows aliases to readers and exposes editing only to the security team', () => {
+  mockUseCveDetail.mockReturnValue({ data: makeCveDetail({ aliases: ['Heartbleed'] }), isLoading: false })
+  const { rerender } = render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
+  expect(screen.getAllByText('Heartbleed').length).toBeGreaterThan(0)
+  expect(screen.queryByRole('button', { name: 'cveAliases.edit' })).not.toBeInTheDocument()
+  mockIsSecTeam = true
+  rerender(<CveDetail />)
+  expect(screen.getByRole('button', { name: 'cveAliases.edit' })).toBeInTheDocument()
 })

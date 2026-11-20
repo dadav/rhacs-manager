@@ -6,7 +6,7 @@ from sqlalchemy import or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..auth.middleware import CurrentUser, get_current_user
+from ..auth.middleware import CurrentUser, get_current_user, require_sec_team
 from ..deps import get_app_db, get_stackrox_db
 from ..i18n import ApiError
 from ..mail import service as mail_svc
@@ -34,11 +34,13 @@ from ..schemas.cve import (
     SeverityLevel,
     VulnOrigin,
 )
+from ..schemas.cve_alias import CveAliasesResponse, CveAliasesUpdate
 from ..schemas.fix_rollup import FixRollupResponse
 from ..services import comment_service
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
 from ..services.cve_access import has_visible_remediation, user_can_access_cve
+from ..services.cve_alias_service import enrich_aliases, load_aliases, matching_alias_cve_ids, replace_aliases
 from ..services.cve_filter_service import fetch_filtered_cves, is_location_suppressed, resolve_view_thresholds
 from ..services.escalation_rules import escalation_locations, level_deadlines, pick_matching_rule
 from ..services.fix_rollup_service import build_fix_rollup
@@ -279,6 +281,7 @@ async def list_cves_by_image(
         min_epss,
         always_show,
         search=search,
+        alias_cve_ids=await matching_alias_cve_ids(app_db, search),
         severity=severity,
         fixable=fixable,
         cvss_min=cvss_min,
@@ -363,6 +366,7 @@ async def list_cves_for_image(
         min_epss,
         always_show,
         search=search,
+        alias_cve_ids=await matching_alias_cve_ids(app_db, search),
         severity=severity,
         fixable=fixable,
         filter_cvss_min=cvss_min,
@@ -370,7 +374,7 @@ async def list_cves_for_image(
         component=component,
         origin=origin.value if origin else None,
     )
-    return [
+    items = [
         ImageCveDetail(
             cve_id=r["cve_id"],
             severity=SeverityLevel(r["severity"]),
@@ -386,6 +390,9 @@ async def list_cves_for_image(
         )
         for r in rows
     ]
+
+    await enrich_aliases(app_db, items)
+    return items
 
 
 @router.get("/{cve_id}", response_model=CveDetail)
@@ -570,7 +577,9 @@ async def get_cve(
             return RiskStatus.requested.value
         return None
 
+    aliases = await load_aliases(app_db, [cve_id])
     return CveDetail(
+        aliases=aliases.get(cve_id, []),
         cve_id=cve_data["cve_id"],
         severity=SeverityLevel(cve_data.get("severity", 0)),
         cvss=float(cve_data.get("cvss", 0)),
@@ -832,3 +841,15 @@ async def get_cve_deployments(
         )
         for d in deployments
     ]
+
+
+@router.put("/{cve_id}/aliases", response_model=CveAliasesResponse)
+async def update_cve_aliases(
+    cve_id: str,
+    body: CveAliasesUpdate,
+    current_user: CurrentUser = Depends(require_sec_team),
+    app_db: AsyncSession = Depends(get_app_db),
+    sx_db: AsyncSession = Depends(get_stackrox_db),
+) -> CveAliasesResponse:
+    aliases = await replace_aliases(app_db, sx_db, current_user, cve_id, body.aliases)
+    return CveAliasesResponse(cve_id=cve_id, aliases=aliases)

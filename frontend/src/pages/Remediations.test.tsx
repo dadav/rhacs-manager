@@ -168,3 +168,13 @@ describe('Remediations row actions', () => {
     expect(screen.queryByRole('button', { name: 'cveDetail.unassign' })).toBeNull()
   })
 })
+
+
+it('finds remediations by alias and displays the alias beside the CVE', async () => {
+  renderPage(makeItem({ aliases: ['Heartbleed'] }))
+  expect(await screen.findByText('Heartbleed')).toBeInTheDocument()
+  fireEvent.change(screen.getByRole('textbox', { name: 'remediations.searchLabel' }), { target: { value: 'HEART' } })
+  await waitFor(() => expect(screen.getByText('CVE-2024-0001')).toBeInTheDocument())
+  fireEvent.change(screen.getByRole('textbox', { name: 'remediations.searchLabel' }), { target: { value: 'does not match' } })
+  await waitFor(() => expect(screen.queryByText('CVE-2024-0001')).not.toBeInTheDocument())
+})

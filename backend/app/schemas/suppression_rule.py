@@ -67,6 +67,7 @@ class SuppressionRuleResponse(BaseModel):
     component_name: str | None
     version_pattern: str | None
     cve_id: str | None
+    aliases: list[str] = []
     reason: str
     reference_url: str | None
     review_comment: str | None

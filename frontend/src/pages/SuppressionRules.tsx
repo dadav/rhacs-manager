@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -251,7 +252,7 @@ export function SuppressionRules() {
                           </span>
                         ) : (
                           <Link to={scopedLink(`/vulnerabilities/${rule.cve_id}`)} style={{ color: BRAND_BLUE }}>
-                            {rule.cve_id}
+                            {rule.cve_id}<CveAliasBadges aliases={rule.aliases} />
                           </Link>
                         )}
                         {rule.reference_url && (
@@ -547,7 +548,7 @@ export function SuppressionRules() {
                     </span>
                   ) : (
                     <Link to={scopedLink(`/vulnerabilities/${detailRule.cve_id}`)} style={{ color: BRAND_BLUE, fontFamily: 'monospace', fontSize: 13 }}>
-                      {detailRule.cve_id}
+                      {detailRule.cve_id}<CveAliasBadges aliases={detailRule.aliases} />
                     </Link>
                   )}
                 </DescriptionListDescription>

@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Checkbox,
@@ -104,7 +105,7 @@ export function Remediations() {
     let items = data ?? []
     if (debouncedSearch) {
       const q = debouncedSearch.toUpperCase()
-      items = items.filter(r => r.cve_id.toUpperCase().includes(q))
+      items = items.filter(r => [r.cve_id, ...(r.aliases ?? [])].some(value => value.toUpperCase().includes(q)))
     }
     return items
   }, [data, debouncedSearch])
@@ -374,7 +375,7 @@ function RemediationRow({
           to={scopedLink(`/vulnerabilities/${item.cve_id}`)}
           style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
         >
-          {item.cve_id}
+          {item.cve_id}<CveAliasBadges aliases={item.aliases} />
         </Link>
       </Td>
       <Td>{item.cluster_name}/{item.namespace}</Td>

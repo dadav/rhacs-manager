@@ -15,6 +15,7 @@ from ..schemas.cve import (
     ImageLayer,
     SeverityLevel,
 )
+from ..services.cve_alias_service import enrich_aliases
 from ..services.cve_filter_service import resolve_view_thresholds
 from ..stackrox import queries as sx
 
@@ -103,6 +104,8 @@ async def get_image_detail(
         )
         for r in cve_rows
     ]
+
+    await enrich_aliases(app_db, cves)
 
     # Compute severity counts from CVE list
     critical = sum(1 for c in cves if c.severity == SeverityLevel.CRITICAL)

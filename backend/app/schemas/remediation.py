@@ -45,6 +45,7 @@ class RemediationResponse(BaseModel):
 
     id: UUID
     cve_id: str
+    aliases: list[str] = []
     namespace: str
     cluster_name: str
     status: str

@@ -3,7 +3,7 @@ because approved suppression rules hide every location in scope."""
 
 from datetime import datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -28,7 +28,9 @@ TEAM = [("a", "c1"), ("b", "c1")]
 def _app_db():
     """execute() results in call order: approved RAs, priorities, requested RAs, escalations."""
     db = AsyncMock()
-    db.execute.side_effect = [[], [], [], []]
+    aliases = MagicMock()
+    aliases.scalars.return_value.all.return_value = []
+    db.execute.side_effect = [[], [], [], [], aliases]
     return db
 
 

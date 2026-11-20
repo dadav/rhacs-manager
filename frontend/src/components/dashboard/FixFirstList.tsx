@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../common/CveAliasBadges'
 import { Card, CardBody, Label } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
 import { Link } from "react-router";
@@ -45,7 +46,7 @@ export function FixFirstList({ data }: FixFirstListProps) {
                       to={scopedLink(`/vulnerabilities/${cve.cve_id}`)}
                       style={{ fontWeight: 700 }}
                     >
-                      {cve.cve_id}
+                      {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
                     </Link>
                     {cve.has_priority && (
                       <span className="prio-badge" style={{ marginLeft: 8 }}>

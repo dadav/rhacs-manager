@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../common/CveAliasBadges'
 import { Alert } from "@patternfly/react-core";
 import { Link } from "react-router";
 import { useScopedLink } from "../../hooks/useScope";
@@ -52,7 +53,7 @@ export function PriorityCveAlert({ variant, cves }: PriorityCveAlertProps) {
               fontSize: 13,
             }}
           >
-            <span style={{ fontWeight: 700 }}>{cve.cve_id}</span>
+            <span style={{ fontWeight: 700 }}>{cve.cve_id}<CveAliasBadges aliases={cve.aliases} /></span>
             {isPriority && <span className="prio-badge">PRIO</span>}
             <SeverityBadge severity={cve.severity} />
             <EpssBadge value={cve.epss_probability} />

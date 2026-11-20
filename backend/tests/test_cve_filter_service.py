@@ -522,3 +522,24 @@ def test_scoped_cve_rule_locations_lists_only_namespace_scoped_targets():
     legacy = SimpleNamespace(cve_id="CVE-3", scope=None)
 
     assert scoped_cve_rule_locations([scoped, org_wide, legacy]) == [("CVE-1", "a", "c1")]
+
+
+async def test_alias_search_keeps_visibility_thresholds_and_remediated_rows(fixed_cve_context, monkeypatch):
+    from app.services import cve_alias_service
+
+    svc, user, db, sx = fixed_cve_context
+    monkeypatch.setattr(
+        cve_alias_service,
+        "load_aliases",
+        AsyncMock(return_value={"CVE-FIXED": ["Heartbleed"], "CVE-HIDDEN": ["Heartbleed"]}),
+    )
+    items = await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, search="HEART")
+    assert [item.cve_id for item in items] == ["CVE-FIXED"]
+    assert items[0].aliases == ["Heartbleed"]
+    assert items[0].no_longer_affected is True
+    args = sx.get_cves_for_namespaces.call_args.args
+    assert args[1] == user.namespaces
+    assert args[2:4] == (7.0, 0.5)
+    assert "CVE-HIDDEN" not in args[4]
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), search="Heartbleed") == []
+    assert await svc.fetch_filtered_cves(user, db, AsyncMock(), show_remediated=True, search="missing") == []

@@ -58,6 +58,7 @@ export const VULN_ORIGINS: VulnOrigin[] = [
 
 export interface CveListItem {
   cve_id: string
+  aliases: string[]
   severity: Severity
   cvss: number
   epss_probability: number
@@ -113,6 +114,7 @@ export interface SuppressionRule {
   component_name: string | null
   version_pattern: string | null
   cve_id: string | null
+  aliases: string[]
   reason: string
   reference_url: string | null
   review_comment: string | null
@@ -252,6 +254,7 @@ export interface CveComment {
 export interface RiskAcceptance {
   id: string
   cve_id: string
+  aliases: string[]
   status: RiskStatus
   justification: string
   scope: RiskScope
@@ -290,6 +293,7 @@ export type MyCommentKind = 'cve' | 'risk_acceptance' | 'escalation'
 export interface MyCommentThread {
   kind: MyCommentKind
   cve_id: string
+  aliases: string[]
   risk_acceptance_id: string | null
   escalation_context: EscalationContext | null
   my_comment_count: number
@@ -320,6 +324,7 @@ export interface RiskComment {
 export interface CvePriority {
   id: string
   cve_id: string
+  aliases: string[]
   priority: PriorityLevel
   reason: string
   set_by: string
@@ -442,6 +447,7 @@ export interface DashboardData {
 
 export interface EpssMatrixPoint {
   cve_id: string
+  aliases: string[]
   cvss: number
   epss: number
   severity: Severity
@@ -505,6 +511,7 @@ export interface ThresholdPreview {
 export interface Escalation {
   id: string
   cve_id: string
+  aliases: string[]
   namespace: string
   cluster_name: string
   level: number
@@ -514,6 +521,7 @@ export interface Escalation {
 
 export interface UpcomingEscalation {
   cve_id: string
+  aliases: string[]
   severity: number
   epss_probability: number
   current_age_days: number
@@ -524,6 +532,7 @@ export interface UpcomingEscalation {
 export interface ActiveEscalationRow {
   id: string
   cve_id: string
+  aliases: string[]
   namespace: string
   cluster_name: string
   level: number
@@ -581,6 +590,7 @@ export enum RemediationStatus {
 export interface RemediationItem {
   id: string
   cve_id: string
+  aliases: string[]
   namespace: string
   cluster_name: string
   status: RemediationStatus
@@ -612,6 +622,7 @@ export interface RemediationStats {
 
 export interface FixRollupCve {
   cve_id: string
+  aliases: string[]
   severity: Severity
   cvss: number
   epss_probability: number
@@ -678,6 +689,7 @@ export interface ImageCveGroup {
 
 export interface ImageCveDetail {
   cve_id: string
+  aliases: string[]
   severity: Severity
   cvss: number
   epss_probability: number

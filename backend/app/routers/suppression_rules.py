@@ -27,6 +27,7 @@ from ..schemas.suppression_rule import (
     SuppressionScope,
 )
 from ..services.audit_service import log_action
+from ..services.cve_alias_service import load_aliases
 from ..services.cve_filter_service import compute_per_rule_matched_counts
 from ..services.risk_acceptance_service import scope_key, validate_and_resolve_scope
 from ..stackrox import queries as sx
@@ -45,7 +46,7 @@ def _risk_scope_to_suppression_scope(rs: RiskScope) -> SuppressionScope:
 
 
 async def _build_response(
-    rule: SuppressionRule, db: AsyncSession, matched_cve_count: int = 0
+    rule: SuppressionRule, db: AsyncSession, matched_cve_count: int = 0, aliases: list[str] | None = None
 ) -> SuppressionRuleResponse:
     creator_result = await db.execute(select(User).where(User.id == rule.created_by))
     creator = creator_result.scalar_one_or_none()
@@ -59,7 +60,11 @@ async def _build_response(
     if rule.type == SuppressionType.cve and rule.scope:
         rule_scope = SuppressionScope(**rule.scope)
 
+    if aliases is None:
+        alias_map = await load_aliases(db, [rule.cve_id] if rule.cve_id else [])
+        aliases = alias_map.get(rule.cve_id, [])
     return SuppressionRuleResponse(
+        aliases=aliases,
         id=rule.id,
         status=rule.status.value,
         type=rule.type.value,
@@ -218,7 +223,11 @@ async def list_suppression_rules(
 
     counts = compute_per_rule_matched_counts(rules, all_cve_id_set, component_version_map)
 
-    return [await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0)) for rule in rules]
+    aliases = await load_aliases(db, [rule.cve_id for rule in rules if rule.cve_id])
+    return [
+        await _build_response(rule, db, matched_cve_count=counts.get(rule.id, 0), aliases=aliases.get(rule.cve_id, []))
+        for rule in rules
+    ]
 
 
 @router.get("/{rule_id}", response_model=SuppressionRuleResponse)

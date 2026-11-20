@@ -1,3 +1,4 @@
+import { CveAliasBadges } from './common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -110,7 +111,7 @@ export function ExcelImportModal({ isOpen, onClose }: Props) {
               >
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {result.failed.map((f, i) => (
-                    <li key={i}><strong>{f.cve_id}:</strong> {f.error}</li>
+                    <li key={i}><strong>{f.cve_id}:</strong><CveAliasBadges aliases={f.aliases} /> {f.error}</li>
                   ))}
                 </ul>
               </Alert>
@@ -153,7 +154,7 @@ export function ExcelImportModal({ isOpen, onClose }: Props) {
                       <tbody>
                         {preview.items.map((item: ImportPreviewItem, idx: number) => (
                           <tr key={idx} style={{ background: item.valid ? 'transparent' : 'rgba(201,25,11,0.06)' }}>
-                            <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{item.cve_id}</td>
+                            <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{item.cve_id}<CveAliasBadges aliases={item.aliases} /></td>
                             <td style={{ ...tdStyle, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {item.justification}
                             </td>

@@ -6,6 +6,12 @@ from ..vuln_origin import origin_filter_sql
 from ._common import CVE_ROWS_CTE, FIXED_BY_CANDIDATES_SQL, _namespace_filter, _row_with_fixed_by
 
 
+def _cve_search_pattern(search: str) -> str:
+    # CVE searches are literal substrings, including names containing SQL wildcards.
+    escaped = search.replace("/", "//").replace("%", "/%").replace("_", "/_")
+    return f"%{escaped}%"
+
+
 async def get_threshold_preview(
     session: AsyncSession,
     min_cvss: float,
@@ -57,6 +63,7 @@ async def get_cves_grouped_by_image(
     always_show_cve_ids: set[str] | None = None,
     *,
     search: str | None = None,
+    alias_cve_ids: list[str] | None = None,
     severity: int | None = None,
     fixable: bool | None = None,
     cvss_min: float | None = None,
@@ -93,8 +100,12 @@ async def get_cves_grouped_by_image(
     }
 
     if search:
-        cte_extra_having += "\n                AND ic.cvebaseinfo_cve ILIKE :search_pat"
-        params["search_pat"] = f"%{search}%"
+        cte_extra_having += (
+            "\n                AND (ic.cvebaseinfo_cve ILIKE :search_pat ESCAPE '/'"
+            " OR ic.cvebaseinfo_cve = ANY(:alias_cve_ids))"
+        )
+        params["alias_cve_ids"] = alias_cve_ids or []
+        params["search_pat"] = _cve_search_pattern(search)
     if severity is not None:
         cte_extra_having += "\n                AND MAX(ic.severity) = :filter_severity"
         params["filter_severity"] = severity
@@ -180,6 +191,7 @@ async def get_cves_for_image(
     always_show_cve_ids: set[str] | None = None,
     *,
     search: str | None = None,
+    alias_cve_ids: list[str] | None = None,
     severity: int | None = None,
     fixable: bool | None = None,
     filter_cvss_min: float | None = None,
@@ -211,8 +223,11 @@ async def get_cves_for_image(
     }
 
     if search:
-        having_filters.append("ic.cvebaseinfo_cve ILIKE :search")
-        bind_params["search"] = f"%{search}%"
+        having_filters.append(
+            "(ic.cvebaseinfo_cve ILIKE :search ESCAPE '/' OR ic.cvebaseinfo_cve = ANY(:alias_cve_ids))"
+        )
+        bind_params["alias_cve_ids"] = alias_cve_ids or []
+        bind_params["search"] = _cve_search_pattern(search)
     if severity is not None:
         having_filters.append("MAX(ic.severity) = :filter_severity")
         bind_params["filter_severity"] = severity

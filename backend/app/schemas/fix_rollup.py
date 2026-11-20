@@ -5,6 +5,7 @@ from .cve import SeverityLevel
 
 class FixRollupCve(BaseModel):
     cve_id: str
+    aliases: list[str] = []
     severity: SeverityLevel
     cvss: float
     epss_probability: float

@@ -361,3 +361,69 @@ async def test_epss_matrix_fixable_is_scoped_bool_or(sx_session):
     assert team_a["CVE-STALE"]["fixable"] is False
     assert org_wide["CVE-STALE"]["fixable"] is True
     assert team_a["CVE-NULL"]["fixable"] is False
+
+
+async def test_image_alias_search_keeps_scope_thresholds_and_counts(sx_session):
+    matches = ["CVE-STALE", "CVE-EPSS", "CVE-B-ONLY"]
+    cves = await sx.get_cves_for_image(
+        sx_session, "sha256:stale", TEAM_A, 7.0, 0.1, set(), search="Heartbleed", alias_cve_ids=matches
+    )
+    assert [cve["cve_id"] for cve in cves] == ["CVE-STALE"]
+    grouped = await sx.get_cves_grouped_by_image(
+        sx_session, TEAM_A, 7.0, 0.1, set(), search="HEART", alias_cve_ids=matches
+    )
+    assert len(grouped) == 1
+    assert grouped[0]["image_id"] == "sha256:stale"
+    assert grouped[0]["total_cves"] == 1
+    assert (
+        await sx.get_cves_grouped_by_image(sx_session, [], 7.0, 0.1, set(), search="Heartbleed", alias_cve_ids=matches)
+        == []
+    )
+
+
+async def test_alias_migration_and_atomic_upsert_on_postgresql(sx_session, monkeypatch):
+    import importlib.util
+    from unittest.mock import AsyncMock
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    from app.models.audit_log import AuditLog
+    from app.models.user import User, UserRole
+    from app.services import cve_alias_service
+    from tests.conftest import make_current_user
+
+    path = Path(__file__).parents[1] / "alembic/versions/033_cve_aliases.py"
+    spec = importlib.util.spec_from_file_location("migration_033_pg", path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    connection = await sx_session.connection()
+    await connection.run_sync(User.__table__.create)
+    await connection.run_sync(AuditLog.__table__.create)
+
+    def migrate(conn, operation):
+        with Operations.context(MigrationContext.configure(conn)):
+            operation()
+
+    await connection.run_sync(migrate, migration.upgrade)
+    user = make_current_user(is_sec_team=True)
+    sx_session.add(User(id=user.id, username="security", email="sec@example.com", role=UserRole.sec_team))
+    await sx_session.flush()
+    monkeypatch.setattr(cve_alias_service.sx, "list_namespaces", AsyncMock(return_value=[]))
+    monkeypatch.setattr(cve_alias_service.sx, "get_cve_detail", AsyncMock(return_value={"cve_id": "CVE-STALE"}))
+    for names in [["Heartbleed"], ["Heartbleed"], ["Replacement"], []]:
+        await cve_alias_service.replace_aliases(sx_session, sx_session, user, "CVE-STALE", names)
+        assert await cve_alias_service.load_aliases(sx_session, ["CVE-STALE"]) == {"CVE-STALE": names}
+    assert (await sx_session.execute(text("SELECT count(*) FROM audit_log"))).scalar_one() == 3
+    await connection.run_sync(migrate, migration.downgrade)
+    assert (await sx_session.execute(text("SELECT to_regclass('cve_aliases')"))).scalar_one() is None
+
+
+async def test_image_alias_search_treats_sql_wildcards_as_literal_text(sx_session):
+    for search in ["%", "_", "/"]:
+        assert await sx.get_cves_for_image(sx_session, "sha256:stale", TEAM_A, search=search) == []
+        assert await sx.get_cves_grouped_by_image(sx_session, TEAM_A, search=search) == []
+        items = await sx.get_cves_for_image(
+            sx_session, "sha256:stale", TEAM_A, search=search, alias_cve_ids=["CVE-STALE"]
+        )
+        assert [item["cve_id"] for item in items] == ["CVE-STALE"]

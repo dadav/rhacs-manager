@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Breadcrumb,
@@ -117,7 +118,7 @@ function NewRiskAcceptanceForm({ cveId }: { cveId: string }) {
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.cveId')}</label>
-                <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{cveId}</div>
+                <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{cveId}<CveAliasBadges aliases={cve?.aliases} /></div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
@@ -228,7 +229,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
             {t('riskAcceptance.title')}
           </BreadcrumbItem>
           <BreadcrumbItem onClick={() => navigate(scopedLink(`/risk-acceptances/${raId}`))} style={{ cursor: 'pointer' }}>
-            {ra.cve_id}
+            {ra.cve_id}<CveAliasBadges aliases={ra.aliases} />
           </BreadcrumbItem>
           <BreadcrumbItem isActive>{t('riskAcceptance.edit')}</BreadcrumbItem>
         </Breadcrumb>
@@ -241,7 +242,7 @@ function EditRiskAcceptanceForm({ raId }: { raId: string }) {
             <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.cveId')}</label>
-                <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{ra.cve_id}</div>
+                <div style={{ fontFamily: 'monospace', marginTop: 4, color: '#0066cc' }}>{ra.cve_id}<CveAliasBadges aliases={ra.aliases} /></div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600 }}>{t('riskAcceptance.justification')} *</label>
@@ -407,10 +408,10 @@ function RiskAcceptanceView({ id }: { id: string }) {
           <BreadcrumbItem onClick={() => navigate(scopedLink('/risk-acceptances'))} style={{ cursor: 'pointer' }}>
             {t('riskAcceptance.title')}
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{ra.cve_id}</BreadcrumbItem>
+          <BreadcrumbItem isActive>{ra.cve_id}<CveAliasBadges aliases={ra.aliases} /></BreadcrumbItem>
         </Breadcrumb>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <Title headingLevel="h1" size="xl" style={{ fontFamily: 'monospace' }}>{ra.cve_id}</Title>
+          <Title headingLevel="h1" size="xl" style={{ fontFamily: 'monospace' }}>{ra.cve_id}<CveAliasBadges aliases={ra.aliases} /></Title>
           <span style={{
             display: 'inline-block',
             padding: '3px 10px',
@@ -469,7 +470,7 @@ function RiskAcceptanceView({ id }: { id: string }) {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {([
-                      [t('riskAcceptance.cveId'), <Link to={scopedLink(`/vulnerabilities/${ra.cve_id}`)} style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}</Link>],
+                      [t('riskAcceptance.cveId'), <Link to={scopedLink(`/vulnerabilities/${ra.cve_id}`)} style={{ fontFamily: 'monospace', color: '#0066cc' }}>{ra.cve_id}<CveAliasBadges aliases={ra.aliases} /></Link>],
                       [t('riskAcceptance.scope'), renderScope(ra.scope)],
                       [t('riskAcceptance.requestedBy'), ra.created_by_name],
                       [t('riskAcceptance.requestedAt'), formatDate(ra.created_at, i18n.language)],

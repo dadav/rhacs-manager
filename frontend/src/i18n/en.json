@@ -243,7 +243,7 @@
     "publishedOn": "Published On",
     "fixAvailableSince": "Fix Available Since",
     "firstSystemOccurrence": "First System-Wide Occurrence",
-    "searchPlaceholder": "Search CVE ID...",
+    "searchPlaceholder": "Search CVE ID or alias...",
     "filterSeverity": "Filter severity",
     "filterFixable": "Fixable only",
     "filterPrioritized": "Prioritized only",
@@ -636,8 +636,8 @@
     "active": "Active Escalations",
     "noActive": "No active escalations. Well done!",
     "activeCount": "{{count}} active escalation(s)",
-    "searchPlaceholder": "Search CVE...",
-    "searchLabel": "Search CVE ID",
+    "searchPlaceholder": "Search CVE ID or alias...",
+    "searchLabel": "Search CVE ID or alias",
     "filterLevelLabel": "Filter by level",
     "allLevelsLabel": "All levels",
     "levelCritical": "Critical",
@@ -690,8 +690,8 @@
     "statusVerified": "Verified",
     "statusWontFix": "Won't Fix",
     "overdue": "Overdue",
-    "searchPlaceholder": "Search CVE...",
-    "searchLabel": "Search CVE ID",
+    "searchPlaceholder": "Search CVE ID or alias...",
+    "searchLabel": "Search CVE ID or alias",
     "filterStatus": "Filter by status",
     "allStatuses": "All statuses",
     "noRemediations": "No remediations found.",
@@ -809,6 +809,12 @@
     "minEpssLabel": "Minimum EPSS Score: {{value}}%",
     "helpFor": "Help for {{topic}}"
   },
+  "cveAliases": {
+    "label": "Aliases",
+    "edit": "Edit aliases",
+    "help": "One alias per line. Up to 10 aliases, 80 characters each. Names are shared across the organization. Clear all lines to remove the aliases.",
+    "tooLong": "Each alias can contain at most 80 characters."
+  },
   "auditLog": {
     "title": "Audit Log",
     "date": "Timestamp",
@@ -835,6 +841,7 @@
       "cve": "CVE"
     },
     "actions": {
+      "cve_aliases_updated": "CVE aliases updated",
       "priority_created": "Priority set",
       "priority_set": "Priority set",
       "priority_updated": "Priority updated",
@@ -1044,7 +1051,7 @@
     "layerCount": "{{count}} Layers",
     "noLayers": "No layer information available",
     "cveTable": "CVEs ({{count}})",
-    "searchCves": "Search CVE ID...",
+    "searchCves": "Search CVE ID or alias...",
     "imageNotFound": "Image not found",
     "noTimelineData": "No timeline data",
     "components": "Vulnerable components",

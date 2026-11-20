@@ -2,6 +2,7 @@ from .alert_email_delivery import AlertEmailDelivery
 from .audit_log import AuditLog
 from .badge import BadgeToken
 from .cve_alert_mark import CveAlertMark
+from .cve_alias import CveAlias
 from .cve_comment import CveComment
 from .cve_priority import CvePriority, PriorityLevel
 from .cve_snapshot import CveSnapshot
@@ -25,6 +26,7 @@ __all__ = [
     "RiskAcceptanceComment",
     "RiskStatus",
     "CveComment",
+    "CveAlias",
     "CvePriority",
     "PriorityLevel",
     "CveSnapshot",

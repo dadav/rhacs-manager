@@ -23,6 +23,7 @@ from ..schemas.cve import CveListItem, SeverityLevel, VulnOrigin
 from ..stackrox import queries as sx
 from ..stackrox.vuln_origin import origin_names
 from .cve_access import fixed_remediation_cve_ids
+from .cve_alias_service import enrich_aliases, matches_cve_search
 from .cve_subscription_service import subscribed_cve_ids
 
 logger = logging.getLogger(__name__)
@@ -646,10 +647,11 @@ async def fetch_filtered_cves(
         if remediation_status:
             items = [i for i in items if i.remediation_status == remediation_status]
 
+    await enrich_aliases(app_db, items)
+
     # Filter
     if search:
-        s = search.lower()
-        items = [i for i in items if s in i.cve_id.lower()]
+        items = [i for i in items if matches_cve_search(i.cve_id, i.aliases, search)]
     if severity is not None:
         items = [i for i in items if i.severity == severity]
     if fixable is not None:

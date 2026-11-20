@@ -89,6 +89,7 @@ def _app_db():
         _result(),
         _result(),
         _result(),
+        _result(),  # CVE aliases
     ]
     return db
 

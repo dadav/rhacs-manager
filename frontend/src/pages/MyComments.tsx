@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -248,7 +249,7 @@ export function MyComments() {
                             </Label>
                           </Td>
                           <Td style={{ fontFamily: thread.kind === 'cve' ? 'monospace' : undefined, fontSize: 12 }}>
-                            {contextLabel(thread, t)}
+                            {contextLabel(thread, t)}<CveAliasBadges aliases={thread.aliases} />
                           </Td>
                           <Td style={{ maxWidth: 420 }}>
                             <div

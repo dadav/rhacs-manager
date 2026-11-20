@@ -17,6 +17,7 @@ from sqlalchemy.pool import StaticPool
 from app.auth.middleware import CurrentUser
 from app.database import Base
 from app.deps import get_app_db, get_current_user
+from app.models.cve_alias import CveAlias
 from app.models.cve_comment import CveComment
 from app.models.escalation import Escalation
 from app.models.remediation import Remediation, RemediationStatus
@@ -41,6 +42,7 @@ async def store() -> AsyncGenerator[async_sessionmaker[AsyncSession]]:
         poolclass=StaticPool,
     )
     tables = [
+        CveAlias.__table__,
         User.__table__,
         Escalation.__table__,
         CveComment.__table__,
@@ -379,3 +381,15 @@ async def test_empty_for_user_without_comments(app, store, visible_cves):
     async with _client(app, store, _me()) as client:
         body = await _get(client)
     assert body == {"items": [], "total": 0, "page": 1, "page_size": 25}
+
+
+async def test_aliases_only_returned_for_accessible_threads(app, store, visible_cves):
+    visible_cves["visible"] = {"CVE-VISIBLE"}
+    for cve in ["CVE-VISIBLE", "CVE-HIDDEN"]:
+        await _cve_comment(store, cve, ME, T0)
+    async with store() as session:
+        session.add_all([CveAlias(cve_id=cve, aliases=["Heartbleed"]) for cve in ["CVE-VISIBLE", "CVE-HIDDEN"]])
+        await session.commit()
+    async with _client(app, store, _me()) as client:
+        rows = (await _get(client))["items"]
+    assert {row["cve_id"]: row["aliases"] for row in rows} == {"CVE-VISIBLE": ["Heartbleed"], "CVE-HIDDEN": []}

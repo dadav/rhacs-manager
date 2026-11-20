@@ -1,3 +1,4 @@
+import { CveAliasBadges } from './common/CveAliasBadges'
 import { Td, Tr, Table, Thead, Tbody, Th } from '@patternfly/react-table'
 import { Tooltip } from '@patternfly/react-core'
 import { useState } from 'react'
@@ -116,7 +117,7 @@ export function ComponentFixRow({ item, showImageLinks = true }: { item: FixRoll
                       <Tr key={cve.cve_id}>
                         <Td>
                           <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
-                            {cve.cve_id}
+                            {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
                           </Link>
                         </Td>
                         <Td><SeverityBadge severity={cve.severity} /></Td>

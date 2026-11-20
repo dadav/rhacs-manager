@@ -700,3 +700,51 @@ async def test_escalation_locations_include_only_visible_affected_pairs(team_mem
             "stopped_reason": None,
         }
     ]
+
+
+@pytest.mark.parametrize(
+    "path,query_name",
+    [("/api/cves/by-image", "get_cves_grouped_by_image"), ("/api/cves/by-image/sha256:abc/cves", "get_cves_for_image")],
+)
+async def test_image_search_resolves_aliases_without_changing_scope(
+    team_member_client, patch_sx, mock_app_db, path, query_name
+):
+    from app.models.cve_alias import CveAlias
+
+    async def execute(statement):
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = None
+        result.__iter__ = lambda self: iter([])
+        result.scalars.return_value.all.return_value = (
+            [CveAlias(cve_id="CVE-2014-0160", aliases=["Heartbleed"])] if "FROM cve_aliases" in str(statement) else []
+        )
+        return result
+
+    mock_app_db.execute.side_effect = execute
+    response = await team_member_client.get(
+        path, params={"search": "HEART", "namespace": "payments", "cluster": "cluster-a"}
+    )
+    assert response.status_code == 200
+    call = getattr(patch_sx, query_name).call_args
+    assert call.kwargs["alias_cve_ids"] == ["CVE-2014-0160"]
+    assert call.kwargs["search"] == "HEART"
+    assert [("payments", "cluster-a")] in call.args
+
+
+async def test_detail_returns_aliases_to_regular_readers(team_member_client, patch_sx, mock_app_db):
+    from app.models.cve_alias import CveAlias
+
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    default_result = mock_app_db.execute.return_value
+
+    async def execute(statement):
+        if "FROM cve_aliases" not in str(statement):
+            return default_result
+        result = MagicMock()
+        result.scalars.return_value.all.return_value = [CveAlias(cve_id="CVE-2024-0001", aliases=["Heartbleed"])]
+        return result
+
+    mock_app_db.execute.side_effect = execute
+    response = await team_member_client.get("/api/cves/CVE-2024-0001")
+    assert response.status_code == 200
+    assert response.json()["aliases"] == ["Heartbleed"]

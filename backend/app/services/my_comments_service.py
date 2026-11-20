@@ -34,6 +34,7 @@ from ..stackrox import queries as sx
 from .comment_content import enrich_segments, mention_user_ids
 from .comment_service import escalation_context
 from .cve_access import visible_remediation_cve_ids
+from .cve_alias_service import enrich_aliases
 from .risk_acceptance_service import user_can_access_ra
 
 logger = logging.getLogger(__name__)
@@ -257,5 +258,6 @@ async def list_my_comment_threads(
     if only_with_replies:
         threads = [t for t in threads if t.replies_since > 0]
 
+    await enrich_aliases(app_db, [thread for thread in threads if thread.thread_available])
     threads.sort(key=_sort_key, reverse=True)
     return threads

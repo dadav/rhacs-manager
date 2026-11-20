@@ -638,3 +638,26 @@ These routes are available only when `DEV_MODE=true`.
 | POST | `/api/dev/trigger-cve-subscription-diff` | Any dev user | Run the hourly CVE subscription diff now |
 | POST | `/api/dev/trigger-cve-subscription-email` | Any dev user | Send the daily subscription summary emails now |
 | POST | `/api/dev/trigger-notification-summary` | Any dev user | Send the daily notification summary emails now |
+
+## CVE aliases
+
+`PUT /api/cves/{cve_id}/aliases` replaces all aliases for a CVE. Authentication and the `sec_team` role are required. The CVE must exist in currently affected deployments or have a remediation record.
+
+```json
+{"aliases": ["Heartbleed"]}
+```
+
+A successful response is `200` with `{"cve_id": "CVE-2014-0160", "aliases": [...]}`, where `aliases` is the stored normalized list. Send `{"aliases": []}` to clear names. Names are plain text, trimmed, deduplicated case-insensitively (Unicode case folding, so `Straße` and `STRASSE` are the same name), and retained in input order with the first spelling.
+
+Two separate limits apply:
+
+- The request may contain at most 100 entries, counted before trimming and deduplication. Duplicates count toward this cap. A larger list is rejected with the standard FastAPI `422` validation shape (`detail` is a list).
+- After deduplication, at most 10 unique names are allowed.
+
+Each trimmed name must contain 1–80 Unicode characters (code points). Names must not contain control characters (including tabs, line breaks and NUL), line or paragraph separators (`U+2028`, `U+2029`), unpaired surrogates, or bidirectional text controls (`U+061C`, `U+200E`, `U+200F`, `U+202A`–`U+202E`, `U+2066`–`U+2069`). Letters from any script, right-to-left text, and joiners such as `U+200C`/`U+200D` are allowed. Violations of these name rules return `422` with a localized message string in `detail`.
+
+Insufficient permissions return `403` and an unknown CVE `404`, also when clearing. Concurrent updates replace the complete list atomically; the last committed change wins. Only real changes are recorded in the audit log with their actor: repeating the current list, or clearing a CVE that has no names, writes nothing.
+
+CVE-bearing list, detail, dashboard, image, and workflow responses include an `aliases` array, empty when no names are assigned. Alias data follows each endpoint's existing record visibility rules. Inaccessible comment threads do not expose aliases.
+
+The existing `search` parameter matches CVE IDs or aliases in the CVE list, component fixes, image groups and their CVE lists, and active/upcoming escalations. Matching precedes pagination and counts and preserves namespace, score, and status filters. PDF/Excel result selection uses the same CVE search; their document formats are unchanged.

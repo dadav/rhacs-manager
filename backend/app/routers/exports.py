@@ -18,6 +18,7 @@ from ..schemas.cve import VulnOrigin
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
+from ..services.cve_alias_service import load_aliases
 from ..services.cve_export_service import load_export_rows, resolve_export_namespaces
 from ..services.risk_acceptance_service import is_single_team_scope, scope_key, validate_and_resolve_scope
 from ..stackrox import queries as sx
@@ -327,6 +328,10 @@ async def import_excel(
 
         preview_items.append(item)
 
+    aliases = await load_aliases(app_db, [item["cve_id"] for item in preview_items if item.get("_resolved_scope")])
+    for item in preview_items:
+        item["aliases"] = aliases.get(item["cve_id"], []) if item.get("_resolved_scope") else []
+
     total_valid = sum(1 for i in preview_items if i["valid"])
     total_invalid = sum(1 for i in preview_items if not i["valid"])
 
@@ -344,12 +349,12 @@ async def import_excel(
 
     for item in preview_items:
         if not item["valid"]:
-            failed.append({"cve_id": item["cve_id"], "error": "; ".join(item["errors"])})
+            failed.append({"cve_id": item["cve_id"], "aliases": item["aliases"], "error": "; ".join(item["errors"])})
             continue
 
         resolved_scope = item.get("_resolved_scope")
         if not resolved_scope:
-            failed.append({"cve_id": item["cve_id"], "error": m["scope_failed"]})
+            failed.append({"cve_id": item["cve_id"], "aliases": item["aliases"], "error": m["scope_failed"]})
             continue
 
         sk = scope_key(resolved_scope)
@@ -367,6 +372,7 @@ async def import_excel(
                 {
                     "cve_id": item["cve_id"],
                     "error": m["duplicate_ra"],
+                    "aliases": item["aliases"],
                 }
             )
             continue
@@ -400,7 +406,7 @@ async def import_excel(
             actor_id=current_user.id,
             scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
         )
-        created.append({"cve_id": item["cve_id"], "ra_id": str(ra.id)})
+        created.append({"cve_id": item["cve_id"], "aliases": item["aliases"], "ra_id": str(ra.id)})
 
     if created:
         await app_db.commit()

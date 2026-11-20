@@ -7,6 +7,8 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from app.models.cve_alias import CveAlias
+
 
 def _mock_suppression_rule(
     *,
@@ -197,6 +199,7 @@ async def suppression_store(app, sec_team_user, monkeypatch, patch_sx):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
+        await connection.run_sync(CveAlias.__table__.create)
         await connection.run_sync(User.__table__.create)
         await connection.run_sync(SuppressionRule.__table__.create)
 

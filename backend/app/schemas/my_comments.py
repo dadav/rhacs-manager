@@ -20,6 +20,7 @@ MyCommentKind = Literal["cve", "risk_acceptance", "escalation"]
 class MyCommentThread(BaseModel):
     kind: MyCommentKind
     cve_id: str
+    aliases: list[str] = []
     risk_acceptance_id: UUID | None = None
     # Sec team only, taken from the user's latest own comment in the thread.
     escalation_context: EscalationContext | None = None

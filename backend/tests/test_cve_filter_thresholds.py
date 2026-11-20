@@ -42,6 +42,7 @@ def _app_db_with_calls(settings):
         _result(all_items=[]),  # SuppressionRule (_load_suppression_sets)
         _result(all_items=[]),  # CveSubscription (subscribed_cve_ids)
         _result(all_items=[]),  # Remediation (compute_remediation_status)
+        _result(all_items=[]),  # CVE aliases
     ]
     return db
 

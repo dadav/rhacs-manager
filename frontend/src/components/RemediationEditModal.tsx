@@ -1,3 +1,4 @@
+import { CveAliasBadges } from './common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -81,6 +82,7 @@ export function RemediationEditModal({ item, isOpen, onClose, onSaved }: Remedia
         description={`${item.cve_id}, ${item.cluster_name}/${item.namespace}`}
       />
       <ModalBody>
+        <CveAliasBadges aliases={item.aliases} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label htmlFor={dateId} style={{ fontSize: 13, fontWeight: 600 }}>{t('cveDetail.targetDate')}</label>

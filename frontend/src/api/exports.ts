@@ -80,6 +80,7 @@ export async function exportExcel(filters: ExportFilters, scope: ScopeParams) {
 
 export interface ImportPreviewItem {
   cve_id: string
+  aliases: string[]
   justification: string
   scope: string
   expires_at: string | null
@@ -95,8 +96,8 @@ export interface ImportPreviewResult {
 }
 
 export interface ImportConfirmResult {
-  created: { cve_id: string; ra_id: string }[]
-  failed: { cve_id: string; error: string }[]
+  created: { cve_id: string; aliases: string[]; ra_id: string }[]
+  failed: { cve_id: string; aliases: string[]; error: string }[]
 }
 
 export async function importExcel(

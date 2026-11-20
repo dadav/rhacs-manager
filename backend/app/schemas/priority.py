@@ -24,6 +24,7 @@ class PriorityResponse(BaseModel):
 
     id: UUID
     cve_id: str
+    aliases: list[str] = []
     priority: PriorityLevel
     reason: str
     set_by: str

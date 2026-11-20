@@ -243,7 +243,7 @@
     "publishedOn": "Veröffentlicht am",
     "fixAvailableSince": "Fix verfügbar seit",
     "firstSystemOccurrence": "Erstmals systemweit",
-    "searchPlaceholder": "CVE-ID suchen...",
+    "searchPlaceholder": "CVE-ID oder Alias suchen...",
     "filterSeverity": "Schweregrad filtern",
     "filterFixable": "Nur behebbare",
     "filterPrioritized": "Nur priorisierte",
@@ -636,8 +636,8 @@
     "active": "Aktive Eskalationen",
     "noActive": "Keine aktiven Eskalationen. Gut gemacht!",
     "activeCount": "{{count}} aktive Eskalation(en)",
-    "searchPlaceholder": "CVE suchen...",
-    "searchLabel": "CVE-ID suchen",
+    "searchPlaceholder": "CVE-ID oder Alias suchen...",
+    "searchLabel": "CVE-ID oder Alias suchen",
     "filterLevelLabel": "Nach Level filtern",
     "allLevelsLabel": "Alle Level",
     "levelCritical": "Kritisch",
@@ -690,8 +690,8 @@
     "statusVerified": "Verifiziert",
     "statusWontFix": "Wird nicht behoben",
     "overdue": "Überfällig",
-    "searchPlaceholder": "CVE suchen...",
-    "searchLabel": "CVE-ID suchen",
+    "searchPlaceholder": "CVE-ID oder Alias suchen...",
+    "searchLabel": "CVE-ID oder Alias suchen",
     "filterStatus": "Nach Status filtern",
     "allStatuses": "Alle Status",
     "noRemediations": "Keine Behebungen vorhanden.",
@@ -809,6 +809,12 @@
     "minEpssLabel": "Minimaler EPSS-Score: {{value}}%",
     "helpFor": "Hilfe zu {{topic}}"
   },
+  "cveAliases": {
+    "label": "Aliase",
+    "edit": "Aliase bearbeiten",
+    "help": "Ein Alias pro Zeile. Höchstens 10 Aliase mit jeweils 80 Zeichen. Die Namen gelten organisationsweit. Entfernen Sie alle Zeilen, um die Aliase zu löschen.",
+    "tooLong": "Ein Alias darf höchstens 80 Zeichen enthalten."
+  },
   "auditLog": {
     "title": "Audit-Log",
     "date": "Zeitstempel",
@@ -835,6 +841,7 @@
       "cve": "CVE"
     },
     "actions": {
+      "cve_aliases_updated": "CVE-Aliase aktualisiert",
       "priority_created": "Priorität gesetzt",
       "priority_set": "Priorität gesetzt",
       "priority_updated": "Priorität aktualisiert",
@@ -1044,7 +1051,7 @@
     "layerCount": "{{count}} Layer",
     "noLayers": "Keine Layer-Informationen verfügbar",
     "cveTable": "CVEs ({{count}})",
-    "searchCves": "CVE-ID suchen...",
+    "searchCves": "CVE-ID oder Alias suchen...",
     "imageNotFound": "Image nicht gefunden",
     "noTimelineData": "Keine Zeitverlaufsdaten",
     "components": "Verwundbare Komponenten",

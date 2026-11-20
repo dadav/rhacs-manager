@@ -184,7 +184,8 @@ async def search_cves(
     product's core prioritization signal.
 
     Args:
-        search: Free-text search (CVE ID, component name, etc.)
+        search: Case-insensitive partial match on the CVE ID or a CVE alias
+            (for example "Heartbleed")
         severity: Filter by severity level (critical, important, moderate, low)
         fixable: Filter by fixability (true = only fixable CVEs)
         namespace: Filter by namespace name
@@ -288,7 +289,8 @@ async def get_cves_by_image(
     Args:
         cluster: Optional cluster filter
         namespace: Optional namespace filter
-        search: Free-text search (matches CVE id or component)
+        search: Restrict to images with a CVE whose ID or alias partially matches
+            (case-insensitive)
         severity: Restrict to images that have a CVE at this severity (critical,
             important, moderate, low)
         fixable: If true, count only fixable CVEs
@@ -494,7 +496,7 @@ async def get_escalations(
         upcoming: false = active escalations, true = approaching deadlines
         cluster: Optional cluster filter
         namespace: Optional namespace filter
-        search: Search CVE identifier
+        search: Case-insensitive partial match on the CVE ID or a CVE alias
         level: Active only: escalation level (1-3)
         contact_status: Active only, sec team only: needs_action or contacted
         next_level: Upcoming only: next escalation level (1-3)

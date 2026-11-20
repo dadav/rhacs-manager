@@ -1,3 +1,4 @@
+import { CveAliasBadges } from './common/CveAliasBadges'
 import { Spinner } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
 import { useState } from 'react'
@@ -105,7 +106,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
                       <Tr key={cve.cve_id}>
                         <Td>
                           <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
-                            {cve.cve_id}
+                            {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
                           </Link>
                         </Td>
                         <Td><SeverityBadge severity={cve.severity} /></Td>

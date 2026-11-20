@@ -48,6 +48,20 @@ def get_language() -> str:
 # code -> {lang: template}. Templates may use ``{name}`` placeholders filled
 # from ApiError(**params). Keep both languages in sync.
 MESSAGES: dict[str, dict[str, str]] = {
+    "cve_alias_invalid": {
+        "de": (
+            "Aliase müssen aus 1 bis 80 Zeichen bestehen und dürfen keine Zeilenumbrüche, Tabulatoren,"
+            " Steuerzeichen oder Zeichen zur Steuerung der Schreibrichtung enthalten."
+        ),
+        "en": (
+            "Aliases must contain 1 to 80 characters without line breaks, tabs,"
+            " control characters or text direction controls."
+        ),
+    },
+    "cve_alias_too_many": {
+        "de": "Pro CVE sind höchstens 10 Aliase erlaubt.",
+        "en": "A CVE can have at most 10 aliases.",
+    },
     "pdf_export_busy": {
         "de": "Es wird bereits ein PDF-Export erstellt. Bitte versuchen Sie es in Kürze erneut.",
         "en": "A PDF export is already being generated. Please try again shortly.",

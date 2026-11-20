@@ -11,12 +11,14 @@ from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
 from ..stackrox import queries as sx
+from .cve_alias_service import enrich_aliases, matches_cve_search
 from .cve_filter_service import load_approved_suppression_rules
 from .escalation_rules import escalation_candidate_rows, level_deadlines, pick_matching_rule
 
 
 class UpcomingEscalation(BaseModel):
     cve_id: str
+    aliases: list[str] = []
     severity: int
     epss_probability: float
     current_age_days: int
@@ -37,8 +39,7 @@ def filter_upcoming_escalations(
     """Filter and paginate an already computed upcoming-escalation preview."""
     filtered = items
     if search:
-        normalized_search = search.casefold()
-        filtered = [item for item in filtered if normalized_search in item.cve_id.casefold()]
+        filtered = [item for item in filtered if matches_cve_search(item.cve_id, item.aliases, search)]
     if next_level is not None:
         filtered = [item for item in filtered if item.next_level == next_level]
     if severity is not None:
@@ -185,4 +186,5 @@ async def compute_upcoming_escalations(
                 break  # only report the nearest upcoming level
 
     upcoming.sort(key=lambda u: u.days_until_escalation)
+    await enrich_aliases(app_db, upcoming)
     return upcoming

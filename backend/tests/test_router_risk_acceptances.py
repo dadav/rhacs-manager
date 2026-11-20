@@ -9,6 +9,7 @@ from sqlalchemy import JSON
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.deps import get_app_db, get_current_user
+from app.models.cve_alias import CveAlias
 from app.models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment, RiskStatus
 from app.models.user import User, UserRole
 
@@ -19,7 +20,7 @@ async def store(app, team_member_user, monkeypatch):
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as connection:
-        for model in (User, RiskAcceptance, RiskAcceptanceComment):
+        for model in (CveAlias, User, RiskAcceptance, RiskAcceptanceComment):
             await connection.run_sync(model.__table__.create)
 
     now = datetime.now(UTC).replace(tzinfo=None)

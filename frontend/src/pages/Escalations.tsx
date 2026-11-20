@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -442,7 +443,7 @@ export function Escalations() {
                             to={scopedLink(`/vulnerabilities/${u.cve_id}`)}
                             style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
                           >
-                            {u.cve_id}
+                            {u.cve_id}<CveAliasBadges aliases={u.aliases} />
                           </Link>
                         </Td>
                         <Td>{SEVERITY_LABELS[u.severity] ?? `${u.severity}`}</Td>
@@ -652,7 +653,7 @@ export function Escalations() {
                                 to={scopedLink(`/vulnerabilities/${e.cve_id}`)}
                                 style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}
                               >
-                                {e.cve_id}
+                                {e.cve_id}<CveAliasBadges aliases={e.aliases} />
                               </Link>
                             </Td>
                             <Td>

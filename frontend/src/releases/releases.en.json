@@ -5,6 +5,11 @@
       "date": "2026-11-13",
       "items": [
         {
+          "id": "cve-aliases",
+          "kind": "feature",
+          "text": "The security team can give CVEs familiar names such as \"Heartbleed\" as aliases. Aliases appear next to the CVE ID in lists, details and on the dashboard, and the CVE search also finds CVEs by their aliases."
+        },
+        {
           "id": "cve-fix-guidance",
           "kind": "feature",
           "text": "CVE details now show the image and component path to fix, including embedded libraries and the number of CVEs in the same file."

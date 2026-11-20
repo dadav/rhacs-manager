@@ -1,3 +1,5 @@
+import { CveAliasEditor } from '../components/CveAliasEditor'
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Breadcrumb,
@@ -351,13 +353,14 @@ export function CveDetail() {
           <BreadcrumbItem>
             <Link to={scopedLink("/vulnerabilities")}>{t('nav.cves')}</Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{cve.cve_id}</BreadcrumbItem>
+          <BreadcrumbItem isActive>{cve.cve_id}<CveAliasBadges aliases={cve.aliases} /></BreadcrumbItem>
         </Breadcrumb>
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 12,
+            flexWrap: "wrap",
             marginTop: 8,
           }}
         >
@@ -366,8 +369,9 @@ export function CveDetail() {
             size="xl"
             style={{ fontFamily: "monospace" }}
           >
-            {cve.cve_id}
+            {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
           </Title>
+          {isSecTeam && <CveAliasEditor cveId={cve.cve_id} aliases={cve.aliases} />}
           <SeverityBadge severity={cve.severity} />
           {cve.has_priority && (
             <Label color="orange" isCompact>
@@ -469,7 +473,7 @@ export function CveDetail() {
                       label={t('cves.cveId')}
                       value={
                         <span style={{ fontFamily: "monospace" }}>
-                          {cve.cve_id}
+                          {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
                         </span>
                       }
                     />

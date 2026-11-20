@@ -28,6 +28,7 @@ from ..services import comment_service
 from ..services import cve_subscription_service as sub_svc
 from ..services.audit_service import log_action
 from ..services.comment_content import enrich_segments
+from ..services.cve_alias_service import enrich_aliases
 from ..services.risk_acceptance_service import (
     get_scope_namespaces as _get_scope_namespaces,
 )
@@ -99,7 +100,9 @@ async def _single_ra_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAccep
     count_result = await db.execute(
         select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
     )
-    return _build_response(ra, count_result.scalar() or 0)
+    response = _build_response(ra, count_result.scalar() or 0)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.post("", response_model=RiskAcceptanceResponse, status_code=201)
@@ -226,7 +229,9 @@ async def list_risk_acceptances(
     else:
         comment_counts = {}
 
-    return [_build_response(ra, comment_counts.get(ra.id, 0)) for ra in accessible]
+    responses = [_build_response(ra, comment_counts.get(ra.id, 0)) for ra in accessible]
+    await enrich_aliases(db, responses)
+    return responses
 
 
 @router.get("/{ra_id}", response_model=RiskAcceptanceResponse)
@@ -245,7 +250,9 @@ async def get_risk_acceptance(
     count_result = await db.execute(
         select(func.count(RiskAcceptanceComment.id)).where(RiskAcceptanceComment.risk_acceptance_id == ra.id)
     )
-    return _build_response(ra, count_result.scalar() or 0)
+    response = _build_response(ra, count_result.scalar() or 0)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.put("/{ra_id}", response_model=RiskAcceptanceResponse)

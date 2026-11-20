@@ -26,6 +26,7 @@ from ..schemas.dashboard import (
     RiskAcceptancePipeline,
     SeverityCount,
 )
+from ..services.cve_alias_service import enrich_aliases
 from ..services.cve_filter_service import (
     compute_remediation_status,
     compute_suppression_sets,
@@ -531,6 +532,7 @@ async def dashboard(
         )
         for r in matrix_rows
     ]
+    await enrich_aliases(app_db, [*enriched, *epss_matrix])
     cluster_heatmap = [ClusterHeatmapRow(**r) for r in heatmap_rows]
     aging_distribution = [AgingBucket(bucket=r["bucket"], count=r["count"]) for r in aging_rows]
 

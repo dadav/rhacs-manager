@@ -74,6 +74,7 @@ def aggregate_component_rows(rows: list[dict], visible: dict[str, CveListItem]) 
         best, candidates, _ = rank_versions(row["fixed_by_versions"] or [])
         acc.cves[cve.cve_id] = FixRollupCve(
             cve_id=cve.cve_id,
+            aliases=cve.aliases,
             severity=cve.severity,
             cvss=cve.cvss,
             epss_probability=cve.epss_probability,

@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../common/CveAliasBadges'
 import {
   CartesianGrid,
   ReferenceArea,
@@ -44,7 +45,7 @@ export function EpssMatrixTooltip({ active, payload }: { active?: boolean; paylo
       borderRadius: 4,
       fontSize: 12,
     }}>
-      <strong>{d.cve_id}</strong>
+      <strong>{d.cve_id}<CveAliasBadges aliases={d.aliases} /></strong>
       <div>CVSS: {formatCvss(d.cvss)}</div>
       <div>EPSS: {formatEpssPercent(d.epss)}</div>
       <div>{d.fixable ? t('dashboard.fixable') : t('dashboard.unfixable')}</div>

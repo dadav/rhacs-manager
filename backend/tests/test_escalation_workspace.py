@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base
+from app.models.cve_alias import CveAlias
 from app.models.cve_comment import CveComment
 from app.models.escalation import Escalation
 from app.models.remediation import Remediation, RemediationStatus
@@ -38,7 +39,14 @@ async def db() -> AsyncSession:
     async with engine.begin() as conn:
         await conn.run_sync(
             lambda c: Base.metadata.create_all(
-                c, tables=[User.__table__, Escalation.__table__, CveComment.__table__, Remediation.__table__]
+                c,
+                tables=[
+                    CveAlias.__table__,
+                    User.__table__,
+                    Escalation.__table__,
+                    CveComment.__table__,
+                    Remediation.__table__,
+                ],
             )
         )
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -114,6 +122,23 @@ async def test_highest_level_per_group(db: AsyncSession):
     rows, total, _ = await _search(db)
     assert total == 1
     assert rows[0].level == 3
+
+
+async def test_alias_search_preserves_scope_counts_and_pagination(db: AsyncSession):
+    for cve_id, namespace in [("CVE-A", "ns1"), ("CVE-B", "ns1"), ("CVE-HIDDEN", "other")]:
+        db.add(CveAlias(cve_id=cve_id, aliases=["Heartbleed"]))
+        await _add_escalation(
+            db, cve_id=cve_id, cluster_name="c1", namespace=namespace, level=2, triggered_at=BASE_TIME
+        )
+    rows, total, counts = await _search(
+        db, can_see_all=False, namespaces=[("ns1", "c1")], search="HEART", page=2, page_size=1
+    )
+    assert total == 2
+    assert [row.cve_id for row in rows] == ["CVE-B"]
+    assert counts == {"needs_action": 2, "contacted": 0}
+    rows, total, _ = await _search(db, can_see_all=False, namespaces=[], search="Heartbleed")
+    assert rows == []
+    assert total == 0
 
 
 @pytest.mark.asyncio

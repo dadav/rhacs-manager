@@ -19,6 +19,7 @@ from ..schemas.remediation import (
 )
 from ..services import remediation_service as rem_svc
 from ..services.audit_service import log_action
+from ..services.cve_alias_service import enrich_aliases
 from ._scope import narrow_namespaces
 
 router = APIRouter(prefix="/remediations", tags=["remediations"])
@@ -96,7 +97,9 @@ async def create_remediation(
     await db.commit()
     remediation = created[0]
     await db.refresh(remediation, ["creator", "assignee", "resolver"])
-    return _build_response(remediation)
+    response = _build_response(remediation)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.post("/batch", response_model=list[RemediationResponse], status_code=201)
@@ -120,7 +123,9 @@ async def create_remediations_batch(
     await db.commit()
     for remediation in created:
         await db.refresh(remediation, ["creator", "assignee", "resolver"])
-    return [_build_response(r) for r in created]
+    responses = [_build_response(r) for r in created]
+    await enrich_aliases(db, responses)
+    return responses
 
 
 @router.get("", response_model=list[RemediationResponse])
@@ -174,7 +179,9 @@ async def list_remediations(
             and r.status in (RemediationStatus.open, RemediationStatus.in_progress)
         ]
 
-    return [_build_response(r) for r in remediations]
+    responses = [_build_response(r) for r in remediations]
+    await enrich_aliases(db, responses)
+    return responses
 
 
 @router.get("/stats", response_model=RemediationStats)
@@ -236,7 +243,9 @@ async def get_remediation(
         raise ApiError(404, "not_found")
     if not _user_can_access(current_user, r):
         raise ApiError(403, "forbidden")
-    return _build_response(r)
+    response = _build_response(r)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.patch("/{remediation_id}", response_model=RemediationResponse)
@@ -256,7 +265,9 @@ async def update_remediation(
     await rem_svc.update_remediation(db, current_user, r, body)
     await db.commit()
     await db.refresh(r, ["creator", "assignee", "resolver"])
-    return _build_response(r)
+    response = _build_response(r)
+    await enrich_aliases(db, [response])
+    return response
 
 
 @router.delete("/{remediation_id}", status_code=204)

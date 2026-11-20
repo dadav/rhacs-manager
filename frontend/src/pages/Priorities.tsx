@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   Button,
@@ -187,7 +188,7 @@ export function Priorities() {
                   <Tr key={p.id}>
                     <Td>
                       <Link to={scopedLink(`/vulnerabilities/${p.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE, fontSize: 12 }}>
-                        {p.cve_id}
+                        {p.cve_id}<CveAliasBadges aliases={p.aliases} />
                       </Link>
                     </Td>
                     <Td>

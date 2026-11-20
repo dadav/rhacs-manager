@@ -13,6 +13,7 @@ from ..mail import service as mail_svc
 from ..models.escalation import Escalation
 from ..models.global_settings import GlobalSettings
 from ..schemas.cve import CveCommentCreate, CveCommentResponse
+from ..services.cve_alias_service import enrich_aliases, load_aliases
 from ..services.escalation_preview import UpcomingEscalation, compute_upcoming_escalations, filter_upcoming_escalations
 from ..services.escalation_workspace import (
     add_current_escalation_comment,
@@ -53,11 +54,13 @@ async def list_escalations(
 
     result = await db.execute(query)
     escalations = result.scalars().all()
+    aliases = await load_aliases(db, [e.cve_id for e in escalations])
 
     return [
         {
             "id": str(e.id),
             "cve_id": e.cve_id,
+            "aliases": aliases.get(e.cve_id, []),
             "namespace": e.namespace,
             "cluster_name": e.cluster_name,
             "level": e.level,
@@ -71,6 +74,7 @@ async def list_escalations(
 class ActiveEscalationRow(BaseModel):
     id: str
     cve_id: str
+    aliases: list[str] = []
     namespace: str
     cluster_name: str
     level: int
@@ -183,8 +187,10 @@ async def search_active_escalations(
             ),
         )
 
+    items = [_row(r) for r in rows]
+    await enrich_aliases(db, items)
     return ActiveSearchResponse(
-        items=[_row(r) for r in rows],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,

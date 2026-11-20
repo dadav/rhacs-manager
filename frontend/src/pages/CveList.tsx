@@ -1,3 +1,4 @@
+import { CveAliasBadges } from '../components/common/CveAliasBadges'
 import {
   Alert,
   AlertActionCloseButton,
@@ -862,7 +863,7 @@ export function CveList() {
                       <Tr key={cve.cve_id} style={getRowStyle(cve.has_priority, cve.remediation_status)}>
                         <Td>
                           <Link to={scopedLink(`/vulnerabilities/${cve.cve_id}`)} style={{ fontFamily: 'monospace', color: BRAND_BLUE }}>
-                            {cve.cve_id}
+                            {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
                           </Link>
                           {cve.is_subscribed && (
                             <Tooltip content={t('subscription.listIndicator')}>

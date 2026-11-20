@@ -248,3 +248,10 @@ async def test_fixed_cve_without_components_produces_no_rollup_rows(team_member_
     assert resp.status_code == 200
     assert resp.json()["items"] == []
     assert resp.json()["total"] == 0
+
+
+def test_component_rollup_preserves_cve_aliases():
+    cve = _cve("CVE-1")
+    cve.aliases = ["Heartbleed"]
+    items = aggregate_component_rows([_row("CVE-1")], {cve.cve_id: cve})
+    assert items[0].cves[0].aliases == ["Heartbleed"]

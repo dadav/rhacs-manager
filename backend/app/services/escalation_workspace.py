@@ -28,6 +28,7 @@ from ..notifications import service as notif_svc
 from ..schemas.cve import CveCommentResponse, EscalationContext
 from . import comment_service
 from .audit_service import log_action
+from .cve_alias_service import matching_alias_cve_ids
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ def _filtered_current_rows(
     cluster: str | None = None,
     namespace: str | None = None,
     search: str | None = None,
+    alias_cve_ids: list[str] | None = None,
     level: int | None = None,
     email_status: str | None = None,
     has_remediation: bool | None = None,
@@ -127,7 +129,7 @@ def _filtered_current_rows(
             base = base.where(ranked.c.namespace == namespace)
 
     if search:
-        base = base.where(ranked.c.cve_id.ilike(f"%{search}%"))
+        base = base.where(ranked.c.cve_id.icontains(search, autoescape=True) | ranked.c.cve_id.in_(alias_cve_ids or []))
     if level is not None:
         base = base.where(ranked.c.level == level)
     if email_status == "notified":
@@ -166,7 +168,9 @@ async def search_active_workspace(
 
     contact_counts is computed after every filter except contact_status.
     """
+    alias_ids = await matching_alias_cve_ids(db, search)
     filtered = _filtered_current_rows(
+        alias_cve_ids=alias_ids,
         can_see_all=can_see_all,
         namespaces=namespaces,
         cluster=cluster,

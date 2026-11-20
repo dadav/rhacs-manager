@@ -82,6 +82,7 @@ class CveOriginRating(BaseModel):
 
 class CveListItem(BaseModel):
     cve_id: str
+    aliases: list[str] = []
     severity: SeverityLevel
     cvss: float
     epss_probability: float
@@ -177,6 +178,7 @@ class ImageCveDetail(BaseModel):
     """CVEs for a specific image — lighter than full CveListItem."""
 
     cve_id: str
+    aliases: list[str] = []
     severity: SeverityLevel
     cvss: float
     epss_probability: float

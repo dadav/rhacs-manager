@@ -106,6 +106,17 @@ In the component view:
 
 The image detail page shows the same component table for that image under **Vulnerable components**.
 
+### CVE aliases
+
+The security team can give a CVE familiar names, such as **Heartbleed**. Open the CVE detail page and select **Edit aliases**. Enter one name per line, then save. Remove a line to delete a name, or clear the field to remove all aliases. Cancel discards unsaved edits.
+
+Each CVE supports up to 10 aliases of 80 characters each. Surrounding whitespace is removed, and duplicate names are collapsed without changing the first spelling. Names can use any script, but must not contain tabs, line breaks, other control characters, or invisible characters that change the text direction. Independently of the 10-name limit, one save accepts at most 100 nonempty alias entries, duplicates included. The same alias can identify several CVEs; editing one CVE does not change another.
+
+Aliases apply across the organization and appear as badges beside CVE identifiers in lists, details, dashboard panels, and related workflows. All readers of those records can see the aliases, but only security-team members can edit them. Wildcard namespace access alone does not grant editing rights.
+
+CVE searches also match aliases, ignoring case and allowing partial names. Existing namespace, score, and status filters still apply. Aliases remain saved after a CVE is remediated or disappears from scanner findings. Changes are recorded in the audit log.
+
+
 ## Risk Acceptance Lifecycle
 
 Risk acceptances are requested from a specific CVE, not from a blank form on the list page.

@@ -29,6 +29,7 @@ class CveTrendPoint(BaseModel):
 
 class EpssMatrixPoint(BaseModel):
     cve_id: str
+    aliases: list[str] = []
     cvss: float
     epss: float
     severity: SeverityLevel
