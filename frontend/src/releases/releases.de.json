@@ -35,6 +35,21 @@
           "text": "Die CVE-Details erklären, wann eine Behebung, eine Risikoakzeptanz oder ein False Positive passt. Das Formular für Risikoakzeptanzen bietet eine Vorlage für die Begründung."
         },
         {
+          "id": "compact-cve-guidance",
+          "kind": "improvement",
+          "text": "Behebungshinweise und Eskalationsstatus auf der CVE-Detailseite sind kompakter dargestellt. Erklärungen zu CVE-Aktionen und Eskalationsregeln können Sie über die Fragezeichen-Schaltflächen öffnen."
+        },
+        {
+          "id": "cve-alias-display",
+          "kind": "improvement",
+          "text": "Auf der CVE-Detailseite erscheinen Aliase einmal neben dem Titel, ohne im Navigationspfad oder im Feld für die CVE-ID wiederholt zu werden."
+        },
+        {
+          "id": "loading-line-visibility",
+          "kind": "improvement",
+          "text": "Der Ladebalken unter der Kopfzeile ist dicker und kontrastreicher, sodass Sie leichter erkennen, wann Daten geladen werden."
+        },
+        {
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "Wenn Ihre Sitzung nach längerer Inaktivität abgelaufen ist, erscheint nun ein Hinweis \"Sitzung abgelaufen\" statt einer Fehlermeldung 403. Über \"Neu anmelden\" gelangen Sie nach der Anmeldung zurück auf dieselbe Seite. Nicht gespeicherte Eingaben gehen dabei verloren."

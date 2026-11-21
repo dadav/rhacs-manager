@@ -35,6 +35,21 @@
           "text": "CVE details explain when a remediation, a risk acceptance or a false positive fits. The risk acceptance form offers a template for the justification."
         },
         {
+          "id": "compact-cve-guidance",
+          "kind": "improvement",
+          "text": "Fix guidance and escalation status on the CVE detail page are more compact. Explanations of CVE actions and escalation rules are available through question-mark buttons."
+        },
+        {
+          "id": "cve-alias-display",
+          "kind": "improvement",
+          "text": "On the CVE detail page, aliases appear once beside the title, without being repeated in the navigation path or the CVE ID field."
+        },
+        {
+          "id": "loading-line-visibility",
+          "kind": "improvement",
+          "text": "The loading bar below the header is thicker and has stronger contrast, making it easier to see when data is loading."
+        },
+        {
           "id": "session-expired-dialog",
           "kind": "improvement",
           "text": "When your session has expired after a longer period of inactivity, a \"Session expired\" notice now appears instead of a 403 error. \"Log in again\" takes you back to the same page after signing in. Unsaved input is lost in the process."
