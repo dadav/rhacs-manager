@@ -353,7 +353,7 @@ export function CveDetail() {
           <BreadcrumbItem>
             <Link to={scopedLink("/vulnerabilities")}>{t('nav.cves')}</Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{cve.cve_id}<CveAliasBadges aliases={cve.aliases} /></BreadcrumbItem>
+          <BreadcrumbItem isActive>{cve.cve_id}</BreadcrumbItem>
         </Breadcrumb>
         <div
           style={{
@@ -473,7 +473,7 @@ export function CveDetail() {
                       label={t('cves.cveId')}
                       value={
                         <span style={{ fontFamily: "monospace" }}>
-                          {cve.cve_id}<CveAliasBadges aliases={cve.aliases} />
+                          {cve.cve_id}
                         </span>
                       }
                     />
