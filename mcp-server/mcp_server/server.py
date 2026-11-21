@@ -684,8 +684,8 @@ def investigate_cve(cve_id: str) -> list[base.Message]:
             f"``fix_available_since``, the affected deployments (``affected_deployments_list`` "
             f"is the blast radius), and any existing priority or risk acceptance.\n"
             f"2. Inspect ``component_placements`` first: use each path and ``embedded_in`` to identify "
-            f"the artifact that needs updating. For the most-affected image, call ``get_image_layers(image_id=...)`` to identify "
-            f"which layer introduced the vulnerable component.\n"
+            f"the artifact that needs updating. For the most-affected image, call "
+            f"``get_image_layers(image_id=...)`` to identify which layer introduced the vulnerable component.\n"
             f'3. Call ``list_risk_acceptances(cve_id="{cve_id}")`` and '
             f'``list_remediations(cve_id="{cve_id}")`` to see how this CVE is already being handled.\n'
             f'4. Call ``list_suppression_rules(cve_id="{cve_id}")`` to check CVE-specific suppression rules.\n\n'
