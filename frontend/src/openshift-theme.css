@@ -380,7 +380,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 6px;
+  background-color: #3c3f42;
   overflow: hidden;
   pointer-events: none;
 }
@@ -390,7 +391,7 @@
   display: block;
   width: 30%;
   height: 100%;
-  background-color: var(--pf-t--global--color--brand--default);
+  background-color: #2b9af3;
   animation: global-loading-slide 1.2s linear infinite;
 }
 
