@@ -20,7 +20,6 @@ import {
   ModalFooter,
   ModalHeader,
   PageSection,
-  Pagination,
   Skeleton,
   TextArea,
   TextInput,
@@ -28,7 +27,7 @@ import {
   Tooltip,
 } from "@patternfly/react-core";
 import { Table, Thead, Tbody, Tr, Th, Td } from "@patternfly/react-table";
-import { BanIcon, CheckCircleIcon, EllipsisVIcon, PencilAltIcon, ShieldAltIcon, TrashIcon, WrenchIcon } from "@patternfly/react-icons";
+import { CheckCircleIcon, EllipsisVIcon, PencilAltIcon, ShieldAltIcon, TrashIcon } from "@patternfly/react-icons";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../utils/errors";
@@ -51,14 +50,14 @@ import {
 import { CveWorkflowStepper } from "../components/CveWorkflowStepper";
 import { CveLifecycleTimeline } from "../components/CveLifecycleTimeline";
 import { CveEscalationStatus } from "../components/CveEscalationStatus";
-import { CveFixGuidance } from "../components/CveFixGuidance";
+import { CveAffectedDeployments } from "../components/CveAffectedDeployments";
 import { HelpPopover } from "../components/common/HelpPopover";
 import { CveRemediationSection } from "../components/CveRemediation";
 import { EpssBadge } from "../components/common/EpssBadge";
 import { SeverityBadge } from "../components/common/SeverityBadge";
 import { useAuth } from "../hooks/useAuth";
 import { buildScopedTo, useScope } from "../hooks/useScope";
-import { AffectedDeployment, CveDetail as CveDetailType, RiskStatus } from "../types";
+import { CveDetail as CveDetailType, RiskStatus } from "../types";
 import {
   STATUS_COLORS,
   BRAND_BLUE,
@@ -123,72 +122,6 @@ function DetailRow({
   );
 }
 
-// Small per-deployment coverage indicators: a CVE-level risk acceptance,
-// remediation, or false-positive may only cover a subset of the affected
-// deployments. Each icon is wrapped in a Tooltip explaining the coverage.
-function DeploymentCoverageIcons({ deployment }: { deployment: AffectedDeployment }) {
-  const { t } = useTranslation();
-
-  const remStatusLabels: Record<string, string> = {
-    open: t("remediations.statusOpen"),
-    in_progress: t("remediations.statusInProgress"),
-    resolved: t("remediations.statusResolved"),
-    verified: t("remediations.statusVerified"),
-    wont_fix: t("remediations.statusWontFix"),
-  };
-
-  const ra = deployment.risk_acceptance_status;
-  const rem = deployment.remediation_status;
-  const suppressed = deployment.is_suppressed;
-
-  if (!ra && !rem && !suppressed) return null;
-
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, flexShrink: 0 }}>
-      {ra && (
-        <Tooltip
-          content={
-            ra === RiskStatus.approved
-              ? t("cveDetail.coverage.riskAcceptanceApproved")
-              : t("cveDetail.coverage.riskAcceptanceRequested")
-          }
-        >
-          <ShieldAltIcon
-            style={{
-              fontSize: 11,
-              color: ra === RiskStatus.approved ? STATUS_COLORS.approved : STATUS_COLORS.requested,
-            }}
-          />
-        </Tooltip>
-      )}
-      {rem && (
-        <Tooltip content={t("cveDetail.coverage.remediation", { status: remStatusLabels[rem] ?? rem })}>
-          <WrenchIcon style={{ fontSize: 11, color: "#ec7a08" }} />
-        </Tooltip>
-      )}
-      {suppressed && (
-        <Tooltip content={t("cveDetail.coverage.falsePositive")}>
-          <BanIcon style={{ fontSize: 11, color: STATUS_COLORS.approved }} />
-        </Tooltip>
-      )}
-    </span>
-  );
-}
-
-/** Component roll-up of everything fixable in one deployment (CveList component view). */
-function deploymentFixesUrl(d: { deployment_id: string; deployment_name: string; namespace: string; cluster_name: string }): string {
-  // Pin the list scope to the deployment's own namespace so a narrower sidebar
-  // scope cannot hide it; buildScopedTo keeps these and adds ignore_thresholds.
-  const q = new URLSearchParams({
-    view: "component",
-    cluster: d.cluster_name,
-    ns: d.namespace,
-    deployment_id: d.deployment_id,
-    deployment_label: `${d.cluster_name}/${d.namespace}/${d.deployment_name}`,
-  });
-  return `/vulnerabilities?${q.toString()}`;
-}
-
 export function CveDetail() {
   const { cveId } = useParams<{ cveId: string }>();
   const navigate = useNavigate();
@@ -196,6 +129,7 @@ export function CveDetail() {
   const { t, i18n } = useTranslation();
   const { isSecTeam, user } = useAuth();
   const { scopeParams, scopeSearchString } = useScope();
+  const listContextKey = JSON.stringify([cveId, scopeSearchString]);
   const scopedLink = (to: string) => buildScopedTo(to, scopeSearchString);
   const { data: cve, isLoading, error } = useCveDetail(cveId ?? "", scopeParams);
   const { data: comments } = useCveComments(cveId ?? "");
@@ -223,9 +157,6 @@ export function CveDetail() {
   const [editingContent, setEditingContent] = useState<ComposerSegment[]>([]);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [deploymentFilter, setDeploymentFilter] = useState("");
-  const [deploymentPage, setDeploymentPage] = useState(1);
-  const deploymentPerPage = 20;
 
   const [showFpModal, setShowFpModal] = useState(false);
   const [fpReason, setFpReason] = useState("");
@@ -897,192 +828,17 @@ export function CveDetail() {
             </GridItem>
           )}
 
-          {((cve.component_placements?.length ?? 0) > 0 || cve.components.length > 0) && (
-            <GridItem span={12}>
-              <CveFixGuidance placements={cve.component_placements ?? []} components={cve.components} />
-            </GridItem>
-          )}
-
           {(cve.escalation_locations?.length ?? 0) > 0 && (
-            <GridItem span={12}>
-              <CveEscalationStatus locations={cve.escalation_locations} />
+            <GridItem span={12} style={{ minWidth: 0 }}>
+              <CveEscalationStatus key={listContextKey} locations={cve.escalation_locations} />
             </GridItem>
           )}
 
-          {cve.affected_deployments_list.length > 0 &&
-            (() => {
-              const filterLower = deploymentFilter.toLowerCase();
-              const filtered = deploymentFilter
-                ? cve.affected_deployments_list.filter(
-                    (d) =>
-                      d.deployment_name.toLowerCase().includes(filterLower) ||
-                      d.namespace.toLowerCase().includes(filterLower) ||
-                      d.cluster_name.toLowerCase().includes(filterLower) ||
-                      d.image_name.toLowerCase().includes(filterLower),
-                  )
-                : cve.affected_deployments_list;
-              const pageStart = (deploymentPage - 1) * deploymentPerPage;
-              const pageItems = filtered.slice(
-                pageStart,
-                pageStart + deploymentPerPage,
-              );
-              return (
-                <GridItem span={12}>
-                  <Card>
-                    <CardTitle>
-                      {t('cveDetail.deploymentsCount', { count: cve.affected_deployments_list.length })}
-                    </CardTitle>
-                    <CardBody>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          marginBottom: 12,
-                        }}
-                      >
-                        <TextInput
-                          type="search"
-                          value={deploymentFilter}
-                          onChange={(_, v) => {
-                            setDeploymentFilter(v);
-                            setDeploymentPage(1);
-                          }}
-                          placeholder={t('cveDetail.deploymentFilterPlaceholder')}
-                          style={{ flex: 1 }}
-                          aria-label={t('cveDetail.deploymentFilterLabel')}
-                        />
-                        {deploymentFilter && (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              color: "var(--pf-t--global--text--color--subtle)",
-                            }}
-                          >
-                            {t('cveDetail.filteredOf', { filtered: filtered.length, total: cve.affected_deployments_list.length })}
-                          </span>
-                        )}
-                      </div>
-                    </CardBody>
-                    <CardBody style={{ padding: 0 }}>
-                      <Table variant="compact" isStickyHeader style={{ tableLayout: "fixed" }}>
-                        <Thead>
-                          <Tr>
-                            <Th width={20}>{t('cves.deploymentName')}</Th>
-                            <Th width={15}>{t('cves.namespace')}</Th>
-                            <Th width={10}>{t('cves.cluster')}</Th>
-                            <Th width={40}>{t('cves.imageName')}</Th>
-                            <Th width={15}>{t('cves.firstSeen')}</Th>
-                          </Tr>
-                        </Thead>
-                        <Tbody>
-                          {pageItems.length > 0 ? (
-                            pageItems.map((d) => (
-                              <Tr key={`${d.deployment_id}-${d.image_name}`}>
-                                <Td style={{ fontSize: 11 }}>
-                                  <span
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      minWidth: 0,
-                                    }}
-                                  >
-                                    <Link
-                                      to={scopedLink(deploymentFixesUrl(d))}
-                                      title={t("cveDetail.deploymentFixesLink")}
-                                      style={{
-                                        fontFamily: "monospace",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      {d.deployment_name}
-                                    </Link>
-                                    <DeploymentCoverageIcons deployment={d} />
-                                  </span>
-                                </Td>
-                                <Td
-                                  style={{
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {d.namespace}
-                                </Td>
-                                <Td
-                                  style={{
-                                    fontSize: 11,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {d.cluster_name}
-                                </Td>
-                                <Td
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontSize: 11,
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                  title={d.image_name}
-                                >
-                                  {d.image_id ? (
-                                    <Link
-                                      to={scopedLink(`/images/${encodeURIComponent(d.image_id)}`)}
-                                      style={{ color: BRAND_BLUE }}
-                                    >
-                                      {d.image_name}
-                                    </Link>
-                                  ) : d.image_name}
-                                </Td>
-                                <Td
-                                  style={{
-                                    fontSize: 11,
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {formatDate(d.first_seen, i18n.language)}
-                                </Td>
-                              </Tr>
-                            ))
-                          ) : (
-                            <Tr>
-                              <Td
-                                colSpan={5}
-                                style={{
-                                  textAlign: "center",
-                                  color:
-                                    "var(--pf-t--global--text--color--subtle)",
-                                  fontSize: 13,
-                                }}
-                              >
-                                {t('cveDetail.noDeployments')}
-                              </Td>
-                            </Tr>
-                          )}
-                        </Tbody>
-                      </Table>
-                    </CardBody>
-                    {filtered.length > deploymentPerPage && (
-                      <CardBody style={{ paddingTop: 0 }}>
-                        <Pagination
-                          itemCount={filtered.length}
-                          perPage={deploymentPerPage}
-                          page={deploymentPage}
-                          onSetPage={(_, p) => setDeploymentPage(p)}
-                          isCompact
-                        />
-                      </CardBody>
-                    )}
-                  </Card>
-                </GridItem>
-              );
-            })()}
+          {cve.affected_deployments_list.length > 0 && (
+            <GridItem span={12} style={{ minWidth: 0 }}>
+              <CveAffectedDeployments key={listContextKey} deployments={cve.affected_deployments_list} />
+            </GridItem>
+          )}
           <GridItem span={12}>
             <CveRemediationSection cveId={cve.cve_id} deployments={cve.affected_deployments_list} escalationLocations={cve.escalation_locations ?? []} />
           </GridItem>
@@ -1471,4 +1227,3 @@ export function CveDetail() {
     </>
   );
 }
-

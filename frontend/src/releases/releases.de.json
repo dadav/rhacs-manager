@@ -1,6 +1,27 @@
 {
   "releases": [
     {
+      "version": "0.49.0",
+      "date": "2026-11-24",
+      "items": [
+        {
+          "id": "cve-detail-list-controls",
+          "kind": "improvement",
+          "text": "Betroffene Deployments und Eskalationsstandorte auf der CVE-Detailseite haben jetzt einheitliche Suchfelder und Seitennavigation. Jede Liste zeigt die Trefferzahl und die Gesamtzahl der Einträge. Sie können 10, 20, 50 oder 100 Einträge pro Seite wählen."
+        },
+        {
+          "id": "cve-detail-list-reset",
+          "kind": "fix",
+          "text": "Wenn Sie zu einer anderen CVE wechseln oder den Filterbereich in der Seitenleiste ändern, werden Suchbegriffe, Seitengrößen und Seitenpositionen der Listen zurückgesetzt. Enthält eine Liste nach einer Aktualisierung weniger Einträge, bleibt die Seitennavigation auf einer gültigen Seite."
+        },
+        {
+          "id": "cve-detail-fix-card-removed",
+          "kind": "improvement",
+          "text": "Die Karte \"Wo Sie beheben können\" mit den Komponentenpfaden wurde von der CVE-Detailseite entfernt."
+        }
+      ]
+    },
+    {
       "version": "0.48.1",
       "date": "2026-11-13",
       "items": [

@@ -1,0 +1,46 @@
+.cve-fix-guidance {
+  min-width: 0;
+}
+
+.cve-fix-guidance-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.cve-fix-guidance-table th,
+.cve-fix-guidance-table td,
+.cve-fix-guidance-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cve-fix-guidance-details {
+  margin-top: var(--pf-t--global--spacer--sm);
+  font-size: var(--pf-t--global--font--size--sm);
+}
+
+.cve-fix-guidance-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--pf-t--global--spacer--sm);
+}
+
+.cve-fix-guidance-details dt {
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+.cve-fix-guidance-details dd {
+  min-width: 0;
+  font-family: monospace;
+}
+
+@media (max-width: 47.999rem) {
+  .cve-fix-guidance-table.pf-v6-c-table td[data-label] {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--pf-t--global--spacer--sm);
+  }
+
+  .cve-fix-guidance-table.pf-v6-c-table td[data-label] > * {
+    grid-column: 1;
+  }
+}

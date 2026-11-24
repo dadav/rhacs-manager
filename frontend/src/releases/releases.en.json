@@ -1,6 +1,27 @@
 {
   "releases": [
     {
+      "version": "0.49.0",
+      "date": "2026-11-24",
+      "items": [
+        {
+          "id": "cve-detail-list-controls",
+          "kind": "improvement",
+          "text": "Affected deployments and escalation locations on CVE details now use consistent search and pagination controls. Each list shows matching and total counts and lets you choose 10, 20, 50 or 100 entries per page."
+        },
+        {
+          "id": "cve-detail-list-reset",
+          "kind": "fix",
+          "text": "Switching to another CVE or changing the sidebar scope resets list searches, page sizes and page positions. Lists also stay on a valid page when refreshed data contains fewer entries."
+        },
+        {
+          "id": "cve-detail-fix-card-removed",
+          "kind": "improvement",
+          "text": "The \"Where to fix\" card with component paths has been removed from the CVE detail page."
+        }
+      ]
+    },
+    {
       "version": "0.48.1",
       "date": "2026-11-13",
       "items": [

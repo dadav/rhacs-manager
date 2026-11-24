@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { CveDetail } from './CveDetail'
 import type { CveDetail as CveDetailType } from '../types'
 import { Severity } from '../types'
@@ -173,6 +173,56 @@ beforeEach(() => {
 // --- Tests ---
 
 describe('CveDetail', () => {
+  it.each(['scope', 'CVE'] as const)('resets all list searches, pages and page sizes when the %s changes', context => {
+    function NextCve() {
+      const navigate = useNavigate()
+      return <button onClick={() => navigate('/vulnerabilities/CVE-2024-5678')}>Next CVE</button>
+    }
+    const base = makeCveDetail()
+    const cve = makeCveDetail({
+      affected_deployments_list: Array.from({ length: 25 }, (_, index) => ({ ...base.affected_deployments_list[0], deployment_id: `d${index}`, deployment_name: `app-${index}` })),
+      component_placements: Array.from({ length: 25 }, (_, index) => ({
+        image_id: `image-${index}`, image_name: `registry/image-${index}`, component_name: `package-${index}`,
+        component_version: '1', fixed_by: '2', fixable: true, source: 'java', location: null, embedded_in: null, cves_at_location: null,
+      })),
+      escalation_locations: Array.from({ length: 25 }, (_, index) => ({
+        cluster_name: `cluster-${index}`, namespace: 'team', level: 1, triggered_at: null, next_level: null, next_level_at: null, stopped_reason: null,
+      })),
+    })
+    mockUseCveDetail.mockReturnValue({ data: cve, isLoading: false, error: null })
+    const view = <><CveDetail /><NextCve /></>
+    const { rerender } = render(view, { wrapper: createWrapper(cve.cve_id) })
+
+    function alterListState() {
+      const searches = screen.getAllByRole('textbox', { name: 'listControls.search' })
+      for (const [index, input] of searches.entries()) {
+        fireEvent.change(input, { target: { value: ['cluster', 'app'][index] } })
+        const card = input.closest<HTMLElement>('.pf-v6-c-card')!
+        fireEvent.click(within(card).getAllByRole('button', { name: 'listControls.pagination.options' })[0])
+        fireEvent.click(screen.getByRole('menuitem', { name: '10 listControls.pagination.perPage' }))
+        fireEvent.click(within(card).getAllByRole('button', { name: 'listControls.pagination.next' })[0])
+      }
+    }
+    function expectReset() {
+      for (const input of screen.getAllByRole('textbox', { name: 'listControls.search' })) {
+        expect(input).toHaveValue('')
+        const card = input.closest<HTMLElement>('.pf-v6-c-card')!
+        expect(within(card).getAllByRole('row')).toHaveLength(21)
+        expect(within(card).getAllByRole('button', { name: 'listControls.pagination.previous' })[0]).toBeDisabled()
+      }
+    }
+
+    alterListState()
+    if (context === 'scope') {
+      mockScopeSearchString = 'cluster=cluster-a&ns=prod'
+      rerender(<><CveDetail /><NextCve /></>)
+    } else {
+      mockUseCveDetail.mockReturnValue({ data: { ...cve, cve_id: 'CVE-2024-5678' }, isLoading: false, error: null })
+      fireEvent.click(screen.getByRole('button', { name: 'Next CVE' }))
+    }
+    expectReset()
+  }, 15000)
+
   it('requests the detail with the sidebar scope', () => {
     mockScopeParams = { cluster: 'cluster-a', namespace: 'payments' }
     mockUseCveDetail.mockReturnValue({ data: undefined, isLoading: true, error: null })
@@ -201,8 +251,7 @@ describe('CveDetail', () => {
     expect(screen.getAllByText('CVE-2024-1234').length).toBeGreaterThanOrEqual(1)
     // CVSS value is shown
     expect(screen.getByText('9.8')).toBeInTheDocument()
-    // Component name is rendered
-    expect(screen.getByText('openssl')).toBeInTheDocument()
+    expect(screen.queryByText('fixGuidance.title')).not.toBeInTheDocument()
     // Contact email
     expect(screen.getByText('sec@example.com')).toBeInTheDocument()
     // Deployment name
@@ -297,8 +346,6 @@ describe('CveDetail', () => {
 
     const sourcesRow = screen.getByText('cveDetail.origins').closest('tr')
     expect(within(sourcesRow!).getByText('cves.origin.red_hat')).toBeInTheDocument()
-    // Components table carries the feed per row.
-    expect(screen.getByText('cves.componentOrigin')).toBeInTheDocument()
     expect(screen.queryByText('cveDetail.originRatingsTitle')).not.toBeInTheDocument()
   })
 
@@ -339,7 +386,6 @@ describe('CveDetail', () => {
     render(<CveDetail />, { wrapper: createWrapper('CVE-2024-1234') })
 
     expect(screen.getByText('cveDetail.originsUnknown')).toBeInTheDocument()
-    expect(screen.getByText('cves.origin.unknown')).toBeInTheDocument()
   })
 })
 

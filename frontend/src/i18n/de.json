@@ -1174,14 +1174,40 @@
       "security": "Sicherheit"
     }
   },
+  "listControls": {
+    "search": "{{list}} durchsuchen",
+    "clearSearch": "Suche zurücksetzen",
+    "filteredOf": "{{filtered}} von {{total}} Einträgen",
+    "noMatches": "Keine passenden Einträge. Setzen Sie die Suche zurück, um alle Einträge anzuzeigen.",
+    "pagination": {
+      "top": "Seitennavigation für {{list}}, oberhalb der Liste",
+      "bottom": "Seitennavigation für {{list}}, unterhalb der Liste",
+      "currentPage": "Aktuelle Seite",
+      "options": "Zeilen pro Seite für {{list}}",
+      "items": "Einträge",
+      "itemsPerPage": "Einträge pro Seite",
+      "of": "von",
+      "page": "Seite",
+      "pages": "Seiten",
+      "perPage": "pro Seite",
+      "first": "Zur ersten Seite",
+      "last": "Zur letzten Seite",
+      "next": "Zur nächsten Seite",
+      "previous": "Zur vorherigen Seite"
+    }
+  },
   "fixGuidance": {
     "title": "Wo Sie beheben können",
     "path": "Pfad im Image",
     "embedded": "In {{file}}: diese Datei aktualisieren",
     "cvesInFile": "{{count}} CVEs in dieser Datei",
-    "image": "Image"
+    "image": "Image",
+    "imageAndComponent": "Image und Komponente",
+    "searchPlaceholder": "Images, Komponenten, Versionen oder Pfade suchen...",
+    "componentSearchPlaceholder": "Komponenten, Versionen oder Quellen suchen..."
   },
   "escalationStatus": {
+    "searchPlaceholder": "Cluster oder Namespaces suchen...",
     "title": "Eskalation je Standort",
     "location": "Cluster / Namespace",
     "current": "Stufe",

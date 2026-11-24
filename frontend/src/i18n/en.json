@@ -1174,14 +1174,40 @@
       "security": "Security"
     }
   },
+  "listControls": {
+    "search": "Search {{list}}",
+    "clearSearch": "Clear search",
+    "filteredOf": "{{filtered}} of {{total}} entries",
+    "noMatches": "No matching entries. Clear the search to show all entries.",
+    "pagination": {
+      "top": "{{list}} pagination, above the list",
+      "bottom": "{{list}} pagination, below the list",
+      "currentPage": "Current page",
+      "options": "Rows per page for {{list}}",
+      "items": "entries",
+      "itemsPerPage": "Entries per page",
+      "of": "of",
+      "page": "page",
+      "pages": "pages",
+      "perPage": "per page",
+      "first": "Go to first page",
+      "last": "Go to last page",
+      "next": "Go to next page",
+      "previous": "Go to previous page"
+    }
+  },
   "fixGuidance": {
     "title": "Where to fix",
     "path": "Path in image",
     "embedded": "In {{file}}: update that file",
     "cvesInFile": "{{count}} CVEs in this file",
-    "image": "Image"
+    "image": "Image",
+    "imageAndComponent": "Image and component",
+    "searchPlaceholder": "Search images, components, versions or paths...",
+    "componentSearchPlaceholder": "Search components, versions or sources..."
   },
   "escalationStatus": {
+    "searchPlaceholder": "Search clusters or namespaces...",
     "title": "Escalation by location",
     "location": "Cluster / namespace",
     "current": "Level",
