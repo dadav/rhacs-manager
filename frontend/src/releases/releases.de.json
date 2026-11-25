@@ -5,6 +5,16 @@
       "date": "2026-11-25",
       "items": [
         {
+          "id": "risk-review-emails",
+          "kind": "feature",
+          "text": "Mitglieder des Security-Teams erhalten jetzt eine E-Mail, wenn eine Risikoakzeptanz zur Prüfung beantragt oder nach einer Änderung erneut zur Prüfung eingereicht wird. Pro bestätigtem Excel-Import mit neuen Anträgen gibt es eine Zusammenfassung. Sofort genehmigte Anträge lösen keine E-Mail aus. Die E-Mail folgt dem E-Mail-Schalter der Kategorie \"Risikoakzeptanzen\" in \"Meine Einstellungen\"."
+        },
+        {
+          "id": "mention-hint",
+          "kind": "improvement",
+          "text": "Unter jedem Kommentarfeld erklärt ein Hinweis, wie Sie jemanden erwähnen: Tippen Sie @ und wählen Sie eine Person aus der Liste. Nur ausgewählte Personen werden benachrichtigt."
+        },
+        {
           "id": "image-view-shared-digest",
           "kind": "fix",
           "text": "Auf der Seite \"Schwachstellen\" in der Ansicht \"Nach Image\" werden Images, die denselben Digest unter verschiedenen Namen teilen, jetzt korrekt sortiert. Beim Sortieren erscheinen keine Zeilen mehr doppelt oder fehlen, und aufgeklappte Zeilen bleiben beim richtigen Image."

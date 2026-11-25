@@ -5,6 +5,16 @@
       "date": "2026-11-25",
       "items": [
         {
+          "id": "risk-review-emails",
+          "kind": "feature",
+          "text": "Security team members now get an email when a risk acceptance is requested for review or resubmitted for review after a change. Each confirmed Excel import with new requests sends one summary. Requests approved immediately send no email. The email follows the email switch of the \"Risk acceptances\" category in \"My settings\"."
+        },
+        {
+          "id": "mention-hint",
+          "kind": "improvement",
+          "text": "A hint below every comment field explains how to mention someone: type @ and choose a person from the list. Only people chosen from the list are notified."
+        },
+        {
           "id": "image-view-shared-digest",
           "kind": "fix",
           "text": "On the \"Vulnerabilities\" page in the \"By Image\" view, images that share one digest under different names now sort correctly. Sorting no longer duplicates or drops rows, and expanded rows stay with the right image."
