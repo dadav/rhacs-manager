@@ -137,6 +137,23 @@ async def wants(session: AsyncSession, user_id: str, category: str, channel: str
     return bool(value)
 
 
+async def users_wanting(session: AsyncSession, user_ids: list[str], category: str, channel: str) -> set[str]:
+    """Bulk ``wants``: the subset of ``user_ids`` that wants ``channel`` for ``category``.
+
+    One query for all stored rows; users without a row get the catalog default.
+    """
+    if not user_ids:
+        return set()
+    result = await session.execute(
+        select(NotificationPreference).where(
+            NotificationPreference.user_id.in_(user_ids),
+            NotificationPreference.category == category,
+        )
+    )
+    stored = {p.user_id: p for p in result.scalars().all()}
+    return {uid for uid in user_ids if getattr(_effective(category, stored.get(uid)), channel)}
+
+
 async def set_preferences(session: AsyncSession, user_id: str, updates: list[EffectivePreference]) -> None:
     """Store updates. Unknown categories raise KeyError; unsupported channels keep their default."""
     for update in updates:

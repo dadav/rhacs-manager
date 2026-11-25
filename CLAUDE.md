@@ -235,6 +235,7 @@ Access control rules:
 - Scope targets must be validated against real affected deployments for that CVE in the user's visible namespaces.
 - Active acceptances are unique by `(cve_id, scope_key)` where `scope_key` is a deterministic hash of normalized scope.
 - Excel import groups rows by `(cve_id, justification)`, previews by default, and creates records only with `confirm=true`.
+- Review-needed emails go to persisted `User.role=sec_team` users (never wildcard members) whose `risk_acceptance` email preference is on (bulk `users_wanting`, catalog defaults): one per record saved as `requested` by `POST`/`PUT` (auto-approved stays silent), and one summary per confirmed import counting new `requested` records. Jobs (`RiskReviewEmailJob`, primitives only) are built before commit and `mail_svc.send_risk_review_emails` is scheduled as one `BackgroundTasks` job only after a successful commit. No in-app row, no retry; never include justification or namespaces.
 
 ### Remediation rules
 

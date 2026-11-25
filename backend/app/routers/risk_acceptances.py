@@ -105,9 +105,35 @@ async def _single_ra_response(ra: RiskAcceptance, db: AsyncSession) -> RiskAccep
     return response
 
 
+async def _prepare_review_emails(
+    db: AsyncSession, ra: RiskAcceptance, current_user: CurrentUser
+) -> tuple[notif_svc.RiskReviewEmailJob, ...]:
+    """Sec-team review emails for ``ra`` when it awaits review; none for auto-approved records.
+
+    Called before commit: the jobs hold primitives only, so they outlive the session.
+    """
+    if ra.status != RiskStatus.requested:
+        return ()
+    return await notif_svc.prepare_risk_review_request_emails(
+        db,
+        acceptance_id=str(ra.id),
+        cve_id=ra.cve_id,
+        requester_name=current_user.display_name,
+    )
+
+
+def _schedule_review_emails(
+    background_tasks: BackgroundTasks, review_jobs: tuple[notif_svc.RiskReviewEmailJob, ...]
+) -> None:
+    """Call only after a successful commit: a failed commit must not announce the request."""
+    if review_jobs:
+        background_tasks.add_task(mail_svc.send_risk_review_emails, review_jobs)
+
+
 @router.post("", response_model=RiskAcceptanceResponse, status_code=201)
 async def create_risk_acceptance(
     body: RiskAcceptanceCreate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -166,7 +192,9 @@ async def create_risk_acceptance(
         actor_id=current_user.id,
         scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
     )
+    review_jobs = await _prepare_review_emails(db, ra, current_user)
     await db.commit()
+    _schedule_review_emails(background_tasks, review_jobs)
     return await _single_ra_response(ra, db)
 
 
@@ -259,6 +287,7 @@ async def get_risk_acceptance(
 async def update_risk_acceptance(
     ra_id: UUID,
     body: RiskAcceptanceUpdate,
+    background_tasks: BackgroundTasks,
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_app_db),
     sx_db: AsyncSession = Depends(get_stackrox_db),
@@ -324,7 +353,10 @@ async def update_risk_acceptance(
         actor_id=current_user.id,
         scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
     )
+    # Only approved/rejected records reach this point, so ``requested`` here is a reopen.
+    review_jobs = await _prepare_review_emails(db, ra, current_user)
     await db.commit()
+    _schedule_review_emails(background_tasks, review_jobs)
     return await _single_ra_response(ra, db)
 
 

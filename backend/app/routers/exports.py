@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,9 @@ from starlette.concurrency import run_in_threadpool
 from ..auth.middleware import CurrentUser, get_current_user
 from ..deps import get_app_db, get_stackrox_db
 from ..exports.excel_generator import parse_import_excel
+from ..mail import service as mail_svc
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus
+from ..notifications import service as notif_svc
 from ..schemas.cve import VulnOrigin
 from ..schemas.risk_acceptance import RiskScope, RiskScopeTarget
 from ..services import cve_subscription_service as sub_svc
@@ -230,6 +232,7 @@ async def export_excel(
 @router.post("/excel/import")
 async def import_excel(
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     confirm: bool = Query(False),
     lang: str = Query("de"),
     current_user: CurrentUser = Depends(get_current_user),
@@ -346,6 +349,7 @@ async def import_excel(
     # Confirm mode — create risk acceptances
     created: list[dict] = []
     failed: list[dict] = []
+    requested_count = 0
 
     for item in preview_items:
         if not item["valid"]:
@@ -407,14 +411,25 @@ async def import_excel(
             scope=sub_svc.risk_acceptance_scope_pairs(ra.scope),
         )
         created.append({"cve_id": item["cve_id"], "aliases": item["aliases"], "ra_id": str(ra.id)})
+        if not single_team:
+            requested_count += 1
 
+    # One summary per sec-team recipient per import, built before commit (primitives only).
+    review_jobs = await notif_svc.prepare_risk_import_review_emails(
+        app_db,
+        request_count=requested_count,
+        requester_name=current_user.display_name,
+    )
     if created:
         await app_db.commit()
+        if review_jobs:
+            background_tasks.add_task(mail_svc.send_risk_review_emails, review_jobs)
 
     logger.info(
-        "Excel import by %s: %d created, %d failed",
+        "Excel import by %s: %d created (%d awaiting review), %d failed",
         current_user.id,
         len(created),
+        requested_count,
         len(failed),
     )
 

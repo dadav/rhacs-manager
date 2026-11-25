@@ -1064,7 +1064,8 @@
     "tooltip": "Active viewers: {{users}}"
   },
   "mentionPicker": {
-    "title": "Mention a person"
+    "title": "Mention a person",
+    "hint": "To mention someone, type @ at the start or after a space and choose a person from the list. Only people chosen from the list are notified."
   },
   "userPicker": {
     "searchLabel": "Search people",
@@ -1080,7 +1081,7 @@
     "categoryColumn": "Category",
     "in_app": "In app",
     "email": "Email",
-    "mentionsMandatory": "Mentions (@name) are always delivered in the app and by email.",
+    "mentionsMandatory": "Mentions (@name) always create an in-app notification. Email delivery is also attempted if your account has a valid email address.",
     "teamInactive": "Team notifications (weekly digest, new relevant CVEs) start once your namespaces are known after your next sign-in.",
     "category": {
       "risk_acceptance": "Risk acceptances",
@@ -1095,7 +1096,7 @@
       "cve_subscription": "Subscribed CVEs"
     },
     "categoryHelp": {
-      "risk_acceptance": "Comments, review results, and expiry of your risk acceptances.",
+      "risk_acceptance": "Comments, review results, and expiry of your risk acceptances. For the security team also an email when a risk acceptance is requested for review or resubmitted for review after a change, and one summary per Excel import with new requests. Emails require a valid email address.",
       "risk_acceptance_updates": "Reviews assigned to you, team comments to the security team, and your own risk acceptances expiring soon. Part of the daily notification summary with counts and links.",
       "remediation": "Assignments, status changes, target date changes, and overdue remediations. The email is a daily summary with counts and links; overdue remediations appear in it every day until resolved.",
       "suppression": "Requests and decisions on suppression rules. The email is a daily summary with counts and links.",

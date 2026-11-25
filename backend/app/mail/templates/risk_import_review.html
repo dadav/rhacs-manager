@@ -1,0 +1,23 @@
+{% extends "_base.html" %}
+{% import "_components.html" as ui %}
+
+{% block title %}Risikoakzeptanzen zur Prüfung{% endblock %}
+{% block preheader %}{{ requester_name }} hat per Excel-Import {{ request_count }} Risikoakzeptanz{% if request_count != 1 %}en{% endif %} angefragt.{% endblock %}
+
+{% block content %}
+  <div style="font-family:{{ ui.mono() }};font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#0f62fe">Excel-Import</div>
+  <h1 style="margin:8px 0 0;font-family:{{ ui.font() }};font-size:21px;font-weight:700;letter-spacing:-.3px;color:#16161a">Prüfung erforderlich</h1>
+
+  <p style="margin:14px 0 22px;font-family:{{ ui.font() }};font-size:14px;line-height:1.6;color:#3f3f46">
+    <strong style="color:#16161a">{{ requester_name }}</strong> hat per Excel-Import
+    <strong style="color:#16161a">{{ request_count }}</strong>
+    {% if request_count == 1 %}Risikoakzeptanz angefragt, die{% else %}Risikoakzeptanzen angefragt, die{% endif %}
+    auf die Prüfung durch das Security-Team {% if request_count == 1 %}wartet{% else %}warten{% endif %}.
+  </p>
+
+  <p style="margin:0 0 22px;font-family:{{ ui.font() }};font-size:13px;line-height:1.6;color:#71717a">
+    CVEs, Begründungen und betroffene Namespaces sehen Sie in der Liste der offenen Anträge.
+  </p>
+
+  {{ ui.button(link, "Offene Anträge anzeigen") }}
+{% endblock %}

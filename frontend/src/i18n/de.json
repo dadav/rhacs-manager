@@ -1064,7 +1064,8 @@
     "tooltip": "Aktive Betrachter: {{users}}"
   },
   "mentionPicker": {
-    "title": "Person erwähnen"
+    "title": "Person erwähnen",
+    "hint": "Um jemanden zu erwähnen, tippen Sie @ am Anfang oder nach einem Leerzeichen und wählen Sie eine Person aus der Liste. Nur ausgewählte Personen werden benachrichtigt."
   },
   "userPicker": {
     "searchLabel": "Personen suchen",
@@ -1080,7 +1081,7 @@
     "categoryColumn": "Kategorie",
     "in_app": "In der App",
     "email": "E-Mail",
-    "mentionsMandatory": "Erwähnungen (@Name) werden immer in der App und per E-Mail zugestellt.",
+    "mentionsMandatory": "Erwähnungen (@Name) erzeugen immer eine Benachrichtigung in der App. Wenn Ihr Konto eine gültige E-Mail-Adresse hat, wird zusätzlich der Versand per E-Mail versucht.",
     "teamInactive": "Team-Benachrichtigungen (Wochenbericht, neue relevante CVEs) starten, sobald Ihre Namespaces nach der nächsten Anmeldung bekannt sind.",
     "category": {
       "risk_acceptance": "Risikoakzeptanzen",
@@ -1095,7 +1096,7 @@
       "cve_subscription": "Abonnierte CVEs"
     },
     "categoryHelp": {
-      "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen.",
+      "risk_acceptance": "Kommentare, Prüfergebnisse und Ablauf Ihrer Risikoakzeptanzen. Für das Security-Team zusätzlich eine E-Mail, wenn eine Risikoakzeptanz zur Prüfung beantragt oder nach einer Änderung erneut zur Prüfung eingereicht wird, und eine Zusammenfassung pro Excel-Import mit neuen Anträgen. E-Mails setzen eine gültige E-Mail-Adresse voraus.",
       "risk_acceptance_updates": "Ihnen zugewiesene Prüfungen, Kommentare von Teams an das Security-Team und bald ablaufende eigene Risikoakzeptanzen. Teil der täglichen Benachrichtigungs-Zusammenfassung mit Kennzahlen und Links.",
       "remediation": "Zuweisungen, Statusänderungen, geänderte Zieldaten und überfällige Behebungen. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und Links; überfällige Behebungen erscheinen darin täglich, bis sie erledigt sind.",
       "suppression": "Anfragen und Entscheidungen zu Unterdrückungsregeln. Die E-Mail ist eine tägliche Zusammenfassung mit Kennzahlen und Links.",

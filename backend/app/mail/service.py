@@ -12,7 +12,7 @@ from jinja2 import Environment, FileSystemLoader
 from ..config import settings
 
 if TYPE_CHECKING:
-    from ..notifications.service import MentionEmailJob
+    from ..notifications.service import MentionEmailJob, RiskReviewEmailJob
     from ..services.team_notifications import AlertEmailCounts, TeamDigestStats
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def deliverable_address(raw: str | None, *, user_id: str, purpose: str) -> str |
         return None
 
 
-def _app_link(base_url: str, path: str) -> str:
+def app_link(base_url: str, path: str) -> str:
     return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
@@ -79,7 +79,7 @@ async def send_risk_comment_email(
         cve_id=cve_id,
         author_name=author_name,
         comment_text=comment_text,
-        link=_app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
+        link=app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
     )
     await send_email(to_email, f"Neuer Kommentar zur Risikoakzeptanz: {cve_id}", html)
 
@@ -101,9 +101,47 @@ async def send_risk_status_email(
         status=status_de,
         reviewer_name=reviewer_name,
         comment=comment,
-        link=_app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
+        link=app_link(base_url, f"/risk-acceptances/{acceptance_id}"),
     )
     await send_email(to_email, f"Risikoakzeptanz {status_de}: {cve_id}", html)
+
+
+async def send_risk_review_request_email(to_email: str, cve_id: str, requester_name: str, link: str) -> None:
+    """One risk acceptance awaits sec-team review. No justification or namespace details."""
+    tmpl = _jinja_env.get_template("risk_review_request.html")
+    html = tmpl.render(cve_id=cve_id, requester_name=requester_name, link=link)
+    await send_email(to_email, f"Risikoakzeptanz zur Prüfung: {cve_id}", html)
+
+
+async def send_risk_import_review_email(to_email: str, requester_name: str, request_count: int, link: str) -> None:
+    """Excel import summary: count of new requests awaiting review, one list link."""
+    tmpl = _jinja_env.get_template("risk_import_review.html")
+    html = tmpl.render(requester_name=requester_name, request_count=request_count, link=link)
+    noun = "Risikoakzeptanz" if request_count == 1 else "Risikoakzeptanzen"
+    await send_email(to_email, f"{request_count} {noun} aus Excel-Import zur Prüfung", html)
+
+
+async def send_risk_review_emails(jobs: "Sequence[RiskReviewEmailJob]") -> None:
+    """Best-effort delivery of review-needed emails after the request committed.
+
+    Runs as one post-commit background task. Each recipient is isolated: an SMTP
+    failure is logged and never blocks the others or affects the committed request.
+    """
+    for job in jobs:
+        try:
+            if job.acceptance_id is not None and job.cve_id is not None:
+                await send_risk_review_request_email(job.to_email, job.cve_id, job.requester_name, job.link)
+            else:
+                await send_risk_import_review_email(job.to_email, job.requester_name, job.request_count, job.link)
+        except Exception:
+            logger.exception(
+                "Risk acceptance review email delivery failed",
+                extra={
+                    "recipient_id": job.recipient_id,
+                    "risk_acceptance_id": job.acceptance_id,
+                    "request_count": job.request_count,
+                },
+            )
 
 
 async def send_escalation_email(
@@ -129,7 +167,7 @@ async def send_escalation_email(
         cvss=cvss,
         epss_probability=epss_probability,
         deployments=deployments or [],
-        link=_app_link(base_url, "/escalations"),
+        link=app_link(base_url, "/escalations"),
     )
     await send_email(to_email, f"CVE-Eskalation Stufe {level}: {cve_id}", html)
 
@@ -159,7 +197,7 @@ async def send_escalation_warning_email(
         cvss=cvss,
         epss_probability=epss_probability,
         deployments=deployments or [],
-        link=_app_link(base_url, "/escalations"),
+        link=app_link(base_url, "/escalations"),
     )
     await send_email(to_email, f"CVE-Eskalation in {days_until} Tagen: {cve_id}", html)
 
@@ -231,11 +269,11 @@ async def send_team_digest(
         recipient_name=recipient_name,
         stats=stats,
         links={
-            "components": _app_link(base_url, "/vulnerabilities?view=component&fixable=true"),
-            "remediations": _app_link(base_url, "/remediations"),
-            "my_remediations": _app_link(base_url, "/remediations?mine=1"),
-            "risk_acceptances": _app_link(base_url, "/risk-acceptances?status=approved"),
-            "settings": _app_link(base_url, "/my-settings"),
+            "components": app_link(base_url, "/vulnerabilities?view=component&fixable=true"),
+            "remediations": app_link(base_url, "/remediations"),
+            "my_remediations": app_link(base_url, "/remediations?mine=1"),
+            "risk_acceptances": app_link(base_url, "/risk-acceptances?status=approved"),
+            "settings": app_link(base_url, "/my-settings"),
         },
     )
     await send_email(to_email, "Ihr wöchentlicher Team-Bericht", html)
@@ -261,12 +299,12 @@ async def send_alert_summary(
         counts=counts,
         org_wide=org_wide,
         links={
-            "new_critical": _app_link(base_url, "/vulnerabilities?severity=4"),
-            "critical_fixable": _app_link(base_url, "/vulnerabilities?severity=4&fixable=true"),
-            "prioritized": _app_link(base_url, "/vulnerabilities?prioritized_only=1"),
-            "new_relevant": _app_link(base_url, "/vulnerabilities"),
-            "cves": _app_link(base_url, "/vulnerabilities"),
-            "settings": _app_link(base_url, "/my-settings"),
+            "new_critical": app_link(base_url, "/vulnerabilities?severity=4"),
+            "critical_fixable": app_link(base_url, "/vulnerabilities?severity=4&fixable=true"),
+            "prioritized": app_link(base_url, "/vulnerabilities?prioritized_only=1"),
+            "new_relevant": app_link(base_url, "/vulnerabilities"),
+            "cves": app_link(base_url, "/vulnerabilities"),
+            "settings": app_link(base_url, "/my-settings"),
         },
     )
     subject = "Neue CVE-Funde in der Organisation" if org_wide else "Neue CVE-Funde in Ihren Namespaces"
@@ -293,8 +331,8 @@ async def send_cve_subscription_summary(
         event_count=event_count,
         cve_count=cve_count,
         links={
-            "subscriptions": _app_link(base_url, "/vulnerabilities?subscribed=1"),
-            "settings": _app_link(base_url, "/my-settings"),
+            "subscriptions": app_link(base_url, "/vulnerabilities?subscribed=1"),
+            "settings": app_link(base_url, "/my-settings"),
         },
     )
     await send_email(to_email, "Neuigkeiten zu Ihren abonnierten CVEs", html)
@@ -323,7 +361,7 @@ def notification_summary_rows(counts: dict[str, int], base_url: str) -> list[tup
     for keys, label, path in _NOTIFICATION_SUMMARY_ROWS:
         value = sum(counts.get(key, 0) for key in keys)
         if value:
-            rows.append((label, value, _app_link(base_url, path)))
+            rows.append((label, value, app_link(base_url, path)))
     return rows
 
 
@@ -344,7 +382,7 @@ async def send_notification_summary(
     html = tmpl.render(
         recipient_name=recipient_name,
         rows=notification_summary_rows(counts, base_url),
-        settings_link=_app_link(base_url, "/my-settings"),
-        app_link=_app_link(base_url, "/"),
+        settings_link=app_link(base_url, "/my-settings"),
+        app_link=app_link(base_url, "/"),
     )
     await send_email(to_email, "Ihre tägliche Benachrichtigungs-Zusammenfassung", html)

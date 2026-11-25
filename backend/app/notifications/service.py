@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..i18n import DEFAULT_LANG
-from ..mail.service import deliverable_address
+from ..mail.service import app_link, deliverable_address
 from ..models.notification import Notification, NotificationType
 from ..models.notification_email import NotificationEmailEvent
 from ..models.risk_acceptance import RiskAcceptance, RiskAcceptanceComment
 from ..models.user import User, UserRole
 from ..services.comment_content import legacy_mention_names
 from .messages import SCOPE_PARAM, render_notification
-from .preferences import EMAIL_SUMMARY_KEYS, category_for_type, wants
+from .preferences import EMAIL_SUMMARY_KEYS, category_for_type, users_wanting, wants
 
 # Hard cap on distinct, non-self recipients per comment. Guards against a single
 # comment fanning out to the whole org.
@@ -108,6 +108,93 @@ async def create_notification(
 async def _get_sec_team_users(session: AsyncSession) -> list[User]:
     result = await session.execute(select(User).where(User.role == UserRole.sec_team))
     return list(result.scalars().all())
+
+
+@dataclass(frozen=True)
+class RiskReviewEmailJob:
+    """Plain, session-free input for one "risk acceptance needs review" email.
+
+    ``acceptance_id``/``cve_id`` are set for a single request; an Excel import
+    summary leaves them None and carries ``request_count`` instead. Built before
+    the request commits, sent by a post-commit background task.
+    """
+
+    to_email: str
+    recipient_id: str
+    requester_name: str
+    link: str  # absolute URL under APP_BASE_URL
+    acceptance_id: str | None = None
+    cve_id: str | None = None
+    request_count: int = 1
+
+
+@dataclass(frozen=True)
+class _ReviewRecipient:
+    user_id: str
+    email: str
+
+
+async def _risk_review_recipients(session: AsyncSession, *, purpose: str) -> list[_ReviewRecipient]:
+    """Sec-team users (persisted role) who want risk_acceptance email and have a deliverable address.
+
+    Wildcard all-namespace users keep role team_member and are never included.
+    """
+    sec_users = await _get_sec_team_users(session)
+    wanting = await users_wanting(session, [u.id for u in sec_users], "risk_acceptance", "email")
+    recipients: list[_ReviewRecipient] = []
+    for user in sec_users:
+        if user.id not in wanting:
+            continue
+        address = deliverable_address(user.email, user_id=user.id, purpose=purpose)
+        if address is not None:
+            recipients.append(_ReviewRecipient(user_id=user.id, email=address))
+    return recipients
+
+
+async def prepare_risk_review_request_emails(
+    session: AsyncSession,
+    *,
+    acceptance_id: str,
+    cve_id: str,
+    requester_name: str,
+) -> tuple[RiskReviewEmailJob, ...]:
+    """Email jobs announcing one risk acceptance that now has status ``requested``."""
+    recipients = await _risk_review_recipients(session, purpose="risk_review_request")
+    link = app_link(settings.app_base_url, f"/risk-acceptances/{acceptance_id}")
+    return tuple(
+        RiskReviewEmailJob(
+            to_email=r.email,
+            recipient_id=r.user_id,
+            requester_name=requester_name,
+            link=link,
+            acceptance_id=acceptance_id,
+            cve_id=cve_id,
+        )
+        for r in recipients
+    )
+
+
+async def prepare_risk_import_review_emails(
+    session: AsyncSession,
+    *,
+    request_count: int,
+    requester_name: str,
+) -> tuple[RiskReviewEmailJob, ...]:
+    """One summary email job per recipient for an Excel import; none when nothing awaits review."""
+    if request_count <= 0:
+        return ()
+    recipients = await _risk_review_recipients(session, purpose="risk_import_review")
+    link = app_link(settings.app_base_url, "/risk-acceptances?status=requested")
+    return tuple(
+        RiskReviewEmailJob(
+            to_email=r.email,
+            recipient_id=r.user_id,
+            requester_name=requester_name,
+            link=link,
+            request_count=request_count,
+        )
+        for r in recipients
+    )
 
 
 async def notify_risk_comment(
@@ -413,7 +500,7 @@ async def _emit_mentions(
     author's current ``display_name`` is what recipients see.
     """
     params = {"author": author.display_name}
-    absolute_link = f"{settings.app_base_url.rstrip('/')}/{link.lstrip('/')}"
+    absolute_link = app_link(settings.app_base_url, link)
 
     recipient_ids: list[str] = []
     email_jobs: list[MentionEmailJob] = []

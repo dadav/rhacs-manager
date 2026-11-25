@@ -128,6 +128,16 @@ The help icon on the **Actions** card of the CVE detail page sums up which optio
 !!! warning
     Only `sec_team` can approve or reject risk acceptances that need review.
 
+### Review emails for the security team
+
+Every `sec_team` member gets an email when a risk acceptance needs review:
+
+- **New request:** one email per request created with status `requested`. Requests that are approved immediately send no email.
+- **Resubmission:** one email when the creator edits an approved or rejected request and it goes back to `requested`. A resubmission that is approved immediately sends no email.
+- **Excel import:** one summary email per confirmed import that created at least one new `requested` record. It shows the requester and the number of new requests and links to the list of open requests. Previews, invalid rows, duplicates, and immediately approved rows never send an email.
+
+The email names the CVE (single requests only), the requester, and links to the request. It never contains the justification or namespace names. It follows the email switch of the **Risk acceptances** row in **My settings** (on by default, independent of the in-app switch) and needs a valid email address on the account. Delivery is best effort and happens after the request is saved: a mail failure never blocks the request, and a failed send is not retried. These emails create no in-app notification. Only users with the `sec_team` role receive them, not all-namespace users.
+
 ### Scope Rules
 
 - Scopes are validated against real affected deployments for that CVE.
@@ -267,8 +277,10 @@ CVE, escalation-contact, and risk-acceptance comments support `@[username]`
 mentions. Each newly-mentioned user gets an in-app notification and, best-effort,
 an email.
 
-- **Picking a user.** Typing `@` (at the start or after a space) opens a centered
-  search dialog. Type a name or username, move through the results with
+- **Picking a user.** A hint below every comment field explains how to mention
+  someone. Typing `@` (at the start or after a space) opens a centered
+  search dialog. Only users picked from that dialog are mentioned; typing a name
+  by hand notifies nobody. Type a name or username, move through the results with
   **Tab** / **Shift+Tab** (or the arrow keys), press **Enter** to insert the
   selected user, or **Esc** to cancel and keep the plain `@`.
 - **Case-insensitive.** `@[Alice]` and `@[alice]` resolve to the same account.
@@ -351,6 +363,7 @@ Notifications appear in the bell menu and are stored per user.
 - Each notification has a trash action to permanently delete it, and the drawer header offers **Clear all**. Clear all requires an inline confirmation and permanently removes every stored notification for you, not only the newest 50 shown. Deletion is permanent with no undo; it never touches the underlying business records, sent email, weekly digests, or audit history, and only ever affects your own notifications.
 - The weekly digest is sent to the configured management email on the configured weekday.
 - Risk-acceptance creators also receive email when `sec_team` comments on or reviews their request (can be turned off, see below).
+- `sec_team` members receive email when a risk acceptance is requested or resubmitted for review, and one summary per confirmed Excel import with new requests (same switch, see [Review emails for the security team](#review-emails-for-the-security-team)).
 - Overdue remediations and expiring risk acceptances also create notifications.
 - Most of these can also reach you by email, see [Notification summary email](#notification-summary-email-opt-in) below.
 
@@ -398,7 +411,7 @@ The **Subscribed CVEs** category in **My settings** turns the in-app notificatio
 
 ### My settings
 
-Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest, the CVE alert summary email conditions, and the notification summary email. Mentions (`@name`) are always delivered and cannot be turned off.
+Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest, the CVE alert summary email conditions, and the notification summary email. Mentions (`@name`) are always delivered in the app and cannot be turned off; the mention email needs a valid email address on your account.
 
 ## FAQ
 

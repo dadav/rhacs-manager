@@ -130,6 +130,30 @@ function selectedName(): string | null {
   return selected?.querySelector('span')?.textContent ?? null
 }
 
+describe('MentionTextArea hint', () => {
+  it('shows a visible hint that describes the textarea', () => {
+    render(<Harness />)
+    const textarea = screen.getByRole('textbox')
+    const hint = screen.getByText('mentionPicker.hint')
+
+    expect(textarea).toHaveAccessibleDescription('mentionPicker.hint')
+    expect(hint.closest('[id]')?.id).toBe(textarea.getAttribute('aria-describedby'))
+  })
+
+  it('uses a unique description id per composer', () => {
+    render(
+      <>
+        <Harness />
+        <Harness />
+      </>,
+    )
+    const ids = screen.getAllByRole('textbox').map(el => el.getAttribute('aria-describedby'))
+    expect(ids[0]).toBeTruthy()
+    expect(ids[0]).not.toBe(ids[1])
+    for (const id of ids) expect(document.getElementById(id as string)?.textContent).toBe('mentionPicker.hint')
+  })
+})
+
 describe('MentionTextArea picker', () => {
   it('opens a focused search dialog on @ and inserts the picked user on Enter', async () => {
     const { search } = await openPicker()

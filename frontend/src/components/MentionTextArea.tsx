@@ -1,5 +1,5 @@
-import { TextArea } from "@patternfly/react-core";
-import { useRef, useState, useCallback } from "react";
+import { HelperText, HelperTextItem, TextArea } from "@patternfly/react-core";
+import { useCallback, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CommentContentSegment, CommentInputSegment } from "../types";
 import { UserPickerModal } from "./UserPicker";
@@ -145,6 +145,8 @@ export function MentionTextArea({
   isDisabled,
 }: MentionTextAreaProps) {
   const { t } = useTranslation();
+  // Unique per composer instance: several composers can share one page.
+  const hintId = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
   // Index of the typed "@" in the derived text; replaced by the picked mention.
   const [mentionStart, setMentionStart] = useState(-1);
@@ -216,7 +218,11 @@ export function MentionTextArea({
         placeholder={placeholder}
         style={style}
         isDisabled={isDisabled}
+        aria-describedby={hintId}
       />
+      <HelperText id={hintId} style={{ marginTop: 4 }}>
+        <HelperTextItem>{t("mentionPicker.hint")}</HelperTextItem>
+      </HelperText>
       <UserPickerModal
         isOpen={pickerOpen}
         title={t("mentionPicker.title")}

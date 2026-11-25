@@ -108,6 +108,21 @@ Response includes stat cards and chart data:
 
 Targets are validated against affected deployments for that CVE.
 
+### Review emails
+
+`POST` and `PUT` email every `sec_team` user (persisted role) whose `risk_acceptance` email preference is on and whose address is valid, but only when the saved record has status `requested`. Auto-approved records send nothing. Mail is sent best effort by a background task after the commit; the response never depends on it. Response payloads are unchanged.
+
+### `PATCH /api/risk-acceptances/{id}` Body
+
+```json
+{
+  "approved": false,
+  "comment": "Scope too broad, please split per namespace."
+}
+```
+
+`comment` is optional plain text (max. 2000 characters). It is stored as a comment on the record and included in the status email to the creator. It is never parsed for `@` mentions.
+
 ## Suppression Rules (False Positives)
 
 | Method | Path | Role | Description |
@@ -525,6 +540,7 @@ Behavior:
 - Rows are grouped by `(cve_id, justification)`.
 - For each valid group, the backend derives a namespace scope covering all affected namespaces currently visible to the caller for that CVE.
 - The backend validates the resulting scope against live affected deployments.
+- With `confirm=true`, each eligible `sec_team` user (same rules as [Review emails](#review-emails)) gets one summary email per import when at least one new record has status `requested`. It holds the requester, the number of new `requested` records, and a link to `/risk-acceptances?status=requested`. Previews, invalid groups, duplicates, and auto-approved records never count.
 
 Preview response (`confirm=false`):
 
