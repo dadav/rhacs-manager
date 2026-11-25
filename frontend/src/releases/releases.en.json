@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.49.1",
+      "date": "2026-11-25",
+      "items": [
+        {
+          "id": "image-view-shared-digest",
+          "kind": "fix",
+          "text": "On the \"Vulnerabilities\" page in the \"By Image\" view, images that share one digest under different names now sort correctly. Sorting no longer duplicates or drops rows, and expanded rows stay with the right image."
+        }
+      ]
+    },
+    {
       "version": "0.49.0",
       "date": "2026-11-24",
       "items": [

@@ -1,7 +1,7 @@
 import { CveAliasBadges } from './common/CveAliasBadges'
 import { Spinner } from '@patternfly/react-core'
 import { Table, Thead, Tbody, Tr, Th, Td } from '@patternfly/react-table'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { useScopedLink } from '../hooks/useScope'
@@ -28,6 +28,8 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
   const scopedLink = useScopedLink()
   const { t, i18n } = useTranslation()
   const [expanded, setExpanded] = useState(false)
+  // Digests are not unique per row (several pull specs can share one), so the control id comes from useId.
+  const expandId = useId()
   const { data: cves, isLoading } = useCvesForImage(expanded ? group.image_id : '', scope, filters)
 
   return (
@@ -38,7 +40,7 @@ export function ImageRow({ group, scope, filters }: { group: ImageCveGroup; scop
             rowIndex: 0,
             isExpanded: expanded,
             onToggle: () => setExpanded(!expanded),
-            expandId: `image-row-${group.image_id}`,
+            expandId,
           }}
           aria-label={expanded ? t('cves.collapseRow') : t('cves.expandRow')}
         />

@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "version": "0.49.1",
+      "date": "2026-11-25",
+      "items": [
+        {
+          "id": "image-view-shared-digest",
+          "kind": "fix",
+          "text": "Auf der Seite \"Schwachstellen\" in der Ansicht \"Nach Image\" werden Images, die denselben Digest unter verschiedenen Namen teilen, jetzt korrekt sortiert. Beim Sortieren erscheinen keine Zeilen mehr doppelt oder fehlen, und aufgeklappte Zeilen bleiben beim richtigen Image."
+        }
+      ]
+    },
+    {
       "version": "0.49.0",
       "date": "2026-11-24",
       "items": [

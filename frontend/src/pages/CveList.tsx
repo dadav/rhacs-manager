@@ -819,8 +819,9 @@ export function CveList() {
                   </Tr>
                 </Thead>
                 <Tbody>
+                  {/* Rows are grouped by (digest, name): one digest can carry several pull specs. */}
                   {sortedImageData?.map(group => (
-                    <ImageRow key={group.image_id} group={group} scope={scopeOverrides} filters={imageFilters} />
+                    <ImageRow key={JSON.stringify([group.image_id, group.image_name])} group={group} scope={scopeOverrides} filters={imageFilters} />
                   ))}
                 </Tbody>
               </Table>
