@@ -360,6 +360,14 @@
     "summaryStatement": "Statement",
     "summaryMitigation": "Mitigation",
     "contactEmail": "Contact Email",
+    "contactLocations": {
+      "heading": "Cluster / Namespace",
+      "remaining_one": "and {{count}} more pair",
+      "remaining_other": "and {{count}} more pairs",
+      "showAll": "Show all pairs",
+      "showAllFor": "Show all cluster/namespace pairs for {{email}}",
+      "dialogTitle": "Responsible clusters and namespaces"
+    },
     "yesFixable": "✓ Yes",
     "noFixable": "✗ No",
     "riskAccepted": "Risk accepted",

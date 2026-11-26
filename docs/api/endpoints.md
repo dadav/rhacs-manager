@@ -72,6 +72,24 @@ Any user may pass `ignore_thresholds=true` to see CVEs below the global `min_cvs
 
 Accepted by `GET /api/cves`, `/api/cves/fixes`, `/api/cves/by-image`, `/api/cves/by-image/{image_id}/cves`, `/api/images/{image_id}`, `/api/dashboard`, `/api/exports/pdf`, and `/api/exports/excel`.
 
+### CVE detail contact emails
+
+For `sec_team` and wildcard all-namespace callers, `GET /api/cves/{cve_id}` returns the escalation contacts of the affected deployments within the requested `cluster`/`namespace` scope (suppressed deployments included):
+
+- `contact_emails`: sorted, deduplicated addresses (kept for compatibility).
+- `contact_email_locations` (additive): maps each address to the affected `{ "cluster_name", "namespace" }` pairs it covers, sorted by cluster then namespace.
+
+A namespace contact covers its exact pair. `DEFAULT_ESCALATION_EMAIL` covers only pairs without a contact row; a row with an empty address covers its pair without adding an address. When the same address is both, its pairs are merged. Both fields are empty for other callers, without affected deployments, or when `no_longer_affected=true`.
+
+```json
+"contact_email_locations": {
+  "team@example.com": [
+    { "cluster_name": "cluster-a", "namespace": "payments" },
+    { "cluster_name": "cluster-b", "namespace": "payments" }
+  ]
+}
+```
+
 ## Dashboard
 
 | Method | Path | Role | Description |

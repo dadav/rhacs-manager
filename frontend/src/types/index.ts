@@ -191,6 +191,11 @@ export interface EscalationLocation {
   stopped_reason: 'risk_accepted' | 'suppressed' | null
 }
 
+export interface ContactLocation {
+  cluster_name: string
+  namespace: string
+}
+
 export interface CveDetail extends CveListItem {
   first_system_occurrence: string | null
   affected_deployments_list: AffectedDeployment[]
@@ -199,6 +204,8 @@ export interface CveDetail extends CveListItem {
   escalation_locations: EscalationLocation[]
   origin_ratings: CveOriginRating[]
   contact_emails: string[]
+  // Optional: older backends omit it. Email -> affected pairs within the request scope.
+  contact_email_locations?: Record<string, ContactLocation[]>
   summary: string | null
   link: string | null
   references: CveReference[]

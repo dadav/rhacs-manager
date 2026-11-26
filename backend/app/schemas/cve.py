@@ -131,6 +131,11 @@ class EscalationLocation(BaseModel):
     stopped_reason: Literal["risk_accepted", "suppressed"] | None
 
 
+class ContactLocation(BaseModel):
+    cluster_name: str
+    namespace: str
+
+
 class CveDetail(CveListItem):
     first_system_occurrence: datetime | None = None
     affected_deployments_list: list[AffectedDeployment] = []
@@ -139,6 +144,8 @@ class CveDetail(CveListItem):
     escalation_locations: list[EscalationLocation] = []
     origin_ratings: list[CveOriginRating] = []
     contact_emails: list[str] = Field(default_factory=list)
+    # Email -> affected (cluster, namespace) pairs it covers, within the request scope.
+    contact_email_locations: dict[str, list[ContactLocation]] = Field(default_factory=dict)
     summary: str | None = None
     link: str | None = None
     references: list[CveReference] = []

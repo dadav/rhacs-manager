@@ -360,6 +360,14 @@
     "summaryStatement": "Stellungnahme",
     "summaryMitigation": "Gegenmaßnahme",
     "contactEmail": "Kontakt E-Mail",
+    "contactLocations": {
+      "heading": "Cluster / Namespace",
+      "remaining_one": "und {{count}} weiteres Paar",
+      "remaining_other": "und {{count}} weitere Paare",
+      "showAll": "Alle Paare anzeigen",
+      "showAllFor": "Alle Cluster-/Namespace-Paare für {{email}} anzeigen",
+      "dialogTitle": "Zuständige Cluster und Namespaces"
+    },
     "yesFixable": "✓ Ja",
     "noFixable": "✗ Nein",
     "riskAccepted": "Risiko akzeptiert",

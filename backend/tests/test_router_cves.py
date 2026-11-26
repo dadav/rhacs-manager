@@ -929,3 +929,250 @@ async def test_detail_returns_aliases_to_regular_readers(team_member_client, pat
     response = await team_member_client.get("/api/cves/CVE-2024-0001")
     assert response.status_code == 200
     assert response.json()["aliases"] == ["Heartbleed"]
+
+
+# -- Contact email locations (tooltip data for the detail contact row) --
+
+
+def _contact(namespace: str, cluster: str, email: str) -> SimpleNamespace:
+    return SimpleNamespace(namespace=namespace, cluster_name=cluster, escalation_email=email)
+
+
+def _route_contacts(mock_app_db, *, contacts=(), suppression_rules=()) -> list[str]:
+    """Answer NamespaceContact and SuppressionRule reads; returns the SQL of contact queries."""
+    contact_queries: list[str] = []
+
+    async def _execute(stmt, *args, **kwargs):
+        sql = str(stmt)
+        result = MagicMock()
+        result.all.return_value = []
+        result.scalar_one_or_none.return_value = None
+        result.scalars.return_value.all.return_value = []
+        if "FROM namespace_contacts" in sql:
+            contact_queries.append(sql)
+            result.scalars.return_value.all.return_value = list(contacts)
+        elif "FROM suppression_rules" in sql:
+            result.scalars.return_value.all.return_value = list(suppression_rules)
+        return result
+
+    mock_app_db.execute.side_effect = _execute
+    return contact_queries
+
+
+def _all_namespaces_user(is_sec_team: bool = True):
+    from tests.conftest import make_current_user
+
+    return make_current_user(is_sec_team=is_sec_team, has_all_namespaces=not is_sec_team, namespaces=[])
+
+
+def _loc(cluster: str, namespace: str) -> dict:
+    return {"cluster_name": cluster, "namespace": namespace}
+
+
+async def _detail_contacts(app, patch_sx, user, query: str = "", default_email: str = "sec@example.com") -> dict:
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    if not patch_sx.list_namespaces.return_value:
+        patch_sx.list_namespaces.return_value = [{"namespace": "payments", "cluster_name": "cluster-a"}]
+    with patch("app.config.settings.default_escalation_email", default_email):
+        resp = await _client_for(app, user).get(f"/api/cves/CVE-2024-0001{query}")
+    assert resp.status_code == 200
+    return resp.json()
+
+
+@pytest.mark.parametrize("is_sec_team", [True, False], ids=["sec_team", "wildcard"])
+async def test_contact_locations_many_pairs_to_one_email_sorted(is_sec_team, app, patch_sx, mock_app_db):
+    """Same namespace on two clusters stays two pairs; duplicate deployments collapse; pairs sort by cluster."""
+    _route_contacts(
+        mock_app_db,
+        contacts=[
+            _contact("payments", "cluster-b", "team@example.com"),
+            _contact("payments", "cluster-a", "team@example.com"),
+            _contact("api", "cluster-b", "team@example.com"),
+            _contact("frontend", "cluster-a", "alpha@example.com"),
+        ],
+    )
+    patch_sx.get_affected_deployments.return_value = [
+        _deployment("payments", "cluster-b"),
+        _deployment("payments", "cluster-a"),
+        {**_deployment("payments", "cluster-a"), "deployment_id": "dep-second"},
+        _deployment("api", "cluster-b"),
+        _deployment("frontend", "cluster-a"),
+    ]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user(is_sec_team))
+
+    assert data["contact_email_locations"] == {
+        "alpha@example.com": [_loc("cluster-a", "frontend")],
+        "team@example.com": [
+            _loc("cluster-a", "payments"),
+            _loc("cluster-b", "api"),
+            _loc("cluster-b", "payments"),
+        ],
+    }
+    assert list(data["contact_email_locations"]) == ["alpha@example.com", "team@example.com"]
+    assert data["contact_emails"] == ["alpha@example.com", "team@example.com"]
+
+
+async def test_contact_locations_default_covers_only_pairs_without_row(app, patch_sx, mock_app_db):
+    _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "team@example.com")])
+    patch_sx.get_affected_deployments.return_value = [
+        _deployment("payments", "cluster-a"),
+        _deployment("payments", "cluster-b"),
+        _deployment("frontend", "cluster-a"),
+    ]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {
+        "sec@example.com": [_loc("cluster-a", "frontend"), _loc("cluster-b", "payments")],
+        "team@example.com": [_loc("cluster-a", "payments")],
+    }
+    assert data["contact_emails"] == ["sec@example.com", "team@example.com"]
+
+
+async def test_contact_locations_merges_explicit_and_default_same_address(app, patch_sx, mock_app_db):
+    _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-b", "sec@example.com")])
+    patch_sx.get_affected_deployments.return_value = [
+        _deployment("payments", "cluster-b"),
+        _deployment("frontend", "cluster-a"),
+    ]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {
+        "sec@example.com": [_loc("cluster-a", "frontend"), _loc("cluster-b", "payments")],
+    }
+    assert data["contact_emails"] == ["sec@example.com"]
+
+
+async def test_contact_locations_without_default_omits_uncovered_pairs(app, patch_sx, mock_app_db):
+    _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "team@example.com")])
+    patch_sx.get_affected_deployments.return_value = [
+        _deployment("payments", "cluster-a"),
+        _deployment("frontend", "cluster-a"),
+    ]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user(), default_email="")
+
+    assert data["contact_email_locations"] == {"team@example.com": [_loc("cluster-a", "payments")]}
+    assert data["contact_emails"] == ["team@example.com"]
+
+
+async def test_contact_locations_empty_contact_row_blocks_default(app, patch_sx, mock_app_db):
+    """An explicit row with an empty email covers its pair but contributes no address."""
+    _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "")])
+    patch_sx.get_affected_deployments.return_value = [
+        _deployment("payments", "cluster-a"),
+        _deployment("frontend", "cluster-a"),
+    ]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {"sec@example.com": [_loc("cluster-a", "frontend")]}
+    assert data["contact_emails"] == ["sec@example.com"]
+
+
+async def test_contact_locations_only_empty_contact_rows_yield_nothing(app, patch_sx, mock_app_db):
+    _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "")])
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {}
+    assert data["contact_emails"] == []
+
+
+async def test_contact_locations_include_suppressed_deployments(app, patch_sx, mock_app_db):
+    from app.models.suppression_rule import SuppressionType
+
+    rule = SimpleNamespace(
+        type=SuppressionType.cve,
+        cve_id="CVE-2024-0001",
+        scope={"mode": "namespace", "targets": [_loc("cluster-a", "payments")]},
+    )
+    _route_contacts(
+        mock_app_db,
+        contacts=[_contact("payments", "cluster-a", "team@example.com")],
+        suppression_rules=[rule],
+    )
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["affected_deployments_list"][0]["is_suppressed"] is True
+    assert data["contact_email_locations"] == {"team@example.com": [_loc("cluster-a", "payments")]}
+
+
+async def test_contact_locations_skip_deployments_missing_namespace_or_cluster(app, patch_sx, mock_app_db):
+    contact_queries = _route_contacts(mock_app_db)
+    patch_sx.get_affected_deployments.return_value = [_deployment("", "cluster-a"), _deployment("payments", "")]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {}
+    assert data["contact_emails"] == []
+    assert contact_queries == []
+
+
+async def test_contact_locations_follow_sidebar_scope(app, patch_sx, mock_app_db):
+    """Only the scoped deployments reach the mapping; the scope is applied to every StackRox read."""
+    _route_contacts(
+        mock_app_db,
+        contacts=[
+            _contact("payments", "cluster-a", "team@example.com"),
+            # Outside the scoped deployments: never listed even if the DB returned it.
+            _contact("payments", "cluster-b", "other@example.com"),
+        ],
+    )
+    patch_sx.list_namespaces.return_value = [
+        {"namespace": "payments", "cluster_name": "cluster-a"},
+        {"namespace": "payments", "cluster_name": "cluster-b"},
+    ]
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user(), query="?cluster=cluster-a")
+
+    assert patch_sx.get_affected_deployments.await_args.args[2] == [("payments", "cluster-a")]
+    assert data["contact_email_locations"] == {"team@example.com": [_loc("cluster-a", "payments")]}
+    assert data["contact_emails"] == ["team@example.com"]
+
+
+async def test_contact_locations_hidden_from_regular_users(team_member_client, patch_sx, mock_app_db):
+    contact_queries = _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "team@example.com")])
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [_deployment("payments", "cluster-a")]
+
+    with patch("app.config.settings.default_escalation_email", "sec@example.com"):
+        resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    assert resp.json()["contact_email_locations"] == {}
+    assert resp.json()["contact_emails"] == []
+    assert contact_queries == []
+
+
+async def test_contact_locations_empty_without_affected_deployments(app, patch_sx, mock_app_db):
+    contact_queries = _route_contacts(mock_app_db, contacts=[_contact("payments", "cluster-a", "team@example.com")])
+    patch_sx.get_affected_deployments.return_value = []
+
+    data = await _detail_contacts(app, patch_sx, _all_namespaces_user())
+
+    assert data["contact_email_locations"] == {}
+    assert data["contact_emails"] == []
+    assert contact_queries == []
+
+
+async def test_contact_locations_empty_when_no_longer_affected(app, patch_sx, mock_app_db):
+    _route_app_db(mock_app_db, remediations=[("payments", "cluster-a")])
+    patch_sx.list_namespaces.return_value = [{"namespace": "payments", "cluster_name": "cluster-a"}]
+    patch_sx.get_cve_detail.return_value = None
+    patch_sx.get_cve_facts.return_value = _FACTS
+
+    with patch("app.config.settings.default_escalation_email", "sec@example.com"):
+        resp = await _client_for(app, _all_namespaces_user()).get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["no_longer_affected"] is True
+    assert data["contact_email_locations"] == {}
+    assert data["contact_emails"] == []

@@ -37,6 +37,7 @@ import { useAddCveComment, useCveComments, useCveDetail, useEditCveComment, useD
 import { usePresence } from "../api/presence";
 import { ViewerIndicator } from "../components/ViewerIndicator";
 import { CveSubscribeButton } from "../components/CveSubscribeButton";
+import { CveContactEmails } from "../components/CveContactEmails";
 import { useCreateSuppressionRule } from "../api/suppressionRules";
 import { useRemediationsByCve } from "../api/remediations";
 import {
@@ -499,17 +500,10 @@ export function CveDetail() {
                     <DetailRow
                       label={t('cveDetail.contactEmail')}
                       value={
-                        cve.contact_emails.length > 0 ? (
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            {cve.contact_emails.map((email) => (
-                              <a key={email} href={`mailto:${email}`} style={{ color: BRAND_BLUE }}>
-                                {email}
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          "–"
-                        )
+                        <CveContactEmails
+                          emails={cve.contact_emails}
+                          locations={cve.contact_email_locations}
+                        />
                       }
                     />
                     <DetailRow

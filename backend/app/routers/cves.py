@@ -23,6 +23,7 @@ from ..schemas.cve import (
     AffectedComponent,
     AffectedDeployment,
     ComponentPlacement,
+    ContactLocation,
     CveCommentCreate,
     CveCommentResponse,
     CveCommentUpdate,
@@ -81,6 +82,39 @@ async def _visible_detail_pairs(
     else:
         pairs = list(current_user.namespaces)
     return narrow_namespaces(pairs, cluster, namespace)
+
+
+def _contact_email_locations(
+    pairs: list[tuple[str, str]],
+    contacts: list[NamespaceContact],
+    default_email: str,
+) -> dict[str, list[ContactLocation]]:
+    """Map each contact email to the affected (namespace, cluster) pairs it covers.
+
+    An explicit contact row covers its exact pair, even with an empty email (then it
+    contributes no address but still blocks the default). The default email covers
+    only pairs without a row. Emails are sorted, pairs by cluster then namespace.
+    """
+    pair_set = set(pairs)
+    pairs_by_email: dict[str, set[tuple[str, str]]] = {}
+    covered_pairs: set[tuple[str, str]] = set()
+    for contact in contacts:
+        pair = (contact.namespace, contact.cluster_name)
+        if pair not in pair_set:
+            continue
+        covered_pairs.add(pair)
+        if contact.escalation_email:
+            pairs_by_email.setdefault(contact.escalation_email, set()).add(pair)
+    uncovered = pair_set - covered_pairs
+    if uncovered and default_email:
+        pairs_by_email.setdefault(default_email, set()).update(uncovered)
+    return {
+        email: [
+            ContactLocation(cluster_name=cluster_name, namespace=namespace)
+            for namespace, cluster_name in sorted(pairs_by_email[email], key=lambda p: (p[1], p[0]))
+        ]
+        for email in sorted(pairs_by_email)
+    }
 
 
 @router.get("", response_model=PaginatedResponse[CveListItem])
@@ -509,8 +543,9 @@ async def get_cve(
         components = await sx.get_affected_components_with_origin(sx_db, cve_id, ns)
         component_placements = await sx.get_cve_component_placements(sx_db, cve_id, ns)
         origin_ratings = await sx.get_cve_origin_ratings(sx_db, cve_id, ns)
-    contact_emails: list[str] = []
+    contact_email_locations: dict[str, list[ContactLocation]] = {}
     if current_user.can_see_all_namespaces and deployments:
+        # Deployments are already narrowed to the sidebar scope; suppressed ones still count.
         ns_cluster_pairs = sorted(
             {(d["namespace"], d["cluster_name"]) for d in deployments if d.get("namespace") and d.get("cluster_name")}
         )
@@ -525,14 +560,12 @@ async def get_cve(
                     ).in_(ns_cluster_pairs)
                 )
             )
-            contacts = contact_result.scalars().all()
-            covered_pairs = {(c.namespace, c.cluster_name) for c in contacts}
-            contact_emails = sorted({c.escalation_email for c in contacts if c.escalation_email})
-
-            # Add default escalation email for namespaces without explicit contacts
-            uncovered = set(ns_cluster_pairs) - covered_pairs
-            if uncovered and app_settings.default_escalation_email:
-                contact_emails = sorted(set(contact_emails) | {app_settings.default_escalation_email})
+            contact_email_locations = _contact_email_locations(
+                ns_cluster_pairs,
+                list(contact_result.scalars().all()),
+                app_settings.default_escalation_email,
+            )
+    contact_emails = list(contact_email_locations)
 
     # Per-deployment coverage: a CVE-level risk acceptance / remediation /
     # false-positive may only apply to a subset of the affected deployments.
@@ -644,6 +677,7 @@ async def get_cve(
         escalation_level2_expected=esc_expected[2],
         escalation_level3_expected=esc_expected[3],
         contact_emails=contact_emails,
+        contact_email_locations=contact_email_locations,
         no_longer_affected=no_longer_affected,
         affected_deployments_list=[
             AffectedDeployment(
