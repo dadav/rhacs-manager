@@ -1,6 +1,22 @@
 {
   "releases": [
     {
+      "version": "0.51.0",
+      "date": "2026-11-26",
+      "items": [
+        {
+          "id": "contact-email-locations",
+          "kind": "feature",
+          "text": "Auf der CVE-Detailseite zeigt ein Tooltip an jeder Kontakt-E-Mail, für welche betroffenen Cluster und Namespaces die Adresse zuständig ist. Bei mehr als 10 Paaren öffnet \"Alle Paare anzeigen\" die vollständige Liste. Die Kontakt-E-Mails sehen das Security-Team und Benutzer mit Zugriff auf alle Namespaces."
+        },
+        {
+          "id": "workflow-resolved-coverage",
+          "kind": "fix",
+          "text": "Der Workflow-Status einer CVE zeigt \"Abgeschlossen\" erst, wenn jedes betroffene Deployment im in der Seitenleiste gewählten Bereich durch eine genehmigte Risikoakzeptanz oder eine abgeschlossene Behebung abgedeckt ist. Eine Risikoakzeptanz für nur einen Teil der Deployments reicht nicht mehr aus. Solange nur einige Deployments abgedeckt sind, zeigt der Schritt \"Teilweise abgedeckt\"."
+        }
+      ]
+    },
+    {
       "version": "0.50.0",
       "date": "2026-11-25",
       "items": [

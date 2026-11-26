@@ -1,6 +1,22 @@
 {
   "releases": [
     {
+      "version": "0.51.0",
+      "date": "2026-11-26",
+      "items": [
+        {
+          "id": "contact-email-locations",
+          "kind": "feature",
+          "text": "On the CVE detail page, a tooltip on each contact email shows which affected clusters and namespaces the address is responsible for. With more than 10 pairs, \"Show all pairs\" opens the full list. Contact emails are shown to the security team and to users with access to all namespaces."
+        },
+        {
+          "id": "workflow-resolved-coverage",
+          "kind": "fix",
+          "text": "The workflow status of a CVE now shows \"Resolved\" only when every affected deployment in the scope selected in the sidebar is covered by an approved risk acceptance or a completed remediation. A risk acceptance for only part of the deployments is no longer enough. While only some deployments are covered, the step shows \"Partially covered\"."
+        }
+      ]
+    },
+    {
       "version": "0.50.0",
       "date": "2026-11-25",
       "items": [
