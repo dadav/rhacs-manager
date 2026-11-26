@@ -1,9 +1,14 @@
 {
   "releases": [
     {
-      "version": "0.49.1",
+      "version": "0.50.0",
       "date": "2026-11-25",
       "items": [
+        {
+          "id": "activity-console",
+          "kind": "feature",
+          "text": "Eine neue Aktivitätskonsole am unteren Seitenrand zeigt ACS-Änderungen in Ihren Namespaces laufend an: neue oder entfernte Deployments, geänderte Images und abgeschlossene Image-Scans. Öffnen Sie sie mit dem Terminal-Symbol in der Kopfleiste. Sie startet geschlossen, zeigt bis zu 24 Stunden Verlauf und lässt sich pausieren oder leeren. ACS wird etwa alle 10 Sekunden abgefragt, daher können mehrere schnelle Änderungen als ein Eintrag erscheinen."
+        },
         {
           "id": "risk-review-emails",
           "kind": "feature",

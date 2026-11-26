@@ -413,6 +413,27 @@ The **Subscribed CVEs** category in **My settings** turns the in-app notificatio
 
 Open **My settings** from the sliders icon in the masthead to choose, per category, whether you get in-app notifications and emails, and to opt into the weekly team digest, the CVE alert summary email conditions, and the notification summary email. Mentions (`@name`) are always delivered in the app and cannot be turned off; the mention email needs a valid email address on your account.
 
+## ACS activity console
+
+The terminal icon in the masthead opens the **ACS activity** console, a read-only panel at the bottom of the page. It shows recent ACS changes in your scope and keeps updating while it is open. It always starts closed when the page loads, and it stays open while you move between pages. The console looks like a terminal, green text on black in both the light and dark theme; only a delayed collection (amber) and a connection problem (red) use other colors. A cursor at the end of the log blinks while the console is live and stays solid while it is paused or waiting.
+
+Each row shows when the change was observed, a symbol and label for what happened, the cluster and namespace, and the affected deployment or image. For scans, the image name comes first, followed by the counts and the ACS scan time:
+
+| Symbol | Label | Meaning |
+| --- | --- | --- |
+| `+` | Deployment new | A deployment appeared |
+| `−` | Deployment gone | A deployment is no longer present |
+| `~` | Images changed | The images of a deployment changed (added and removed images are listed) |
+| `◆` | Scan completed | ACS finished a first or newer scan of an image used in this namespace (with CVE, fixable CVE and component counts and the ACS scan time) |
+| `◇` | Scan result changed | The counts of an existing scan changed without a newer scan time |
+
+- **Scope:** you see events only for namespace and cluster pairs you can access right now. The sidebar cluster and namespace selection narrows the console; rows then show only the part of the location that still varies (no location column when both are selected). Security-team and all-namespace users see all pairs. CVSS/EPSS thresholds do not apply: these are operational events, not a vulnerability list. Events of a deleted deployment stay visible as long as you can access its namespace.
+- **Freshness:** the question mark next to the status explains this in the console. ACS is sampled about every 10 seconds and an open console asks for new events every 5 seconds, so changes normally appear within about 15 seconds.
+- **History:** opening the console shows the newest 100 events from the last 24 hours, oldest first. The console keeps at most 500 rows and says so when older rows were dropped.
+- **Controls:** **Pause** stops updates and keeps the rows; **Resume** catches up. **Clear display** empties your view and then shows only new events; it never deletes anything for others. Closing the console stops all updates and the next opening starts again with recent history. Updates also stop while the browser tab is hidden.
+- **Status:** **Live** means the last collection is at most 30 seconds old; **Collection delayed** means the background collection has not succeeded recently; **Waiting for first collection** appears after installation. **Connection problem** means the app could not load new events; the console retries on its own.
+- **Limits:** the console compares ACS snapshots. Several changes between two samples can appear as one entry, so it is not a complete change log or scan audit trail. History starts with the first collection after installation; earlier changes are never shown. An image newly added to a namespace does not produce a scan entry there, the image change entry covers it.
+
 ## FAQ
 
 **FAQ** is the last item in the sidebar, under **Help**, for every user. It answers common questions about visibility, ratings, risk acceptances, remediations, escalations, notifications, and badges.

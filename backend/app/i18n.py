@@ -318,6 +318,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "de": "Nur beantragte Regeln können zurückgezogen werden",
         "en": "Only requested rules can be withdrawn",
     },
+    # Activity console
+    "invalid_activity_cursor": {
+        "de": "Ungültige Position im Aktivitätsverlauf. Bitte laden Sie die Aktivitäten neu.",
+        "en": "Invalid activity feed position. Please reload the activity feed.",
+    },
     # Badges
     "badge_namespace_not_accessible": {
         "de": "Namespace nicht in Ihren zugänglichen Namespaces",

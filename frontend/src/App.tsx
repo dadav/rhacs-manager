@@ -22,7 +22,7 @@ import {
   EmptyStateBody,
 } from "@patternfly/react-core";
 import { BarsIcon, GithubIcon, GlobeIcon, MoonIcon, OutlinedQuestionCircleIcon, SlidersHIcon, SunIcon } from "@patternfly/react-icons";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { useAuth } from "./hooks/useAuth";
@@ -34,6 +34,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { GuidedTour } from "./components/GuidedTour";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { WhatsNewLink } from "./components/WhatsNew";
+import { ActivityConsoleDrawer, ActivityConsoleToggle } from "./components/activity/ActivityConsole";
 
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const CveList = lazy(() => import("./pages/CveList").then(m => ({ default: m.CveList })));
@@ -88,6 +89,13 @@ export function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [runTour, setRunTour] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // Starts closed on every full page load; intentionally not persisted.
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const activityToggleRef = useRef<HTMLButtonElement>(null);
+  const closeActivityFromPanel = () => {
+    setIsActivityOpen(false);
+    activityToggleRef.current?.focus();
+  };
   const startTour = () => {
     setIsSidebarOpen(true);
     setRunTour(true);
@@ -254,6 +262,11 @@ export function App() {
               <OutlinedQuestionCircleIcon />
             </Button>
           </Tooltip>
+          <ActivityConsoleToggle
+            isOpen={isActivityOpen}
+            onToggle={() => setIsActivityOpen((open) => !open)}
+            buttonRef={activityToggleRef}
+          />
           <NotificationBell />
           <Tooltip content={t("app.mySettings")} position="bottom">
             <Link to="/my-settings" aria-label={t("app.mySettings")} style={{ color: "#e0e0e0", display: "inline-flex", padding: "0 8px" }}>
@@ -352,6 +365,7 @@ export function App() {
         onDismiss={startTour}
       />
       <GuidedTour run={runTour} onComplete={() => setRunTour(false)} isSecTeam={isSecTeam} />
+      <ActivityConsoleDrawer isOpen={isActivityOpen} onClose={closeActivityFromPanel} userId={user.id}>
       <ErrorBoundary>
         <Suspense fallback={<div style={{ display: "flex", justifyContent: "center", padding: 48 }}><Spinner size="xl" /></div>}>
         <Routes>
@@ -390,6 +404,7 @@ export function App() {
         </Routes>
         </Suspense>
       </ErrorBoundary>
+      </ActivityConsoleDrawer>
     </Page>
   );
 }

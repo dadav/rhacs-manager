@@ -1,0 +1,428 @@
+/* Shared shell drawer: the routed content scrolls inside the drawer so the
+   activity panel stays pinned at the bottom of the main area. */
+.activity-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.activity-shell > .pf-v6-c-drawer__main > .pf-v6-c-drawer__content {
+  /* Routed content takes the space the panel leaves (PF keeps it at 100%/no-shrink below md). */
+  flex: 1 1 0;
+  min-height: 0;
+  background-color: transparent;
+}
+
+.activity-shell__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Terminal appearance: fixed black/green palette in both app themes. Every
+   selector below stays scoped to the panel so no other PatternFly component changes. */
+.activity-console {
+  --activity-console-bg: #000000;
+  --activity-console-fg: #4ade80;
+  --activity-console-bright: #86efac;
+  --activity-console-muted: #7da88a;
+  --activity-console-line: #1e442a;
+  --activity-console-control: #4b8560;
+  --activity-console-hover: #071a0d;
+  --activity-console-warning: #fbbf24;
+  --activity-console-error: #f87171;
+  --activity-console-mono: var(--pf-t--global--font--family--mono, ui-monospace, monospace);
+  --activity-console-font-size: var(--pf-t--global--font--size--xs, 12px);
+  --activity-console-title-size: var(--pf-t--global--font--size--sm, 14px);
+
+  /* Splitter: decorative edge lines, the handle itself carries the control color. */
+  --pf-v6-c-drawer__splitter--after--BorderColor: var(--activity-console-line);
+  --pf-v6-c-drawer__splitter--hover--after--BorderColor: var(--activity-console-line);
+  --pf-v6-c-drawer__splitter--focus--after--BorderColor: var(--activity-console-line);
+  --pf-v6-c-drawer__splitter--active--after--BorderColor: var(--activity-console-line);
+  --pf-v6-c-drawer__splitter-handle--after--BackgroundColor: var(--activity-console-control);
+  --pf-v6-c-drawer__splitter-handle--hover--after--BackgroundColor: var(--activity-console-bright);
+  --pf-v6-c-drawer__splitter-handle--focus--after--BackgroundColor: var(--activity-console-bright);
+  --pf-v6-c-drawer__splitter-handle--active--after--BackgroundColor: var(--activity-console-bright);
+  --pf-v6-c-drawer__splitter-handle--after--BorderColor: var(--activity-console-control);
+  --pf-v6-c-drawer__splitter--hover__splitter-handle--after--BorderColor: var(--activity-console-bright);
+
+  color-scheme: dark;
+  color: var(--activity-console-fg);
+  font-family: var(--activity-console-mono);
+  font-size: var(--activity-console-font-size);
+  scrollbar-color: var(--activity-console-control) var(--activity-console-bg);
+}
+
+/* Matches PatternFly's own panel selectors so background and shadow win at every breakpoint. */
+.activity-shell > .pf-v6-c-drawer__main > .pf-v6-c-drawer__panel.activity-console {
+  --pf-v6-c-drawer__panel--BackgroundColor: var(--activity-console-bg);
+  --pf-v6-c-drawer__panel--BoxShadow: none;
+  --pf-v6-c-drawer--m-expanded__panel--BoxShadow: none;
+  box-shadow: none;
+}
+
+.activity-console ::selection {
+  color: var(--activity-console-bg);
+  background-color: var(--activity-console-bright);
+}
+
+/* Specific enough to beat PatternFly's inline-resizable splitter outline offset. */
+.activity-shell.pf-v6-c-drawer > .pf-v6-c-drawer__main > .pf-v6-c-drawer__panel.activity-console > .pf-v6-c-drawer__splitter:focus-visible {
+  outline: 2px solid var(--activity-console-bright);
+  outline-offset: -2px;
+}
+
+.activity-console__head {
+  padding-block: 8px;
+}
+
+/* Outlined controls need space between them; PatternFly's actions row has no gap. */
+.activity-console__head > .pf-v6-c-drawer__actions {
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-console__heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.activity-console__title {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--activity-console-title-size);
+  font-weight: 600;
+  color: var(--activity-console-bright);
+}
+
+.activity-console__title:focus-visible {
+  outline: 2px solid var(--activity-console-bright);
+  outline-offset: 2px;
+}
+
+.activity-console__meta {
+  font-size: var(--activity-console-font-size);
+  color: var(--activity-console-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Status badges: the local state class decides the color, never PatternFly's color modifier. */
+.activity-console .pf-v6-c-label.activity-console__status {
+  --activity-console-status-color: var(--activity-console-muted);
+  --pf-v6-c-label--Color: var(--activity-console-status-color);
+  --pf-v6-c-label__icon--Color: var(--activity-console-status-color);
+  --pf-v6-c-label--BorderColor: var(--activity-console-status-color);
+  --pf-v6-c-label--BorderWidth: 1px;
+  --pf-v6-c-label--BackgroundColor: var(--activity-console-bg);
+  --pf-v6-c-label--BorderRadius: 2px;
+  --pf-v6-c-label--FontSize: var(--activity-console-font-size);
+  font-family: inherit;
+}
+
+.activity-console .pf-v6-c-label.activity-console__status--live {
+  --activity-console-status-color: var(--activity-console-fg);
+}
+
+.activity-console .pf-v6-c-label.activity-console__status--stale {
+  --activity-console-status-color: var(--activity-console-warning);
+}
+
+.activity-console .pf-v6-c-label.activity-console__status--error {
+  --activity-console-status-color: var(--activity-console-error);
+}
+
+/* Outlined controls (secondary buttons and the plain close button). Resting colors go
+   through the variant variables because PatternFly's :hover/:active rules reassign the
+   generic ones on the same element. */
+.activity-console .pf-v6-c-button.activity-console__control {
+  --pf-v6-c-button--m-secondary--Color: var(--activity-console-fg);
+  --pf-v6-c-button--m-secondary--BorderColor: var(--activity-console-control);
+  --pf-v6-c-button--m-secondary__icon--Color: var(--activity-console-fg);
+  --pf-v6-c-button--m-plain--Color: var(--activity-console-fg);
+  --pf-v6-c-button--m-plain__icon--Color: var(--activity-console-fg);
+  --pf-v6-c-button--m-plain--BackgroundColor: transparent;
+  --pf-v6-c-button--m-plain--BorderColor: var(--activity-console-control);
+  --pf-v6-c-button--m-plain--BorderWidth: var(--pf-t--global--border--width--action--default);
+  --pf-v6-c-button--hover--Color: var(--activity-console-bright);
+  --pf-v6-c-button--hover--BackgroundColor: var(--activity-console-hover);
+  --pf-v6-c-button--hover--BorderColor: var(--activity-console-bright);
+  --pf-v6-c-button--hover--BorderWidth: var(--pf-t--global--border--width--action--hover);
+  --pf-v6-c-button--hover__icon--Color: var(--activity-console-bright);
+  --pf-v6-c-button--m-clicked--Color: var(--activity-console-bright);
+  --pf-v6-c-button--m-clicked--BackgroundColor: var(--activity-console-hover);
+  --pf-v6-c-button--m-clicked--BorderColor: var(--activity-console-bright);
+  --pf-v6-c-button--m-clicked--BorderWidth: var(--pf-t--global--border--width--action--clicked);
+  --pf-v6-c-button--m-clicked__icon--Color: var(--activity-console-bright);
+  --pf-v6-c-button--disabled--Color: var(--activity-console-muted);
+  --pf-v6-c-button--disabled__icon--Color: var(--activity-console-muted);
+  --pf-v6-c-button--disabled--BackgroundColor: var(--activity-console-bg);
+  --pf-v6-c-button--disabled--BorderColor: var(--activity-console-control);
+  --pf-v6-c-button--BorderRadius: 2px;
+  --pf-v6-c-button--FontSize: var(--activity-console-font-size);
+  font-family: inherit;
+}
+
+/* Info trigger beside the status badge: an icon, not an outlined control. */
+.activity-console .pf-v6-c-button.activity-console__control.activity-console__info {
+  --pf-v6-c-button--m-plain--Color: var(--activity-console-muted);
+  --pf-v6-c-button--m-plain__icon--Color: var(--activity-console-muted);
+  --pf-v6-c-button--m-plain--BorderWidth: 0;
+  --pf-v6-c-button--hover--BorderWidth: 0;
+  --pf-v6-c-button--m-clicked--BorderWidth: 0;
+  margin-inline-start: -8px;
+}
+
+/* Jump to latest: filled bright green with black text in every interactive state. */
+.activity-console .pf-v6-c-button.activity-console__jump {
+  --pf-v6-c-button--m-primary--Color: var(--activity-console-bg);
+  --pf-v6-c-button--m-primary--BackgroundColor: var(--activity-console-bright);
+  --pf-v6-c-button--m-primary__icon--Color: var(--activity-console-bg);
+  --pf-v6-c-button--m-primary--hover--Color: var(--activity-console-bg);
+  --pf-v6-c-button--m-primary--hover--BackgroundColor: var(--activity-console-fg);
+  --pf-v6-c-button--m-primary--hover__icon--Color: var(--activity-console-bg);
+  --pf-v6-c-button--m-primary--m-clicked--Color: var(--activity-console-bg);
+  --pf-v6-c-button--m-primary--m-clicked--BackgroundColor: var(--activity-console-fg);
+  --pf-v6-c-button--m-primary--m-clicked__icon--Color: var(--activity-console-bg);
+  --pf-v6-c-button--BorderRadius: 2px;
+  --pf-v6-c-button--FontSize: var(--activity-console-font-size);
+  /* Anchored to the log wrapper, so text above or below the log never moves it. */
+  position: absolute;
+  right: 24px;
+  bottom: 12px;
+  font-family: inherit;
+}
+
+.activity-console .pf-v6-c-button.activity-console__control:focus-visible,
+.activity-console .pf-v6-c-button.activity-console__jump:focus-visible {
+  outline: 2px solid var(--activity-console-bright);
+  outline-offset: 2px;
+}
+
+.activity-console .pf-v6-c-alert.activity-console__alert {
+  --pf-v6-c-alert--BackgroundColor: transparent;
+  --pf-v6-c-alert__title--Color: var(--activity-console-error);
+  --pf-v6-c-alert__icon--Color: var(--activity-console-error);
+  --pf-v6-c-alert--FontSize: var(--activity-console-font-size);
+  padding: 4px 16px;
+  font-family: inherit;
+}
+
+.activity-console__alert .pf-v6-c-alert__title {
+  font-family: inherit;
+}
+
+.activity-console__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.activity-console__log-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Rows are subgrids of the log, so each column sizes to its widest cell across all rows:
+   longer translations or names never break the alignment. */
+.activity-console__log {
+  display: grid;
+  grid-template-columns: max-content max-content fit-content(28ch) minmax(0, 1fr);
+  align-content: start;
+  column-gap: 12px;
+  flex: 1 1 auto;
+  min-height: 3rem;
+  overflow-y: auto;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: var(--activity-console-font-size);
+  line-height: 1.6;
+  background-color: var(--activity-console-bg);
+  color: var(--activity-console-fg);
+  scrollbar-color: var(--activity-console-control) var(--activity-console-bg);
+}
+
+/* Sidebar narrowed to one cluster and namespace: the scope column is omitted. */
+.activity-console__log--no-scope {
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+}
+
+.activity-console__log:focus-visible {
+  outline: 2px solid var(--activity-console-bright);
+  outline-offset: -2px;
+}
+
+.activity-console__row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.activity-console__row:hover {
+  background-color: var(--activity-console-hover);
+}
+
+.activity-console__time,
+.activity-console__scope {
+  color: var(--activity-console-muted);
+}
+
+/* Kind encoding stays inside the green spec: a glyph plus a brightness step per kind. */
+.activity-console__kind {
+  --activity-console-kind-color: var(--activity-console-fg);
+  display: flex;
+  gap: 0.75ch;
+  font-weight: 600;
+  color: var(--activity-console-kind-color);
+}
+
+.activity-console__kind--deployment_removed {
+  --activity-console-kind-color: var(--activity-console-muted);
+}
+
+.activity-console__kind--image_scanned,
+.activity-console__kind--image_scan_updated {
+  --activity-console-kind-color: var(--activity-console-bright);
+}
+
+.activity-console__glyph {
+  inline-size: 1.5ch;
+  flex: none;
+  text-align: center;
+}
+
+.activity-console__kind-label {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.activity-console__text-lead {
+  font-weight: 600;
+  color: var(--activity-console-bright);
+}
+
+.activity-console__text-meta {
+  color: var(--activity-console-muted);
+}
+
+.activity-console__empty,
+.activity-console__prompt {
+  grid-column: 1 / -1;
+}
+
+.activity-console__empty {
+  color: var(--activity-console-muted);
+}
+
+/* Tail cursor: blinks while live, solid otherwise, removed on error by the component. */
+.activity-console__cursor {
+  color: var(--activity-console-bright);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .activity-console__cursor--live {
+    animation: activity-console-blink 1.1s steps(1, end) infinite;
+  }
+}
+
+@keyframes activity-console-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.activity-console__notice {
+  padding: 4px 16px;
+  font-size: var(--activity-console-font-size);
+  color: var(--activity-console-muted);
+}
+
+@media (max-width: 47.999rem) {
+  /* PatternFly gives bottom panels flex-basis 100% below md and only applies the
+     resizable size variables from md up; reuse its md formula so the console keeps
+     its bounded height (and stays resizable) on narrow screens. */
+  .activity-shell.pf-v6-c-drawer.pf-m-panel-bottom > .pf-v6-c-drawer__main > .pf-v6-c-drawer__panel.activity-console {
+    /* Below md PatternFly overlays the panel with a transform; keep it inline instead. */
+    transform: none;
+    --pf-v6-c-drawer__panel--FlexBasis: max(
+      var(--pf-v6-c-drawer__panel--md--FlexBasis--min),
+      min(var(--pf-v6-c-drawer__panel--md--FlexBasis), var(--pf-v6-c-drawer__panel--md--FlexBasis--max))
+    );
+    /* The splitter, which draws the top edge from md up, is hidden here. */
+    border-block-start: 1px solid var(--activity-console-line);
+  }
+
+  /* Actions get their own row so the heading, status and scope use the full width. */
+  .activity-console__head.pf-v6-c-drawer__head {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .activity-console__head > .pf-v6-c-drawer__actions {
+    grid-row: 2;
+    grid-column: 1;
+    flex-wrap: wrap;
+    margin: 0;
+  }
+
+  /* Narrow screens: rows wrap as blocks instead of sharing columns. */
+  .activity-console__log {
+    display: block;
+    padding-inline: 8px;
+  }
+
+  .activity-console__row {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 10px;
+    padding-block: 2px;
+    border-bottom: 1px solid var(--activity-console-line);
+  }
+}
+
+/* High-contrast modes: let the system palette apply, but keep every control and badge
+   outlined and every focus ring visible. */
+@media (forced-colors: active) {
+  .activity-console,
+  .activity-console__log {
+    color: CanvasText;
+    background-color: Canvas;
+  }
+
+  .activity-console .pf-v6-c-button.activity-console__control::after,
+  .activity-console .pf-v6-c-button.activity-console__jump::after {
+    border: 1px solid ButtonText;
+  }
+
+  .activity-console .pf-v6-c-button.activity-console__control.activity-console__info::after {
+    border: none;
+  }
+
+  .activity-console .pf-v6-c-button.activity-console__control:disabled::after {
+    border-color: GrayText;
+  }
+
+  .activity-console .pf-v6-c-label.activity-console__status .pf-v6-c-label__content::before {
+    border: 1px solid CanvasText;
+  }
+
+  .activity-console .pf-v6-c-drawer__splitter-handle::after {
+    background-color: ButtonText;
+  }
+
+  .activity-console__title:focus-visible,
+  .activity-console__log:focus-visible,
+  .activity-console .pf-v6-c-drawer__splitter:focus-visible,
+  .activity-console .pf-v6-c-button.activity-console__control:focus-visible,
+  .activity-console .pf-v6-c-button.activity-console__jump:focus-visible {
+    outline-color: Highlight;
+  }
+}

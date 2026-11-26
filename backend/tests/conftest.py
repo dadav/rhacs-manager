@@ -22,6 +22,7 @@ from app.stackrox import effective_scores
 def _build_app() -> FastAPI:
     """Build a minimal FastAPI app with the same routers but no lifespan side-effects."""
     from app.routers import (
+        activity,
         audit,
         auth,
         badges,
@@ -53,6 +54,7 @@ def _build_app() -> FastAPI:
     # Mirror production: localize ApiError messages from Accept-Language.
     test_app.add_middleware(LanguageMiddleware)
     for router_module in [
+        activity,
         auth,
         comments,
         dashboard,

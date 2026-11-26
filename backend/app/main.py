@@ -13,6 +13,7 @@ from .i18n import LanguageMiddleware
 from .logging_setup import configure_logging
 from .metrics import setup_metrics
 from .routers import (
+    activity,
     audit,
     auth,
     badges,
@@ -175,6 +176,7 @@ else:
 
 # Register all routers under /api prefix
 for router_module in [
+    activity,
     auth,
     comments,
     dashboard,

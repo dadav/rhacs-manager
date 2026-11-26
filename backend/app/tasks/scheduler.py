@@ -21,6 +21,7 @@ from ..models.namespace_contact import NamespaceContact
 from ..models.remediation import Remediation, RemediationStatus, overdue_remediation_filters
 from ..models.risk_acceptance import RiskAcceptance, RiskStatus, expiring_risk_acceptance_filters
 from ..notifications import service as notif_svc
+from ..services import activity_service
 from ..services import cve_subscription_service as sub_svc
 from ..services import notification_summary_service as summary_svc
 from ..services.audit_service import log_action
@@ -821,6 +822,13 @@ async def run_cve_subscription_diff() -> None:
         await sub_svc.run_subscription_diff(app_db, sx_db)
 
 
+@instrument_job("activity_collection")
+async def run_activity_collection() -> None:
+    """Every 10 s: sample ACS deployments/images and store activity console events."""
+    async with AppSessionLocal() as app_db:
+        await activity_service.collect_activity(app_db)
+
+
 @instrument_job("cve_subscription_email")
 async def run_cve_subscription_email() -> None:
     """Daily opt-in summary email of subscription events (counts and one link only)."""
@@ -993,6 +1001,14 @@ def setup_scheduler() -> AsyncIOScheduler:
         hour=7,
         minute=20,
         id="cve_subscription_email",
+    )
+    scheduler.add_job(
+        run_activity_collection,
+        "interval",
+        seconds=10,
+        id="activity_collection",
+        max_instances=1,
+        coalesce=True,
     )
     # After the overdue check (08:30) and auto-resolve (09:00), so live counts are current.
     scheduler.add_job(

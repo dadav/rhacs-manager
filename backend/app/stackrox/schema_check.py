@@ -25,6 +25,16 @@ REQUIRED_STACKROX_COLUMNS: list[tuple[str, str, str]] = [
     ("images_v2", "scan_scantime", "4.11.0"),
     ("deployments_containers", "image_idv2", "4.11.0"),
     ("image_cves_v2", "origin", "4.11.6"),
+    # Activity console source snapshot (app/stackrox/queries/activity.py).
+    ("deployments", "name", "4.0.0"),
+    ("deployments", "namespace", "4.0.0"),
+    ("deployments", "clustername", "4.0.0"),
+    ("deployments_containers", "image_id", "4.0.0"),
+    ("deployments_containers", "image_name_fullname", "4.0.0"),
+    ("images_v2", "digest", "4.11.0"),
+    ("images_v2", "name_fullname", "4.11.0"),
+    ("images_v2", "scanstats_cvecount", "4.11.0"),
+    ("images_v2", "scanstats_fixablecvecount", "4.11.0"),
     # Cross-cluster namespace access (app/stackrox/namespace_access.py).
     ("namespaces", "name", "4.0.0"),
     ("namespaces", "clustername", "4.0.0"),

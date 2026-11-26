@@ -1222,5 +1222,58 @@
     "explainer": "Die Eskalation endet, wenn die CVE behoben oder für den Standort eine Risikoakzeptanz oder ein False Positive genehmigt ist. Eine Behebung pausiert sie nicht.",
     "remediationDeadline": "Nächste Eskalation: {{date}}",
     "targetAfterDeadline": "Nach der nächsten Eskalation ({{date}}). Eine Behebung pausiert sie nicht."
+  },
+  "activity": {
+    "toggle": "Aktivitätskonsole",
+    "title": "ACS-Aktivität",
+    "panelLabel": "ACS-Aktivitätskonsole",
+    "resize": "Größe der Aktivitätskonsole ändern",
+    "close": "Aktivitätskonsole schließen",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "clear": "Anzeige leeren",
+    "scopeAll": "Alle Namespaces, auf die Sie zugreifen können",
+    "scopeCluster": "Cluster {{cluster}}",
+    "scopeNamespace": "Namespace {{namespace}} (alle Ihnen zugänglichen Cluster)",
+    "scopeBoth": "{{cluster}} / {{namespace}}",
+    "status": {
+      "live": "Live",
+      "stale": "Erfassung verzögert",
+      "waiting": "Warten auf erste Erfassung",
+      "paused": "Pausiert",
+      "connecting": "Verbindung wird aufgebaut",
+      "error": "Verbindungsproblem"
+    },
+    "lastSuccess": "Letzte Erfassung: {{time}}",
+    "lastSuccessNever": "Noch keine Erfassung",
+    "loadError": "Aktivitäten konnten nicht geladen werden: {{message}}",
+    "loading": "Aktuelle Aktivitäten werden geladen...",
+    "empty": "Keine Aktivität in den letzten 24 Stunden in diesem Bereich.",
+    "emptyCleared": "Anzeige geleert. Neue Aktivitäten erscheinen hier.",
+    "emptyWaiting": "Die Erfassung ist noch nicht zum ersten Mal gelaufen. Der Verlauf beginnt mit der ersten Erfassung.",
+    "truncated": "Es werden nur die neuesten {{count}} Ereignisse angezeigt.",
+    "samplingNote": "ACS wird etwa alle 10 Sekunden abgefragt. Mehrere Änderungen zwischen zwei Abfragen können als ein Eintrag erscheinen. Der Verlauf umfasst bis zu 24 Stunden.",
+    "about": "Über diese Daten",
+    "logLabel": "Aktivitätsereignisse",
+    "newEvents_one": "{{count}} neues Ereignis",
+    "newEvents_other": "{{count}} neue Ereignisse",
+    "jumpToLatest_one": "{{count}} neues Ereignis, zum neuesten springen",
+    "jumpToLatest_other": "{{count}} neue Ereignisse, zum neuesten springen",
+    "kind": {
+      "deployment_observed": "Deployment neu",
+      "deployment_removed": "Deployment weg",
+      "deployment_images_changed": "Images geändert",
+      "image_scanned": "Scan abgeschlossen",
+      "image_scan_updated": "Scan-Ergebnis geändert"
+    },
+    "text": {
+      "deploymentObserved": "Deployment {{name}} ist erschienen",
+      "deploymentRemoved": "Deployment {{name}} ist nicht mehr vorhanden",
+      "imagesChanged": "Deployment {{name}}: hinzugefügt {{added}}; entfernt {{removed}}",
+      "none": "keine",
+      "scan": "{{cves}} CVEs ({{fixable}} behebbar), {{components}} Komponenten",
+      "scanTime": "ACS-Scanzeit {{time}}",
+      "unknown": "?"
+    }
   }
 }

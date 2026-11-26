@@ -80,6 +80,9 @@ Managed by Alembic migrations. Stores all application state:
 | `notifications` | In-app notification records |
 | `badge_tokens` | SVG badge token configuration |
 | `audit_log` | Administrative action audit trail |
+| `activity_events` | ACS activity console events (24-hour retention), one row per `(cluster, namespace)` pair |
+| `activity_snapshots` | Last normalized deployment and image snapshot compared by the activity collector |
+| `activity_collector_state` | Singleton: collection status and the committed high-water event id |
 
 ### StackRox Central Database (read-only)
 
@@ -346,5 +349,22 @@ APScheduler runs recurring jobs in the single `worker` process, including:
 | Weekly digest | Weekly (configurable day) | Send summary email to `MANAGEMENT_EMAIL` |
 | CVE subscription diff | Hourly (minute 10) | Compare each subscription's stored state (`cve_subscriptions.state`) with StackRox and notify that subscriber |
 | CVE subscription email | Daily 07:20 UTC | Opt-in summary of `cve_subscription_events` (counts and one link only, at most one per user per day) |
+| Activity collection | Every 10 seconds | Sample ACS deployments and image scans and store activity console events |
 
 CVE subscriptions have two emitters. Workflow events (comments, priorities, risk acceptances, remediations, escalations) are broadcast to every subscriber inside the originating transaction. StackRox data changes are computed per subscriber by the hourly diff from a pair-keyed state (scores, and per `(namespace, cluster)` the affected image pull specs and fixable components); pairs entering or leaving a subscriber's scope are absorbed silently. Every notification carries the `(namespace, cluster)` pairs it is about, so the notifications endpoint hides it from readers who lost access.
+
+### ACS activity console
+
+```mermaid
+flowchart LR
+    SX[("StackRox Central DB")] -->|"1 snapshot query<br/>every 10 s, 5 s budget"| W["worker: activity_collection"]
+    W -->|"one transaction:<br/>events + snapshots + state"| APP[("App DB")]
+    APP -->|"GET /api/activity<br/>scoped, cursor"| API["backend replicas"]
+    API -->|"poll every 5 s<br/>while open"| UI["Browser console"]
+```
+
+- The worker reads one complete snapshot (`deployments` LEFT JOIN `deployments_containers` LEFT JOIN `images_v2`, no protobufs or CVE rows) in a short read-only session, normalizes it, and diffs it against `activity_snapshots`. The first successful run is a silent baseline. A failed or timed-out read is never treated as an empty snapshot.
+- The collection holds `activity_collector_state` `FOR UPDATE` for its whole transaction, so event ids are assigned in commit order and `last_event_id` is a safe high-water mark. Failures roll back events, snapshots, and status together.
+- Scan events are emitted once per `(namespace, cluster)` pair present before and after the change; inventory events carry only their own pair. Events older than 24 hours are deleted by the collector and filtered by the API.
+- API replicas serve the feed from the app DB only; they never start the collector and never query StackRox for it. If the worker is down, the console still shows retained events and reports the collection as stale.
+- This is sampling, not a change stream: several changes between two samples collapse into one observation.

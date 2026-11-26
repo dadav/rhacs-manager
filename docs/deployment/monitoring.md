@@ -41,6 +41,7 @@ Current `job` labels:
 - `cve_subscription_diff`
 - `cve_subscription_email`
 - `notification_summary`
+- `activity_collection` (every 10 seconds; a rising `failure` count or a stale last-success timestamp means the activity console shows **Collection delayed**)
 
 Series for each job are pre-registered at startup so they appear in `/metrics` before the first invocation.
 

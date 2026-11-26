@@ -1222,5 +1222,58 @@
     "explainer": "Escalation stops when the CVE is fixed, or a risk acceptance or false positive is approved for the location. A remediation does not pause it.",
     "remediationDeadline": "Next escalation: {{date}}",
     "targetAfterDeadline": "After the next escalation ({{date}}). A remediation does not pause it."
+  },
+  "activity": {
+    "toggle": "Activity console",
+    "title": "ACS activity",
+    "panelLabel": "ACS activity console",
+    "resize": "Resize activity console",
+    "close": "Close activity console",
+    "pause": "Pause",
+    "resume": "Resume",
+    "clear": "Clear display",
+    "scopeAll": "All namespaces you can access",
+    "scopeCluster": "Cluster {{cluster}}",
+    "scopeNamespace": "Namespace {{namespace}} (all clusters you can access)",
+    "scopeBoth": "{{cluster}} / {{namespace}}",
+    "status": {
+      "live": "Live",
+      "stale": "Collection delayed",
+      "waiting": "Waiting for first collection",
+      "paused": "Paused",
+      "connecting": "Connecting",
+      "error": "Connection problem"
+    },
+    "lastSuccess": "Last collection: {{time}}",
+    "lastSuccessNever": "No collection yet",
+    "loadError": "Activity could not be loaded: {{message}}",
+    "loading": "Loading recent activity...",
+    "empty": "No activity in the last 24 hours in this scope.",
+    "emptyCleared": "Display cleared. New activity appears here.",
+    "emptyWaiting": "The collector has not completed its first run yet. History starts with the first collection.",
+    "truncated": "Only the newest {{count}} events are shown.",
+    "samplingNote": "ACS is sampled about every 10 seconds. Several changes between two samples can appear as one entry. History covers up to 24 hours.",
+    "about": "About this data",
+    "logLabel": "Activity events",
+    "newEvents_one": "{{count}} new event",
+    "newEvents_other": "{{count}} new events",
+    "jumpToLatest_one": "{{count}} new event, jump to latest",
+    "jumpToLatest_other": "{{count}} new events, jump to latest",
+    "kind": {
+      "deployment_observed": "Deployment new",
+      "deployment_removed": "Deployment gone",
+      "deployment_images_changed": "Images changed",
+      "image_scanned": "Scan completed",
+      "image_scan_updated": "Scan result changed"
+    },
+    "text": {
+      "deploymentObserved": "Deployment {{name}} appeared",
+      "deploymentRemoved": "Deployment {{name}} no longer present",
+      "imagesChanged": "Deployment {{name}}: added {{added}}; removed {{removed}}",
+      "none": "none",
+      "scan": "{{cves}} CVEs ({{fixable}} fixable), {{components}} components",
+      "scanTime": "ACS scan time {{time}}",
+      "unknown": "?"
+    }
   }
 }

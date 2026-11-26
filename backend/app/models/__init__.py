@@ -1,3 +1,4 @@
+from .activity import ActivityCollectorState, ActivityEvent, ActivitySnapshot
 from .alert_email_delivery import AlertEmailDelivery
 from .audit_log import AuditLog
 from .badge import BadgeToken
@@ -20,6 +21,9 @@ from .user import User, UserRole
 from .user_namespace_snapshot import UserNamespaceSnapshot
 
 __all__ = [
+    "ActivityCollectorState",
+    "ActivityEvent",
+    "ActivitySnapshot",
     "User",
     "UserRole",
     "RiskAcceptance",

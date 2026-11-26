@@ -1,9 +1,14 @@
 {
   "releases": [
     {
-      "version": "0.49.1",
+      "version": "0.50.0",
       "date": "2026-11-25",
       "items": [
+        {
+          "id": "activity-console",
+          "kind": "feature",
+          "text": "A new activity console at the bottom of the page shows ACS changes in your namespaces as they happen: deployments that appear or disappear, changed images, and finished image scans. Open it with the terminal icon in the masthead. It starts closed, shows up to 24 hours of history, and can be paused or cleared. ACS is sampled about every 10 seconds, so several quick changes can appear as one entry."
+        },
         {
           "id": "risk-review-emails",
           "kind": "feature",

@@ -319,6 +319,66 @@ on one CVE, or on one risk acceptance).
 
 A channel value of `null` means that channel does not exist for the category. `cve_subscription` covers subscription notifications (in-app on by default); its email channel is the daily subscription summary (off by default). Email-only opt-in categories: `team_digest` (weekly digest) and `alert_email_critical` (CVE alert summary email: newly critical and newly fixable critical CVEs). The email channel of `priority` and `new_critical_cve` adds two more conditions to that summary (one shared email per user per day at most). The email channel of `remediation`, `suppression`, and `escalation`, plus the email-only `risk_acceptance_updates`, feed the daily notification summary email (off by default, one per user per day at most).
 
+## Activity
+
+| Method | Path | Role | Description |
+|--------|------|------|-------------|
+| GET | `/api/activity` | Any | Scoped ACS activity console feed (app DB only, never queries StackRox) |
+
+Query parameters:
+
+| Parameter | Meaning |
+|-----------|---------|
+| `cluster` | Optional exact cluster |
+| `namespace` | Optional exact namespace |
+| `cursor` | Optional `next_cursor` from the previous response |
+| `limit` | 1-200, default 100 |
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "1042",
+      "kind": "image_scanned",
+      "observed_at": "2026-11-25T12:00:10Z",
+      "source_at": "2026-11-25T12:00:06Z",
+      "cluster_name": "cluster-a",
+      "namespace": "payments",
+      "details": {
+        "image_id_v2": "source-image-id",
+        "image_digest": "sha256:example",
+        "image_name": "registry.example/payments:1",
+        "component_count": 42,
+        "cve_count": 3,
+        "fixable_cve_count": 1
+      }
+    }
+  ],
+  "next_cursor": "opaque-token",
+  "has_more": false,
+  "reset": false,
+  "scope_key": "stable-fingerprint",
+  "last_success_at": "2026-11-25T12:00:10Z",
+  "collector_status": "live"
+}
+```
+
+- `kind` is one of `deployment_observed`, `deployment_removed`, `deployment_images_changed`, `image_scanned`, `image_scan_updated`. Deployment events carry `deployment_id` and `deployment_name`; `deployment_images_changed` adds `added_images` and `removed_images` (`{image_id_v2, image_digest, image_name}`, unavailable fields `null`). Scan events carry the fields shown above; `source_at` is the ACS scan time. Counts can be `null` when ACS did not report them.
+- `id` is a decimal string (bigint). `observed_at` is the sampling time, not an exact change time.
+- Authorization comes from the current request only: regular users get events whose exact `(namespace, cluster)` pair they can access, narrowed by `cluster`/`namespace`; security-team and wildcard users get all pairs, narrowed by the filters. No namespaces means no events. CVSS/EPSS thresholds and `ignore_thresholds` do not apply. Events older than 24 hours are never returned.
+- `collector_status`: `waiting` before the first successful collection, `live` when the last one is at most 30 seconds old, otherwise `stale`.
+- `scope_key` fingerprints the user and the effective access; it is never a grant.
+
+Cursor rules:
+
+- Each response is bounded by the collector's committed high-water event id, read once per request, so events committed while a request runs are delivered by the next one.
+- Without `cursor`: the newest `limit` events, ascending, and a cursor after the high-water mark (`has_more=false`).
+- With `cursor`: events after it, ascending, at most `limit`. `has_more=true` means request again immediately with the new cursor. Empty pages still return a fresh cursor.
+- A cursor from a different scope (user, filters, or changed permissions) or older than 24 hours returns a fresh tail with `reset=true`; clients must replace, not append.
+- A malformed cursor, or one pointing past the high-water mark, returns 400 `invalid_activity_cursor`.
+
 ## Badges
 
 | Method | Path | Role | Description |
