@@ -159,6 +159,14 @@
           ]
         },
         {
+          "id": "workflow-resolved",
+          "question": "When does the workflow status of a CVE show \"Resolved\"?",
+          "answer": [
+            "Only when every affected deployment in the scope selected in the sidebar is covered, either by an approved risk acceptance or by a completed remediation (resolved or won't fix). Coverage can be mixed, and each vulnerable image of a deployment counts on its own. One risk acceptance for part of the deployments is not enough.",
+            "While only some deployments are covered, the step shows \"Partially covered\". Open remediations, requested, rejected or expired risk acceptances, and false positives do not count. The result depends on the selected scope, so a CVE can be resolved for one namespace and still open for a wider selection."
+          ]
+        },
+        {
           "id": "remediation-edit",
           "question": "Can I change a remediation after creating it?",
           "answer": [

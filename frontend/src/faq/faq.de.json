@@ -159,6 +159,14 @@
           ]
         },
         {
+          "id": "workflow-resolved",
+          "question": "Wann zeigt der Workflow-Status einer CVE \"Abgeschlossen\"?",
+          "answer": [
+            "Erst wenn jedes betroffene Deployment im in der Seitenleiste gewählten Bereich abgedeckt ist, entweder durch eine genehmigte Risikoakzeptanz oder durch eine abgeschlossene Behebung (behoben oder wird nicht behoben). Die Abdeckung darf gemischt sein, und jedes verwundbare Image eines Deployments zählt einzeln. Eine Risikoakzeptanz für einen Teil der Deployments reicht nicht aus.",
+            "Solange nur einige Deployments abgedeckt sind, zeigt der Schritt \"Teilweise abgedeckt\". Offene Behebungen, beantragte, abgelehnte oder abgelaufene Risikoakzeptanzen und False Positives zählen nicht. Das Ergebnis hängt vom gewählten Bereich ab: Eine CVE kann für einen Namespace abgeschlossen und für eine größere Auswahl noch offen sein."
+          ]
+        },
+        {
           "id": "remediation-edit",
           "question": "Kann ich eine Behebung nachträglich ändern?",
           "answer": [

@@ -7,15 +7,9 @@ import {
   ProgressStepper,
 } from "@patternfly/react-core";
 import { useTranslation } from "react-i18next";
-import type { CveDetail } from "../types";
+import type { AffectedDeployment, CveDetail } from "../types";
 import { RiskStatus, RemediationStatus } from "../types";
 import type { RemediationItem } from "../types";
-
-interface CveWorkflowStepperProps {
-  cve: CveDetail;
-  remediations: RemediationItem[] | undefined;
-  isSecTeam: boolean;
-}
 
 export type Phase = "discover" | "assess" | "prioritize" | "remediate" | "resolve";
 
@@ -23,34 +17,79 @@ export type Phase = "discover" | "assess" | "prioritize" | "remediate" | "resolv
 // so a remediation that is only being worked on never looks complete.
 export type PhaseState = "done" | "in_progress" | "todo";
 
-export type ActivityKind = "remediating" | "awaiting_approval";
+export type ActivityKind = "remediating" | "awaiting_approval" | "partial_coverage";
 
 export interface PhaseStatus {
   state: PhaseState;
   activity?: ActivityKind;
 }
 
+// Per-row coverage annotations computed by the backend for the current visible scope.
+export type WorkflowDeployment = Pick<
+  AffectedDeployment,
+  "risk_acceptance_status" | "remediation_status" | "is_suppressed"
+>;
+
 export type WorkflowCve = Pick<
   CveDetail,
-  "has_priority" | "has_risk_acceptance" | "risk_acceptance_status"
->;
+  "has_priority" | "has_risk_acceptance" | "risk_acceptance_status" | "no_longer_affected"
+> & {
+  affected_deployments_list: WorkflowDeployment[];
+};
 
 export type WorkflowRemediation = Pick<RemediationItem, "status">;
 
-const TERMINAL_REMEDIATION_STATUSES = new Set<RemediationStatus>([
+interface CveWorkflowStepperProps {
+  cve: WorkflowCve;
+  remediations: WorkflowRemediation[] | undefined;
+  isSecTeam: boolean;
+}
+
+const TERMINAL_REMEDIATION_STATUSES = new Set<string>([
   RemediationStatus.resolved,
   RemediationStatus.verified,
   RemediationStatus.wont_fix,
 ]);
 
-function computeRemediatePhase(
-  isFinished: boolean,
-  anyRemediationStarted: boolean,
-  hasRequestedRa: boolean,
+// A row is complete only through an approved risk acceptance or a terminal remediation.
+// Suppression alone never completes a row. Rows are not deduplicated by deployment:
+// each row can be a different vulnerable image of the same deployment.
+function isDeploymentCovered(row: WorkflowDeployment): boolean {
+  if (row.risk_acceptance_status === RiskStatus.approved) return true;
+  return TERMINAL_REMEDIATION_STATUSES.has(row.remediation_status ?? "");
+}
+
+// Nonempty affected list: only the row annotations count. The aggregate risk acceptance
+// status and remediation records without a visible row are ignored on purpose.
+function computeCoverageRemediatePhase(rows: WorkflowDeployment[]): PhaseStatus {
+  const uncovered = rows.filter((r) => !isDeploymentCovered(r));
+  if (uncovered.length === 0) return { state: "done" };
+  if (uncovered.some((r) => r.remediation_status === RemediationStatus.in_progress)) {
+    return { state: "in_progress", activity: "remediating" };
+  }
+  if (uncovered.some((r) => r.risk_acceptance_status === RiskStatus.requested)) {
+    return { state: "in_progress", activity: "awaiting_approval" };
+  }
+  if (uncovered.length < rows.length) return { state: "in_progress", activity: "partial_coverage" };
+  return { state: "todo" };
+}
+
+// Empty affected list never resolves vacuously. Only a CVE that StackRox no longer reports
+// in the scope can resolve, and only once every visible remediation is terminal.
+function computeNoDeploymentsRemediatePhase(
+  cve: WorkflowCve,
+  remediations: WorkflowRemediation[],
 ): PhaseStatus {
-  if (isFinished) return { state: "done" };
-  if (anyRemediationStarted) return { state: "in_progress", activity: "remediating" };
-  if (hasRequestedRa) return { state: "in_progress", activity: "awaiting_approval" };
+  if (!cve.no_longer_affected) return { state: "todo" };
+  const allTerminal =
+    remediations.length > 0 && remediations.every((r) => TERMINAL_REMEDIATION_STATUSES.has(r.status));
+  if (allTerminal) return { state: "done" };
+  if (remediations.some((r) => r.status !== RemediationStatus.open)) {
+    return { state: "in_progress", activity: "remediating" };
+  }
+  if (cve.has_risk_acceptance && cve.risk_acceptance_status === RiskStatus.requested) {
+    return { state: "in_progress", activity: "awaiting_approval" };
+  }
   return { state: "todo" };
 }
 
@@ -60,23 +99,17 @@ export function computePhases(
   activePhases: Phase[],
 ): Record<Phase, PhaseStatus> {
   const list = remediations ?? [];
-  const hasApprovedRa =
-    cve.has_risk_acceptance && cve.risk_acceptance_status === RiskStatus.approved;
-  const hasRequestedRa =
-    cve.has_risk_acceptance && cve.risk_acceptance_status === RiskStatus.requested;
-
-  const allRemediationsTerminal =
-    list.length > 0 && list.every((r) => TERMINAL_REMEDIATION_STATUSES.has(r.status));
-  const anyRemediationStarted = list.some((r) => r.status !== RemediationStatus.open);
-
-  // Rejected or expired risk acceptances never complete remediate/resolve.
-  const isFinished = hasApprovedRa || allRemediationsTerminal;
+  const rows = cve.affected_deployments_list;
+  const remediate =
+    rows.length > 0 ? computeCoverageRemediatePhase(rows) : computeNoDeploymentsRemediatePhase(cve, list);
+  const isFinished = remediate.state === "done";
 
   const allPhases: Record<Phase, PhaseStatus> = {
     discover: { state: "done" },
+    // Any risk acceptance or remediation record is evidence that the CVE was assessed.
     assess: { state: cve.has_risk_acceptance || list.length > 0 ? "done" : "todo" },
     prioritize: { state: cve.has_priority ? "done" : "todo" },
-    remediate: computeRemediatePhase(isFinished, anyRemediationStarted, hasRequestedRa),
+    remediate,
     resolve: { state: isFinished ? "done" : "todo" },
   };
 
@@ -122,16 +155,19 @@ const MEMBER_HINTS: Partial<Record<Phase, string>> = {
 const ACTIVITY_DESCRIPTION_KEYS: Record<ActivityKind, string> = {
   remediating: "cveDetail.workflowInProgress",
   awaiting_approval: "cveDetail.workflowAwaitingApproval",
+  partial_coverage: "cveDetail.workflowPartialCoverage",
 };
 
 const ACTIVITY_STATE_ARIA_KEYS: Record<ActivityKind, string> = {
   remediating: "cveDetail.workflowStateInProgress",
   awaiting_approval: "cveDetail.workflowStateAwaitingApproval",
+  partial_coverage: "cveDetail.workflowStatePartialCoverage",
 };
 
 const ACTIVITY_HINT_KEYS: Record<ActivityKind, string> = {
   remediating: "cveDetail.hintRemediateInProgress",
   awaiting_approval: "cveDetail.hintAwaitingApproval",
+  partial_coverage: "cveDetail.hintPartialCoverage",
 };
 
 type StepVariant = "success" | "info" | "pending";

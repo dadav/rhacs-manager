@@ -527,6 +527,187 @@ async def test_get_cve_detail_affected_hides_foreign_workflow(team_member_client
     assert data["escalation_level2_at"].startswith("2024-03-02")
 
 
+# -- Per-deployment coverage annotations (the frontend workflow completes from these) --
+
+
+def _route_detail_records(mock_app_db, *, acceptances=(), remediations=()) -> None:
+    """Answer the detail's app-DB reads: RAs and Remediation rows (``.scalars()``), everything else empty."""
+
+    def _result(scalar_rows=()) -> MagicMock:
+        result = MagicMock()
+        result.all.return_value = []
+        result.scalars.return_value.all.return_value = list(scalar_rows)
+        result.scalar_one_or_none.return_value = None
+        return result
+
+    async def _execute(stmt, *args, **kwargs):
+        sql = str(stmt)
+        if "FROM remediations" in sql:
+            return _result(remediations)
+        if "FROM risk_acceptances" in sql:
+            return _result(acceptances)
+        return _result()
+
+    mock_app_db.execute.side_effect = _execute
+
+
+def _acceptance(ra_id: str, status, scope: dict) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=ra_id,
+        status=status,
+        scope=scope,
+        created_by="someone-else",
+        created_at=datetime(2024, 2, 1),
+        reviewed_at=None,
+    )
+
+
+def _remediation(namespace: str, cluster: str, status) -> SimpleNamespace:
+    return SimpleNamespace(cve_id="CVE-2024-0001", namespace=namespace, cluster_name=cluster, status=status)
+
+
+def _image_row(deployment_id: str, namespace: str, cluster: str, image_name: str, image_id: str) -> dict:
+    return {
+        "deployment_id": deployment_id,
+        "deployment_name": deployment_id,
+        "namespace": namespace,
+        "cluster_name": cluster,
+        "image_name": image_name,
+        "image_id": image_id,
+        "first_seen": None,
+    }
+
+
+def _annotations(data: dict) -> list[tuple[str, str, str | None, str | None]]:
+    return [
+        (d["deployment_id"], d["image_id"], d["risk_acceptance_status"], d["remediation_status"])
+        for d in data["affected_deployments_list"]
+    ]
+
+
+async def test_get_cve_detail_unions_acceptance_scopes_per_deployment_row(team_member_client, patch_sx, mock_app_db):
+    """Every approved scope counts per row; a deployment-mode RA covers all images of that deployment."""
+    from app.models.remediation import RemediationStatus
+    from app.models.risk_acceptance import RiskStatus
+
+    deployment_ra = _acceptance(
+        "ra-dep",
+        RiskStatus.approved,
+        {
+            "mode": "deployment",
+            "targets": [{"cluster_name": "cluster-a", "namespace": "payments", "deployment_id": "dep-api"}],
+        },
+    )
+    image_ra = _acceptance(
+        "ra-img",
+        RiskStatus.approved,
+        {
+            "mode": "image",
+            "targets": [{"cluster_name": "cluster-b", "namespace": "frontend", "image_name": "registry/web:1"}],
+        },
+    )
+    requested_ra = _acceptance(
+        "ra-req",
+        RiskStatus.requested,
+        {"mode": "namespace", "targets": [{"cluster_name": "cluster-a", "namespace": "payments"}]},
+    )
+    _route_detail_records(
+        mock_app_db,
+        acceptances=[deployment_ra, image_ra, requested_ra],
+        remediations=[
+            _remediation("payments", "cluster-a", RemediationStatus.in_progress),
+            # Not an affected pair in scope: never attached to a row.
+            _remediation("other", "cluster-x", RemediationStatus.resolved),
+        ],
+    )
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [
+        _image_row("dep-api", "payments", "cluster-a", "registry/api:1", "sha256:api"),
+        _image_row("dep-api", "payments", "cluster-a", "registry/sidecar:1", "sha256:sidecar"),
+        _image_row("dep-web", "frontend", "cluster-b", "registry/web:1", "sha256:web"),
+        _image_row("dep-worker", "payments", "cluster-a", "registry/worker:1", "sha256:worker"),
+    ]
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["risk_acceptance_status"] == "approved"
+    assert _annotations(data) == [
+        ("dep-api", "sha256:api", "approved", "in_progress"),
+        ("dep-api", "sha256:sidecar", "approved", "in_progress"),
+        ("dep-web", "sha256:web", "approved", None),
+        ("dep-worker", "sha256:worker", "requested", "in_progress"),
+    ]
+
+
+async def test_get_cve_detail_image_acceptance_leaves_other_images_uncovered(team_member_client, patch_sx, mock_app_db):
+    """An image-mode RA covers only its image, even inside the same deployment."""
+    from app.models.risk_acceptance import RiskStatus
+
+    image_ra = _acceptance(
+        "ra-img",
+        RiskStatus.approved,
+        {
+            "mode": "image",
+            "targets": [{"cluster_name": "cluster-a", "namespace": "payments", "image_name": "registry/api:1"}],
+        },
+    )
+    _route_detail_records(mock_app_db, acceptances=[image_ra])
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [
+        _image_row("dep-api", "payments", "cluster-a", "registry/api:1", "sha256:api"),
+        _image_row("dep-api", "payments", "cluster-a", "registry/sidecar:1", "sha256:sidecar"),
+    ]
+
+    resp = await team_member_client.get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    assert _annotations(resp.json()) == [
+        ("dep-api", "sha256:api", "approved", None),
+        ("dep-api", "sha256:sidecar", None, None),
+    ]
+
+
+async def test_get_cve_detail_remediation_annotation_matches_exact_pair(app, patch_sx, mock_app_db):
+    """A remediation annotates only rows of its own (namespace, cluster), never the same name on another cluster."""
+    from app.models.remediation import RemediationStatus
+    from app.models.risk_acceptance import RiskStatus
+    from tests.conftest import make_current_user
+
+    user = make_current_user(is_sec_team=True, has_all_namespaces=True, namespaces=[])
+    patch_sx.list_namespaces.return_value = [
+        {"namespace": "payments", "cluster_name": "cluster-a"},
+        {"namespace": "payments", "cluster_name": "cluster-b"},
+        {"namespace": "frontend", "cluster_name": "cluster-a"},
+    ]
+    namespace_ra = _acceptance(
+        "ra-ns",
+        RiskStatus.approved,
+        {"mode": "namespace", "targets": [{"cluster_name": "cluster-a", "namespace": "frontend"}]},
+    )
+    _route_detail_records(
+        mock_app_db,
+        acceptances=[namespace_ra],
+        remediations=[_remediation("payments", "cluster-a", RemediationStatus.resolved)],
+    )
+    patch_sx.get_cve_detail.return_value = _make_cve_detail_row()
+    patch_sx.get_affected_deployments.return_value = [
+        _image_row("dep-a", "payments", "cluster-a", "registry/app:1", "sha256:app"),
+        _image_row("dep-b", "payments", "cluster-b", "registry/app:1", "sha256:app"),
+        _image_row("dep-f", "frontend", "cluster-a", "registry/app:1", "sha256:app"),
+    ]
+
+    resp = await _client_for(app, user).get("/api/cves/CVE-2024-0001")
+
+    assert resp.status_code == 200
+    assert _annotations(resp.json()) == [
+        ("dep-a", "sha256:app", None, "resolved"),
+        ("dep-b", "sha256:app", None, None),
+        ("dep-f", "sha256:app", "approved", None),
+    ]
+
+
 # -- origin (vulnerability feed, ACS 4.11.6+) --
 
 

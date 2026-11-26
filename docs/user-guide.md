@@ -62,6 +62,17 @@ The normal workflow starts in **Vulnerabilities**.
 
 **Show remediated** also lists CVEs no longer reported anywhere in your selected scope when a resolved (or legacy verified) remediation exists in a namespace and cluster you can see. These rows have a grey FIX badge and no affected deployment count or first-seen date. They bypass score thresholds and suppression; CVEs still reported below the thresholds are not considered fixed. Their links reopen the CVE detail page.
 
+### Workflow status
+
+The **Workflow Status** card on the CVE detail page judges the CVE for the cluster and namespace selected in the sidebar, or for every namespace you can see when nothing is selected. The **Resolved** step is only reached when every affected deployment listed for that scope is covered by an approved risk acceptance or a completed remediation (`resolved`, `wont_fix`, or legacy `verified`).
+
+- Coverage can be mixed: some deployments covered by risk acceptances, others by remediations. Several approved risk acceptances add up.
+- Each vulnerable image of a deployment counts on its own. A risk acceptance with scope `image` covers only that image; scope `deployment` covers all images of that deployment.
+- While only some deployments are covered, the step shows **Partially covered** and the hint asks for a remediation or approved risk acceptance for the rest. A requested risk acceptance shows **Awaiting approval**, an `in_progress` remediation shows **In progress**.
+- Open remediations, requested, rejected, or expired risk acceptances, and false-positive suppressions do not count as coverage. When an approved risk acceptance expires, its deployments count as uncovered again.
+- The result depends on the scope: a CVE can be resolved for one namespace and still open for a wider selection.
+- When RHACS no longer reports the CVE in the scope, the CVE counts as resolved once every remediation you can see for it there is completed.
+
 ### Data sources
 
 RHACS gets vulnerability data from several feeds: Red Hat, OSV (language packages such as Go, npm, or Python), and the Linux distributions (Debian, Ubuntu, Alpine, Oracle Linux, and others). The same CVE is often reported by more than one feed, and the feeds do not always agree on how severe it is.
